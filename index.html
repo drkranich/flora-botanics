@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Flora Botanics</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,16 +12,16 @@
 
   <style>
     :root {
-      --green-dark: #122414;
-      --green: #1d321d;
-      --green-soft: #263c25;
-      --cream: #f3efe4;
-      --cream-2: #ebe4d4;
-      --gold: #b89348;
-      --gold-dark: #98783d;
-      --text: #26261f;
-      --muted: #706958;
-      --white: #fffaf0;
+      --green-900: #0f2012;
+      --green-800: #172b17;
+      --green-700: #21351d;
+      --cream: #f2ecdf;
+      --cream-dark: #e6ddcb;
+      --gold: #b9924d;
+      --gold-dark: #96763f;
+      --text: #28251d;
+      --muted: #5e584b;
+      --white: #fff8ea;
     }
 
     * {
@@ -35,9 +36,13 @@
 
     body {
       font-family: "Montserrat", sans-serif;
-      color: var(--text);
       background: var(--cream);
-      overflow-x: hidden;
+      color: var(--text);
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
     }
 
     a {
@@ -45,112 +50,145 @@
       text-decoration: none;
     }
 
-    img {
-      display: block;
-      width: 100%;
-    }
-
     .container {
-      width: min(1280px, calc(100% - 80px));
+      width: min(1160px, calc(100% - 48px));
       margin: 0 auto;
     }
 
-    /* =========================
-       HEADER / HERO
-    ========================= */
-
-    .hero {
-      position: relative;
-      min-height: 645px;
-      color: var(--cream);
-      background:
-        linear-gradient(
-          90deg,
-          rgba(8, 17, 9, 0.84) 0%,
-          rgba(8, 17, 9, 0.52) 34%,
-          rgba(8, 17, 9, 0.22) 62%,
-          rgba(8, 17, 9, 0.42) 100%
-        ),
-        url("assets/hero-floresta.jpg") center / cover no-repeat;
-      overflow: hidden;
-    }
-
-    .header {
-      position: relative;
-      z-index: 5;
-      height: 104px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    /* LOGO */
 
     .logo {
       display: inline-flex;
       flex-direction: column;
       align-items: center;
+      color: #efe4cc;
       line-height: 1;
-      color: #f3ead7;
-      min-width: 180px;
     }
 
-    .logo-word {
-      font-size: 56px;
-      letter-spacing: -4px;
+    .logo-main {
+      font-size: 52px;
       font-weight: 900;
-      line-height: 0.8;
+      letter-spacing: -4px;
     }
 
-    .logo-o {
-      position: relative;
+    .logo-symbol {
       display: inline-flex;
-      width: 42px;
-      height: 42px;
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
-      background: #f3ead7;
+      background: #efe4cc;
+      vertical-align: -5px;
       margin: 0 -2px;
-      vertical-align: -4px;
       align-items: center;
       justify-content: center;
     }
 
-    .logo-o::before {
+    .logo-symbol::before {
       content: "";
-      width: 18px;
-      height: 18px;
+      width: 15px;
+      height: 15px;
       border-radius: 50%;
-      background: var(--green-dark);
+      background: var(--green-900);
       box-shadow:
-        0 -10px 0 -6px var(--green-dark),
-        0 10px 0 -6px var(--green-dark),
-        10px 0 0 -6px var(--green-dark),
-        -10px 0 0 -6px var(--green-dark),
-        7px 7px 0 -6px var(--green-dark),
-        -7px -7px 0 -6px var(--green-dark),
-        7px -7px 0 -6px var(--green-dark),
-        -7px 7px 0 -6px var(--green-dark);
+        0 -9px 0 -5px var(--green-900),
+        0 9px 0 -5px var(--green-900),
+        9px 0 0 -5px var(--green-900),
+        -9px 0 0 -5px var(--green-900),
+        6px 6px 0 -5px var(--green-900),
+        -6px -6px 0 -5px var(--green-900),
+        6px -6px 0 -5px var(--green-900),
+        -6px 6px 0 -5px var(--green-900);
     }
 
     .logo-sub {
-      margin-top: 8px;
-      font-size: 18px;
+      margin-top: 7px;
+      font-size: 16px;
       font-weight: 500;
-      letter-spacing: 1.2px;
+      letter-spacing: 1.3px;
+    }
+
+    /* BUTTONS */
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 30px;
+      background: var(--gold);
+      color: var(--white);
+      border: 0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: 0.25s ease;
+    }
+
+    .btn:hover {
+      background: var(--gold-dark);
+    }
+
+    .link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid currentColor;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .link::after {
+      content: "›";
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    /* HERO */
+
+    .hero {
+      min-height: 640px;
+      position: relative;
+      overflow: hidden;
+      color: var(--white);
+      background:
+        linear-gradient(
+          90deg,
+          rgba(10, 22, 11, 0.90) 0%,
+          rgba(10, 22, 11, 0.70) 36%,
+          rgba(10, 22, 11, 0.32) 66%,
+          rgba(10, 22, 11, 0.58) 100%
+        ),
+        url("assets/hero-floresta.jpg");
+      background-size: cover;
+      background-position: center;
+    }
+
+    .header {
+      height: 104px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 4;
     }
 
     .nav {
       display: flex;
+      gap: 38px;
       align-items: center;
-      gap: 48px;
-      margin-left: 80px;
     }
 
     .nav a {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 1.3px;
+      color: #f6ecd7;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
       text-transform: uppercase;
-      color: #f5ecd7;
-      opacity: 0.96;
     }
 
     .nav a:hover {
@@ -160,269 +198,220 @@
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 17px;
     }
 
-    .icon-btn {
+    .icon {
       width: 21px;
       height: 21px;
-      color: #f3ead7;
+      stroke: #f6ecd7;
+      stroke-width: 1.7;
+      fill: none;
     }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: none;
-      cursor: pointer;
-      background: var(--gold);
-      color: #fff7e8;
-      font-family: "Montserrat", sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      padding: 17px 31px;
-      transition: 0.25s ease;
-    }
-
-    .btn:hover {
-      background: var(--gold-dark);
-      transform: translateY(-1px);
-    }
-
-    .hero-content {
+    .hero-inner {
       position: relative;
       z-index: 3;
-      padding-top: 78px;
-      max-width: 430px;
-      margin-left: 74px;
+      padding-top: 85px;
+    }
+
+    .hero-text {
+      max-width: 420px;
     }
 
     .hero h1 {
       font-family: "Cormorant Garamond", serif;
-      font-weight: 500;
       font-size: 58px;
       line-height: 0.96;
-      letter-spacing: -1.4px;
-      color: #f6efe3;
+      font-weight: 500;
+      letter-spacing: -1.3px;
       margin-bottom: 24px;
     }
 
     .hero p {
-      font-size: 19px;
-      line-height: 1.38;
+      max-width: 390px;
+      font-size: 18px;
+      line-height: 1.45;
       font-weight: 500;
-      color: #fff7e9;
       margin-bottom: 28px;
     }
 
     .hero-products {
       position: absolute;
+      right: 5%;
+      bottom: 38px;
+      width: min(670px, 56vw);
       z-index: 2;
-      right: 74px;
-      bottom: 45px;
-      width: 710px;
-      max-width: 58vw;
-      pointer-events: none;
+      filter: drop-shadow(0 28px 42px rgba(0, 0, 0, 0.42));
     }
 
-    .hero-products img {
-      object-fit: contain;
-      filter: drop-shadow(0 24px 40px rgba(0,0,0,0.38));
-    }
-
-    /* =========================
-       CATEGORIES
-    ========================= */
-
-    .section-title {
-      text-align: center;
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: 2.8px;
-      color: #27251f;
-      text-transform: uppercase;
-    }
+    /* CATEGORIES */
 
     .categories {
       background: var(--cream);
-      padding: 26px 0 31px;
+      padding: 26px 0 34px;
     }
 
-    .title-line {
+    .section-heading {
+      text-align: center;
+      margin-bottom: 38px;
+    }
+
+    .section-heading h2 {
       position: relative;
-      margin-bottom: 36px;
+      display: inline-block;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 2.8px;
+      text-transform: uppercase;
+      color: #29261e;
     }
 
-    .title-line::after {
+    .section-heading h2::after {
       content: "";
+      width: 70px;
+      height: 1px;
+      background: rgba(40, 37, 29, 0.35);
       position: absolute;
       left: 50%;
-      bottom: -17px;
+      bottom: -15px;
       transform: translateX(-50%);
-      width: 68px;
-      height: 1px;
-      background: rgba(37, 35, 29, 0.35);
     }
 
     .category-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 42px;
-      padding-top: 3px;
+      gap: 34px;
     }
 
     .category-card img {
-      height: 198px;
+      width: 100%;
+      height: 176px;
       object-fit: cover;
-      margin-bottom: 15px;
+      background: #d9d0bd;
+      margin-bottom: 14px;
     }
 
     .category-card h3 {
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 700;
-      letter-spacing: 2px;
+      letter-spacing: 1.7px;
+      color: #684b2c;
       text-transform: uppercase;
-      margin-bottom: 8px;
-      color: #4a3828;
+      margin-bottom: 7px;
     }
 
     .category-card p {
       font-size: 13px;
       line-height: 1.45;
-      color: #3b372e;
-      max-width: 240px;
-      margin-bottom: 17px;
+      max-width: 230px;
+      margin-bottom: 14px;
+      color: #383329;
     }
 
-    .link {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      border-bottom: 1px solid rgba(38,38,31,0.65);
-      padding-bottom: 3px;
-    }
-
-    .link::after {
-      content: "›";
-      font-size: 18px;
-      line-height: 1;
-      margin-top: -2px;
-    }
-
-    /* =========================
-       INGREDIENTS
-    ========================= */
+    /* INGREDIENTS */
 
     .ingredients {
-      background: var(--cream-2);
-      padding: 45px 0 54px;
+      background: var(--cream-dark);
+      padding: 44px 0 50px;
     }
 
-    .ingredients-wrap {
+    .ingredients-layout {
       display: grid;
-      grid-template-columns: 280px 1fr;
-      gap: 50px;
+      grid-template-columns: 270px 1fr;
+      gap: 55px;
       align-items: center;
     }
 
-    .ingredients-copy h2 {
+    .ingredients-text h2 {
       font-family: "Cormorant Garamond", serif;
+      font-size: 36px;
       font-weight: 500;
-      font-size: 35px;
       line-height: 1.02;
-      letter-spacing: -0.5px;
       text-transform: uppercase;
-      color: #25251e;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
+      color: #2a271f;
     }
 
-    .ingredients-copy p {
+    .ingredients-text p {
       font-size: 13px;
       line-height: 1.55;
-      color: #37342b;
-      margin-bottom: 28px;
+      color: #383329;
+      margin-bottom: 24px;
     }
 
-    .ingredient-list {
+    .ingredient-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 42px;
-      align-items: start;
+      gap: 26px;
     }
 
-    .ingredient {
+    .ingredient-card {
       text-align: center;
     }
 
-    .ingredient img {
-      width: 128px;
-      height: 128px;
+    .ingredient-card img {
+      width: 124px;
+      height: 124px;
       border-radius: 50%;
       object-fit: cover;
-      margin: 0 auto 17px;
+      margin: 0 auto 15px;
+      background: #cbbda1;
     }
 
-    .ingredient h3 {
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: #6d4e2e;
-      margin-bottom: 7px;
-    }
-
-    .ingredient p {
+    .ingredient-card h3 {
       font-size: 12px;
-      line-height: 1.42;
-      color: #37342b;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: #6d4d2d;
+      margin-bottom: 6px;
+    }
+
+    .ingredient-card p {
       max-width: 130px;
       margin: 0 auto;
+      font-size: 12px;
+      line-height: 1.38;
+      color: #373229;
     }
 
-    /* =========================
-       MANIFESTO
-    ========================= */
+    /* MANIFESTO */
 
     .manifesto {
-      position: relative;
       min-height: 315px;
-      color: var(--cream);
+      color: var(--white);
       background:
         linear-gradient(
           90deg,
-          rgba(16, 31, 16, 0.96) 0%,
-          rgba(16, 31, 16, 0.86) 31%,
-          rgba(16, 31, 16, 0.18) 62%,
-          rgba(16, 31, 16, 0.34) 100%
+          rgba(13, 30, 14, 0.96) 0%,
+          rgba(13, 30, 14, 0.88) 35%,
+          rgba(13, 30, 14, 0.32) 62%,
+          rgba(13, 30, 14, 0.45) 100%
         ),
-        url("assets/manifesto-modelo.jpg") center / cover no-repeat;
+        url("assets/manifesto-modelo.jpg");
+      background-size: cover;
+      background-position: center;
     }
 
-    .manifesto .container {
+    .manifesto-inner {
       min-height: 315px;
       display: flex;
       align-items: center;
     }
 
-    .manifesto-copy {
-      max-width: 520px;
+    .manifesto-text {
+      max-width: 500px;
     }
 
     .eyebrow {
-      position: relative;
       display: inline-block;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--gold);
+      position: relative;
       margin-bottom: 26px;
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
     }
 
     .eyebrow::after {
@@ -430,116 +419,625 @@
       position: absolute;
       left: 0;
       bottom: -12px;
-      width: 68px;
+      width: 70px;
       height: 1px;
       background: var(--gold);
     }
 
     .manifesto h2 {
       font-family: "Cormorant Garamond", serif;
-      font-size: 43px;
-      font-weight: 500;
+      font-size: 42px;
       line-height: 1;
-      letter-spacing: -0.6px;
-      color: #f4ead7;
-      margin-bottom: 18px;
+      font-weight: 500;
+      margin-bottom: 16px;
     }
 
     .manifesto p {
+      max-width: 410px;
       font-size: 13px;
       line-height: 1.55;
-      color: #f8efdf;
-      max-width: 410px;
-      margin-bottom: 23px;
+      margin-bottom: 22px;
     }
 
     .manifesto .link {
-      color: #f4ead7;
-      border-bottom-color: rgba(244,234,215,0.75);
+      color: var(--white);
     }
 
-    /* =========================
-       BENEFITS
-    ========================= */
+    /* BENEFITS */
 
     .benefits {
       background: var(--cream);
-      padding: 26px 0 30px;
-      border-bottom: 1px solid rgba(49,43,31,0.15);
+      padding: 28px 0;
     }
 
     .benefit-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 32px;
+      gap: 26px;
     }
 
-    .benefit {
+    .benefit-card {
       display: grid;
-      grid-template-columns: 44px 1fr;
-      gap: 18px;
+      grid-template-columns: 38px 1fr;
+      gap: 15px;
       align-items: start;
     }
 
-    .benefit svg {
-      width: 42px;
-      height: 42px;
-      color: var(--gold-dark);
-      stroke-width: 1.4;
+    .benefit-card svg {
+      width: 38px;
+      height: 38px;
+      stroke: var(--gold-dark);
+      fill: none;
+      stroke-width: 1.5;
     }
 
-    .benefit h3 {
-      font-size: 12px;
+    .benefit-card h3 {
+      font-size: 11px;
       font-weight: 700;
-      line-height: 1.3;
-      letter-spacing: 1.8px;
+      line-height: 1.35;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: #6e5636;
-      margin-bottom: 8px;
+      color: #6e5637;
+      margin-bottom: 6px;
     }
 
-    .benefit p {
-      font-size: 12px;
-      line-height: 1.42;
-      color: #453f34;
+    .benefit-card p {
+      font-size: 11px;
+      line-height: 1.45;
+      color: #4c4538;
     }
 
-    /* =========================
-       NEWSLETTER
-    ========================= */
+    /* NEWSLETTER */
 
     .newsletter {
-      position: relative;
-      color: var(--cream);
+      color: var(--white);
+      padding: 44px 0;
       background:
         linear-gradient(
           90deg,
-          rgba(14, 31, 17, 0.96) 0%,
-          rgba(14, 31, 17, 0.9) 45%,
-          rgba(14, 31, 17, 0.46) 68%,
-          rgba(14, 31, 17, 0.24) 100%
+          rgba(12, 29, 13, 0.96) 0%,
+          rgba(12, 29, 13, 0.88) 46%,
+          rgba(12, 29, 13, 0.45) 75%,
+          rgba(12, 29, 13, 0.25) 100%
         ),
-        url("assets/newsletter-contagotas.jpg") right center / cover no-repeat;
-      padding: 43px 0 48px;
+        url("assets/newsletter-contagotas.jpg");
+      background-size: cover;
+      background-position: center right;
     }
 
-    .newsletter-grid {
+    .newsletter-layout {
       display: grid;
       grid-template-columns: 310px 1fr;
-      gap: 95px;
+      gap: 80px;
       align-items: center;
     }
 
     .newsletter h2 {
       font-family: "Cormorant Garamond", serif;
-      font-weight: 500;
-      font-size: 39px;
+      font-size: 38px;
       line-height: 1.04;
-      letter-spacing: -0.4px;
-      color: #f4ead7;
-      margin-bottom: 20px;
+      font-weight: 500;
+      margin-bottom: 18px;
     }
 
     .newsletter p {
       font-size: 13px;
-      line-height:
+      line-height: 1.55;
+    }
+
+    .newsletter-form {
+      display: flex;
+      max-width: 610px;
+      height: 54px;
+      border: 1px solid var(--gold);
+      margin-bottom: 24px;
+    }
+
+    .newsletter-form input {
+      flex: 1;
+      border: 0;
+      outline: 0;
+      background: rgba(13, 30, 14, 0.8);
+      color: var(--white);
+      padding: 0 22px;
+      font-family: "Montserrat", sans-serif;
+      font-size: 12px;
+    }
+
+    .newsletter-form input::placeholder {
+      color: #f4ead7;
+    }
+
+    .newsletter-form button {
+      width: 205px;
+      border: 0;
+      background: var(--gold);
+      color: var(--white);
+      font-family: "Montserrat", sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .newsletter-form button:hover {
+      background: var(--gold-dark);
+    }
+
+    .newsletter-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(190px, 1fr));
+      gap: 14px 40px;
+      max-width: 610px;
+    }
+
+    .newsletter-list span {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .newsletter-list span::before {
+      content: "✓";
+      color: var(--gold);
+      font-size: 20px;
+    }
+
+    /* FOOTER */
+
+    .footer {
+      background: linear-gradient(120deg, #142614, #20331e);
+      color: #efe4cc;
+      padding: 38px 0 20px;
+    }
+
+    .footer-layout {
+      display: grid;
+      grid-template-columns: 260px repeat(4, 1fr);
+      gap: 42px;
+      align-items: start;
+    }
+
+    .footer .logo {
+      align-items: flex-start;
+      transform: scale(0.82);
+      transform-origin: left top;
+    }
+
+    .footer h4 {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+
+    .footer ul {
+      list-style: none;
+    }
+
+    .footer li {
+      font-size: 10px;
+      line-height: 1.8;
+      color: #efe4cc;
+    }
+
+    .socials {
+      display: flex;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .socials a {
+      width: 24px;
+      height: 24px;
+      border: 1px solid #efe4cc;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .copyright {
+      text-align: center;
+      font-size: 10px;
+      color: rgba(239, 228, 204, 0.75);
+      margin-top: 24px;
+    }
+
+    /* RESPONSIVE */
+
+    @media (max-width: 980px) {
+      .nav {
+        display: none;
+      }
+
+      .hero-products {
+        opacity: 0.65;
+        width: 620px;
+        right: -120px;
+      }
+
+      .category-grid,
+      .ingredient-grid,
+      .benefit-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .ingredients-layout,
+      .newsletter-layout,
+      .footer-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        width: min(100% - 32px, 1160px);
+      }
+
+      .hero {
+        min-height: 720px;
+      }
+
+      .header {
+        height: 92px;
+      }
+
+      .logo-main {
+        font-size: 40px;
+      }
+
+      .logo-symbol {
+        width: 29px;
+        height: 29px;
+      }
+
+      .logo-sub {
+        font-size: 12px;
+      }
+
+      .header-actions .btn {
+        display: none;
+      }
+
+      .hero h1 {
+        font-size: 44px;
+      }
+
+      .hero-products {
+        width: 520px;
+        max-width: none;
+        right: -200px;
+        bottom: 25px;
+      }
+
+      .category-grid,
+      .ingredient-grid,
+      .benefit-grid,
+      .newsletter-list {
+        grid-template-columns: 1fr;
+      }
+
+      .newsletter-form {
+        height: auto;
+        flex-direction: column;
+      }
+
+      .newsletter-form input,
+      .newsletter-form button {
+        width: 100%;
+        height: 54px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <section class="hero">
+    <header class="header container">
+      <a href="#" class="logo">
+        <span class="logo-main">FL<span class="logo-symbol"></span>RA</span>
+        <span class="logo-sub">BOTANICS</span>
+      </a>
+
+      <nav class="nav">
+        <a href="#">Início</a>
+        <a href="#produtos">Produtos</a>
+        <a href="#ingredientes">Ingredientes</a>
+        <a href="#sobre">Sobre Nós</a>
+        <a href="#sustentabilidade">Sustentabilidade</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#" aria-label="Conta">
+          <svg class="icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="7" r="4"></circle>
+            <path d="M4 21a8 8 0 0 1 16 0"></path>
+          </svg>
+        </a>
+
+        <a href="#" aria-label="Sacola">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M6 8h12l-1 13H7L6 8Z"></path>
+            <path d="M9 8a3 3 0 0 1 6 0"></path>
+          </svg>
+        </a>
+
+        <a href="#" class="btn">Avise-me</a>
+      </div>
+    </header>
+
+    <div class="container hero-inner">
+      <div class="hero-text">
+        <h1>Cosméticos inspirados pela biodiversidade brasileira.</h1>
+        <p>Fórmulas botânicas que unem ciência, natureza e sofisticação.</p>
+        <a href="#produtos" class="btn">Conheça a coleção</a>
+      </div>
+    </div>
+
+    <img
+      class="hero-products"
+      src="assets/hero-produtos.png"
+      alt="Produtos Flora Botanics"
+      onerror="this.style.display='none'"
+    >
+  </section>
+
+  <section class="categories" id="produtos">
+    <div class="container">
+      <div class="section-heading">
+        <h2>Cuidado que vem da natureza</h2>
+      </div>
+
+      <div class="category-grid">
+        <article class="category-card">
+          <img src="assets/cat-seruns.jpg" alt="Sérums" onerror="this.style.visibility='hidden'">
+          <h3>Sérums</h3>
+          <p>Tratamentos concentrados para resultados reais.</p>
+          <a href="#" class="link">Ver produtos</a>
+        </article>
+
+        <article class="category-card">
+          <img src="assets/cat-hidratantes.jpg" alt="Hidratantes" onerror="this.style.visibility='hidden'">
+          <h3>Hidratantes</h3>
+          <p>Nutrição profunda com toques da floresta.</p>
+          <a href="#" class="link">Ver produtos</a>
+        </article>
+
+        <article class="category-card">
+          <img src="assets/cat-limpadores.jpg" alt="Limpadores" onerror="this.style.visibility='hidden'">
+          <h3>Limpadores</h3>
+          <p>Limpeza eficaz e gentil com a pele.</p>
+          <a href="#" class="link">Ver produtos</a>
+        </article>
+
+        <article class="category-card">
+          <img src="assets/cat-oleos.jpg" alt="Óleos Botânicos" onerror="this.style.visibility='hidden'">
+          <h3>Óleos Botânicos</h3>
+          <p>Ricos em ativos naturais e antioxidantes.</p>
+          <a href="#" class="link">Ver produtos</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="ingredients" id="ingredientes">
+    <div class="container ingredients-layout">
+      <div class="ingredients-text">
+        <h2>Da floresta<br>para a sua pele</h2>
+        <p>
+          Selecionamos ingredientes botânicos brasileiros com alto poder de
+          transformação para criar fórmulas únicas e eficazes.
+        </p>
+        <a href="#" class="link">Conheça os ingredientes</a>
+      </div>
+
+      <div class="ingredient-grid">
+        <article class="ingredient-card">
+          <img src="assets/ing-andiroba.jpg" alt="Andiroba" onerror="this.style.visibility='hidden'">
+          <h3>Andiroba</h3>
+          <p>Regenera e acalma a pele.</p>
+        </article>
+
+        <article class="ingredient-card">
+          <img src="assets/ing-buriti.jpg" alt="Buriti" onerror="this.style.visibility='hidden'">
+          <h3>Buriti</h3>
+          <p>Rico em betacaroteno e antioxidantes.</p>
+        </article>
+
+        <article class="ingredient-card">
+          <img src="assets/ing-pracaxi.jpg" alt="Pracaxi" onerror="this.style.visibility='hidden'">
+          <h3>Pracaxi</h3>
+          <p>Nutre e melhora a elasticidade.</p>
+        </article>
+
+        <article class="ingredient-card">
+          <img src="assets/ing-cupuacu.jpg" alt="Cupuaçu" onerror="this.style.visibility='hidden'">
+          <h3>Cupuaçu</h3>
+          <p>Hidrata profundamente e protege.</p>
+        </article>
+
+        <article class="ingredient-card">
+          <img src="assets/ing-acai.jpg" alt="Açaí" onerror="this.style.visibility='hidden'">
+          <h3>Açaí</h3>
+          <p>Ação antioxidante e revitalizante.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="manifesto" id="sobre">
+    <div class="container manifesto-inner">
+      <div class="manifesto-text">
+        <span class="eyebrow">Nosso Manifesto</span>
+        <h2>Beleza que respeita,<br>cuidado que transforma.</h2>
+        <p>
+          Acreditamos que o cuidado da pele é um retorno ao essencial. Cada
+          fórmula nasce da riqueza botânica brasileira e do respeito às
+          comunidades que preservam esse patrimônio.
+        </p>
+        <a href="#" class="link">Conheça nossa história</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="benefits" id="sustentabilidade">
+    <div class="container benefit-grid">
+      <article class="benefit-card">
+        <svg viewBox="0 0 48 48">
+          <path d="M24 43V12"></path>
+          <path d="M24 14C16 18 12 25 13 34c7-1 11-7 11-20Z"></path>
+          <path d="M24 19c8 3 12 9 12 18-7-1-11-7-12-18Z"></path>
+        </svg>
+        <div>
+          <h3>Ingredientes<br>Naturais</h3>
+          <p>Rastreáveis e sustentáveis.</p>
+        </div>
+      </article>
+
+      <article class="benefit-card">
+        <svg viewBox="0 0 48 48">
+          <path d="M24 43V8"></path>
+          <path d="M24 19c-8 3-12 9-11 17 7-1 11-6 11-17Z"></path>
+          <path d="M24 21c8 3 12 9 11 17-7-1-11-6-11-17Z"></path>
+          <path d="M24 8l5 8H19l5-8Z"></path>
+        </svg>
+        <div>
+          <h3>Vegano</h3>
+          <p>Sem ingredientes de origem animal.</p>
+        </div>
+      </article>
+
+      <article class="benefit-card">
+        <svg viewBox="0 0 48 48">
+          <path d="M16 29c-3 1-5 4-5 7 0 5 4 8 10 8h9c5 0 8-3 8-7 0-3-2-6-5-7"></path>
+          <path d="M17 29c-2-8 2-17 9-19 6 3 8 11 5 18"></path>
+          <path d="M19 22c-5-1-8-5-8-10 6 0 10 4 11 9"></path>
+        </svg>
+        <div>
+          <h3>Cruelty Free</h3>
+          <p>Não testamos em animais.</p>
+        </div>
+      </article>
+
+      <article class="benefit-card">
+        <svg viewBox="0 0 48 48">
+          <path d="M18 5h12"></path>
+          <path d="M21 5v14L11 39c-1 2 1 4 3 4h20c2 0 4-2 3-4L27 19V5"></path>
+          <path d="M17 32h14"></path>
+        </svg>
+        <div>
+          <h3>Ciência + Natureza</h3>
+          <p>Fórmulas eficazes com ativos botânicos.</p>
+        </div>
+      </article>
+
+      <article class="benefit-card">
+        <svg viewBox="0 0 48 48">
+          <path d="M14 13h20v29H14z"></path>
+          <path d="M19 13V7h10v6"></path>
+          <path d="M34 30c5-4 8-10 8-18-9 1-15 7-16 16"></path>
+        </svg>
+        <div>
+          <h3>Embalagens<br>Sustentáveis</h3>
+          <p>Menos impacto, mais futuro.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="newsletter">
+    <div class="container newsletter-layout">
+      <div>
+        <h2>Receba acesso<br>antecipado</h2>
+        <p>
+          Cadastre-se e seja a primeira pessoa a conhecer nossos lançamentos,
+          receber conteúdos exclusivos e benefícios especiais.
+        </p>
+      </div>
+
+      <div>
+        <form class="newsletter-form">
+          <input type="email" placeholder="Seu melhor e-mail" required>
+          <button type="submit">Quero receber</button>
+        </form>
+
+        <div class="newsletter-list">
+          <span>Desconto de lançamento</span>
+          <span>Acesso antecipado</span>
+          <span>Amostras exclusivas</span>
+          <span>Conteúdos sobre skincare</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-layout">
+      <a href="#" class="logo">
+        <span class="logo-main">FL<span class="logo-symbol"></span>RA</span>
+        <span class="logo-sub">BOTANICS</span>
+      </a>
+
+      <div>
+        <h4>Produtos</h4>
+        <ul>
+          <li>Sérums</li>
+          <li>Hidratantes</li>
+          <li>Limpadores</li>
+          <li>Óleos Botânicos</li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Institucional</h4>
+        <ul>
+          <li>Sobre Nós</li>
+          <li>Ingredientes</li>
+          <li>Sustentabilidade</li>
+          <li>Blog</li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Ajuda</h4>
+        <ul>
+          <li>Perguntas Frequentes</li>
+          <li>Trocas e Devoluções</li>
+          <li>Política de Privacidade</li>
+          <li>Fale Conosco</li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Siga-nos</h4>
+        <div class="socials">
+          <a href="#">◎</a>
+          <a href="#">f</a>
+          <a href="#">p</a>
+        </div>
+      </div>
+    </div>
+
+    <p class="copyright">© 2024 Flora Botanics. Todos os direitos reservados.</p>
+  </footer>
+
+  <script>
+    document.querySelector(".newsletter-form").addEventListener("submit", function(event) {
+      event.preventDefault();
+      alert("Cadastro recebido com sucesso!");
+    });
+  </script>
+
+</body>
+</html>
