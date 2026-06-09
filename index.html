@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Flora Botanics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green-dark: #2c3a2e;
+      --green-mid: #3d5c3a;
+      --gold: #b8963e;
+      --gold-light: #d4aa55;
+      --cream: #f5f0e8;
+      --cream-dark: #ede6d6;
+      --text-dark: #1a2218;
+      --text-mid: #4a5548;
+      --text-light: #7a8a78;
+      --white: #ffffff;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--white);
+      color: var(--text-dark);
+    }
+
+    /* ===== NAVBAR ===== */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 60px;
+      background: rgba(26, 34, 24, 0.85);
+      backdrop-filter: blur(10px);
+      transition: background 0.3s;
+    }
+
+    .nav-logo {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
+    }
+
+    .nav-logo .logo-main {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--cream);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .nav-logo .logo-main span {
+      color: var(--gold);
+    }
+
+    .nav-logo .logo-sub {
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: var(--cream);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .nav-links {
+      display: flex;
+      list-style: none;
+      gap: 36px;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--cream);
+      transition: color 0.3s;
+    }
+
+    .nav-links a:hover { color: var(--gold); }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .nav-actions .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--cream);
+      font-size: 18px;
+      transition: color 0.3s;
+    }
+
+    .nav-actions .icon-btn:hover { color: var(--gold); }
+
+    .btn-avise {
+      background: var(--gold);
+      color: var(--white);
+      border: none;
+      padding: 10px 22px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn-avise:hover { background: var(--gold-light); }
+
+    /* ===== HERO ===== */
+    .hero {
+      position: relative;
+      height: 100vh;
+      min-height: 650px;
+      background: linear-gradient(135deg, #1a2c1a 0%, #2c4a2a 40%, #3a5c30 70%, #2a4020 100%);
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .hero-bg-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 70% 50%, rgba(60,90,40,0.4) 0%, rgba(20,35,18,0.7) 100%);
+      z-index: 1;
+    }
+
+    /* Decorative leaf shapes */
+    .hero::before {
+      content: '';
+      position: absolute;
+      right: -80px;
+      top: -80px;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(80,120,50,0.25) 0%, transparent 70%);
+      z-index: 1;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 520px;
+      padding-left: 100px;
+    }
+
+    .hero-content h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(36px, 4.5vw, 56px);
+      font-weight: 700;
+      color: var(--cream);
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .hero-content p {
+      font-size: 16px;
+      color: rgba(245,240,232,0.75);
+      line-height: 1.7;
+      margin-bottom: 36px;
+      max-width: 380px;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--white);
+      padding: 14px 32px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: var(--gold-light);
+      transform: translateY(-1px);
+    }
+
+    .hero-products {
+      position: absolute;
+      right: 8%;
+      bottom: 0;
+      z-index: 2;
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      height: 75%;
+    }
+
+    .hero-product-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    /* Simulated product bottles */
+    .bottle {
+      border-radius: 8px 8px 4px 4px;
+      background: linear-gradient(180deg, #1e2e1a 0%, #2a4020 100%);
+      border: 1px solid rgba(184,150,62,0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 10px;
+      position: relative;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .bottle .bottle-label {
+      font-family: 'Playfair Display', serif;
+      font-size: 7px;
+      color: var(--cream);
+      letter-spacing: 1px;
+      text-align: center;
+      text-transform: uppercase;
+      line-height: 1.4;
+      padding: 0 6px;
+    }
+
+    .bottle .bottle-label .brand {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--gold-light);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .bottle-dropper { width: 55px; height: 160px; }
+    .bottle-dropper::before {
+      content: '';
+      position: absolute;
+      top: -30px; left: 50%; transform: translateX(-50%);
+      width: 4px; height: 35px;
+      background: linear-gradient(to bottom, #ccc, #888);
+      border-radius: 2px;
+    }
+    .bottle-dropper::after {
+      content: '';
+      position: absolute;
+      top: -42px; left: 50%; transform: translateX(-50%);
+      width: 14px; height: 16px;
+      background: radial-gradient(circle, #ddd, #999);
+      border-radius: 50% 50% 40% 40%;
+    }
+
+    .bottle-pump { width: 60px; height: 185px; }
+    .bottle-pump::before {
+      content: '';
+      position: absolute;
+      top: -40px; left: 50%; transform: translateX(-50%);
+      width: 5px; height: 42px;
+      background: linear-gradient(to bottom, #aaa, #777);
+      border-radius: 2px;
+    }
+    .bottle-pump::after {
+      content: '';
+      position: absolute;
+      top: -48px; left: 50%; transform: translateX(-50%);
+      width: 22px; height: 12px;
+      background: linear-gradient(to right, #ccc, #999);
+      border-radius: 3px;
+    }
+
+    .bottle-jar { width: 75px; height: 65px; border-radius: 4px; }
+    .bottle-jar-lid {
+      position: absolute;
+      top: -16px; left: 0; right: 0;
+      height: 18px;
+      background: linear-gradient(180deg, #c9a840 0%, #9a7830 100%);
+      border-radius: 4px 4px 0 0;
+    }
+
+    .bottle-tall { width: 50px; height: 200px; }
+    .bottle-tall::before {
+      content: '';
+      position: absolute;
+      top: -38px; left: 50%; transform: translateX(-50%);
+      width: 5px; height: 40px;
+      background: linear-gradient(to bottom, #aaa, #777);
+      border-radius: 2px;
+    }
+    .bottle-tall::after {
+      content: '';
+      position: absolute;
+      top: -46px; left: 50%; transform: translateX(-50%);
+      width: 20px; height: 12px;
+      background: linear-gradient(to right, #ccc, #999);
+      border-radius: 3px;
+    }
+
+    /* ===== CATEGORIES ===== */
+    .categories {
+      background: var(--cream);
+      padding: 80px 60px;
+    }
+
+    .section-label {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 50px;
+    }
+
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 30px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .category-card {
+      cursor: pointer;
+    }
+
+    .category-img {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: var(--cream-dark);
+      overflow: hidden;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .category-img-inner {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
+    }
+
+    .category-card:hover .category-img-inner {
+      transform: scale(1.05);
+    }
+
+    /* Placeholder color blocks for category images */
+    .cat-serum { background: linear-gradient(135deg, #2d4a2a, #4a7040); }
+    .cat-hidra  { background: linear-gradient(135deg, #5c6b3a, #8a9a5a); }
+    .cat-limp   { background: linear-gradient(135deg, #1e3a2a, #3a6050); }
+    .cat-oleo   { background: linear-gradient(135deg, #3a3010, #7a6020); }
+
+    .cat-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 1px;
+    }
+
+    .category-card h3 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+    }
+
+    .category-card p {
+      font-size: 13px;
+      color: var(--text-mid);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .link-arrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-dark);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.3s, gap 0.3s;
+    }
+
+    .link-arrow:hover {
+      color: var(--gold);
+      gap: 10px;
+    }
+
+    /* ===== INGREDIENTS ===== */
+    .ingredients {
+      background: var(--white);
+      padding: 80px 60px;
+      display: flex;
+      align-items: flex-start;
+      gap: 80px;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    .ingredients-text { flex: 0 0 280px; }
+
+    .ingredients-text h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(28px, 3vw, 40px);
+      font-weight: 700;
+      color: var(--text-dark);
+      line-height: 1.2;
+      margin-bottom: 18px;
+    }
+
+    .ingredients-text p {
+      font-size: 14px;
+      color: var(--text-mid);
+      line-height: 1.8;
+      margin-bottom: 24px;
+    }
+
+    .ingredients-grid {
+      flex: 1;
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+
+    .ingredient-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 130px;
+    }
+
+    .ingredient-circle {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin-bottom: 14px;
+      border: 2px solid var(--cream-dark);
+    }
+
+    .ingredient-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+
+    .ing-andiroba  { background: linear-gradient(135deg, #5a4a2a, #8a7040); }
+    .ing-buriti    { background: linear-gradient(135deg, #8a4a10, #c07030); }
+    .ing-pracaxi   { background: linear-gradient(135deg, #3a2a1a, #6a5030); }
+    .ing-cupuacu   { background: linear-gradient(135deg, #7a6040, #b09060); }
+    .ing-acai      { background: linear-gradient(135deg, #1a0a2a, #4a2060); }
+
+    .ingredient-item h4 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dark);
+      margin-bottom: 6px;
+    }
+
+    .ingredient-item p {
+      font-size: 12px;
+      color: var(--text-mid);
+      line-height: 1.5;
+    }
+
+    /* ===== MANIFESTO ===== */
+    .manifesto {
+      position: relative;
+      min-height: 520px;
+      background: linear-gradient(135deg, #1a2c1a 0%, #2c4a20 60%, #3a5c28 100%);
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .manifesto-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(20,35,18,0.95) 0%, rgba(20,35,18,0.6) 50%, transparent 100%);
+      z-index: 1;
+    }
+
+    .manifesto-image-area {
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 55%;
+      background: linear-gradient(135deg, #2a4020, #3a6030, #4a7040);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .manifesto-face {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at 60% 40%, rgba(100,140,60,0.3) 0%, rgba(30,50,20,0.8) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .manifesto-face-inner {
+      width: 280px;
+      height: 360px;
+      border-radius: 50% 50% 40% 40%;
+      background: linear-gradient(180deg, #c4956a 0%, #a07850 40%, #8a6040 100%);
+      opacity: 0.6;
+      box-shadow: 0 0 80px rgba(150,120,70,0.3);
+    }
+
+    .manifesto-content {
+      position: relative;
+      z-index: 2;
+      padding: 80px 100px;
+      max-width: 600px;
+    }
+
+    .manifesto-tag {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 20px;
+    }
+
+    .manifesto-content h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(30px, 3.5vw, 48px);
+      font-weight: 700;
+      color: var(--cream);
+      line-height: 1.2;
+      margin-bottom: 24px;
+    }
+
+    .manifesto-content p {
+      font-size: 14px;
+      color: rgba(245,240,232,0.75);
+      line-height: 1.8;
+      margin-bottom: 30px;
+      max-width: 400px;
+    }
+
+    /* ===== SELOS ===== */
+    .badges {
+      background: var(--cream);
+      padding: 50px 60px;
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+      flex-wrap: wrap;
+    }
+
+    .badge-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 180px;
+    }
+
+    .badge-icon {
+      width: 48px;
+      height: 48px;
+      border: 1.5px solid var(--text-mid);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 20px;
+      color: var(--text-mid);
+    }
+
+    .badge-item h4 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+    }
+
+    .badge-item p {
+      font-size: 12px;
+      color: var(--text-mid);
+      line-height: 1.4;
+    }
+
+    /* ===== NEWSLETTER ===== */
+    .newsletter {
+      background: var(--green-dark);
+      padding: 70px 60px;
+      display: flex;
+      align-items: center;
+      gap: 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .newsletter::after {
+      content: '';
+      position: absolute;
+      right: 60px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 200px;
+      height: 300px;
+      background: linear-gradient(180deg, rgba(184,150,62,0.15) 0%, transparent 100%);
+      border-radius: 0 0 50% 50%;
+      pointer-events: none;
+    }
+
+    .newsletter-text { flex: 0 0 350px; }
+
+    .newsletter-text h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(26px, 2.8vw, 38px);
+      font-weight: 700;
+      color: var(--cream);
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .newsletter-text p {
+      font-size: 14px;
+      color: rgba(245,240,232,0.65);
+      line-height: 1.7;
+    }
+
+    .newsletter-form-area { flex: 1; }
+
+    .newsletter-input-row {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+    }
+
+    .newsletter-input-row input {
+      flex: 1;
+      padding: 16px 24px;
+      font-size: 14px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-right: none;
+      color: var(--cream);
+      outline: none;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .newsletter-input-row input::placeholder { color: rgba(245,240,232,0.45); }
+
+    .newsletter-input-row button {
+      padding: 16px 28px;
+      background: var(--gold);
+      color: var(--white);
+      border: none;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.3s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .newsletter-input-row button:hover { background: var(--gold-light); }
+
+    .newsletter-perks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 40px;
+    }
+
+    .perk-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: rgba(245,240,232,0.75);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .perk-item::before {
+      content: '✓';
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: var(--green-dark);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 60px 60px 30px;
+    }
+
+    .footer-top {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 50px;
+    }
+
+    .footer-logo .logo-main {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--cream);
+      letter-spacing: 2px;
+    }
+
+    .footer-logo .logo-main span { color: var(--gold); }
+    .footer-logo .logo-sub {
+      font-size: 9px;
+      letter-spacing: 4px;
+      color: rgba(245,240,232,0.5);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .footer-col h5 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--cream);
+      margin-bottom: 18px;
+    }
+
+    .footer-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .footer-col ul li a {
+      font-size: 13px;
+      color: rgba(245,240,232,0.55);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    .footer-col ul li a:hover { color: var(--gold); }
+
+    .footer-social {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .social-icon {
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(245,240,232,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(245,240,232,0.6);
+      font-size: 15px;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+
+    .social-icon:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(245,240,232,0.35);
+      letter-spacing: 0.5px;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+      nav { padding: 16px 30px; }
+      .nav-links { gap: 22px; }
+      .hero-content { padding-left: 40px; }
+      .hero-products { right: 3%; }
+      .categories { padding: 60px 30px; }
+      .ingredients { flex-direction: column; padding: 60px 30px; }
+      .manifesto-content { padding: 60px 40px; }
+      .newsletter { flex-direction: column; padding: 60px 30px; gap: 40px; }
+      .newsletter-text { flex: none; }
+      .footer-top { grid-template-columns: 1fr 1fr; }
+      footer { padding: 50px 30px 25px; }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hero-products { display: none; }
+      .hero-content { padding: 0 24px; }
+      .categories-grid { grid-template-columns: 1fr 1fr; }
+      .badges { gap: 30px; padding: 40px 24px; }
+      .footer-top { grid-template-columns: 1fr; }
+      .ingredients-grid { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== NAVBAR ===== -->
+  <nav id="navbar">
+    <div class="nav-logo">
+      <span class="logo-main">FL<span>O</span>Ra</span>
+      <span class="logo-sub">Botanics</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#inicio">Início</a></li>
+      <li><a href="#produtos">Produtos</a></li>
+      <li><a href="#ingredientes">Ingredientes</a></li>
+      <li><a href="#sobre">Sobre Nós</a></li>
+      <li><a href="#sustentabilidade">Sustentabilidade</a></li>
+    </ul>
+    <div class="nav-actions">
+      <button class="icon-btn"><i class="fa-regular fa-user"></i></button>
+      <button class="icon-btn"><i class="fa-solid fa-bag-shopping"></i></button>
+      <button class="btn-avise">Avise-me</button>
+    </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero" id="inicio">
+    <div class="hero-bg-overlay"></div>
+    <div class="hero-content">
+      <h1>Cosméticos inspirados pela biodiversidade brasileira.</h1>
+      <p>Fórmulas botânicas que unem ciência, natureza e sofisticação.</p>
+      <a href="#produtos" class="btn-primary">Conheça a Coleção</a>
+    </div>
+    <div class="hero-products">
+      <!-- Dropper bottle -->
+      <div class="hero-product-item">
+        <div class="bottle bottle-dropper">
+          <div class="bottle-label">
+            <span class="brand">FLORa</span>
+            Sérum<br>Antioxidante<br><small>50g</small>
+          </div>
+        </div>
+      </div>
+      <!-- Tall pump bottle -->
+      <div class="hero-product-item">
+        <div class="bottle bottle-pump">
+          <div class="bottle-label">
+            <span class="brand">FLORa</span>
+            Óleo Botânico<br>Regenerador<br><small>50g</small>
+          </div>
+        </div>
+      </div>
+      <!-- Jar -->
+      <div class="hero-product-item">
+        <div class="bottle bottle-jar">
+          <div class="bottle-jar-lid"></div>
+          <div class="bottle-label">
+            <span class="brand">FLORa</span>
+            Creme<br>Hidratante<br><small>50g</small>
+          </div>
+        </div>
+      </div>
+      <!-- Slim tall bottle -->
+      <div class="hero-product-item">
+        <div class="bottle bottle-tall">
+          <div class="bottle-label">
+            <span class="brand">FLORa</span>
+            Gel de<br>Limpeza<br><small>120ml</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CATEGORIES ===== -->
+  <section class="categories" id="produtos">
+    <p class="section-label">Cuidado que vem da natureza</p>
+    <div class="categories-grid">
+      <div class="category-card">
+        <div class="category-img">
+          <div class="cat-placeholder cat-serum">Sérum</div>
+        </div>
+        <h3>Sérums</h3>
+        <p>Tratamentos concentrados para resultados reais.</p>
+        <a href="#" class="link-arrow">Ver Produtos &rsaquo;</a>
+      </div>
+      <div class="category-card">
+        <div class="category-img">
+          <div class="cat-placeholder cat-hidra">Hidratante</div>
+        </div>
+        <h3>Hidratantes</h3>
+        <p>Nutrição profunda com o poder da floresta.</p>
+        <a href="#" class="link-arrow">Ver Produtos &rsaquo;</a>
+      </div>
+      <div class="category-card">
+        <div class="category-img">
+          <div class="cat-placeholder cat-limp">Limpeza</div>
+        </div>
+        <h3>Limpadores</h3>
+        <p>Limpeza eficaz e gentil com a pele.</p>
+        <a href="#" class="link-arrow">Ver Produtos &rsaquo;</a>
+      </div>
+      <div class="category-card">
+        <div class="category-img">
+          <div class="cat-placeholder cat-oleo">Óleo</div>
+        </div>
+        <h3>Óleos Botânicos</h3>
+        <p>Ricos em ativos naturais e antioxidantes.</p>
+        <a href="#" class="link-arrow">Ver Produtos &rsaquo;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== INGREDIENTS ===== -->
+  <section id="ingredientes">
+    <div class="ingredients">
+      <div class="ingredients-text">
+        <h2>Da Floresta Para a Sua Pele</h2>
+        <p>Selecionamos ingredientes botânicos brasileiros com alto poder de transformação para criar fórmulas únicas e eficazes.</p>
+        <a href="#" class="link-arrow">Conheça os Ingredientes &rsaquo;</a>
+      </div>
+      <div class="ingredients-grid">
+        <div class="ingredient-item">
+          <div class="ingredient-circle">
+            <div class="ingredient-placeholder ing-andiroba">🌿</div>
+          </div>
+          <h4>Andiroba</h4>
+          <p>Regenera e acalma a pele.</p>
+        </div>
+        <div class="ingredient-item">
+          <div class="ingredient-circle">
+            <div class="ingredient-placeholder ing-buriti">🍊</div>
+          </div>
+          <h4>Buriti</h4>
+          <p>Rico em betacaroteno e antioxidantes.</p>
+        </div>
+        <div class="ingredient-item">
+          <div class="ingredient-circle">
+            <div class="ingredient-placeholder ing-pracaxi">🌰</div>
+          </div>
+          <h4>Pracaxi</h4>
+          <p>Nutre e melhora a elasticidade.</p>
+        </div>
+        <div class="ingredient-item">
+          <div class="ingredient-circle">
+            <div class="ingredient-placeholder ing-cupuacu">🤍</div>
+          </div>
+          <h4>Cupuaçu</h4>
+          <p>Hidrata profundamente e protege.</p>
+        </div>
+        <div class="ingredient-item">
+          <div class="ingredient-circle">
+            <div class="ingredient-placeholder ing-acai">🫐</div>
+          </div>
+          <h4>Açaí</h4>
+          <p>Ação antioxidante e revitalizante.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MANIFESTO ===== -->
+  <section class="manifesto" id="sobre">
+    <div class="manifesto-overlay"></div>
+    <div class="manifesto-image-area">
+      <div class="manifesto-face">
+        <div class="manifesto-face-inner"></div>
+      </div>
+    </div>
+    <div class="manifesto-content">
+      <p class="manifesto-tag">Nosso Manifesto</p>
+      <h2>Beleza que respeita, cuidado que transforma.</h2>
+      <p>Acreditamos que o cuidado da pele é um retorno ao essencial. Cada fórmula nasce da riqueza botânica brasileira e do respeito às comunidades que preservam esse patrimônio.</p>
+      <a href="#" class="link-arrow" style="color: var(--cream);">Conheça Nossa História &rsaquo;</a>
+    </div>
+  </section>
+
+  <!-- ===== BADGES ===== -->
+  <section class="badges" id="sustentabilidade">
+    <div class="badge-item">
+      <div class="badge-icon"><i class="fa-solid fa-leaf"></i></div>
+      <div>
+        <h4>Ingredientes Naturais</h4>
+        <p>Rastreáveis e sustentáveis.</p>
+      </div>
+    </div>
+    <div class="badge-item">
+      <div class="badge-icon"><i class="fa-solid fa-seedling"></i></div>
+      <div>
+        <h4>Vegano</h4>
+        <p>Sem ingredientes de origem animal.</p>
+      </div>
+    </div>
+    <div class="badge-item">
+      <div class="badge-icon"><i class="fa-solid fa-paw"></i></div>
+      <div>
+        <h4>Cruelty Free</h4>
+        <p>Não testamos em animais.</p>
+      </div>
+    </div>
+    <div class="badge-item">
+      <div class="badge-icon"><i class="fa-solid fa-flask"></i></div>
+      <div>
+        <h4>Ciência + Natureza</h4>
+        <p>Fórmulas eficazes com ativos botânicos.</p>
+      </div>
+    </div>
+    <div class="badge-item">
+      <div class="badge-icon"><i class="fa-solid fa-recycle"></i></div>
+      <div>
+        <h4>Embalagens Sustentáveis</h4>
+        <p>Menos impacto, mais futuro.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== NEWSLETTER ===== -->
+  <section class="newsletter">
+    <div class="newsletter-text">
+      <h2>Receba acesso antecipado</h2>
+      <p>Cadastre-se e seja a primeira pessoa a conhecer nossos lançamentos, receber conteúdos exclusivos e benefícios especiais.</p>
+    </div>
+    <div class="newsletter-form-area">
+      <div class="newsletter-input-row">
+        <input type="email" placeholder="Seu melhor e-mail" />
+        <button type="submit">Quero Receber</button>
+      </div>
+      <div class="newsletter-perks">
+        <div class="perk-item">Desconto de Lançamento</div>
+        <div class="perk-item">Acesso Antecipado</div>
+        <div class="perk-item">Amostras Exclusivas</div>
+        <div class="perk-item">Conteúdos sobre Skincare</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer>
+    <div class="footer-top">
+      <div class="footer-logo">
+        <div class="logo-main">FL<span>O</span>Ra</div>
+        <div class="logo-sub">Botanics</div>
+      </div>
+      <div class="footer-col">
+        <h5>Produtos</h5>
+        <ul>
+          <li><a href="#">Séruns</a></li>
+          <li><a href="#">Hidratantes</a></li>
+          <li><a href="#">Limpadores</a></li>
+          <li><a href="#">Óleos Botânicos</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Institucional</h5>
+        <ul>
+          <li><a href="#">Sobre Nós</a></li>
+          <li><a href="#">Ingredientes</a></li>
+          <li><a href="#">Sustentabilidade</a></li>
+          <li><a href="#">Blog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Ajuda</h5>
+        <ul>
+          <li><a href="#">Perguntas Frequentes</a></li>
+          <li><a href="#">Trocas e Devoluções</a></li>
+          <li><a href="#">Política de Privacidade</a></li>
+          <li><a href="#">Fale Conosco</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Siga-nos</h5>
+        <div class="footer-social">
+          <a href="#" class="social-icon"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" class="social-icon"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" class="social-icon"><i class="fa-brands fa-pinterest-p"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © 2024 Flora Botanics. Todos os direitos reservados.
+    </div>
+  </footer>
+
+  <script>
+    // Navbar scroll effect
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 60) {
+        navbar.style.background = 'rgba(26, 34, 24, 0.98)';
+        navbar.style.boxShadow = '0 2px 20px rgba(0,0,0,0.3)';
+      } else {
+        navbar.style.background = 'rgba(26, 34, 24, 0.85)';
+        navbar.style.boxShadow = 'none';
+      }
+    });
+
+    // Smooth reveal on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.category-card, .ingredient-item, .badge-item').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(24px)';
+      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      observer.observe(el);
+    });
+
+    // Newsletter form
+    const form = document.querySelector('.newsletter-input-row');
+    form.querySelector('button').addEventListener('click', () => {
+      const input = form.querySelector('input');
+      if (input.value && input.value.includes('@')) {
+        alert('✅ Cadastro realizado! Em breve você receberá novidades da Flora Botanics.');
+        input.value = '';
+      } else {
+        input.style.borderColor = 'rgba(255,100,100,0.6)';
+        setTimeout(() => input.style.borderColor = 'rgba(255,255,255,0.2)', 2000);
+      }
+    });
+  </script>
+</body>
+</html>
