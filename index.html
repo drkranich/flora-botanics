@@ -1,1163 +1,726 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Flora Botanics</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --green-dark: #2c3a2e;
-      --green-mid: #3d5c3a;
-      --gold: #b8963e;
-      --gold-light: #d4aa55;
-      --cream: #f5f0e8;
-      --cream-dark: #ede6d6;
-      --text-dark: #1a2218;
-      --text-mid: #4a5548;
-      --text-light: #7a8a78;
-      --white: #ffffff;
+      --green-dark:   #1e2d1c;
+      --green-deeper: #16231a;
+      --gold:         #b8943a;
+      --gold-light:   #cda84a;
+      --cream:        #f4ede0;
+      --cream-mid:    #ede3d0;
+      --cream-dark:   #e0d4bc;
+      --text-dark:    #1a2218;
+      --text-mid:     #4a5548;
+      --text-light:   #8a9a88;
+      --white:        #ffffff;
     }
 
     html { scroll-behavior: smooth; }
+    body { font-family: 'Jost', sans-serif; background: var(--white); color: var(--text-dark); overflow-x: hidden; }
 
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: var(--white);
-      color: var(--text-dark);
-    }
-
-    /* ===== NAVBAR ===== */
+    /* ─────────────────────────────────────────
+       NAVBAR
+    ───────────────────────────────────────── */
     nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 60px;
-      background: rgba(26, 34, 24, 0.85);
-      backdrop-filter: blur(10px);
-      transition: background 0.3s;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 52px;
+      height: 70px;
+      background: rgba(22, 35, 26, 0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      transition: background .35s, box-shadow .35s;
+    }
+    nav.scrolled {
+      background: rgba(22, 35, 26, 0.97);
+      box-shadow: 0 4px 28px rgba(0,0,0,.35);
     }
 
-    .nav-logo {
-      display: flex;
-      flex-direction: column;
-      line-height: 1;
+    /* Logo */
+    .logo { display: flex; flex-direction: column; line-height: 1; text-decoration: none; }
+    .logo-top {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 30px; font-weight: 700;
+      color: var(--cream); letter-spacing: 3px; text-transform: uppercase;
+    }
+    .logo-top em { font-style: normal; color: var(--gold); }
+    .logo-bot {
+      font-size: 9px; letter-spacing: 5px; text-transform: uppercase;
+      color: rgba(244,237,224,.55); margin-top: 1px;
     }
 
-    .nav-logo .logo-main {
-      font-family: 'Playfair Display', serif;
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--cream);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-
-    .nav-logo .logo-main span {
-      color: var(--gold);
-    }
-
-    .nav-logo .logo-sub {
-      font-size: 10px;
-      letter-spacing: 4px;
-      color: var(--cream);
-      text-transform: uppercase;
-      margin-top: 2px;
-    }
-
-    .nav-links {
-      display: flex;
-      list-style: none;
-      gap: 36px;
-    }
-
+    /* Nav links */
+    .nav-links { display: flex; list-style: none; gap: 34px; }
     .nav-links a {
-      text-decoration: none;
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--cream);
-      transition: color 0.3s;
+      font-size: 11px; font-weight: 500; letter-spacing: 1.8px;
+      text-transform: uppercase; color: rgba(244,237,224,.8); text-decoration: none;
+      transition: color .25s;
     }
-
     .nav-links a:hover { color: var(--gold); }
 
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      gap: 20px;
+    /* Nav right */
+    .nav-right { display: flex; align-items: center; gap: 18px; }
+    .nav-icon {
+      background: none; border: none; cursor: pointer;
+      color: rgba(244,237,224,.75); font-size: 17px; transition: color .25s;
     }
-
-    .nav-actions .icon-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--cream);
-      font-size: 18px;
-      transition: color 0.3s;
+    .nav-icon:hover { color: var(--gold); }
+    .btn-notify {
+      background: var(--gold); color: #fff; border: none;
+      padding: 9px 20px; font-family: 'Jost', sans-serif;
+      font-size: 10px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; cursor: pointer; transition: background .25s;
     }
+    .btn-notify:hover { background: var(--gold-light); }
 
-    .nav-actions .icon-btn:hover { color: var(--gold); }
-
-    .btn-avise {
-      background: var(--gold);
-      color: var(--white);
-      border: none;
-      padding: 10px 22px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-
-    .btn-avise:hover { background: var(--gold-light); }
-
-    /* ===== HERO ===== */
+    /* ─────────────────────────────────────────
+       HERO
+    ───────────────────────────────────────── */
     .hero {
-      position: relative;
-      height: 100vh;
-      min-height: 650px;
-      background: linear-gradient(135deg, #1a2c1a 0%, #2c4a2a 40%, #3a5c30 70%, #2a4020 100%);
-      display: flex;
-      align-items: center;
-      overflow: hidden;
+      position: relative; height: 100vh; min-height: 680px;
+      display: flex; align-items: center; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background-image: url('https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=1600&q=80');
+      background-size: cover; background-position: center 40%;
+      filter: brightness(.55) saturate(1.1);
+    }
+    /* dark left gradient so text is readable */
+    .hero-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(100deg,
+        rgba(16,28,16,.92) 0%,
+        rgba(20,35,20,.65) 45%,
+        rgba(10,22,12,.15) 100%);
     }
 
-    .hero-bg-overlay {
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 70% 50%, rgba(60,90,40,0.4) 0%, rgba(20,35,18,0.7) 100%);
-      z-index: 1;
+    .hero-body {
+      position: relative; z-index: 2;
+      padding-left: 100px; max-width: 580px;
     }
-
-    /* Decorative leaf shapes */
-    .hero::before {
-      content: '';
-      position: absolute;
-      right: -80px;
-      top: -80px;
-      width: 600px;
-      height: 600px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(80,120,50,0.25) 0%, transparent 70%);
-      z-index: 1;
+    .hero-body h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(40px, 4.8vw, 64px); font-weight: 700;
+      color: var(--cream); line-height: 1.12; margin-bottom: 22px;
     }
-
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      max-width: 520px;
-      padding-left: 100px;
+    .hero-body p {
+      font-size: 15px; font-weight: 300; color: rgba(244,237,224,.72);
+      line-height: 1.75; margin-bottom: 38px; max-width: 360px;
     }
-
-    .hero-content h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(36px, 4.5vw, 56px);
-      font-weight: 700;
-      color: var(--cream);
-      line-height: 1.15;
-      margin-bottom: 20px;
+    .btn-cta {
+      display: inline-block; background: var(--gold); color: #fff;
+      padding: 14px 34px; font-family: 'Jost', sans-serif;
+      font-size: 11px; font-weight: 600; letter-spacing: 2.5px;
+      text-transform: uppercase; text-decoration: none;
+      transition: background .25s, transform .2s;
     }
+    .btn-cta:hover { background: var(--gold-light); transform: translateY(-2px); }
 
-    .hero-content p {
-      font-size: 16px;
-      color: rgba(245,240,232,0.75);
-      line-height: 1.7;
-      margin-bottom: 36px;
-      max-width: 380px;
-    }
-
-    .btn-primary {
-      display: inline-block;
-      background: var(--gold);
-      color: var(--white);
-      padding: 14px 32px;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      text-decoration: none;
-      border: none;
-      cursor: pointer;
-      transition: background 0.3s, transform 0.2s;
-    }
-
-    .btn-primary:hover {
-      background: var(--gold-light);
-      transform: translateY(-1px);
-    }
-
+    /* Products floating right */
     .hero-products {
-      position: absolute;
-      right: 8%;
-      bottom: 0;
-      z-index: 2;
-      display: flex;
-      align-items: flex-end;
-      gap: 16px;
-      height: 75%;
+      position: absolute; right: 7%; bottom: 0; z-index: 2;
+      display: flex; align-items: flex-end; gap: 14px; height: 80%;
     }
+    .prod {
+      border-radius: 6px 6px 3px 3px;
+      overflow: hidden; position: relative;
+      box-shadow: 0 12px 40px rgba(0,0,0,.55);
+      background: #1a2e1a;
+    }
+    .prod img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .92; }
 
-    .hero-product-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-    }
+    .prod-1 { width: 90px;  height: 230px; }
+    .prod-2 { width: 100px; height: 260px; }
+    .prod-3 { width: 90px;  height: 110px; border-radius: 6px; }
+    .prod-4 { width: 80px;  height: 275px; }
 
-    /* Simulated product bottles */
-    .bottle {
-      border-radius: 8px 8px 4px 4px;
-      background: linear-gradient(180deg, #1e2e1a 0%, #2a4020 100%);
-      border: 1px solid rgba(184,150,62,0.3);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      padding-bottom: 10px;
-      position: relative;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    }
-
-    .bottle .bottle-label {
-      font-family: 'Playfair Display', serif;
-      font-size: 7px;
-      color: var(--cream);
-      letter-spacing: 1px;
-      text-align: center;
-      text-transform: uppercase;
-      line-height: 1.4;
-      padding: 0 6px;
-    }
-
-    .bottle .bottle-label .brand {
-      font-size: 9px;
-      font-weight: 700;
-      color: var(--gold-light);
-      display: block;
-      margin-bottom: 2px;
-    }
-
-    .bottle-dropper { width: 55px; height: 160px; }
-    .bottle-dropper::before {
-      content: '';
-      position: absolute;
-      top: -30px; left: 50%; transform: translateX(-50%);
-      width: 4px; height: 35px;
-      background: linear-gradient(to bottom, #ccc, #888);
-      border-radius: 2px;
-    }
-    .bottle-dropper::after {
-      content: '';
-      position: absolute;
-      top: -42px; left: 50%; transform: translateX(-50%);
-      width: 14px; height: 16px;
-      background: radial-gradient(circle, #ddd, #999);
-      border-radius: 50% 50% 40% 40%;
-    }
-
-    .bottle-pump { width: 60px; height: 185px; }
-    .bottle-pump::before {
-      content: '';
-      position: absolute;
-      top: -40px; left: 50%; transform: translateX(-50%);
-      width: 5px; height: 42px;
-      background: linear-gradient(to bottom, #aaa, #777);
-      border-radius: 2px;
-    }
-    .bottle-pump::after {
-      content: '';
-      position: absolute;
-      top: -48px; left: 50%; transform: translateX(-50%);
-      width: 22px; height: 12px;
-      background: linear-gradient(to right, #ccc, #999);
-      border-radius: 3px;
-    }
-
-    .bottle-jar { width: 75px; height: 65px; border-radius: 4px; }
-    .bottle-jar-lid {
-      position: absolute;
-      top: -16px; left: 0; right: 0;
-      height: 18px;
-      background: linear-gradient(180deg, #c9a840 0%, #9a7830 100%);
+    /* cap on jar */
+    .jar-cap {
+      position: absolute; top: 0; left: 0; right: 0; height: 22px;
+      background: linear-gradient(180deg, #c9a535 0%, #9a7a22 100%);
       border-radius: 4px 4px 0 0;
     }
 
-    .bottle-tall { width: 50px; height: 200px; }
-    .bottle-tall::before {
-      content: '';
-      position: absolute;
-      top: -38px; left: 50%; transform: translateX(-50%);
-      width: 5px; height: 40px;
-      background: linear-gradient(to bottom, #aaa, #777);
-      border-radius: 2px;
+    /* ─────────────────────────────────────────
+       CATEGORIES
+    ───────────────────────────────────────── */
+    .categories { background: var(--cream); padding: 80px 60px; }
+    .section-tag {
+      text-align: center; font-size: 10px; font-weight: 600;
+      letter-spacing: 3.5px; text-transform: uppercase;
+      color: var(--text-light); margin-bottom: 52px;
     }
-    .bottle-tall::after {
-      content: '';
-      position: absolute;
-      top: -46px; left: 50%; transform: translateX(-50%);
-      width: 20px; height: 12px;
-      background: linear-gradient(to right, #ccc, #999);
-      border-radius: 3px;
+    .cat-grid {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 28px; max-width: 1200px; margin: 0 auto;
     }
-
-    /* ===== CATEGORIES ===== */
-    .categories {
-      background: var(--cream);
-      padding: 80px 60px;
+    .cat-card { cursor: pointer; }
+    .cat-thumb {
+      width: 100%; aspect-ratio: 4/3; overflow: hidden; margin-bottom: 18px;
     }
-
-    .section-label {
-      text-align: center;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--text-light);
-      margin-bottom: 50px;
+    .cat-thumb img {
+      width: 100%; height: 100%; object-fit: cover;
+      transition: transform .5s ease;
     }
-
-    .categories-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 30px;
-      max-width: 1200px;
-      margin: 0 auto;
+    .cat-card:hover .cat-thumb img { transform: scale(1.06); }
+    .cat-card h3 {
+      font-size: 11px; font-weight: 700; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--text-dark); margin-bottom: 8px;
     }
-
-    .category-card {
-      cursor: pointer;
+    .cat-card p { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-bottom: 12px; }
+    .link-arr {
+      font-size: 10px; font-weight: 600; letter-spacing: 1.8px;
+      text-transform: uppercase; color: var(--text-dark);
+      text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+      transition: color .25s, gap .25s;
     }
+    .link-arr:hover { color: var(--gold); gap: 9px; }
 
-    .category-img {
-      width: 100%;
-      aspect-ratio: 4/3;
-      background: var(--cream-dark);
-      overflow: hidden;
-      margin-bottom: 16px;
-      position: relative;
+    /* ─────────────────────────────────────────
+       INGREDIENTS
+    ───────────────────────────────────────── */
+    .ingredients-section { background: var(--white); padding: 90px 60px; }
+    .ing-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; gap: 80px; align-items: flex-start;
     }
-
-    .category-img-inner {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.4s ease;
+    .ing-text { flex: 0 0 260px; }
+    .ing-text h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(30px, 3vw, 44px); font-weight: 700;
+      color: var(--text-dark); line-height: 1.18; margin-bottom: 18px;
     }
-
-    .category-card:hover .category-img-inner {
-      transform: scale(1.05);
+    .ing-text p { font-size: 13px; color: var(--text-mid); line-height: 1.85; margin-bottom: 26px; }
+    .ing-circles { flex: 1; display: flex; gap: 22px; flex-wrap: wrap; }
+    .ing-item { text-align: center; width: 120px; }
+    .ing-circle {
+      width: 110px; height: 110px; border-radius: 50%;
+      overflow: hidden; margin: 0 auto 14px; border: 2px solid var(--cream-dark);
     }
-
-    /* Placeholder color blocks for category images */
-    .cat-serum { background: linear-gradient(135deg, #2d4a2a, #4a7040); }
-    .cat-hidra  { background: linear-gradient(135deg, #5c6b3a, #8a9a5a); }
-    .cat-limp   { background: linear-gradient(135deg, #1e3a2a, #3a6050); }
-    .cat-oleo   { background: linear-gradient(135deg, #3a3010, #7a6020); }
-
-    .cat-placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Playfair Display', serif;
-      font-size: 13px;
-      color: rgba(255,255,255,0.6);
-      letter-spacing: 1px;
+    .ing-circle img { width: 100%; height: 100%; object-fit: cover; }
+    .ing-item h4 {
+      font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--text-dark); margin-bottom: 5px;
     }
+    .ing-item p { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
 
-    .category-card h3 {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--text-dark);
-      margin-bottom: 8px;
-    }
-
-    .category-card p {
-      font-size: 13px;
-      color: var(--text-mid);
-      line-height: 1.5;
-      margin-bottom: 12px;
-    }
-
-    .link-arrow {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--text-dark);
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: color 0.3s, gap 0.3s;
-    }
-
-    .link-arrow:hover {
-      color: var(--gold);
-      gap: 10px;
-    }
-
-    /* ===== INGREDIENTS ===== */
-    .ingredients {
-      background: var(--white);
-      padding: 80px 60px;
-      display: flex;
-      align-items: flex-start;
-      gap: 80px;
-      max-width: 1300px;
-      margin: 0 auto;
-    }
-
-    .ingredients-text { flex: 0 0 280px; }
-
-    .ingredients-text h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(28px, 3vw, 40px);
-      font-weight: 700;
-      color: var(--text-dark);
-      line-height: 1.2;
-      margin-bottom: 18px;
-    }
-
-    .ingredients-text p {
-      font-size: 14px;
-      color: var(--text-mid);
-      line-height: 1.8;
-      margin-bottom: 24px;
-    }
-
-    .ingredients-grid {
-      flex: 1;
-      display: flex;
-      gap: 28px;
-      flex-wrap: wrap;
-    }
-
-    .ingredient-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      width: 130px;
-    }
-
-    .ingredient-circle {
-      width: 110px;
-      height: 110px;
-      border-radius: 50%;
-      overflow: hidden;
-      margin-bottom: 14px;
-      border: 2px solid var(--cream-dark);
-    }
-
-    .ingredient-placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-    }
-
-    .ing-andiroba  { background: linear-gradient(135deg, #5a4a2a, #8a7040); }
-    .ing-buriti    { background: linear-gradient(135deg, #8a4a10, #c07030); }
-    .ing-pracaxi   { background: linear-gradient(135deg, #3a2a1a, #6a5030); }
-    .ing-cupuacu   { background: linear-gradient(135deg, #7a6040, #b09060); }
-    .ing-acai      { background: linear-gradient(135deg, #1a0a2a, #4a2060); }
-
-    .ingredient-item h4 {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--text-dark);
-      margin-bottom: 6px;
-    }
-
-    .ingredient-item p {
-      font-size: 12px;
-      color: var(--text-mid);
-      line-height: 1.5;
-    }
-
-    /* ===== MANIFESTO ===== */
+    /* ─────────────────────────────────────────
+       MANIFESTO
+    ───────────────────────────────────────── */
     .manifesto {
-      position: relative;
-      min-height: 520px;
-      background: linear-gradient(135deg, #1a2c1a 0%, #2c4a20 60%, #3a5c28 100%);
-      display: flex;
-      align-items: center;
-      overflow: hidden;
+      position: relative; min-height: 560px;
+      display: flex; align-items: center; overflow: hidden;
     }
-
+    .manifesto-photo {
+      position: absolute; inset: 0;
+      background-image: url('https://images.unsplash.com/photo-1580489944761-15a19d654956?w=1400&q=80');
+      background-size: cover; background-position: center top;
+      filter: brightness(.45) saturate(1.15);
+    }
     .manifesto-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, rgba(20,35,18,0.95) 0%, rgba(20,35,18,0.6) 50%, transparent 100%);
-      z-index: 1;
+      position: absolute; inset: 0;
+      background: linear-gradient(95deg,
+        rgba(16,28,16,.96) 0%,
+        rgba(22,38,20,.7) 50%,
+        rgba(10,22,12,.1) 100%);
     }
-
-    .manifesto-image-area {
-      position: absolute;
-      right: 0; top: 0; bottom: 0;
-      width: 55%;
-      background: linear-gradient(135deg, #2a4020, #3a6030, #4a7040);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
+    .manifesto-body {
+      position: relative; z-index: 2;
+      padding: 80px 100px; max-width: 640px;
     }
-
-    .manifesto-face {
-      width: 100%;
-      height: 100%;
-      background: radial-gradient(ellipse at 60% 40%, rgba(100,140,60,0.3) 0%, rgba(30,50,20,0.8) 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .manifesto-face-inner {
-      width: 280px;
-      height: 360px;
-      border-radius: 50% 50% 40% 40%;
-      background: linear-gradient(180deg, #c4956a 0%, #a07850 40%, #8a6040 100%);
-      opacity: 0.6;
-      box-shadow: 0 0 80px rgba(150,120,70,0.3);
-    }
-
-    .manifesto-content {
-      position: relative;
-      z-index: 2;
-      padding: 80px 100px;
-      max-width: 600px;
-    }
-
     .manifesto-tag {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 20px;
+      font-size: 10px; font-weight: 600; letter-spacing: 3.5px;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 18px;
     }
-
-    .manifesto-content h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(30px, 3.5vw, 48px);
-      font-weight: 700;
-      color: var(--cream);
-      line-height: 1.2;
-      margin-bottom: 24px;
+    .manifesto-body h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(32px, 3.8vw, 52px); font-weight: 700;
+      color: var(--cream); line-height: 1.15; margin-bottom: 22px;
     }
-
-    .manifesto-content p {
-      font-size: 14px;
-      color: rgba(245,240,232,0.75);
-      line-height: 1.8;
-      margin-bottom: 30px;
-      max-width: 400px;
+    .manifesto-body p {
+      font-size: 14px; font-weight: 300; color: rgba(244,237,224,.7);
+      line-height: 1.8; margin-bottom: 32px; max-width: 420px;
     }
+    .link-arr-light {
+      font-size: 10px; font-weight: 600; letter-spacing: 1.8px;
+      text-transform: uppercase; color: rgba(244,237,224,.8);
+      text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+      transition: color .25s, gap .25s;
+    }
+    .link-arr-light:hover { color: var(--gold); gap: 9px; }
 
-    /* ===== SELOS ===== */
+    /* ─────────────────────────────────────────
+       BADGES
+    ───────────────────────────────────────── */
     .badges {
-      background: var(--cream);
-      padding: 50px 60px;
-      display: flex;
-      justify-content: center;
-      gap: 60px;
-      flex-wrap: wrap;
+      background: var(--cream); padding: 52px 60px;
+      display: flex; justify-content: center; gap: 52px; flex-wrap: wrap;
+      border-top: 1px solid var(--cream-dark); border-bottom: 1px solid var(--cream-dark);
     }
-
-    .badge-item {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      min-width: 180px;
+    .badge {
+      display: flex; align-items: center; gap: 16px; min-width: 170px;
     }
-
-    .badge-icon {
-      width: 48px;
-      height: 48px;
-      border: 1.5px solid var(--text-mid);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 20px;
-      color: var(--text-mid);
+    .badge-ico {
+      width: 46px; height: 46px; border-radius: 50%;
+      border: 1.5px solid rgba(74,85,72,.45);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; color: var(--text-mid); flex-shrink: 0;
     }
-
-    .badge-item h4 {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--text-dark);
-      margin-bottom: 4px;
+    .badge h4 {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--text-dark); margin-bottom: 4px;
     }
+    .badge p { font-size: 11px; color: var(--text-mid); line-height: 1.4; }
 
-    .badge-item p {
-      font-size: 12px;
-      color: var(--text-mid);
-      line-height: 1.4;
-    }
-
-    /* ===== NEWSLETTER ===== */
+    /* ─────────────────────────────────────────
+       NEWSLETTER
+    ───────────────────────────────────────── */
     .newsletter {
-      background: var(--green-dark);
-      padding: 70px 60px;
-      display: flex;
-      align-items: center;
-      gap: 80px;
-      position: relative;
-      overflow: hidden;
+      position: relative; background: var(--green-dark);
+      padding: 80px 100px; display: flex; gap: 80px;
+      align-items: center; overflow: hidden;
     }
-
-    .newsletter::after {
-      content: '';
-      position: absolute;
-      right: 60px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 200px;
-      height: 300px;
-      background: linear-gradient(180deg, rgba(184,150,62,0.15) 0%, transparent 100%);
-      border-radius: 0 0 50% 50%;
-      pointer-events: none;
+    /* decorative dropper image right side */
+    .nl-deco {
+      position: absolute; right: 60px; top: 0; bottom: 0; width: 220px;
+      background-image: url('https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=400&q=80');
+      background-size: cover; background-position: center;
+      opacity: .18;
     }
-
-    .newsletter-text { flex: 0 0 350px; }
-
-    .newsletter-text h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(26px, 2.8vw, 38px);
-      font-weight: 700;
-      color: var(--cream);
-      line-height: 1.2;
-      margin-bottom: 16px;
+    .nl-text { flex: 0 0 340px; position: relative; z-index: 1; }
+    .nl-text h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(28px, 3vw, 42px); font-weight: 700;
+      color: var(--cream); line-height: 1.2; margin-bottom: 16px;
     }
-
-    .newsletter-text p {
-      font-size: 14px;
-      color: rgba(245,240,232,0.65);
-      line-height: 1.7;
+    .nl-text p { font-size: 13px; font-weight: 300; color: rgba(244,237,224,.62); line-height: 1.75; }
+    .nl-form { flex: 1; position: relative; z-index: 1; }
+    .nl-row { display: flex; margin-bottom: 28px; }
+    .nl-row input {
+      flex: 1; padding: 15px 22px;
+      background: rgba(255,255,255,.09);
+      border: 1px solid rgba(255,255,255,.18); border-right: none;
+      color: var(--cream); font-family: 'Jost', sans-serif; font-size: 14px; outline: none;
     }
-
-    .newsletter-form-area { flex: 1; }
-
-    .newsletter-input-row {
-      display: flex;
-      gap: 0;
-      margin-bottom: 24px;
+    .nl-row input::placeholder { color: rgba(244,237,224,.38); }
+    .nl-row button {
+      padding: 15px 26px; background: var(--gold); color: #fff; border: none;
+      font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase; cursor: pointer;
+      white-space: nowrap; transition: background .25s;
     }
-
-    .newsletter-input-row input {
-      flex: 1;
-      padding: 16px 24px;
-      font-size: 14px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-right: none;
-      color: var(--cream);
-      outline: none;
-      font-family: 'Inter', sans-serif;
+    .nl-row button:hover { background: var(--gold-light); }
+    .nl-perks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 40px; }
+    .perk {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 500; letter-spacing: 1.2px;
+      text-transform: uppercase; color: rgba(244,237,224,.65);
     }
+    .perk::before { content: '✓'; color: var(--gold); font-size: 13px; font-weight: 700; }
 
-    .newsletter-input-row input::placeholder { color: rgba(245,240,232,0.45); }
-
-    .newsletter-input-row button {
-      padding: 16px 28px;
-      background: var(--gold);
-      color: var(--white);
-      border: none;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.3s;
-      font-family: 'Inter', sans-serif;
-    }
-
-    .newsletter-input-row button:hover { background: var(--gold-light); }
-
-    .newsletter-perks {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px 40px;
-    }
-
-    .perk-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      color: rgba(245,240,232,0.75);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    .perk-item::before {
-      content: '✓';
-      color: var(--gold);
-      font-weight: 700;
-    }
-
-    /* ===== FOOTER ===== */
+    /* ─────────────────────────────────────────
+       FOOTER
+    ───────────────────────────────────────── */
     footer {
-      background: var(--green-dark);
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding: 60px 60px 30px;
+      background: var(--green-deeper);
+      padding: 64px 60px 30px;
     }
-
-    .footer-top {
+    .footer-grid {
       display: grid;
-      grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
-      gap: 40px;
-      margin-bottom: 50px;
+      grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr;
+      gap: 40px; margin-bottom: 52px;
     }
+    .footer-logo-area .logo-top { font-size: 26px; }
 
-    .footer-logo .logo-main {
-      font-family: 'Playfair Display', serif;
-      font-size: 26px;
-      font-weight: 700;
-      color: var(--cream);
-      letter-spacing: 2px;
+    .foot-col h5 {
+      font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+      text-transform: uppercase; color: rgba(244,237,224,.9); margin-bottom: 18px;
     }
-
-    .footer-logo .logo-main span { color: var(--gold); }
-    .footer-logo .logo-sub {
-      font-size: 9px;
-      letter-spacing: 4px;
-      color: rgba(245,240,232,0.5);
-      text-transform: uppercase;
-      margin-top: 2px;
+    .foot-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .foot-col ul li a {
+      font-size: 12px; color: rgba(244,237,224,.45); text-decoration: none;
+      transition: color .25s;
     }
+    .foot-col ul li a:hover { color: var(--gold); }
 
-    .footer-col h5 {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--cream);
-      margin-bottom: 18px;
+    .socials { display: flex; gap: 12px; margin-top: 6px; }
+    .soc {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1px solid rgba(244,237,224,.22);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(244,237,224,.5); font-size: 14px; text-decoration: none;
+      transition: all .25s;
     }
-
-    .footer-col ul {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .footer-col ul li a {
-      font-size: 13px;
-      color: rgba(245,240,232,0.55);
-      text-decoration: none;
-      transition: color 0.3s;
-    }
-
-    .footer-col ul li a:hover { color: var(--gold); }
-
-    .footer-social {
-      display: flex;
-      gap: 16px;
-      margin-top: 8px;
-    }
-
-    .social-icon {
-      width: 36px;
-      height: 36px;
-      border: 1px solid rgba(245,240,232,0.3);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(245,240,232,0.6);
-      font-size: 15px;
-      text-decoration: none;
-      transition: all 0.3s;
-    }
-
-    .social-icon:hover {
-      border-color: var(--gold);
-      color: var(--gold);
-    }
+    .soc:hover { border-color: var(--gold); color: var(--gold); }
 
     .footer-bottom {
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding-top: 24px;
-      text-align: center;
-      font-size: 12px;
-      color: rgba(245,240,232,0.35);
-      letter-spacing: 0.5px;
+      border-top: 1px solid rgba(255,255,255,.07);
+      padding-top: 22px; text-align: center;
+      font-size: 11px; color: rgba(244,237,224,.28); letter-spacing: .5px;
     }
 
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 1024px) {
-      nav { padding: 16px 30px; }
-      .nav-links { gap: 22px; }
-      .hero-content { padding-left: 40px; }
-      .hero-products { right: 3%; }
-      .categories { padding: 60px 30px; }
-      .ingredients { flex-direction: column; padding: 60px 30px; }
-      .manifesto-content { padding: 60px 40px; }
-      .newsletter { flex-direction: column; padding: 60px 30px; gap: 40px; }
-      .newsletter-text { flex: none; }
-      .footer-top { grid-template-columns: 1fr 1fr; }
-      footer { padding: 50px 30px 25px; }
+    /* ─────────────────────────────────────────
+       SCROLL ANIMATIONS
+    ───────────────────────────────────────── */
+    .reveal {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity .7s ease, transform .7s ease;
     }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
 
+    /* ─────────────────────────────────────────
+       RESPONSIVE
+    ───────────────────────────────────────── */
+    @media (max-width: 1100px) {
+      nav { padding: 0 28px; }
+      .hero-body { padding-left: 40px; }
+      .hero-products { right: 2%; }
+      .categories { padding: 60px 28px; }
+      .ingredients-section { padding: 70px 28px; }
+      .ing-inner { flex-direction: column; gap: 44px; }
+      .manifesto-body { padding: 60px 44px; }
+      .newsletter { flex-direction: column; padding: 60px 40px; gap: 40px; }
+      .nl-text { flex: none; }
+      footer { padding: 50px 28px 24px; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
     @media (max-width: 768px) {
-      .nav-links { display: none; }
-      .hero-products { display: none; }
-      .hero-content { padding: 0 24px; }
-      .categories-grid { grid-template-columns: 1fr 1fr; }
-      .badges { gap: 30px; padding: 40px 24px; }
-      .footer-top { grid-template-columns: 1fr; }
-      .ingredients-grid { justify-content: center; }
+      .nav-links, .hero-products { display: none; }
+      .hero-body { padding: 0 24px; }
+      .cat-grid { grid-template-columns: 1fr 1fr; }
+      .badges { gap: 26px; padding: 40px 24px; }
+      .newsletter { padding: 50px 24px; }
+      .footer-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ===== NAVBAR ===== -->
-  <nav id="navbar">
-    <div class="nav-logo">
-      <span class="logo-main">FL<span>O</span>Ra</span>
-      <span class="logo-sub">Botanics</span>
-    </div>
-    <ul class="nav-links">
-      <li><a href="#inicio">Início</a></li>
-      <li><a href="#produtos">Produtos</a></li>
-      <li><a href="#ingredientes">Ingredientes</a></li>
-      <li><a href="#sobre">Sobre Nós</a></li>
-      <li><a href="#sustentabilidade">Sustentabilidade</a></li>
-    </ul>
-    <div class="nav-actions">
-      <button class="icon-btn"><i class="fa-regular fa-user"></i></button>
-      <button class="icon-btn"><i class="fa-solid fa-bag-shopping"></i></button>
-      <button class="btn-avise">Avise-me</button>
-    </div>
-  </nav>
+<!-- ═══════════════════ NAVBAR ═══════════════════ -->
+<nav id="nav">
+  <a href="#" class="logo">
+    <span class="logo-top">FL<em>O</em>Ra</span>
+    <span class="logo-bot">Botanics</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#inicio">Início</a></li>
+    <li><a href="#produtos">Produtos</a></li>
+    <li><a href="#ingredientes">Ingredientes</a></li>
+    <li><a href="#sobre">Sobre Nós</a></li>
+    <li><a href="#sustentabilidade">Sustentabilidade</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="nav-icon"><i class="fa-regular fa-user"></i></button>
+    <button class="nav-icon"><i class="fa-solid fa-bag-shopping"></i></button>
+    <button class="btn-notify">Avise-me</button>
+  </div>
+</nav>
 
-  <!-- ===== HERO ===== -->
-  <section class="hero" id="inicio">
-    <div class="hero-bg-overlay"></div>
-    <div class="hero-content">
-      <h1>Cosméticos inspirados pela biodiversidade brasileira.</h1>
-      <p>Fórmulas botânicas que unem ciência, natureza e sofisticação.</p>
-      <a href="#produtos" class="btn-primary">Conheça a Coleção</a>
+<!-- ═══════════════════ HERO ═══════════════════ -->
+<section class="hero" id="inicio">
+  <div class="hero-bg"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-body">
+    <h1>Cosméticos inspirados pela biodiversidade brasileira.</h1>
+    <p>Fórmulas botânicas que unem ciência, natureza e sofisticação.</p>
+    <a href="#produtos" class="btn-cta">Conheça a Coleção</a>
+  </div>
+  <!-- Frascos -->
+  <div class="hero-products">
+    <div class="prod prod-1">
+      <img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=200&q=80" alt="Sérum Antioxidante"/>
     </div>
-    <div class="hero-products">
-      <!-- Dropper bottle -->
-      <div class="hero-product-item">
-        <div class="bottle bottle-dropper">
-          <div class="bottle-label">
-            <span class="brand">FLORa</span>
-            Sérum<br>Antioxidante<br><small>50g</small>
-          </div>
-        </div>
-      </div>
-      <!-- Tall pump bottle -->
-      <div class="hero-product-item">
-        <div class="bottle bottle-pump">
-          <div class="bottle-label">
-            <span class="brand">FLORa</span>
-            Óleo Botânico<br>Regenerador<br><small>50g</small>
-          </div>
-        </div>
-      </div>
-      <!-- Jar -->
-      <div class="hero-product-item">
-        <div class="bottle bottle-jar">
-          <div class="bottle-jar-lid"></div>
-          <div class="bottle-label">
-            <span class="brand">FLORa</span>
-            Creme<br>Hidratante<br><small>50g</small>
-          </div>
-        </div>
-      </div>
-      <!-- Slim tall bottle -->
-      <div class="hero-product-item">
-        <div class="bottle bottle-tall">
-          <div class="bottle-label">
-            <span class="brand">FLORa</span>
-            Gel de<br>Limpeza<br><small>120ml</small>
-          </div>
-        </div>
-      </div>
+    <div class="prod prod-2">
+      <img src="https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=200&q=80" alt="Óleo Botânico"/>
     </div>
-  </section>
+    <div class="prod prod-3">
+      <div class="jar-cap"></div>
+      <img src="https://images.unsplash.com/photo-1611080626919-7cf5a9dbab12?w=200&q=80" alt="Creme Hidratante" style="margin-top:22px;height:calc(100% - 22px)"/>
+    </div>
+    <div class="prod prod-4">
+      <img src="https://images.unsplash.com/photo-1570194065650-d99fb4b38e5a?w=200&q=80" alt="Gel de Limpeza"/>
+    </div>
+  </div>
+</section>
 
-  <!-- ===== CATEGORIES ===== -->
-  <section class="categories" id="produtos">
-    <p class="section-label">Cuidado que vem da natureza</p>
-    <div class="categories-grid">
-      <div class="category-card">
-        <div class="category-img">
-          <div class="cat-placeholder cat-serum">Sérum</div>
-        </div>
-        <h3>Sérums</h3>
-        <p>Tratamentos concentrados para resultados reais.</p>
-        <a href="#" class="link-arrow">Ver Produtos &rsaquo;</a>
-      </div>
-      <div class="category-card">
-        <div class="category-img">
-          <div class="cat-placeholder cat-hidra">Hidratante</div>
-        </div>
-        <h3>Hidratantes</h3>
-        <p>Nutrição profunda com o poder da floresta.</p>
-        <a href="#" class="link-arrow">Ver Produtos &rsaquo;</a>
-      </div>
-      <div class="category-card">
-        <div class="category-img">
-          <div class="cat-placeholder cat-limp">Limpeza</div>
-        </div>
-        <h3>Limpadores</h3>
-        <p>Limpeza eficaz e gentil com a pele.</p>
-        <a href="#" class="link-arrow">Ver Produtos &rsaquo;</a>
-      </div>
-      <div class="category-card">
-        <div class="category-img">
-          <div class="cat-placeholder cat-oleo">Óleo</div>
-        </div>
-        <h3>Óleos Botânicos</h3>
-        <p>Ricos em ativos naturais e antioxidantes.</p>
-        <a href="#" class="link-arrow">Ver Produtos &rsaquo;</a>
-      </div>
-    </div>
-  </section>
+<!-- ═══════════════════ CATEGORIES ═══════════════════ -->
+<section class="categories reveal" id="produtos">
+  <p class="section-tag">Cuidado que vem da natureza</p>
+  <div class="cat-grid">
 
-  <!-- ===== INGREDIENTS ===== -->
-  <section id="ingredientes">
-    <div class="ingredients">
-      <div class="ingredients-text">
-        <h2>Da Floresta Para a Sua Pele</h2>
-        <p>Selecionamos ingredientes botânicos brasileiros com alto poder de transformação para criar fórmulas únicas e eficazes.</p>
-        <a href="#" class="link-arrow">Conheça os Ingredientes &rsaquo;</a>
+    <div class="cat-card reveal">
+      <div class="cat-thumb">
+        <img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=600&q=80" alt="Sérums"/>
       </div>
-      <div class="ingredients-grid">
-        <div class="ingredient-item">
-          <div class="ingredient-circle">
-            <div class="ingredient-placeholder ing-andiroba">🌿</div>
-          </div>
-          <h4>Andiroba</h4>
-          <p>Regenera e acalma a pele.</p>
-        </div>
-        <div class="ingredient-item">
-          <div class="ingredient-circle">
-            <div class="ingredient-placeholder ing-buriti">🍊</div>
-          </div>
-          <h4>Buriti</h4>
-          <p>Rico em betacaroteno e antioxidantes.</p>
-        </div>
-        <div class="ingredient-item">
-          <div class="ingredient-circle">
-            <div class="ingredient-placeholder ing-pracaxi">🌰</div>
-          </div>
-          <h4>Pracaxi</h4>
-          <p>Nutre e melhora a elasticidade.</p>
-        </div>
-        <div class="ingredient-item">
-          <div class="ingredient-circle">
-            <div class="ingredient-placeholder ing-cupuacu">🤍</div>
-          </div>
-          <h4>Cupuaçu</h4>
-          <p>Hidrata profundamente e protege.</p>
-        </div>
-        <div class="ingredient-item">
-          <div class="ingredient-circle">
-            <div class="ingredient-placeholder ing-acai">🫐</div>
-          </div>
-          <h4>Açaí</h4>
-          <p>Ação antioxidante e revitalizante.</p>
-        </div>
-      </div>
+      <h3>Sérums</h3>
+      <p>Tratamentos concentrados para resultados reais.</p>
+      <a href="#" class="link-arr">Ver Produtos ›</a>
     </div>
-  </section>
 
-  <!-- ===== MANIFESTO ===== -->
-  <section class="manifesto" id="sobre">
-    <div class="manifesto-overlay"></div>
-    <div class="manifesto-image-area">
-      <div class="manifesto-face">
-        <div class="manifesto-face-inner"></div>
+    <div class="cat-card reveal">
+      <div class="cat-thumb">
+        <img src="https://images.unsplash.com/photo-1611080626919-7cf5a9dbab12?w=600&q=80" alt="Hidratantes"/>
       </div>
+      <h3>Hidratantes</h3>
+      <p>Nutrição profunda com o poder da floresta.</p>
+      <a href="#" class="link-arr">Ver Produtos ›</a>
     </div>
-    <div class="manifesto-content">
-      <p class="manifesto-tag">Nosso Manifesto</p>
-      <h2>Beleza que respeita, cuidado que transforma.</h2>
-      <p>Acreditamos que o cuidado da pele é um retorno ao essencial. Cada fórmula nasce da riqueza botânica brasileira e do respeito às comunidades que preservam esse patrimônio.</p>
-      <a href="#" class="link-arrow" style="color: var(--cream);">Conheça Nossa História &rsaquo;</a>
-    </div>
-  </section>
 
-  <!-- ===== BADGES ===== -->
-  <section class="badges" id="sustentabilidade">
-    <div class="badge-item">
-      <div class="badge-icon"><i class="fa-solid fa-leaf"></i></div>
-      <div>
-        <h4>Ingredientes Naturais</h4>
-        <p>Rastreáveis e sustentáveis.</p>
+    <div class="cat-card reveal">
+      <div class="cat-thumb">
+        <img src="https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=600&q=80" alt="Limpadores"/>
       </div>
+      <h3>Limpadores</h3>
+      <p>Limpeza eficaz e gentil com a pele.</p>
+      <a href="#" class="link-arr">Ver Produtos ›</a>
     </div>
-    <div class="badge-item">
-      <div class="badge-icon"><i class="fa-solid fa-seedling"></i></div>
-      <div>
-        <h4>Vegano</h4>
-        <p>Sem ingredientes de origem animal.</p>
-      </div>
-    </div>
-    <div class="badge-item">
-      <div class="badge-icon"><i class="fa-solid fa-paw"></i></div>
-      <div>
-        <h4>Cruelty Free</h4>
-        <p>Não testamos em animais.</p>
-      </div>
-    </div>
-    <div class="badge-item">
-      <div class="badge-icon"><i class="fa-solid fa-flask"></i></div>
-      <div>
-        <h4>Ciência + Natureza</h4>
-        <p>Fórmulas eficazes com ativos botânicos.</p>
-      </div>
-    </div>
-    <div class="badge-item">
-      <div class="badge-icon"><i class="fa-solid fa-recycle"></i></div>
-      <div>
-        <h4>Embalagens Sustentáveis</h4>
-        <p>Menos impacto, mais futuro.</p>
-      </div>
-    </div>
-  </section>
 
-  <!-- ===== NEWSLETTER ===== -->
-  <section class="newsletter">
-    <div class="newsletter-text">
-      <h2>Receba acesso antecipado</h2>
-      <p>Cadastre-se e seja a primeira pessoa a conhecer nossos lançamentos, receber conteúdos exclusivos e benefícios especiais.</p>
-    </div>
-    <div class="newsletter-form-area">
-      <div class="newsletter-input-row">
-        <input type="email" placeholder="Seu melhor e-mail" />
-        <button type="submit">Quero Receber</button>
+    <div class="cat-card reveal">
+      <div class="cat-thumb">
+        <img src="https://images.unsplash.com/photo-1570194065650-d99fb4b38e5a?w=600&q=80" alt="Óleos Botânicos"/>
       </div>
-      <div class="newsletter-perks">
-        <div class="perk-item">Desconto de Lançamento</div>
-        <div class="perk-item">Acesso Antecipado</div>
-        <div class="perk-item">Amostras Exclusivas</div>
-        <div class="perk-item">Conteúdos sobre Skincare</div>
-      </div>
+      <h3>Óleos Botânicos</h3>
+      <p>Ricos em ativos naturais e antioxidantes.</p>
+      <a href="#" class="link-arr">Ver Produtos ›</a>
     </div>
-  </section>
 
-  <!-- ===== FOOTER ===== -->
-  <footer>
-    <div class="footer-top">
-      <div class="footer-logo">
-        <div class="logo-main">FL<span>O</span>Ra</div>
-        <div class="logo-sub">Botanics</div>
-      </div>
-      <div class="footer-col">
-        <h5>Produtos</h5>
-        <ul>
-          <li><a href="#">Séruns</a></li>
-          <li><a href="#">Hidratantes</a></li>
-          <li><a href="#">Limpadores</a></li>
-          <li><a href="#">Óleos Botânicos</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h5>Institucional</h5>
-        <ul>
-          <li><a href="#">Sobre Nós</a></li>
-          <li><a href="#">Ingredientes</a></li>
-          <li><a href="#">Sustentabilidade</a></li>
-          <li><a href="#">Blog</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h5>Ajuda</h5>
-        <ul>
-          <li><a href="#">Perguntas Frequentes</a></li>
-          <li><a href="#">Trocas e Devoluções</a></li>
-          <li><a href="#">Política de Privacidade</a></li>
-          <li><a href="#">Fale Conosco</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h5>Siga-nos</h5>
-        <div class="footer-social">
-          <a href="#" class="social-icon"><i class="fa-brands fa-instagram"></i></a>
-          <a href="#" class="social-icon"><i class="fa-brands fa-facebook-f"></i></a>
-          <a href="#" class="social-icon"><i class="fa-brands fa-pinterest-p"></i></a>
+  </div>
+</section>
+
+<!-- ═══════════════════ INGREDIENTS ═══════════════════ -->
+<section class="ingredients-section" id="ingredientes">
+  <div class="ing-inner">
+    <div class="ing-text reveal">
+      <h2>Da Floresta Para a Sua Pele</h2>
+      <p>Selecionamos ingredientes botânicos brasileiros com alto poder de transformação para criar fórmulas únicas e eficazes.</p>
+      <a href="#" class="link-arr">Conheça os Ingredientes ›</a>
+    </div>
+    <div class="ing-circles">
+
+      <div class="ing-item reveal">
+        <div class="ing-circle">
+          <img src="https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=300&q=80" alt="Andiroba"/>
         </div>
+        <h4>Andiroba</h4>
+        <p>Regenera e acalma a pele.</p>
+      </div>
+
+      <div class="ing-item reveal">
+        <div class="ing-circle">
+          <img src="https://images.unsplash.com/photo-1546548970-71785318a17b?w=300&q=80" alt="Buriti"/>
+        </div>
+        <h4>Buriti</h4>
+        <p>Rico em betacaroteno e antioxidantes.</p>
+      </div>
+
+      <div class="ing-item reveal">
+        <div class="ing-circle">
+          <img src="https://images.unsplash.com/photo-1509358271058-acd22cc93898?w=300&q=80" alt="Pracaxi"/>
+        </div>
+        <h4>Pracaxi</h4>
+        <p>Nutre e melhora a elasticidade.</p>
+      </div>
+
+      <div class="ing-item reveal">
+        <div class="ing-circle">
+          <img src="https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=300&q=80" alt="Cupuaçu"/>
+        </div>
+        <h4>Cupuaçu</h4>
+        <p>Hidrata profundamente e protege.</p>
+      </div>
+
+      <div class="ing-item reveal">
+        <div class="ing-circle">
+          <img src="https://images.unsplash.com/photo-1502825751399-28baa9b81efe?w=300&q=80" alt="Açaí"/>
+        </div>
+        <h4>Açaí</h4>
+        <p>Ação antioxidante e revitalizante.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ MANIFESTO ═══════════════════ -->
+<section class="manifesto" id="sobre">
+  <div class="manifesto-photo"></div>
+  <div class="manifesto-overlay"></div>
+  <div class="manifesto-body reveal">
+    <p class="manifesto-tag">Nosso Manifesto</p>
+    <h2>Beleza que respeita, cuidado que transforma.</h2>
+    <p>Acreditamos que o cuidado da pele é um retorno ao essencial. Cada fórmula nasce da riqueza botânica brasileira e do respeito às comunidades que preservam esse patrimônio.</p>
+    <a href="#" class="link-arr-light">Conheça Nossa História ›</a>
+  </div>
+</section>
+
+<!-- ═══════════════════ BADGES ═══════════════════ -->
+<section class="badges" id="sustentabilidade">
+  <div class="badge reveal">
+    <div class="badge-ico"><i class="fa-solid fa-leaf"></i></div>
+    <div>
+      <h4>Ingredientes Naturais</h4>
+      <p>Rastreáveis e sustentáveis.</p>
+    </div>
+  </div>
+  <div class="badge reveal">
+    <div class="badge-ico"><i class="fa-solid fa-seedling"></i></div>
+    <div>
+      <h4>Vegano</h4>
+      <p>Sem ingredientes de origem animal.</p>
+    </div>
+  </div>
+  <div class="badge reveal">
+    <div class="badge-ico"><i class="fa-solid fa-paw"></i></div>
+    <div>
+      <h4>Cruelty Free</h4>
+      <p>Não testamos em animais.</p>
+    </div>
+  </div>
+  <div class="badge reveal">
+    <div class="badge-ico"><i class="fa-solid fa-flask"></i></div>
+    <div>
+      <h4>Ciência + Natureza</h4>
+      <p>Fórmulas eficazes com ativos botânicos.</p>
+    </div>
+  </div>
+  <div class="badge reveal">
+    <div class="badge-ico"><i class="fa-solid fa-recycle"></i></div>
+    <div>
+      <h4>Embalagens Sustentáveis</h4>
+      <p>Menos impacto, mais futuro.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ NEWSLETTER ═══════════════════ -->
+<section class="newsletter">
+  <div class="nl-deco"></div>
+  <div class="nl-text reveal">
+    <h2>Receba acesso antecipado</h2>
+    <p>Cadastre-se e seja a primeira pessoa a conhecer nossos lançamentos, receber conteúdos exclusivos e benefícios especiais.</p>
+  </div>
+  <div class="nl-form reveal">
+    <div class="nl-row">
+      <input type="email" id="nl-email" placeholder="Seu melhor e-mail"/>
+      <button onclick="submitNewsletter()">Quero Receber</button>
+    </div>
+    <div class="nl-perks">
+      <div class="perk">Desconto de Lançamento</div>
+      <div class="perk">Acesso Antecipado</div>
+      <div class="perk">Amostras Exclusivas</div>
+      <div class="perk">Conteúdos sobre Skincare</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer>
+  <div class="footer-grid">
+
+    <div class="footer-logo-area">
+      <a href="#" class="logo">
+        <span class="logo-top">FL<em>O</em>Ra</span>
+        <span class="logo-bot">Botanics</span>
+      </a>
+    </div>
+
+    <div class="foot-col">
+      <h5>Produtos</h5>
+      <ul>
+        <li><a href="#">Séruns</a></li>
+        <li><a href="#">Hidratantes</a></li>
+        <li><a href="#">Limpadores</a></li>
+        <li><a href="#">Óleos Botânicos</a></li>
+      </ul>
+    </div>
+
+    <div class="foot-col">
+      <h5>Institucional</h5>
+      <ul>
+        <li><a href="#">Sobre Nós</a></li>
+        <li><a href="#">Ingredientes</a></li>
+        <li><a href="#">Sustentabilidade</a></li>
+        <li><a href="#">Blog</a></li>
+      </ul>
+    </div>
+
+    <div class="foot-col">
+      <h5>Ajuda</h5>
+      <ul>
+        <li><a href="#">Perguntas Frequentes</a></li>
+        <li><a href="#">Trocas e Devoluções</a></li>
+        <li><a href="#">Política de Privacidade</a></li>
+        <li><a href="#">Fale Conosco</a></li>
+      </ul>
+    </div>
+
+    <div class="foot-col">
+      <h5>Siga-nos</h5>
+      <div class="socials">
+        <a href="#" class="soc"><i class="fa-brands fa-instagram"></i></a>
+        <a href="#" class="soc"><i class="fa-brands fa-facebook-f"></i></a>
+        <a href="#" class="soc"><i class="fa-brands fa-pinterest-p"></i></a>
       </div>
     </div>
-    <div class="footer-bottom">
-      © 2024 Flora Botanics. Todos os direitos reservados.
-    </div>
-  </footer>
 
-  <script>
-    // Navbar scroll effect
-    const navbar = document.getElementById('navbar');
-    window.addEventListener('scroll', () => {
-      if (window.scrollY > 60) {
-        navbar.style.background = 'rgba(26, 34, 24, 0.98)';
-        navbar.style.boxShadow = '0 2px 20px rgba(0,0,0,0.3)';
-      } else {
-        navbar.style.background = 'rgba(26, 34, 24, 0.85)';
-        navbar.style.boxShadow = 'none';
+  </div>
+  <div class="footer-bottom">
+    © 2024 Flora Botanics. Todos os direitos reservados.
+  </div>
+</footer>
+
+<script>
+  // ── Navbar scroll ──
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 60);
+  });
+
+  // ── Reveal on scroll ──
+  const revealEls = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 80);
+        observer.unobserve(e.target);
       }
     });
+  }, { threshold: 0.12 });
+  revealEls.forEach(el => observer.observe(el));
 
-    // Smooth reveal on scroll
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.style.opacity = '1';
-          entry.target.style.transform = 'translateY(0)';
-        }
-      });
-    }, { threshold: 0.1 });
+  // ── Newsletter ──
+  function submitNewsletter() {
+    const input = document.getElementById('nl-email');
+    const val = input.value.trim();
+    if (val && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      input.value = '';
+      input.placeholder = '✓ Cadastro realizado com sucesso!';
+      setTimeout(() => input.placeholder = 'Seu melhor e-mail', 4000);
+    } else {
+      input.style.borderColor = 'rgba(220,80,60,.6)';
+      input.placeholder = 'Digite um e-mail válido';
+      setTimeout(() => {
+        input.style.borderColor = 'rgba(255,255,255,.18)';
+        input.placeholder = 'Seu melhor e-mail';
+      }, 3000);
+    }
+  }
 
-    document.querySelectorAll('.category-card, .ingredient-item, .badge-item').forEach(el => {
-      el.style.opacity = '0';
-      el.style.transform = 'translateY(24px)';
-      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-      observer.observe(el);
-    });
-
-    // Newsletter form
-    const form = document.querySelector('.newsletter-input-row');
-    form.querySelector('button').addEventListener('click', () => {
-      const input = form.querySelector('input');
-      if (input.value && input.value.includes('@')) {
-        alert('✅ Cadastro realizado! Em breve você receberá novidades da Flora Botanics.');
-        input.value = '';
-      } else {
-        input.style.borderColor = 'rgba(255,100,100,0.6)';
-        setTimeout(() => input.style.borderColor = 'rgba(255,255,255,0.2)', 2000);
-      }
-    });
-  </script>
+  // ── Enter key on newsletter ──
+  document.getElementById('nl-email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitNewsletter();
+  });
+</script>
 </body>
 </html>
+
