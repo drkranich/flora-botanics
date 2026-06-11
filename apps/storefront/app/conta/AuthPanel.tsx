@@ -91,7 +91,7 @@ export function AuthPanel() {
   /* ---------- visitante ---------- */
   return (
     <div className="auth-card">
-      <div className="auth-tabs notranslate" translate="no">
+      <div className="auth-tabs">
         <button
           className={mode === "login" ? "active" : ""}
           onClick={() => { setMode("login"); setMsg(null); }}
