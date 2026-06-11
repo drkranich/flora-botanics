@@ -35,7 +35,7 @@ export default async function ProdutosPage() {
   const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/`;
 
   const rows: ProductRow[] = (products ?? []).map((p) => {
-    const variants = (p.product_variants ?? []) as Array<{
+    const variants = (p.product_variants ?? []) as unknown as Array<{
       id: string;
       sku: string;
       price_cents: number;
@@ -45,12 +45,13 @@ export default async function ProdutosPage() {
     }>;
     const v = variants.find((x) => x.is_default) ?? variants[0];
     const inv = Array.isArray(v?.inventory) ? v?.inventory[0] : v?.inventory;
-    const pm = (p.product_media ?? []) as Array<{
+    const pm = (p.product_media ?? []) as unknown as Array<{
       role: string;
-      media: { id: string; storage_path: string } | null;
+      media: { id: string; storage_path: string } | { id: string; storage_path: string }[] | null;
     }>;
-    const cover = pm.find((m) => m.role === "cover")?.media ?? null;
-    const pc = (p.product_categories ?? []) as Array<{ category_id: string }>;
+    const coverRaw = pm.find((m) => m.role === "cover")?.media ?? null;
+    const cover = Array.isArray(coverRaw) ? coverRaw[0] ?? null : coverRaw;
+    const pc = (p.product_categories ?? []) as unknown as Array<{ category_id: string }>;
 
     return {
       id: p.id,
