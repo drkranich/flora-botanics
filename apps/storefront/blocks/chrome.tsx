@@ -2,7 +2,31 @@ import Link from "next/link";
 import { currentTenant, db } from "@/lib/tenant";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 
-export function Logo() {
+/** Logo: usa a imagem definida em Configurações → Logo da marca;
+ *  sem imagem, cai no logotipo desenhado FL•RA BOTANICS. */
+export async function Logo() {
+  const tenant = await currentTenant();
+  const { data } = await db()
+    .from("site_settings")
+    .select("value")
+    .eq("tenant_id", tenant.tenantId)
+    .eq("key", "logo")
+    .maybeSingle();
+  const image = ((data?.value as { image?: string } | null)?.image ?? "") as string;
+
+  if (image) {
+    return (
+      <Link href="/" className="logo" aria-label={tenant.name}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image}
+          alt={tenant.name}
+          style={{ maxHeight: 64, width: "auto", display: "block" }}
+        />
+      </Link>
+    );
+  }
+
   return (
     <Link href="/" className="logo">
       <span className="logo-main">

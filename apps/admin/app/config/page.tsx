@@ -4,6 +4,7 @@ import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { ThemeEditor } from "./ThemeEditor";
 import { SocialEditor } from "./SocialEditor";
+import { LogoEditor } from "./LogoEditor";
 import type { SocialItem } from "@/lib/config/actions";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -38,6 +39,15 @@ export default async function ConfigPage() {
         .maybeSingle(),
     ]);
 
+  const { data: logoSetting } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("tenant_id", tenantId)
+    .eq("key", "logo")
+    .maybeSingle();
+  const logoImage =
+    ((logoSetting?.value as { image?: string } | null)?.image ?? "") as string;
+
   const colors =
     ((theme?.tokens as Record<string, unknown> | null)?.colors as Record<string, string>) ?? {};
   const socials =
@@ -49,6 +59,15 @@ export default async function ConfigPage() {
         <Link href="/" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
         <h1 className="display" style={{ fontSize: 44, marginTop: 10 }}>Configurações</h1>
       </header>
+
+      {/* ---------- LOGO ---------- */}
+      <section className="glass rise rise-1" style={{ padding: 26, marginBottom: 18 }}>
+        <p className="eyebrow" style={{ marginBottom: 6 }}>Logo da marca</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
+          Aparece no topo e no rodapé do site.
+        </p>
+        <LogoEditor initial={logoImage} tenantId={tenantId} />
+      </section>
 
       {/* ---------- TEMA ---------- */}
       <section className="glass rise rise-1" style={{ padding: 26, marginBottom: 18 }}>
