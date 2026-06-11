@@ -1,0 +1,6 @@
+Copie para esta pasta as imagens que estão em /assets na raiz do repositório
+(hero-floresta.jpg, hero-produtos.png, cat-*.jpg, ing-*.jpg,
+manifesto-modelo.jpg, newsletter-contagotas.jpg).
+
+O storefront serve estes arquivos em /assets/...
+Na Fase 1 as imagens migram para o Cloudflare R2 via tabela `media`.
