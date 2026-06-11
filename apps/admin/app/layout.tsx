@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Shell } from "./Shell";
 
 export const metadata: Metadata = {
   title: "Flora · Admin",
@@ -17,7 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <Shell>{children}</Shell>
+      </body>
     </html>
   );
 }
