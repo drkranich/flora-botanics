@@ -29,14 +29,14 @@ const MODULES = [
     title: "Vendas",
     desc: "Pedidos, clientes e cupons",
     href: "/vendas",
-    ready: false,
+    ready: true,
     icon: "◈",
   },
   {
     title: "Configurações",
     desc: "Tema, domínios e equipe",
     href: "/config",
-    ready: false,
+    ready: true,
     icon: "✦",
   },
 ];
