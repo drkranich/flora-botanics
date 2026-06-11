@@ -84,14 +84,27 @@ font, font * {
 body { top: 0 !important; position: static !important; }
 .logo { flex-shrink: 0; white-space: nowrap; }
 
-/* esconde TODA a interface do Google Translate (banner, tooltip, balão) —
-   a tradução acontece, mas só o nosso seletor PT/EN/ES aparece */
+/* esconde TODA a interface do Google Translate (banner, tooltip, balão,
+   spinner/logo flutuante) — a tradução acontece em silêncio; só o nosso
+   seletor PT/EN/ES aparece. Cobre classes antigas e novas do widget. */
 .skiptranslate,
 #goog-gt-tt,
 .goog-te-banner-frame,
 .goog-te-balloon-frame,
-#google_translate_element {
+.goog-te-spinner-pos,
+.goog-te-spinner-animation,
+#goog-gt-,
+#google_translate_element,
+.VIpgJd-ZVi9od-l4eHX-hSRGPd,
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+.VIpgJd-ZVi9od-aZ2wEe-OiiCO,
+.VIpgJd-ZVi9od-aZ2wEe,
+.VIpgJd-ZVi9od-xl07Ob-OEVmcd,
+iframe.goog-te-banner-frame,
+iframe.VIpgJd-ZVi9od-ORHb-OEVmcd {
   display: none !important;
+  visibility: hidden !important;
 }
 .goog-text-highlight {
   background: transparent !important;
