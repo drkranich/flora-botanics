@@ -16,7 +16,7 @@ export type CategoryInfo = { slug: string; name: string; description: string | n
 const asset = (p?: string) =>
   p ? (p.startsWith("/") || p.startsWith("http") ? p : `/${p}`) : "";
 
-function Hero({ props }: { props: Props }) {
+function Hero({ props, header }: { props: Props; header?: ReactNode }) {
   const cta = props.cta as Cta | undefined;
   return (
     <section
@@ -25,6 +25,7 @@ function Hero({ props }: { props: Props }) {
         background: `linear-gradient(90deg, rgba(10,22,11,.90) 0%, rgba(10,22,11,.70) 36%, rgba(10,22,11,.32) 66%, rgba(10,22,11,.58) 100%), url("${asset(props.image as string)}") center / cover`,
       }}
     >
+      {header}
       <div className="container hero-inner">
         <div className="hero-text">
           <h1>{props.title as string}</h1>
@@ -244,13 +245,15 @@ function Faq({ props }: { props: Props }) {
 export function ClientSectionRenderer({
   section,
   categories,
+  header,
 }: {
   section: { id: string; block: string; props: Props };
   categories: Map<string, CategoryInfo>;
+  header?: ReactNode;
 }) {
   switch (section.block) {
     case "hero":
-      return <Hero props={section.props} />;
+      return <Hero props={section.props} header={header} />;
     case "category_grid":
       return <CategoryGrid props={section.props} categories={categories} />;
     case "ingredient_grid":

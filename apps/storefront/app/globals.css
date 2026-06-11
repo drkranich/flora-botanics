@@ -19,7 +19,15 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { font-family: var(--font-body); background: var(--cream); color: var(--text); }
+body {
+  font-family: var(--font-body);
+  background: var(--cream);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.footer { margin-top: auto; } /* rodapé sempre ancorado na base */
 img { max-width: 100%; display: block; }
 a { color: inherit; text-decoration: none; }
 
