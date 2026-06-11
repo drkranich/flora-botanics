@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { ThemeEditor } from "./ThemeEditor";
+import { SocialEditor } from "./SocialEditor";
+import type { SocialItem } from "@/lib/config/actions";
 
 const ROLE_LABEL: Record<string, string> = {
   platform_admin: "Admin da Plataforma",
@@ -19,18 +21,27 @@ export default async function ConfigPage() {
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
-  const [{ data: theme }, { data: domains }, { data: team }] = await Promise.all([
-    supabase.from("tenant_themes").select("tokens").eq("tenant_id", tenantId).maybeSingle(),
-    supabase.from("tenant_domains").select("domain, is_primary, verified_at").eq("tenant_id", tenantId),
-    supabase
-      .from("profiles")
-      .select("id, full_name, role, created_at")
-      .eq("tenant_id", tenantId)
-      .neq("role", "customer"),
-  ]);
+  const [{ data: theme }, { data: domains }, { data: team }, { data: socialSetting }] =
+    await Promise.all([
+      supabase.from("tenant_themes").select("tokens").eq("tenant_id", tenantId).maybeSingle(),
+      supabase.from("tenant_domains").select("domain, is_primary, verified_at").eq("tenant_id", tenantId),
+      supabase
+        .from("profiles")
+        .select("id, full_name, role, created_at")
+        .eq("tenant_id", tenantId)
+        .neq("role", "customer"),
+      supabase
+        .from("site_settings")
+        .select("value")
+        .eq("tenant_id", tenantId)
+        .eq("key", "social")
+        .maybeSingle(),
+    ]);
 
   const colors =
     ((theme?.tokens as Record<string, unknown> | null)?.colors as Record<string, string>) ?? {};
+  const socials =
+    ((socialSetting?.value as { items?: SocialItem[] } | null)?.items ?? []) as SocialItem[];
 
   return (
     <main style={{ maxWidth: 860, margin: "0 auto", padding: "48px 28px 80px" }}>
@@ -47,6 +58,16 @@ export default async function ConfigPage() {
           Alterações valem para todo o site após salvar.
         </p>
         <ThemeEditor initial={colors} />
+      </section>
+
+      {/* ---------- REDES SOCIAIS ---------- */}
+      <section className="glass rise rise-2" style={{ padding: 26, marginBottom: 18 }}>
+        <p className="eyebrow" style={{ marginBottom: 6 }}>Redes sociais do rodapé</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
+          Cada botão tem nome, ícone (imagem da biblioteca ou URL) e link.
+          Botões sem link ficam ocultos no site.
+        </p>
+        <SocialEditor initial={socials} tenantId={tenantId} />
       </section>
 
       {/* ---------- DOMÍNIOS ---------- */}
