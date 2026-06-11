@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
+import { effectiveTenantId } from "@/lib/cms/actions";
 import { PageEditor } from "./PageEditor";
 
 export default async function CmsPageEditor({
@@ -21,7 +22,6 @@ export default async function CmsPageEditor({
     .maybeSingle();
   if (!page) notFound();
 
-  // carrega a versão mais recente (rascunho de partida)
   const { data: latest } = await supabase
     .from("page_versions")
     .select("id, version, sections")
@@ -37,21 +37,43 @@ export default async function CmsPageEditor({
   }>;
 
   const isLatestPublished = latest?.id === page.published_version_id;
+  const tenantId = await effectiveTenantId();
+  const storefrontUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "http://localhost:3000";
 
   return (
-    <main style={{ maxWidth: 860, margin: "0 auto", padding: "40px 24px" }}>
-      <header style={{ marginBottom: 24 }}>
-        <Link href="/cms" style={{ fontSize: 11, color: "#96763f", fontWeight: 700 }}>
-          ← PÁGINAS
+    <main style={{ maxWidth: 1480, margin: "0 auto", padding: "48px 28px 120px" }}>
+      <header className="rise" style={{ marginBottom: 32 }}>
+        <Link href="/cms" className="eyebrow" style={{ opacity: 0.8 }}>
+          ← Páginas
         </Link>
-        <h1 style={{ fontWeight: 900, letterSpacing: -1, margin: "6px 0 4px" }}>{page.title}</h1>
-        <p style={{ fontSize: 12, color: "#5e584b", margin: 0 }}>
-          /{page.slug} · versão {latest?.version ?? 0}
-          {isLatestPublished ? " (publicada)" : " (há edições não publicadas)"}
-        </p>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            flexWrap: "wrap",
+            gap: 14,
+            marginTop: 10,
+          }}
+        >
+          <div>
+            <h1 className="display" style={{ fontSize: 42 }}>{page.title}</h1>
+            <p className="muted" style={{ fontSize: 12, marginTop: 5 }}>
+              /{page.slug} · versão {latest?.version ?? 0}
+            </p>
+          </div>
+          <span className={`chip ${isLatestPublished ? "chip-live" : "chip-draft"}`}>
+            {isLatestPublished ? "Versão no ar" : "Edições não publicadas"}
+          </span>
+        </div>
       </header>
 
-      <PageEditor pageId={page.id} initialSections={sections} />
+      <PageEditor
+        pageId={page.id}
+        initialSections={sections}
+        tenantId={tenantId}
+        storefrontUrl={storefrontUrl}
+      />
     </main>
   );
 }
