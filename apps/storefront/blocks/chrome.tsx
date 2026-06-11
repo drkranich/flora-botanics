@@ -16,19 +16,19 @@ export async function Logo() {
 
   if (image) {
     return (
-      <Link href="/" className="logo" aria-label={tenant.name}>
+      <Link href="/" className="logo notranslate" translate="no" aria-label={tenant.name}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={image}
           alt={tenant.name}
-          style={{ maxHeight: 64, width: "auto", display: "block" }}
+          style={{ height: 56, width: "auto", display: "block" }}
         />
       </Link>
     );
   }
 
   return (
-    <Link href="/" className="logo">
+    <Link href="/" className="logo notranslate" translate="no">
       <span className="logo-main">
         FL<span className="logo-symbol"></span>RA
       </span>
