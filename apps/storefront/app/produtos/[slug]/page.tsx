@@ -65,7 +65,7 @@ export default async function ProductPage({
           </span>
           <p className="sku">Ref. {product.sku}</p>
 
-          <BuyButton inStock={product.in_stock} />
+          <BuyButton variantId={product.variant_id} inStock={product.in_stock} />
         </div>
       </section>
 
