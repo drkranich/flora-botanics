@@ -256,6 +256,8 @@ html {
 /* botões em pílula de vidro dourado */
 .btn {
   border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
   background: linear-gradient(135deg, rgba(217, 184, 122, 0.95), rgba(185, 146, 77, 0.95) 55%, rgba(150, 118, 63, 0.95));
   border: 1px solid rgba(255, 248, 234, 0.3);
   box-shadow: 0 8px 26px rgba(150, 118, 63, 0.35);
