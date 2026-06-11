@@ -143,3 +143,38 @@ a { color: inherit; text-decoration: none; }
   .newsletter-form { height: auto; flex-direction: column; }
   .newsletter-form input, .newsletter-form button { width: 100%; height: 54px; }
 }
+
+/* ---------- SCROLLBAR GLASS (site + preview) ---------- */
+
+html {
+  scrollbar-width: thin;                       /* Firefox */
+  scrollbar-color: rgba(150, 118, 63, 0.35) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(185, 146, 77, 0.30),
+    rgba(150, 118, 63, 0.40)
+  );
+  border-radius: 999px;
+  border: 2.5px solid transparent;
+  background-clip: padding-box;
+  backdrop-filter: blur(8px);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(185, 146, 77, 0.55),
+    rgba(150, 118, 63, 0.65)
+  );
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner { background: transparent; }

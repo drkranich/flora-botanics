@@ -325,8 +325,8 @@ export function PageEditor({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: preview ? "minmax(420px, 640px) 1fr" : "minmax(420px, 720px)",
-        gap: 24,
+        gridTemplateColumns: preview ? "minmax(380px, 540px) 1fr" : "minmax(420px, 720px)",
+        gap: 32,
         alignItems: "start",
       }}
     >
@@ -471,47 +471,72 @@ export function PageEditor({
         </div>
       </div>
 
-      {/* ============ COLUNA DO PREVIEW ============ */}
+      {/* ============ COLUNA DO PREVIEW (sem moldura) ============ */}
       {preview ? (
         <div
-          className="glass rise"
+          className="rise"
           style={{
             position: "sticky",
-            top: 24,
-            height: "calc(100vh - 180px)",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
+            top: 16,
+            height: "calc(100vh - 110px)",
           }}
         >
+          {/* controles flutuando sobre a página, sem barra */}
           <div
             style={{
+              position: "absolute",
+              top: 14,
+              right: 14,
+              zIndex: 5,
               display: "flex",
-              justifyContent: "space-between",
               alignItems: "center",
-              padding: "12px 18px",
-              borderBottom: "1px solid var(--glass-border)",
+              gap: 10,
+              padding: "8px 14px",
+              borderRadius: 999,
+              background: "rgba(15, 32, 18, 0.55)",
+              backdropFilter: "blur(14px) saturate(1.2)",
+              WebkitBackdropFilter: "blur(14px) saturate(1.2)",
+              boxShadow: "0 4px 18px rgba(0,0,0,0.25)",
             }}
           >
-            <p className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: "#8fd486",
-                  boxShadow: "0 0 8px #8fd486",
-                }}
-              />
-              Preview ao vivo
-            </p>
-            <button className="btn-icon" onClick={() => setPreview(false)} title="Ocultar preview">✕</button>
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "#8fd486",
+                boxShadow: "0 0 8px #8fd486",
+              }}
+            />
+            <span className="eyebrow" style={{ fontSize: 9 }}>Ao vivo</span>
+            <button
+              onClick={() => setPreview(false)}
+              title="Ocultar preview"
+              style={{
+                background: "none",
+                border: 0,
+                color: "var(--cream-soft)",
+                cursor: "pointer",
+                fontSize: 13,
+                lineHeight: 1,
+                padding: 2,
+              }}
+            >
+              ✕
+            </button>
           </div>
           <iframe
             ref={iframeRef}
             src={`${storefrontUrl}/preview`}
             onLoad={pushPreview}
-            style={{ flex: 1, border: 0, width: "100%", background: "#f2ecdf" }}
+            style={{
+              border: 0,
+              width: "100%",
+              height: "100%",
+              background: "#f2ecdf",
+              borderRadius: 26,
+              boxShadow: "0 24px 70px rgba(0, 0, 0, 0.45)",
+            }}
             title="Preview da página"
           />
         </div>
