@@ -58,8 +58,9 @@ export function SiteHeader({ menu }: { menu: Array<{ label: string; href: string
         </Link>
         <Link href="/sacola" aria-label="Sacola" title="Sacola">
           <svg className="icon" viewBox="0 0 24 24">
-            <path d="M6 8h12l-1 13H7L6 8Z"></path>
-            <path d="M9 8a3 3 0 0 1 6 0"></path>
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
           </svg>
         </Link>
         <Link href="/#newsletter" className="btn">

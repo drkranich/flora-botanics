@@ -37,7 +37,7 @@ export default async function BagPage() {
         </div>
       </div>
 
-      <section className="container" style={{ padding: "60px 0 80px", maxWidth: 640 }}>
+      <section className="container" style={{ padding: "60px 0 80px" }}>
         <h2
           style={{
             fontFamily: "var(--font-display)",
@@ -49,12 +49,12 @@ export default async function BagPage() {
         >
           Comece pela coleção
         </h2>
-        <p style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.7, marginBottom: 26 }}>
+        <p style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.7, marginBottom: 26, maxWidth: 640 }}>
           Cada produto tem o botão <strong>Comprar</strong> que leva direto ao
           pagamento seguro via Stripe. A sacola com vários itens chega em breve,
           junto com a sua área de cliente.
         </p>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 14, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 8 }}>
           {(categories ?? []).map((c) => (
             <Link key={c.slug} href={`/categorias/${c.slug}`} className="btn">
               {c.name}
