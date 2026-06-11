@@ -72,6 +72,18 @@ export async function getCategoryWithProducts(
   return { category, products };
 }
 
+/** Todos os produtos publicados do tenant (vitrine /produtos). */
+export async function getAllProducts(db: SupabaseClient, tenantId: string) {
+  const { data } = await db
+    .from("products")
+    .select(PRODUCT_SELECT)
+    .eq("tenant_id", tenantId)
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map(mapProduct);
+}
+
 export async function getProductBySlug(
   db: SupabaseClient,
   tenantId: string,
