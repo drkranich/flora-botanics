@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { saveDraft, saveAndPublish, type SectionData } from "@/lib/cms/actions";
-import { ImageField } from "./MediaPicker";
+import { ImageField } from "@/components/MediaPicker";
 
 const BLOCK_LABEL: Record<string, string> = {
   hero: "Hero — banner principal",

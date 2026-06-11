@@ -18,7 +18,8 @@ const NAV: NavItem[] = [
 const COMMANDS = [
   { label: "Ir para Início", href: "/" },
   { label: "Ir para CMS — Páginas", href: "/cms" },
-  { label: "Ir para Catálogo — Categorias", href: "/catalogo" },
+  { label: "Ir para Catálogo — Produtos", href: "/catalogo" },
+  { label: "Ir para Catálogo — Categorias", href: "/catalogo/categorias" },
   { label: "Ir para Vendas — Pedidos", href: "/vendas" },
   { label: "Ir para Vendas — Clientes", href: "/vendas/clientes" },
   { label: "Ir para Vendas — Cupons", href: "/vendas/cupons" },
