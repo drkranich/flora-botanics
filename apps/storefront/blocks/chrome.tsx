@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { currentTenant, db } from "@/lib/tenant";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export function Logo() {
   return (
@@ -24,18 +25,19 @@ export function SiteHeader({ menu }: { menu: Array<{ label: string; href: string
         ))}
       </nav>
       <div className="header-actions">
-        <a href="#" aria-label="Conta">
+        <LanguageSwitcher />
+        <Link href="/conta" aria-label="Minha conta" title="Minha conta">
           <svg className="icon" viewBox="0 0 24 24">
             <circle cx="12" cy="7" r="4"></circle>
             <path d="M4 21a8 8 0 0 1 16 0"></path>
           </svg>
-        </a>
-        <a href="#" aria-label="Sacola">
+        </Link>
+        <Link href="/sacola" aria-label="Sacola" title="Sacola">
           <svg className="icon" viewBox="0 0 24 24">
             <path d="M6 8h12l-1 13H7L6 8Z"></path>
             <path d="M9 8a3 3 0 0 1 6 0"></path>
           </svg>
-        </a>
+        </Link>
         <Link href="/#newsletter" className="btn">
           Avise-me
         </Link>
