@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { LogoutButton } from "./LogoutButton";
@@ -26,7 +27,7 @@ export default async function AdminHome() {
     .maybeSingle();
 
   const modules = [
-    { title: "CMS", desc: "Páginas, menus e mídia", href: "/cms", ready: false },
+    { title: "CMS", desc: "Páginas, menus e mídia", href: "/cms", ready: true },
     { title: "Catálogo", desc: "Produtos, categorias e estoque", href: "/catalogo", ready: false },
     { title: "Vendas", desc: "Pedidos, clientes e cupons", href: "/vendas", ready: false },
     { title: "Configurações", desc: "Tema, domínios e equipe", href: "/config", ready: false },
@@ -60,27 +61,35 @@ export default async function AdminHome() {
           gap: 20,
         }}
       >
-        {modules.map((m) => (
-          <div
-            key={m.title}
-            style={{
-              background: "#fff8ea",
-              border: "1px solid #e6ddcb",
-              padding: 24,
-              opacity: m.ready ? 1 : 0.6,
-            }}
-          >
-            <h2 style={{ fontSize: 14, letterSpacing: 1.5, textTransform: "uppercase", margin: 0 }}>
-              {m.title}
-            </h2>
-            <p style={{ fontSize: 12, color: "#5e584b", margin: "8px 0 0" }}>{m.desc}</p>
-            {!m.ready ? (
+        {modules.map((m) => {
+          const card = (
+            <div
+              style={{
+                background: "#fff8ea",
+                border: "1px solid #e6ddcb",
+                padding: 24,
+                opacity: m.ready ? 1 : 0.6,
+                height: "100%",
+                boxSizing: "border-box",
+              }}
+            >
+              <h2 style={{ fontSize: 14, letterSpacing: 1.5, textTransform: "uppercase", margin: 0 }}>
+                {m.title}
+              </h2>
+              <p style={{ fontSize: 12, color: "#5e584b", margin: "8px 0 0" }}>{m.desc}</p>
               <p style={{ fontSize: 10, color: "#b9924d", fontWeight: 700, margin: "12px 0 0" }}>
-                EM BREVE
+                {m.ready ? "ABRIR →" : "EM BREVE"}
               </p>
-            ) : null}
-          </div>
-        ))}
+            </div>
+          );
+          return m.ready ? (
+            <Link key={m.title} href={m.href} style={{ textDecoration: "none", color: "inherit" }}>
+              {card}
+            </Link>
+          ) : (
+            <div key={m.title}>{card}</div>
+          );
+        })}
       </div>
     </main>
   );
