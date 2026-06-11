@@ -83,7 +83,24 @@ font, font * {
 }
 body { top: 0 !important; position: static !important; }
 .logo { flex-shrink: 0; white-space: nowrap; }
-.skiptranslate iframe { display: none !important; }
+
+/* esconde TODA a interface do Google Translate (banner, tooltip, balão) —
+   a tradução acontece, mas só o nosso seletor PT/EN/ES aparece */
+.skiptranslate,
+#goog-gt-tt,
+.goog-te-banner-frame,
+.goog-te-balloon-frame,
+#google_translate_element {
+  display: none !important;
+}
+.goog-text-highlight {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+html.translated-ltr body,
+html.translated-rtl body {
+  top: 0 !important;
+}
 .icon { width: 21px; height: 21px; stroke: #f6ecd7; stroke-width: 1.7; fill: none; }
 .hero-inner { position: relative; z-index: 3; padding-top: 85px; }
 .hero-text { max-width: 420px; }
