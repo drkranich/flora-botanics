@@ -117,7 +117,7 @@ export default async function ConfigPage() {
           members={(team ?? []) as TeamMember[]}
           invites={(invites ?? []) as PendingInvite[]}
           myId={session.userId}
-          canManage={session.role !== "tenant_editor"}
+          canManage // editores nunca chegam aqui (redirect no topo)
         />
       </section>
     </main>
