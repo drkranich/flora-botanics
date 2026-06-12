@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
-import { SalesTabs, StatusChip, money } from "./Tabs";
+import { SalesTabs, StatusChip } from "./Tabs";
+import { money } from "@/lib/format";
 
 export default async function OrdersPage() {
   const session = await getStaffSession();

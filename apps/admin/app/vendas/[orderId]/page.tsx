@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
-import { StatusChip, money, STATUS_LABEL } from "../Tabs";
+import { StatusChip, STATUS_LABEL } from "../Tabs";
+import { money } from "@/lib/format";
 import { TransitionBar } from "./TransitionBar";
 
 export default async function OrderDetail({
