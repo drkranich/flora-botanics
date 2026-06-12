@@ -84,7 +84,7 @@ export function AuthPanel() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) setMsg("E-mail ou senha inválidos.");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -92,10 +92,14 @@ export function AuthPanel() {
             emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/conta` : undefined,
           },
         });
+        // e-mail já cadastrado: o Supabase devolve "sucesso" sem identities
+        const alreadyExists = !error && (data.user?.identities?.length ?? 0) === 0;
         setMsg(
           error
             ? error.message
-            : "Conta criada! Verifique seu e-mail para confirmar o cadastro."
+            : alreadyExists
+              ? "Este e-mail já tem conta. Use a aba Entrar — ou recupere a senha em \"Esqueci minha senha\"."
+              : "Conta criada! Verifique seu e-mail para confirmar o cadastro."
         );
       }
     } finally {

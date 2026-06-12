@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "first">("login");
+  const [mode, setMode] = useState<"login" | "first" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -21,6 +21,17 @@ export default function LoginPage() {
     setNotice(null);
 
     const supabase = supabaseBrowser();
+
+    if (mode === "forgot") {
+      // envia o link de redefinição para a página dedicada do painel
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login/redefinir`,
+      });
+      setLoading(false);
+      setNotice("Se este e-mail tiver acesso, você receberá um link para redefinir a senha.");
+      setMode("login");
+      return;
+    }
 
     if (mode === "first") {
       // primeiro acesso de quem foi convidada: cria a conta;
@@ -119,19 +130,21 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="field">
-          <label className="field-label" htmlFor="password">Senha</label>
-          <input
-            id="password"
-            className="input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            autoComplete="current-password"
-          />
-        </div>
+        {mode !== "forgot" ? (
+          <div className="field">
+            <label className="field-label" htmlFor="password">Senha</label>
+            <input
+              id="password"
+              className="input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              autoComplete={mode === "first" ? "new-password" : "current-password"}
+            />
+          </div>
+        ) : null}
 
         {error ? (
           <p style={{ color: "#e8a0a0", fontSize: 12, textAlign: "center" }}>{error}</p>
@@ -145,16 +158,37 @@ export default function LoginPage() {
             ? "Aguarde…"
             : mode === "first"
               ? "Criar acesso"
-              : "Entrar"}
+              : mode === "forgot"
+                ? "Enviar link de recuperação"
+                : "Entrar"}
         </button>
 
-        <button
-          type="button"
-          onClick={() => { setMode(mode === "login" ? "first" : "login"); setError(null); setNotice(null); }}
-          style={{ background: "none", border: 0, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", color: "var(--cream-soft, inherit)", opacity: 0.8, fontFamily: "inherit" }}
-        >
-          {mode === "login" ? "Primeiro acesso? Fui convidada(o) por e-mail" : "← Já tenho conta, entrar"}
-        </button>
+        {mode === "login" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => { setMode("first"); setError(null); setNotice(null); }}
+              style={{ background: "none", border: 0, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", color: "var(--cream-soft, inherit)", opacity: 0.8, fontFamily: "inherit" }}
+            >
+              Primeiro acesso? Fui convidada(o) por e-mail
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("forgot"); setError(null); setNotice(null); }}
+              style={{ background: "none", border: 0, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", color: "var(--cream-soft, inherit)", opacity: 0.8, fontFamily: "inherit" }}
+            >
+              Esqueci minha senha
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setMode("login"); setError(null); setNotice(null); }}
+            style={{ background: "none", border: 0, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", color: "var(--cream-soft, inherit)", opacity: 0.8, fontFamily: "inherit" }}
+          >
+            ← Voltar para entrar
+          </button>
+        )}
 
         <p className="muted" style={{ fontSize: 10.5, textAlign: "center", letterSpacing: 0.4 }}>
           Acesso restrito à equipe Flora Ecosystem
