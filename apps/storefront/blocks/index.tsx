@@ -116,10 +116,12 @@ function IngredientGrid({ props }: { props: Props }) {
         <div className="ingredient-grid">
           {items.map((ing) => (
             <article className="ingredient-card" key={ing.title}>
-              {ing.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={asset(ing.image)} alt={ing.title} />
-              ) : null}
+              <div
+                className="avatar"
+                role="img"
+                aria-label={ing.title}
+                style={ing.image ? { backgroundImage: `url("${asset(ing.image)}")` } : undefined}
+              />
               <h3>{ing.title}</h3>
               <p>{ing.text}</p>
             </article>

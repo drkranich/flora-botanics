@@ -147,6 +147,19 @@ html.translated-rtl body {
 .ingredient-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 26px; }
 .ingredient-card { text-align: center; }
 .ingredient-card img { width: 124px; height: 124px; border-radius: 50%; object-fit: cover; margin: 0 auto 15px; background: #cbbda1; }
+.ingredient-card .avatar {
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  margin: 0 auto 15px;
+  background-color: #cbbda1;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(150, 118, 63, 0.2);
+  box-shadow: 0 10px 26px rgba(40, 37, 29, 0.12);
+  overflow: hidden;
+  flex-shrink: 0;
+}
 .ingredient-card h3 { font-size: 12px; letter-spacing: 1.8px; text-transform: uppercase; color: #6d4d2d; margin-bottom: 6px; }
 .ingredient-card p { max-width: 130px; margin: 0 auto; font-size: 12px; line-height: 1.38; color: #373229; }
 
@@ -361,6 +374,22 @@ html {
 .ingredient-card img {
   border: 1px solid rgba(150, 118, 63, 0.2);
   box-shadow: 0 10px 26px rgba(40, 37, 29, 0.12);
+  /* avatares sempre idênticos, mesmo com imagem ausente:
+     dimensão fixa, recorte circular, texto-alternativo invisível */
+  width: 124px !important;
+  height: 124px !important;
+  object-fit: cover;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+  background-color: #cbbda1;
+}
+
+/* mesmo tratamento para fotos de categoria (alt não vaza em imagem quebrada) */
+.category-card img {
+  color: transparent;
+  font-size: 0;
+  overflow: hidden;
 }
 
 /* formulário da newsletter em vidro */
