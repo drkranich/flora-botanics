@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { saveDraft, saveAndPublish, type SectionData } from "@/lib/cms/actions";
 import { ImageField } from "@/components/MediaPicker";
+import { BackgroundField, type SectionBackground } from "./BackgroundField";
 
 const BLOCK_LABEL: Record<string, string> = {
   hero: "Hero — banner principal",
@@ -203,7 +204,9 @@ function FieldEditor({
     const obj = value as Record<string, unknown>;
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {Object.entries(obj).map(([k, v]) => (
+        {Object.entries(obj)
+          .filter(([k]) => k !== "background") // editado pelo controle dedicado
+          .map(([k, v]) => (
           <div key={k} className="field">
             <span className="field-label">{label(k)}</span>
             <FieldEditor
@@ -408,6 +411,19 @@ export function PageEditor({
                 >
                   <div style={{ padding: "6px 20px 22px", borderTop: "1px solid var(--glass-border)" }}>
                     <div style={{ paddingTop: 16 }}>
+                      <BackgroundField
+                        value={s.props.background as SectionBackground | undefined}
+                        tenantId={tenantId}
+                        onChange={(bg) => {
+                          setSections(
+                            sections.map((x) =>
+                              x.id === s.id
+                                ? { ...x, props: { ...x.props, background: bg } }
+                                : x
+                            )
+                          );
+                        }}
+                      />
                       <FieldEditor
                         fieldKey={s.block}
                         blockType={s.block}

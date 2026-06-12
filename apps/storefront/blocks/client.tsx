@@ -8,6 +8,7 @@
 
 import type { ReactNode } from "react";
 import { NewsletterForm } from "./NewsletterForm";
+import { BgWrap, type SectionBg } from "./background";
 
 type Props = Record<string, unknown>;
 type Cta = { label: string; href: string };
@@ -251,26 +252,37 @@ export function ClientSectionRenderer({
   categories: Map<string, CategoryInfo>;
   header?: ReactNode;
 }) {
+  let node: ReactNode = null;
   switch (section.block) {
     case "hero":
-      return <Hero props={section.props} header={header} />;
+      node = <Hero props={section.props} header={header} />;
+      break;
     case "category_grid":
-      return <CategoryGrid props={section.props} categories={categories} />;
+      node = <CategoryGrid props={section.props} categories={categories} />;
+      break;
     case "ingredient_grid":
-      return <IngredientGrid props={section.props} />;
+      node = <IngredientGrid props={section.props} />;
+      break;
     case "manifesto":
-      return <Manifesto props={section.props} />;
+      node = <Manifesto props={section.props} />;
+      break;
     case "benefits":
-      return <Benefits props={section.props} />;
+      node = <Benefits props={section.props} />;
+      break;
     case "newsletter":
-      return <Newsletter props={section.props} />;
+      node = <Newsletter props={section.props} />;
+      break;
     case "rich_text":
-      return <RichText props={section.props} />;
+      node = <RichText props={section.props} />;
+      break;
     case "banner":
-      return <Banner props={section.props} />;
+      node = <Banner props={section.props} />;
+      break;
     case "faq":
-      return <Faq props={section.props} />;
+      node = <Faq props={section.props} />;
+      break;
     default:
       return null;
   }
+  return <BgWrap bg={section.props.background as SectionBg | undefined}>{node}</BgWrap>;
 }

@@ -50,11 +50,23 @@ export default async function AdminHome() {
   }
 
   const supabase = await supabaseServer();
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("name, slug")
-    .eq("id", session.tenantId)
-    .maybeSingle();
+  const [{ data: tenant }, { data: profile }] = await Promise.all([
+    supabase.from("tenants").select("name, slug").eq("id", session.tenantId).maybeSingle(),
+    supabase.from("profiles").select("full_name").eq("id", session.userId).maybeSingle(),
+  ]);
+
+  // saudação pelo horário de Brasília + primeiro nome (qualquer papel)
+  const hour = Number(
+    new Intl.DateTimeFormat("pt-BR", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "America/Sao_Paulo",
+    }).format(new Date())
+  );
+  const saudacao = hour >= 5 && hour < 12 ? "Bom dia" : hour >= 12 && hour < 18 ? "Boa tarde" : "Boa noite";
+  const primeiroNome =
+    profile?.full_name?.trim().split(/\s+/)[0] ??
+    session.email.split("@")[0].replace(/[._-]/g, " ").split(/\s+/)[0].replace(/^./, (c) => c.toUpperCase());
 
   return (
     <main style={{ maxWidth: 1040, margin: "0 auto", padding: "48px 28px 80px" }}>
@@ -72,12 +84,14 @@ export default async function AdminHome() {
         <div>
           <p className="eyebrow">{tenant?.name ?? "Flora Ecosystem"}</p>
           <h1 className="display" style={{ fontSize: 46, marginTop: 6 }}>
-            Bom trabalho,{" "}
+            {saudacao},{" "}
             <em style={{ color: "var(--gold-light)", fontStyle: "italic" }}>
-              {ROLE_LABEL[session.role]}
+              {primeiroNome}
             </em>
           </h1>
-          <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>{session.email}</p>
+          <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+            {session.email} · {ROLE_LABEL[session.role]}
+          </p>
         </div>
         <LogoutButton />
       </header>
