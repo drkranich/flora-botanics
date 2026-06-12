@@ -13,7 +13,8 @@ import { MyOrders } from "./MyOrders";
  */
 export function AuthPanel() {
   const [user, setUser] = useState<User | null>(null);
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
+  const [recovery, setRecovery] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,11 +24,49 @@ export function AuthPanel() {
   useEffect(() => {
     const supabase = supabaseBrowser();
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      // usuária chegou pelo link de redefinição do e-mail
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  async function sendReset(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/conta`,
+      });
+      setMsg(
+        error
+          ? "Não foi possível enviar o e-mail. Confira o endereço e tente novamente."
+          : "Se este e-mail estiver cadastrado, você receberá um link para redefinir a senha."
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveNewPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { error } = await supabaseBrowser().auth.updateUser({ password });
+      if (error) {
+        setMsg("Não foi possível salvar. A senha precisa ter ao menos 6 caracteres.");
+      } else {
+        setRecovery(false);
+        setPassword("");
+        setMsg("Senha atualizada com sucesso!");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,11 +99,57 @@ export function AuthPanel() {
 
   async function social(provider: "google" | "facebook" | "apple") {
     setMsg(null);
-    const { error } = await supabaseBrowser().auth.signInWithOAuth({
+    // obtém a URL sem navegar; só redireciona se o provedor estiver habilitado
+    const { data, error } = await supabaseBrowser().auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/conta` },
+      options: {
+        redirectTo: `${window.location.origin}/conta`,
+        skipBrowserRedirect: true,
+      },
     });
-    if (error) setMsg("Este login social ainda não está habilitado.");
+    if (error || !data?.url) {
+      setMsg("Este login social ainda não está disponível — use e-mail e senha.");
+      return;
+    }
+    try {
+      const probe = await fetch(data.url, { redirect: "manual" });
+      if (probe.type === "opaqueredirect" || probe.ok || probe.status === 0) {
+        window.location.href = data.url; // habilitado: segue o fluxo normal
+        return;
+      }
+      setMsg("Este login social ainda não está disponível — use e-mail e senha.");
+    } catch {
+      // rede/CORS impediu a checagem: tenta o fluxo normal
+      window.location.href = data.url;
+    }
+  }
+
+  /* ---------- redefinindo a senha (chegou pelo link do e-mail) ---------- */
+  if (user && recovery) {
+    return (
+      <div className="auth-card">
+        <h2 className="auth-title">Definir nova senha</h2>
+        <p className="auth-text" style={{ marginBottom: 16 }}>
+          Escolha uma nova senha para <strong>{user.email}</strong>.
+        </p>
+        <form onSubmit={saveNewPassword} className="auth-form">
+          <input
+            className="auth-input"
+            type="password"
+            placeholder="Nova senha (mín. 6 caracteres)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            autoComplete="new-password"
+          />
+          <button type="submit" className="btn" disabled={busy}>
+            {busy ? "Aguarde…" : "Salvar nova senha"}
+          </button>
+        </form>
+        {msg ? <p className="auth-msg">{msg}</p> : null}
+      </div>
+    );
   }
 
   /* ---------- logada ---------- */
@@ -89,6 +174,39 @@ export function AuthPanel() {
           style={{ marginTop: 22 }}
         >
           Sair da conta
+        </button>
+      </div>
+    );
+  }
+
+  /* ---------- visitante: recuperar conta ---------- */
+  if (mode === "forgot") {
+    return (
+      <div className="auth-card">
+        <h2 className="auth-title">Recuperar conta</h2>
+        <p className="auth-text" style={{ marginBottom: 16 }}>
+          Informe o e-mail da sua conta e enviaremos um link para redefinir a senha.
+        </p>
+        <form onSubmit={sendReset} className="auth-form">
+          <input
+            className="auth-input"
+            type="email"
+            placeholder="Seu e-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+          <button type="submit" className="btn" disabled={busy}>
+            {busy ? "Enviando…" : "Enviar link de recuperação"}
+          </button>
+        </form>
+        {msg ? <p className="auth-msg">{msg}</p> : null}
+        <button
+          onClick={() => { setMode("login"); setMsg(null); }}
+          style={{ background: "none", border: 0, cursor: "pointer", marginTop: 16, fontSize: 12.5, textDecoration: "underline", color: "inherit", opacity: 0.75, fontFamily: "inherit" }}
+        >
+          ← Voltar para entrar
         </button>
       </div>
     );
@@ -145,6 +263,15 @@ export function AuthPanel() {
           {busy ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar minha conta"}
         </button>
       </form>
+
+      {mode === "login" ? (
+        <button
+          onClick={() => { setMode("forgot"); setMsg(null); }}
+          style={{ background: "none", border: 0, cursor: "pointer", marginTop: 12, fontSize: 12.5, textDecoration: "underline", color: "inherit", opacity: 0.75, fontFamily: "inherit" }}
+        >
+          Esqueci minha senha
+        </button>
+      ) : null}
 
       <div className="auth-divider"><span>ou continue com</span></div>
 

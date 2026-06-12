@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
-import { OperateButton, NewTenantForm } from "./TenantActions";
+import { OperateButton, NewTenantForm, TenantManage } from "./TenantActions";
 
 /**
  * PLATAFORMA — painel do superadmin (platform_admin).
@@ -100,6 +100,10 @@ export default async function PlataformaPage() {
                 </div>
               ))}
               <OperateButton tenantId={t.id} active={activeTenant === t.id || (rows.length === 1 && !activeTenant)} />
+              <TenantManage
+                tenant={{ id: t.id, name: t.name, slug: t.slug, status: t.status }}
+                isRoot={t.slug === "flora-botanics"}
+              />
             </div>
           </div>
         ))}

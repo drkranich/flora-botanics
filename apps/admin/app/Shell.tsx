@@ -16,8 +16,15 @@ const NAV: NavItem[] = [
   { href: "/canais", label: "Canais", icon: "⌬", match: (p) => p.startsWith("/canais") },
   { href: "/operacoes", label: "Operações", icon: "▤", match: (p) => p.startsWith("/operacoes") },
   { href: "/config", label: "Configurações", icon: "✦", match: (p) => p.startsWith("/config") },
-  { href: "/plataforma", label: "Plataforma", icon: "♛", match: (p) => p.startsWith("/plataforma") },
 ];
+
+/** Visível apenas para o superadmin (platform_admin). */
+const NAV_PLATFORM: NavItem = {
+  href: "/plataforma",
+  label: "Plataforma",
+  icon: "♛",
+  match: (p) => p.startsWith("/plataforma"),
+};
 
 const COMMANDS = [
   { label: "Ir para Início", href: "/" },
@@ -36,10 +43,17 @@ const COMMANDS = [
   { label: "Sair da conta", href: "__logout__" },
 ];
 
-export function Shell({ children }: { children: React.ReactNode }) {
+export function Shell({
+  children,
+  isPlatformAdmin = false,
+}: {
+  children: React.ReactNode;
+  isPlatformAdmin?: boolean;
+}) {
   const path = usePathname();
   const isLogin = path.startsWith("/login");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const navItems = isPlatformAdmin ? [...NAV, NAV_PLATFORM] : NAV;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -66,7 +80,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const active = item.match(path);
             return (
               <Link
@@ -93,7 +107,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
 
-      {paletteOpen ? <CommandPalette onClose={() => setPaletteOpen(false)} /> : null}
+      {paletteOpen ? (
+        <CommandPalette onClose={() => setPaletteOpen(false)} isPlatformAdmin={isPlatformAdmin} />
+      ) : null}
     </div>
   );
 }
@@ -115,16 +131,25 @@ function LogoutItem() {
   );
 }
 
-function CommandPalette({ onClose }: { onClose: () => void }) {
+function CommandPalette({
+  onClose,
+  isPlatformAdmin,
+}: {
+  onClose: () => void;
+  isPlatformAdmin: boolean;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const results = useMemo(() => {
+    const base = isPlatformAdmin
+      ? COMMANDS
+      : COMMANDS.filter((c) => c.href !== "/plataforma");
     const q = query.trim().toLowerCase();
-    return q ? COMMANDS.filter((c) => c.label.toLowerCase().includes(q)) : COMMANDS;
-  }, [query]);
+    return q ? base.filter((c) => c.label.toLowerCase().includes(q)) : base;
+  }, [query, isPlatformAdmin]);
 
   useEffect(() => {
     inputRef.current?.focus();

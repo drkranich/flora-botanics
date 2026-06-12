@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Shell } from "./Shell";
+import { getStaffSession } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Flora · Admin",
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await getStaffSession();
+
   return (
     <html lang="pt-BR">
       <head>
@@ -19,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <Shell>{children}</Shell>
+        <Shell isPlatformAdmin={session?.role === "platform_admin"}>{children}</Shell>
       </body>
     </html>
   );
