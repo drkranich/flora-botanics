@@ -7,6 +7,7 @@ import { SalesTabs } from "../Tabs";
 export default async function CustomersPage() {
   const session = await getStaffSession();
   if (!session) redirect("/login");
+  if (session.role === "tenant_editor") redirect("/");
 
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();

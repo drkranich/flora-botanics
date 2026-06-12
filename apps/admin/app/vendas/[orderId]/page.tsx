@@ -12,6 +12,7 @@ export default async function OrderDetail({
 }) {
   const session = await getStaffSession();
   if (!session) redirect("/login");
+  if (session.role === "tenant_editor") redirect("/");
 
   const { orderId } = await params;
   const supabase = await supabaseServer();

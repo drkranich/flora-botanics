@@ -19,6 +19,7 @@ const DEMO = [
 export default async function InboxPage() {
   const session = await getStaffSession();
   if (!session) redirect("/login");
+  if (session.role === "tenant_editor") redirect("/");
 
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();

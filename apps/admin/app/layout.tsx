@@ -22,7 +22,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <Shell isPlatformAdmin={session?.role === "platform_admin"}>{children}</Shell>
+        <Shell role={session?.role}>{children}</Shell>
       </body>
     </html>
   );

@@ -43,17 +43,27 @@ const COMMANDS = [
   { label: "Sair da conta", href: "__logout__" },
 ];
 
+/** Módulos visíveis para o papel Editor (tenant_editor). */
+const EDITOR_HREFS = ["/", "/cms", "/catalogo"];
+
 export function Shell({
   children,
-  isPlatformAdmin = false,
+  role,
 }: {
   children: React.ReactNode;
-  isPlatformAdmin?: boolean;
+  role?: string;
 }) {
   const path = usePathname();
   const isLogin = path.startsWith("/login");
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const navItems = isPlatformAdmin ? [...NAV, NAV_PLATFORM] : NAV;
+
+  const isPlatformAdmin = role === "platform_admin";
+  const isEditor = role === "tenant_editor";
+  const navItems = isEditor
+    ? NAV.filter((n) => EDITOR_HREFS.includes(n.href))
+    : isPlatformAdmin
+      ? [...NAV, NAV_PLATFORM]
+      : NAV;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -108,7 +118,11 @@ export function Shell({
       <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
 
       {paletteOpen ? (
-        <CommandPalette onClose={() => setPaletteOpen(false)} isPlatformAdmin={isPlatformAdmin} />
+        <CommandPalette
+          onClose={() => setPaletteOpen(false)}
+          isPlatformAdmin={isPlatformAdmin}
+          isEditor={isEditor}
+        />
       ) : null}
     </div>
   );
@@ -134,9 +148,11 @@ function LogoutItem() {
 function CommandPalette({
   onClose,
   isPlatformAdmin,
+  isEditor,
 }: {
   onClose: () => void;
   isPlatformAdmin: boolean;
+  isEditor: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -144,12 +160,19 @@ function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const results = useMemo(() => {
-    const base = isPlatformAdmin
+    let base = isPlatformAdmin
       ? COMMANDS
       : COMMANDS.filter((c) => c.href !== "/plataforma");
+    if (isEditor) {
+      base = base.filter(
+        (c) =>
+          c.href.startsWith("__") ||
+          EDITOR_HREFS.some((h) => (h === "/" ? c.href === "/" : c.href.startsWith(h)))
+      );
+    }
     const q = query.trim().toLowerCase();
     return q ? base.filter((c) => c.label.toLowerCase().includes(q)) : base;
-  }, [query, isPlatformAdmin]);
+  }, [query, isPlatformAdmin, isEditor]);
 
   useEffect(() => {
     inputRef.current?.focus();

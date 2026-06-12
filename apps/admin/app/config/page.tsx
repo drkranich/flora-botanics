@@ -5,32 +5,30 @@ import { effectiveTenantId } from "@/lib/cms/actions";
 import { ThemeEditor } from "./ThemeEditor";
 import { SocialEditor } from "./SocialEditor";
 import { LogoEditor } from "./LogoEditor";
+import { TeamEditor } from "./TeamEditor";
 import type { SocialItem } from "@/lib/config/actions";
-
-const ROLE_LABEL: Record<string, string> = {
-  platform_admin: "Admin da Plataforma",
-  tenant_owner: "Proprietário",
-  tenant_admin: "Administrador",
-  tenant_editor: "Editor",
-  customer: "Cliente",
-};
+import type { TeamMember, PendingInvite } from "@/lib/config/team-actions";
 
 export default async function ConfigPage() {
   const session = await getStaffSession();
   if (!session) redirect("/login");
+  // Editores não acessam Configurações
+  if (session.role === "tenant_editor") redirect("/");
 
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
-  const [{ data: theme }, { data: domains }, { data: team }, { data: socialSetting }] =
+  const [{ data: theme }, { data: domains }, { data: team }, { data: invites }, { data: socialSetting }] =
     await Promise.all([
       supabase.from("tenant_themes").select("tokens").eq("tenant_id", tenantId).maybeSingle(),
       supabase.from("tenant_domains").select("domain, is_primary, verified_at").eq("tenant_id", tenantId),
+      supabase.rpc("team_list", { t: tenantId }),
       supabase
-        .from("profiles")
-        .select("id, full_name, role, created_at")
+        .from("tenant_invites")
+        .select("id, email, role, created_at")
         .eq("tenant_id", tenantId)
-        .neq("role", "customer"),
+        .eq("status", "pending")
+        .order("created_at"),
       supabase
         .from("site_settings")
         .select("value")
@@ -109,18 +107,18 @@ export default async function ConfigPage() {
 
       {/* ---------- EQUIPE ---------- */}
       <section className="glass rise rise-3" style={{ padding: 26 }}>
-        <p className="eyebrow" style={{ marginBottom: 14 }}>Equipe</p>
-        {(team ?? []).map((m) => (
-          <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--glass-border)" }}>
-            <span style={{ fontSize: 13.5 }}>{m.full_name ?? m.id.slice(0, 8)}</span>
-            <span className="chip chip-draft">{ROLE_LABEL[m.role] ?? m.role}</span>
-          </div>
-        ))}
-        <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>
-          Convidar novos membros por e-mail exige envio seguro pelo servidor —
-          entra junto com as Edge Functions (etapa do deploy). Por enquanto,
-          usuários são criados no dashboard do Supabase e promovidos via Cowork.
+        <p className="eyebrow" style={{ marginBottom: 6 }}>Equipe</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 14 }}>
+          Administradores têm acesso total à marca; Editores cuidam só de Site e
+          Catálogo. O convite vale no primeiro acesso da pessoa com o e-mail
+          convidado — em "Primeiro acesso" na tela de login do painel.
         </p>
+        <TeamEditor
+          members={(team ?? []) as TeamMember[]}
+          invites={(invites ?? []) as PendingInvite[]}
+          myId={session.userId}
+          canManage={session.role !== "tenant_editor"}
+        />
       </section>
     </main>
   );
