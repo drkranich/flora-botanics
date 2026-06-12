@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 
 export type SectionData = {
@@ -15,11 +16,27 @@ async function requireStaff() {
   return session;
 }
 
-/** Tenant efetivo: o do staff, ou (platform_admin) o primeiro ativo. */
+/** Tenant efetivo: o do staff; para platform_admin, o tenant escolhido
+ *  no painel Plataforma (cookie fl_tenant) ou o primeiro ativo. */
 export async function effectiveTenantId(): Promise<string> {
   const session = await requireStaff();
   if (session.tenantId) return session.tenantId;
+
   const supabase = await supabaseServer();
+
+  // contexto escolhido pelo superadmin
+  const jar = await cookies();
+  const override = jar.get("fl_tenant")?.value;
+  if (override) {
+    const { data: chosen } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("id", override)
+      .eq("status", "active")
+      .maybeSingle();
+    if (chosen) return chosen.id;
+  }
+
   const { data } = await supabase
     .from("tenants")
     .select("id")

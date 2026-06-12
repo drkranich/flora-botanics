@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { href: "/canais", label: "Canais", icon: "⌬", match: (p) => p.startsWith("/canais") },
   { href: "/operacoes", label: "Operações", icon: "▤", match: (p) => p.startsWith("/operacoes") },
   { href: "/config", label: "Configurações", icon: "✦", match: (p) => p.startsWith("/config") },
+  { href: "/plataforma", label: "Plataforma", icon: "♛", match: (p) => p.startsWith("/plataforma") },
 ];
 
 const COMMANDS = [
@@ -30,6 +31,7 @@ const COMMANDS = [
   { label: "Ir para Canais de venda", href: "/canais" },
   { label: "Ir para Operações — Estoque", href: "/operacoes" },
   { label: "Ir para Configurações", href: "/config" },
+  { label: "Ir para Plataforma (superadmin)", href: "/plataforma" },
   { label: "Ver site ao vivo (nova aba)", href: "__site__" },
   { label: "Sair da conta", href: "__logout__" },
 ];
