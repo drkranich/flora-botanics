@@ -153,12 +153,20 @@ html.translated-rtl body {
   border-radius: 50%;
   margin: 0 auto 15px;
   background-color: #cbbda1;
-  background-size: cover;
-  background-position: center;
   border: 1px solid rgba(150, 118, 63, 0.2);
   box-shadow: 0 10px 26px rgba(40, 37, 29, 0.12);
   overflow: hidden;
   flex-shrink: 0;
+  position: relative;
+}
+/* a foto vive numa camada interna com zoom de recorte:
+   amplia 45% e corta as bordas — o tema preenche a bolinha inteira */
+.ingredient-card .avatar .avatar-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.8); /* recorte profundo: elimina molduras embutidas nas fotos */
 }
 .ingredient-card h3 { font-size: 12px; letter-spacing: 1.8px; text-transform: uppercase; color: #6d4d2d; margin-bottom: 6px; }
 .ingredient-card p { max-width: 130px; margin: 0 auto; font-size: 12px; line-height: 1.38; color: #373229; }

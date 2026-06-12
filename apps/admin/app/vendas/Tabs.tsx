@@ -4,18 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/vendas", label: "Pedidos" },
-  { href: "/vendas/clientes", label: "Clientes" },
-  { href: "/vendas/cupons", label: "Cupons" },
+  { href: "/vendas", label: "Pedidos", key: "pedidos" as const },
+  { href: "/vendas/clientes", label: "Clientes", key: "clientes" as const },
+  { href: "/vendas/cupons", label: "Cupons", key: "cupons" as const },
 ];
 
-export function SalesTabs() {
+export function SalesTabs({
+  counts,
+}: {
+  counts?: { pedidos?: number; clientes?: number; cupons?: number };
+}) {
   const path = usePathname();
   return (
     <nav style={{ display: "flex", gap: 8, marginBottom: 26 }}>
       {TABS.map((t) => {
         const active =
           t.href === "/vendas" ? path === "/vendas" || /^\/vendas\/[0-9a-f-]{36}/.test(path) : path.startsWith(t.href);
+        const n = counts?.[t.key];
         return (
           <Link
             key={t.href}
@@ -24,6 +29,7 @@ export function SalesTabs() {
             style={{ padding: "9px 20px", fontSize: 10 }}
           >
             {t.label}
+            {typeof n === "number" ? ` (${n})` : ""}
           </Link>
         );
       })}

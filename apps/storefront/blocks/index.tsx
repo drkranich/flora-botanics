@@ -116,12 +116,14 @@ function IngredientGrid({ props }: { props: Props }) {
         <div className="ingredient-grid">
           {items.map((ing) => (
             <article className="ingredient-card" key={ing.title}>
-              <div
-                className="avatar"
-                role="img"
-                aria-label={ing.title}
-                style={ing.image ? { backgroundImage: `url("${asset(ing.image)}")` } : undefined}
-              />
+              <div className="avatar" role="img" aria-label={ing.title}>
+                {ing.image ? (
+                  <div
+                    className="avatar-img"
+                    style={{ backgroundImage: `url("${asset(ing.image)}")` }}
+                  />
+                ) : null}
+              </div>
               <h3>{ing.title}</h3>
               <p>{ing.text}</p>
             </article>

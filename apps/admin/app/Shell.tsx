@@ -9,20 +9,26 @@ type NavItem = { href: string; label: string; icon: string; match: (p: string) =
 
 const NAV: NavItem[] = [
   { href: "/", label: "Início", icon: "◉", match: (p) => p === "/" },
-  { href: "/cms", label: "CMS", icon: "✺", match: (p) => p.startsWith("/cms") },
+  { href: "/cms", label: "Site", icon: "✺", match: (p) => p.startsWith("/cms") },
   { href: "/catalogo", label: "Catálogo", icon: "❖", match: (p) => p.startsWith("/catalogo") },
   { href: "/vendas", label: "Vendas", icon: "◈", match: (p) => p.startsWith("/vendas") },
+  { href: "/inbox", label: "Inbox", icon: "✉", match: (p) => p.startsWith("/inbox") },
+  { href: "/canais", label: "Canais", icon: "⌬", match: (p) => p.startsWith("/canais") },
+  { href: "/operacoes", label: "Operações", icon: "▤", match: (p) => p.startsWith("/operacoes") },
   { href: "/config", label: "Configurações", icon: "✦", match: (p) => p.startsWith("/config") },
 ];
 
 const COMMANDS = [
   { label: "Ir para Início", href: "/" },
-  { label: "Ir para CMS — Páginas", href: "/cms" },
+  { label: "Ir para Site — Páginas", href: "/cms" },
   { label: "Ir para Catálogo — Produtos", href: "/catalogo" },
   { label: "Ir para Catálogo — Categorias", href: "/catalogo/categorias" },
   { label: "Ir para Vendas — Pedidos", href: "/vendas" },
   { label: "Ir para Vendas — Clientes", href: "/vendas/clientes" },
   { label: "Ir para Vendas — Cupons", href: "/vendas/cupons" },
+  { label: "Ir para Inbox", href: "/inbox" },
+  { label: "Ir para Canais de venda", href: "/canais" },
+  { label: "Ir para Operações — Estoque", href: "/operacoes" },
   { label: "Ir para Configurações", href: "/config" },
   { label: "Ver site ao vivo (nova aba)", href: "__site__" },
   { label: "Sair da conta", href: "__logout__" },

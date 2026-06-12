@@ -31,6 +31,47 @@ export async function effectiveTenantId(): Promise<string> {
   return data.id;
 }
 
+/** Cria uma página nova (rascunho) e devolve o id para abrir o editor. */
+export async function createPage(form: { title: string; type: string }) {
+  const session = await requireStaff();
+  const tenantId = await effectiveTenantId();
+  const supabase = await supabaseServer();
+
+  const slug = form.title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!slug) throw new Error("Título inválido");
+
+  const { data: page, error } = await supabase
+    .from("pages")
+    .insert({
+      tenant_id: tenantId,
+      slug,
+      title: form.title.trim(),
+      type: form.type || "landing",
+      status: "draft",
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message.includes("duplicate") ? "Já existe página com esse nome" : error.message);
+
+  await supabase.from("page_versions").insert({
+    tenant_id: tenantId,
+    page_id: page.id,
+    version: 1,
+    sections: [
+      { id: "s1", block: "rich_text", props: { content: `<p>Conteúdo de ${form.title}…</p>` } },
+    ],
+    created_by: session.userId,
+  });
+
+  revalidatePath("/cms");
+  return page.id as string;
+}
+
 /** Salva um novo rascunho (nova versão) com as seções editadas. */
 export async function saveDraft(pageId: string, sections: SectionData[]) {
   const session = await requireStaff();

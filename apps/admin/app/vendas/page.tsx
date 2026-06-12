@@ -11,12 +11,27 @@ export default async function OrdersPage() {
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id, number, status, total_cents, currency, created_at, customers(email, full_name)")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data: orders }, { count: customerCount }, { count: couponCount }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id, number, status, total_cents, currency, created_at, customers(email, full_name)")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase.from("customers").select("*", { count: "exact", head: true }).eq("tenant_id", tenantId),
+    supabase.from("coupons").select("*", { count: "exact", head: true }).eq("tenant_id", tenantId),
+  ]);
+
+  const paid = (orders ?? []).filter((o) => !["pending", "canceled"].includes(o.status));
+  const revenue = paid.reduce((s, o) => s + (o.total_cents ?? 0), 0);
+  const ticket = paid.length > 0 ? Math.round(revenue / paid.length) : 0;
+
+  const metrics = [
+    { label: "Pedidos", value: String((orders ?? []).length) },
+    { label: "Receita", value: money(revenue) },
+    { label: "Clientes", value: String(customerCount ?? 0) },
+    { label: "Ticket médio", value: money(ticket) },
+  ];
 
   return (
     <main style={{ maxWidth: 920, margin: "0 auto", padding: "48px 28px 80px" }}>
@@ -25,7 +40,16 @@ export default async function OrdersPage() {
         <h1 className="display" style={{ fontSize: 44, marginTop: 10 }}>Vendas</h1>
       </header>
 
-      <SalesTabs />
+      <div className="rise" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 22 }}>
+        {metrics.map((m) => (
+          <div key={m.label} className="glass" style={{ padding: "16px 20px" }}>
+            <p className="display" style={{ fontSize: 26, color: "var(--gold-light)" }}>{m.value}</p>
+            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>{m.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <SalesTabs counts={{ pedidos: (orders ?? []).length, clientes: customerCount ?? 0, cupons: couponCount ?? 0 }} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {(orders ?? []).map((o, i) => {
