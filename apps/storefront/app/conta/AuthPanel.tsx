@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { MyOrders } from "./MyOrders";
+import { ProfileForm } from "./ProfileForm";
 
 /**
  * Área do cliente — autenticação.
@@ -160,26 +161,30 @@ export function AuthPanel() {
   /* ---------- logada ---------- */
   if (user) {
     return (
-      <div className="auth-card" style={{ width: "min(560px, 100%)" }}>
-        <h2 className="auth-title">Olá{user.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ""}!</h2>
-        <p className="auth-text" style={{ marginBottom: 20 }}>
-          Conectada como <strong>{user.email}</strong>.
-        </p>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, width: "100%" }}>
+        <div className="auth-card" style={{ width: "min(560px, 100%)" }}>
+          <h2 className="auth-title">Olá{user.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ""}!</h2>
+          <p className="auth-text" style={{ marginBottom: 20 }}>
+            Conectada como <strong>{user.email}</strong>.
+          </p>
 
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.6, textTransform: "uppercase", color: "#6d4d2d", marginBottom: 12 }}>
-          Meus pedidos
-        </p>
-        <MyOrders />
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.6, textTransform: "uppercase", color: "#6d4d2d", marginBottom: 12 }}>
+            Meus pedidos
+          </p>
+          <MyOrders />
 
-        <button
-          className="btn"
-          onClick={async () => {
-            await supabaseBrowser().auth.signOut();
-          }}
-          style={{ marginTop: 22 }}
-        >
-          Sair da conta
-        </button>
+          <button
+            className="btn"
+            onClick={async () => {
+              await supabaseBrowser().auth.signOut();
+            }}
+            style={{ marginTop: 22 }}
+          >
+            Sair da conta
+          </button>
+        </div>
+
+        <ProfileForm userId={user.id} email={user.email ?? ""} />
       </div>
     );
   }
