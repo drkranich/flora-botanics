@@ -22,6 +22,11 @@ export function AuthPanel() {
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    // fallback: se o link de redefinição cair aqui (em vez de /conta/redefinir),
+    // o token vem no fragment da URL — detectamos antes do evento disparar
+    if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
+      setRecovery(true);
+    }
     const supabase = supabaseBrowser();
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
@@ -38,7 +43,7 @@ export function AuthPanel() {
     setMsg(null);
     try {
       const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/conta`,
+        redirectTo: `${window.location.origin}/conta/redefinir`,
       });
       setMsg(
         error
