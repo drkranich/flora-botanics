@@ -134,17 +134,25 @@ Deno.serve(async (req) => {
       raw: { payment_intent: session.payment_intent, event_id: event.id },
     });
 
-    // baixa de estoque
+    // baixa de estoque + trilha de movimentação
     const { data: inv } = await admin
       .from("inventory")
       .select("id, quantity, track")
       .eq("variant_id", variantId)
       .maybeSingle();
     if (inv?.track) {
-      await admin
-        .from("inventory")
-        .update({ quantity: Math.max(0, (inv.quantity ?? 0) - qty) })
-        .eq("id", inv.id);
+      const newQty = Math.max(0, (inv.quantity ?? 0) - qty);
+      await admin.from("inventory").update({ quantity: newQty }).eq("id", inv.id);
+      await admin.from("stock_movements").insert({
+        tenant_id: tenantId,
+        variant_id: variantId,
+        type: "venda",
+        delta: -qty,
+        balance_after: newQty,
+        order_id: order.id,
+        channel: "site",
+        reason: `Pedido pago via Stripe (${session.id})`,
+      });
     }
 
     return new Response("ok", { status: 200 });

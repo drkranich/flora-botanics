@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { MyOrders } from "./MyOrders";
 
 /**
  * Área do cliente — autenticação.
@@ -69,18 +70,23 @@ export function AuthPanel() {
   /* ---------- logada ---------- */
   if (user) {
     return (
-      <div className="auth-card">
+      <div className="auth-card" style={{ width: "min(560px, 100%)" }}>
         <h2 className="auth-title">Olá{user.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ""}!</h2>
-        <p className="auth-text">
-          Você está conectada como <strong>{user.email}</strong>. O histórico de
-          pedidos e endereços aparecerá aqui em breve.
+        <p className="auth-text" style={{ marginBottom: 20 }}>
+          Conectada como <strong>{user.email}</strong>.
         </p>
+
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.6, textTransform: "uppercase", color: "#6d4d2d", marginBottom: 12 }}>
+          Meus pedidos
+        </p>
+        <MyOrders />
+
         <button
           className="btn"
           onClick={async () => {
             await supabaseBrowser().auth.signOut();
           }}
-          style={{ marginTop: 18 }}
+          style={{ marginTop: 22 }}
         >
           Sair da conta
         </button>
