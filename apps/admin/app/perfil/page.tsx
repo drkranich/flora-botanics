@@ -90,7 +90,8 @@ export default function PerfilPage() {
       const supabase = supabaseBrowser();
       const { error } = await supabase.rpc("delete_my_account");
       if (error) {
-        setErr("Não foi possível excluir a conta.");
+        // proprietários e superadmin recebem a regra de transferência do banco
+        setErr(error.message.replace(/^.*?:\s*/, ""));
         return;
       }
       await supabase.auth.signOut();
@@ -168,8 +169,10 @@ export default function PerfilPage() {
       <section className="glass rise rise-2" style={{ padding: 24, marginTop: 18 }}>
         <p className="eyebrow" style={{ color: "#e8a0a0", marginBottom: 8 }}>Zona de risco</p>
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
-          Excluir sua conta apaga seu acesso e seu perfil para sempre. Se você for
-          a única pessoa proprietária, a marca fica sem dono — transfira antes.
+          Excluir sua conta apaga seu acesso e seu perfil para sempre.
+          Proprietários precisam antes transferir a marca — com aprovação
+          eletrônica da pessoa que assume (senha reconfirmada e termo aceito,
+          tudo registrado na auditoria).
         </p>
         <button
           className="btn btn-ghost"
