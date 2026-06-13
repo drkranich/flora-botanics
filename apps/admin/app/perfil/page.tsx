@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { TransferOwnership } from "./TransferOwnership";
 
 /**
  * Meu perfil — disponível para QUALQUER papel do painel.
@@ -165,6 +166,10 @@ export default function PerfilPage() {
           </button>
         </div>
       </section>
+
+      {userId ? (
+        <TransferOwnership userId={userId} email={email} fullName={fullName} role={role} />
+      ) : null}
 
       <section className="glass rise rise-2" style={{ padding: 24, marginTop: 18 }}>
         <p className="eyebrow" style={{ color: "#e8a0a0", marginBottom: 8 }}>Zona de risco</p>
