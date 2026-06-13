@@ -21,27 +21,51 @@ const STEPS = ["Pessoal", "Endereço", "Contato", "Pagamento"];
 export function ProfileForm({ userId, email }: { userId: string; email: string }) {
   const [step, setStep] = useState(0);
   const [fullName, setFullName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [addr, setAddr] = useState<Address>({});
   const [soc, setSoc] = useState<Socials>({});
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     supabaseBrowser()
       .from("profiles")
-      .select("full_name, whatsapp, address, socials")
+      .select("full_name, avatar_url, whatsapp, address, socials")
       .eq("id", userId)
       .maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setFullName(data.full_name ?? "");
+        setAvatarUrl(data.avatar_url ?? "");
         setWhatsapp(data.whatsapp ?? "");
         setAddr((data.address as Address) ?? {});
         setSoc((data.socials as Socials) ?? {});
       });
   }, [userId]);
+
+  async function uploadAvatar(file: File) {
+    setUploading(true);
+    setErr(null);
+    try {
+      const supabase = supabaseBrowser();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${userId}/avatar-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (error) {
+        setErr("Não foi possível enviar a foto. Use JPG ou PNG de até 5 MB.");
+        return;
+      }
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      setAvatarUrl(data.publicUrl);
+      // já grava no perfil para a foto valer em todo lugar
+      await supabase.from("profiles").update({ avatar_url: data.publicUrl }).eq("id", userId);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function save() {
     setBusy(true);
@@ -50,10 +74,30 @@ export function ProfileForm({ userId, email }: { userId: string; email: string }
     try {
       const { error } = await supabaseBrowser()
         .from("profiles")
-        .update({ full_name: fullName, whatsapp, address: addr, socials: soc })
+        .update({ full_name: fullName, avatar_url: avatarUrl, whatsapp, address: addr, socials: soc })
         .eq("id", userId);
       if (error) setErr("Não foi possível salvar. Tente novamente.");
       else setSaved(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteAccount() {
+    const typed = window.prompt(
+      "Isso apaga sua conta e seus dados de perfil para sempre. Digite EXCLUIR para confirmar:"
+    );
+    if (typed?.trim().toUpperCase() !== "EXCLUIR") return;
+    setBusy(true);
+    try {
+      const supabase = supabaseBrowser();
+      const { error } = await supabase.rpc("delete_my_account");
+      if (error) {
+        setErr("Não foi possível excluir a conta. Tente novamente.");
+        return;
+      }
+      await supabase.auth.signOut();
+      window.location.href = "/";
     } finally {
       setBusy(false);
     }
@@ -97,6 +141,35 @@ export function ProfileForm({ userId, email }: { userId: string; email: string }
           {/* 1 · PESSOAL */}
           <div className="pf-step">
             <h3>Dados pessoais</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div
+                style={{
+                  width: 84, height: 84, borderRadius: "50%", flexShrink: 0,
+                  border: "2px solid rgba(185, 146, 77, 0.4)",
+                  background: avatarUrl
+                    ? `center / cover no-repeat url(${avatarUrl})`
+                    : "linear-gradient(135deg, rgba(185,146,77,0.18), rgba(150,118,63,0.28))",
+                  display: "grid", placeItems: "center",
+                  fontSize: 26, color: "#96763f",
+                }}
+              >
+                {!avatarUrl ? (fullName.trim().charAt(0).toUpperCase() || "✿") : null}
+              </div>
+              <label className="btn" style={{ cursor: "pointer", padding: "11px 20px" }}>
+                {uploading ? "Enviando…" : avatarUrl ? "Trocar foto" : "Adicionar foto"}
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  style={{ display: "none" }}
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadAvatar(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
             <label className="pf-label">Nome completo</label>
             <input className="pf-input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Seu nome" />
             <label className="pf-label">E-mail</label>
@@ -202,6 +275,17 @@ export function ProfileForm({ userId, email }: { userId: string; email: string }
             </div>
             {saved ? <p className="pf-ok">✓ Dados salvos com sucesso.</p> : null}
             {err ? <p className="auth-msg">{err}</p> : null}
+
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid rgba(185, 146, 77, 0.18)" }}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={deleteAccount}
+                style={{ background: "none", border: 0, cursor: "pointer", fontSize: 12, textDecoration: "underline", color: "#a05252", fontFamily: "inherit", padding: 0 }}
+              >
+                Excluir minha conta definitivamente
+              </button>
+            </div>
           </div>
         </div>
       </div>

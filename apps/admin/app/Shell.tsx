@@ -105,6 +105,14 @@ export function Shell({
           })}
         </nav>
 
+        <Link
+          href="/perfil"
+          className={`side-item ${path.startsWith("/perfil") ? "side-item-active" : ""}`}
+        >
+          <span className="side-icon">◐</span>
+          <span className="side-label">Meu perfil</span>
+        </Link>
+
         <button className="side-item" onClick={() => setPaletteOpen(true)} title="Busca rápida">
           <span className="side-icon">⌘</span>
           <span className="side-label">
