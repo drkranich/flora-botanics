@@ -541,4 +541,36 @@ O desenho de RLS + `tenant_id` em tudo é o que permite essa progressão sem ree
 
 ---
 
+## 14. Addendum — Painel Admin/CRM + ERP próprio (registrado em 2026-06-14)
+
+Decisão do tenant 1 (Flora Botanics): antecipar parte das Fases 2-4 para construir, dentro do próprio CMS/admin, um conjunto de funções equivalentes ao Bling (NF-e, etiquetas, estoque, marketplaces) — eliminando a dependência de ferramentas externas de ERP. Isso amplia o escopo da Seção 1.2 (que excluía NF-e/ERP/WhatsApp/marketplace do MVP) e antecipa trechos das Fases 2-4 da Seção 10.
+
+**Reconciliação com a "regra de avanço de fase" (Seção 10):** a regra continua válida para o *catálogo/loja* (Fase 1 — ainda vazio, sem uso real). O painel admin/CRM, porém, não depende de catálogo populado: ele opera sobre clientes, pedidos, logs e conexões — pode ser construído em paralelo sem violar o espírito da regra (não estamos abandonando a Fase 1, estamos abrindo uma segunda frente de fundação de dados). Catálogo/loja real continua sendo pré-requisito para Fases 4-5 (marketplaces com vendas reais, white label).
+
+**Sequenciamento aprovado:**
+1. **Painel Admin/CRM** (prioridade 1) — clientes (aniversário, WhatsApp, tags, histórico de pedidos/cancelamentos/upsell), dashboard de vendas, logs de erro, conexões de canais.
+2. **Schema de fundação** (migration 0016) para CRM + logs + NF-e + marketplaces + automações (sem UI ainda).
+3. NF-e, marketplaces (Shopee → Instagram/WhatsApp → Mercado Livre) e automações de mensagens entram em UI conforme demanda, reaproveitando a fundação omnichannel já criada na migration 0009 (`channel_accounts`, `conversations`, `messages`, `stock_movements`).
+
+**NF-e — decisão: sistema próprio, sem Bling e sem serviço externo de emissão.** Registrado conforme solicitado: emissão e gestão de NF-e construídas internamente (tabelas `fiscal_configs` e `nfe_documents`, Seção 14.1). Ressalva técnica que não muda a decisão, apenas o que ela implica: a emissão *válida* perante a SEFAZ exige (a) certificado digital A1/A3 do CNPJ do tenant e (b) comunicação com os webservices da SEFAZ por UF (XML assinado, protocolo de autorização). Essas duas exigências existem independente de usar Bling/PlugNotas ou um sistema próprio — não são "funcionalidades do Bling", são regras da SEFAZ. O sistema próprio vai modelar o documento fiscal, número/série, status e vínculo com o pedido desde já (migration 0016); a integração com o webservice da SEFAZ (envio/assinatura/contingência) entra como módulo separado quando o certificado digital do CNPJ estiver disponível.
+
+**Marketplaces priorizados:** Shopee, Instagram/WhatsApp (vendas por mensagem), Mercado Livre — nessa ordem. Modelagem via `marketplace_listings` (Seção 14.1), ligando `product_variants` a SKUs externos, usando os `channel_accounts` já existentes (que já cobrem `shopee`, `instagram`, `whatsapp`, `mercado_livre`).
+
+**Automações de mensagens** (email, WhatsApp, Instagram, redes sociais): tabelas `automations` + `automation_runs` + `message_templates` (Seção 14.1), motor declarativo (gatilho → condição → ação em JSON), conforme já previsto para a Fase 3 — antecipado aqui apenas no nível de schema.
+
+### 14.1 Novas tabelas (migration 0016)
+
+Todas com `tenant_id uuid not null references tenants(id)`, RLS via `is_tenant_admin`/`is_tenant_staff`, e trigger `set_updated_at` onde houver `updated_at` — seguindo o padrão das migrations 0001/0009.
+
+- **`customers`** (alteração): + `birthday date`, `whatsapp text`, `notes text`.
+- **`system_logs`**: `level` (info/warning/error/critical), `source`, `message`, `context jsonb`, `resolved boolean`, `created_at` — alimentado pelas Edge Functions e RPCs existentes.
+- **`fiscal_configs`**: 1 por tenant — CNPJ, razão social, IE/IM, regime tributário, endereço, ambiente (homologação/produção), série e próximo número de NF-e, metadados do certificado (validade/nome — nunca o certificado em si).
+- **`nfe_documents`**: vínculo com `orders`, número/série, status (rascunho/enviando/autorizada/rejeitada/cancelada/inutilizada), chave de acesso, protocolo, XML/DANFE (URLs), totais.
+- **`marketplace_listings`**: vínculo `product_variants` ↔ `channel_accounts`, SKU/ID externo, preço por canal, status de sincronização, último erro.
+- **`message_templates`**: nome, canal (email/whatsapp/instagram/sms), assunto/corpo, variáveis.
+- **`automations`**: nome, gatilho (aniversário, carrinho abandonado, pedido pago, manual...), condições/ações em jsonb, status.
+- **`automation_runs`**: log de disparos por automação/cliente — status, canal, erro, timestamps (alimenta `system_logs` em caso de falha).
+
+---
+
 *Documento gerado para servir de contrato de escopo entre as fases. Alterações de arquitetura devem ser registradas aqui antes de virar código.*
