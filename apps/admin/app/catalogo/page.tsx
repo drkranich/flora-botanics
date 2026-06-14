@@ -5,6 +5,7 @@ import { effectiveTenantId } from "@/lib/cms/actions";
 import { CatalogTabs } from "./Tabs";
 import { ProductManager, type ProductRow } from "./ProductManager";
 import { ImportProducts } from "./ImportProducts";
+import { SiteChip } from "@/components/SiteChip";
 
 export default async function ProdutosPage() {
   const session = await getStaffSession();
@@ -12,6 +13,12 @@ export default async function ProdutosPage() {
 
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("name")
+    .eq("id", tenantId)
+    .maybeSingle();
 
   const [{ data: products }, { data: categories }] = await Promise.all([
     supabase
@@ -74,7 +81,10 @@ export default async function ProdutosPage() {
     <main style={{ maxWidth: 920, margin: "0 auto", padding: "48px 28px 80px" }}>
       <header className="rise" style={{ marginBottom: 26 }}>
         <Link href="/" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
-        <h1 className="display" style={{ fontSize: 44, marginTop: 10 }}>Catálogo</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12, marginTop: 10 }}>
+          <h1 className="display" style={{ fontSize: 44 }}>Catálogo</h1>
+          <SiteChip name={tenant?.name} isPlatformAdmin={session.role === "platform_admin"} />
+        </div>
       </header>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>

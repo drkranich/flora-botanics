@@ -4,6 +4,7 @@ import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { SalesTabs, StatusChip } from "./Tabs";
 import { money } from "@/lib/format";
+import { SiteChip } from "@/components/SiteChip";
 
 export default async function OrdersPage() {
   const session = await getStaffSession();
@@ -12,6 +13,12 @@ export default async function OrdersPage() {
 
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("name")
+    .eq("id", tenantId)
+    .maybeSingle();
 
   const [{ data: orders }, { count: customerCount }, { count: couponCount }] = await Promise.all([
     supabase
@@ -39,7 +46,10 @@ export default async function OrdersPage() {
     <main style={{ maxWidth: 920, margin: "0 auto", padding: "48px 28px 80px" }}>
       <header className="rise" style={{ marginBottom: 26 }}>
         <Link href="/" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
-        <h1 className="display" style={{ fontSize: 44, marginTop: 10 }}>Vendas</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12, marginTop: 10 }}>
+          <h1 className="display" style={{ fontSize: 44 }}>Vendas</h1>
+          <SiteChip name={tenant?.name} isPlatformAdmin={session.role === "platform_admin"} />
+        </div>
       </header>
 
       <div className="rise" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 22 }}>

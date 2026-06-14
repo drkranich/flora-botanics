@@ -53,6 +53,7 @@ export async function transitionOrder(orderId: string, to: string) {
 
   revalidatePath(`/vendas/${orderId}`);
   revalidatePath("/vendas");
+  revalidatePath("/backoffice/pedidos");
 }
 
 /* ---------- cupons ---------- */
