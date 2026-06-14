@@ -2,19 +2,26 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { NewConversationForm } from "./NewConversationForm";
+import { CHANNEL_LABEL, CONVERSATION_STATUS_LABEL, formatRelative } from "./constants";
 
 /**
  * Inbox — central de atendimento omnichannel.
- * Estrutura pronta para WhatsApp/Instagram/E-mail (fases de integração).
- * Hoje mostra o canal real existente (leads do site) + uma prévia
- * claramente rotulada de como ficará com os canais conectados.
+ * Conversas reais (tabela `conversations`/`messages`) + leads do site.
+ * Canais conectados (hoje: E-mail via Resend) enviam de verdade;
+ * os demais ficam registrados aqui até a integração do canal.
  */
 
-const DEMO = [
-  { nome: "Ana Beatriz", canal: "WhatsApp", msg: "Oi! O sérum de andiroba serve para pele oleosa?", tempo: "há 12 min", status: "Novo" },
-  { nome: "Carla M.", canal: "Instagram", msg: "Amei o reels! Quando chega o óleo de buriti?", tempo: "há 1 h", status: "Em atendimento" },
-  { nome: "Juliana S.", canal: "E-mail", msg: "Pedido #12 — posso trocar o endereço de entrega?", tempo: "há 3 h", status: "Aguardando" },
-];
+interface ConversationRow {
+  id: string;
+  channel: string;
+  contact_name: string | null;
+  contact_handle: string | null;
+  status: string;
+  unread_count: number;
+  last_message_preview: string | null;
+  last_message_at: string | null;
+}
 
 export default async function InboxPage() {
   const session = await getStaffSession();
@@ -24,12 +31,22 @@ export default async function InboxPage() {
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
-  const { data: leads } = await supabase
-    .from("leads")
-    .select("email, name, source, created_at")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-    .limit(8);
+  const [{ data: leads }, { data: conversations }] = await Promise.all([
+    supabase
+      .from("leads")
+      .select("email, name, source, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("conversations")
+      .select("id, channel, contact_name, contact_handle, status, unread_count, last_message_preview, last_message_at")
+      .eq("tenant_id", tenantId)
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .limit(30),
+  ]);
+
+  const rows = (conversations ?? []) as ConversationRow[];
 
   return (
     <main style={{ maxWidth: 980, margin: "0 auto", padding: "48px 28px 80px" }}>
@@ -42,7 +59,7 @@ export default async function InboxPage() {
         </p>
       </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(280px, 1fr)", gap: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(280px, 1.4fr)", gap: 18 }}>
         {/* canal real: leads do site */}
         <section className="glass rise rise-1" style={{ padding: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -71,38 +88,55 @@ export default async function InboxPage() {
           </Link>
         </section>
 
-        {/* prévia rotulada dos canais futuros */}
-        <section className="glass rise rise-2" style={{ padding: 24, position: "relative", overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        {/* conversas reais */}
+        <section className="glass rise rise-2" style={{ padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
             <p className="eyebrow">Conversas</p>
-            <span className="chip chip-draft">Prévia · demonstração</span>
+            <NewConversationForm />
           </div>
-          <div style={{ opacity: 0.75 }}>
-            {DEMO.map((c) => (
-              <div key={c.nome} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--glass-border)" }}>
+
+          {rows.length === 0 ? (
+            <p className="muted" style={{ fontSize: 12 }}>
+              Nenhuma conversa ainda. Crie a primeira com &quot;+ Nova conversa&quot; — para o
+              canal E-mail, a mensagem é enviada de verdade via Resend.
+            </p>
+          ) : (
+            rows.map((c) => (
+              <Link
+                key={c.id}
+                href={`/inbox/${c.id}`}
+                style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--glass-border)", textDecoration: "none", color: "inherit" }}
+              >
                 <span style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, display: "grid", placeItems: "center", background: "rgba(185,146,77,0.18)", color: "var(--gold-light)", fontSize: 13, fontWeight: 700 }}>
-                  {c.nome.charAt(0)}
+                  {(c.contact_name ?? c.contact_handle ?? "?").charAt(0).toUpperCase()}
                 </span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600 }}>{c.nome}</p>
-                    <span className="muted" style={{ fontSize: 10 }}>{c.tempo}</span>
+                    <p style={{ fontSize: 13, fontWeight: 600 }}>{c.contact_name ?? c.contact_handle ?? "—"}</p>
+                    <span className="muted" style={{ fontSize: 10 }}>{formatRelative(c.last_message_at)}</span>
                   </div>
-                  <p className="muted" style={{ fontSize: 11.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.msg}</p>
+                  <p className="muted" style={{ fontSize: 11.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {c.last_message_preview ?? "—"}
+                  </p>
                   <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                    <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, border: "1px solid var(--glass-border)", color: "var(--cream-dim)" }}>{c.canal}</span>
-                    <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(185,146,77,0.4)", color: "var(--gold-light)" }}>{c.status}</span>
+                    <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, border: "1px solid var(--glass-border)", color: "var(--cream-dim)" }}>
+                      {CHANNEL_LABEL[c.channel] ?? c.channel}
+                    </span>
+                    <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(185,146,77,0.4)", color: "var(--gold-light)" }}>
+                      {CONVERSATION_STATUS_LABEL[c.status] ?? c.status}
+                    </span>
+                    {c.unread_count > 0 ? (
+                      <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, background: "var(--gold)", color: "var(--forest-950)", fontWeight: 700 }}>
+                        {c.unread_count} novas
+                      </span>
+                    ) : null}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <p className="muted" style={{ fontSize: 11, marginTop: 16, lineHeight: 1.6 }}>
-            Assim ficará sua central quando o WhatsApp Business for conectado
-            (Fase 3) — lista de conversas, chat e painel do cliente com pedidos
-            e carrinho. As conversas acima são ilustrativas.
-          </p>
-          <Link href="/canais" className="btn btn-gold" style={{ padding: "10px 20px", fontSize: 10, marginTop: 12 }}>
+              </Link>
+            ))
+          )}
+
+          <Link href="/canais" className="btn btn-ghost" style={{ padding: "10px 18px", fontSize: 9.5, marginTop: 14, display: "inline-block" }}>
             Ver canais disponíveis
           </Link>
         </section>

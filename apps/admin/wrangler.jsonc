@@ -10,8 +10,5 @@
   },
   "observability": {
     "enabled": true
-  },
-  "vars": {
-    "NEXT_PRIVATE_MINIMAL_MODE": "1"
   }
 }

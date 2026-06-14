@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { isResendConfigured } from "@/lib/email/resend";
 
 /**
  * Canais de venda — status REAIS. O site próprio é o único conectado hoje;
@@ -22,6 +23,8 @@ export default async function CanaisPage() {
     supabase.from("tenant_domains").select("domain").eq("tenant_id", tenantId).eq("is_primary", true).maybeSingle(),
   ]);
 
+  const resendOk = isResendConfigured();
+
   const channels = [
     {
       name: "Site próprio",
@@ -30,6 +33,17 @@ export default async function CanaisPage() {
       status: "connected" as const,
       features: ["Produtos", "Pedidos", "Checkout Stripe", "Leads"],
       cta: { label: "Gerenciar", href: "/catalogo" },
+    },
+    {
+      name: "E-mail",
+      icon: "✉",
+      desc: resendOk
+        ? "Envio transacional via Resend ativo — templates, automações e Inbox podem enviar e-mail."
+        : "Configure RESEND_API_KEY e RESEND_FROM_EMAIL no Worker flora-admin para ativar.",
+      status: resendOk ? ("connected" as const) : ("soon" as const),
+      phase: "Configuração pendente",
+      features: ["Templates", "Automações", "Inbox"],
+      cta: { label: "Ir para Mensagens", href: "/backoffice/mensagens" },
     },
     {
       name: "WhatsApp Business",

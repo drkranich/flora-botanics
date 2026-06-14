@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
+import { isResendConfigured } from "@/lib/email/resend";
+import { SendTestEmail } from "./SendTestEmail";
 import {
   createTemplate,
   deleteTemplate,
@@ -130,6 +132,7 @@ export default async function MensagensPage() {
   const templates = (templatesRes.data ?? []) as TemplateRow[];
   const automations = (automationsRes.data ?? []) as AutomationRow[];
   const runs = (runsRes.data ?? []) as unknown as AutomationRunRow[];
+  const resendOk = isResendConfigured();
 
   return (
     <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
@@ -138,6 +141,27 @@ export default async function MensagensPage() {
         <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           Templates de mensagem e automações (aniversário, carrinho abandonado, remarketing) para
           e-mail, WhatsApp, Instagram e SMS.
+        </p>
+      </div>
+
+      <div
+        style={{
+          ...cardStyle,
+          padding: "12px 20px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          borderColor: resendOk ? "rgba(127, 191, 158, 0.3)" : "rgba(185, 146, 77, 0.22)",
+          background: resendOk ? "rgba(127, 191, 158, 0.08)" : "rgba(185, 146, 77, 0.10)",
+        }}
+      >
+        <span className={resendOk ? "chip chip-live" : "chip chip-draft"}>
+          {resendOk ? "E-mail conectado" : "E-mail não conectado"}
+        </span>
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--cream-dim)" }}>
+          {resendOk
+            ? "Envio via Resend configurado — use \"Enviar teste\" nos templates de e-mail abaixo."
+            : "Configure RESEND_API_KEY e RESEND_FROM_EMAIL no Worker flora-admin para habilitar o envio de e-mails."}
         </p>
       </div>
 
@@ -160,6 +184,11 @@ export default async function MensagensPage() {
                 </div>
                 {t.subject && <span style={{ fontSize: 13, color: "var(--cream-dim)" }}>Assunto: {t.subject}</span>}
                 <span style={{ fontSize: 13, color: "var(--cream-dim)" }}>{t.body}</span>
+                {t.channel === "email" && resendOk ? (
+                  <div style={{ marginTop: 4 }}>
+                    <SendTestEmail templateId={t.id} />
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

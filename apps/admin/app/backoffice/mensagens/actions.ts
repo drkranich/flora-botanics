@@ -3,6 +3,52 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
+import { sendEmail, renderTemplate, textToHtml } from "@/lib/email/resend";
+
+export type SendTestResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Envia um template de e-mail para um endereço de teste, via Resend.
+ * Substitui variáveis {{nome}} por valores de exemplo (o próprio nome
+ * da variável, entre colchetes) para facilitar a revisão visual.
+ */
+export async function sendTestEmail(templateId: string, formData: FormData): Promise<SendTestResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const to = String(formData.get("to") ?? "").trim();
+  if (!to) return { ok: false, error: "Informe um e-mail de destino." };
+
+  const supabase = await createClient();
+  const { data: template } = await supabase
+    .from("message_templates")
+    .select("id, name, channel, subject, body, variables")
+    .eq("id", templateId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!template) return { ok: false, error: "Template não encontrado." };
+  if (template.channel !== "email") return { ok: false, error: "Este template não é de e-mail." };
+
+  const variableNames = Array.isArray(template.variables) ? (template.variables as string[]) : [];
+  const sampleVars: Record<string, string> = {};
+  for (const name of variableNames) {
+    sampleVars[name] = `[${name}]`;
+  }
+
+  const subject = renderTemplate(template.subject || `Teste — ${template.name}`, sampleVars);
+  const body = renderTemplate(template.body, sampleVars);
+
+  const result = await sendEmail({
+    to,
+    subject,
+    html: textToHtml(body),
+    text: body,
+  });
+
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true };
+}
 
 function parseJson(input: string, fallback: unknown) {
   if (!input.trim()) return fallback;
