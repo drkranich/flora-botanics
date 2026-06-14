@@ -18,7 +18,7 @@ export async function signIn(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent("E-mail ou senha inválidos")}`);
   }
 
-  redirect("/dashboard");
+  redirect("/");
 }
 
 export async function signOut() {

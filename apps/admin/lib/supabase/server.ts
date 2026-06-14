@@ -33,3 +33,43 @@ export async function createClient() {
     },
   });
 }
+
+/**
+ * Alias histórico de createClient(), mantido para as páginas do admin
+ * antigo (catálogo, CMS, vendas, plataforma, config, etc.) que importam
+ * `supabaseServer`. Mesma implementação, nome diferente.
+ */
+export const supabaseServer = createClient;
+
+export type StaffSession = {
+  userId: string;
+  email: string;
+  tenantId: string;
+  role: "platform_admin" | "tenant_owner" | "tenant_admin" | "tenant_editor";
+};
+
+const STAFF_ROLES = ["platform_admin", "tenant_owner", "tenant_admin", "tenant_editor"];
+
+/**
+ * Retorna a sessão se o usuário for staff (a partir do app_metadata do JWT);
+ * null caso contrário. Usado pelas páginas do admin antigo — equivalente a
+ * `currentStaff()` em `@/lib/auth`, que lê de `profiles` em vez do JWT.
+ */
+export async function getStaffSession(): Promise<StaffSession | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const meta = (user.app_metadata ?? {}) as { tenant_id?: string; role?: string };
+  if (!meta.role || !STAFF_ROLES.includes(meta.role)) return null;
+  if (!meta.tenant_id && meta.role !== "platform_admin") return null;
+
+  return {
+    userId: user.id,
+    email: user.email ?? "",
+    tenantId: meta.tenant_id ?? "",
+    role: meta.role as StaffSession["role"],
+  };
+}

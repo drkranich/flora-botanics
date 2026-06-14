@@ -1,101 +1,199 @@
-import { signIn } from "./actions";
+"use client";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase/client";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<"login" | "first" | "forgot">("login");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setNotice(null);
+
+    const supabase = supabaseBrowser();
+
+    if (mode === "forgot") {
+      // envia o link de redefinição para a página dedicada do painel
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login/redefinir`,
+      });
+      setLoading(false);
+      setNotice("Se este e-mail tiver acesso, você receberá um link para redefinir a senha.");
+      setMode("login");
+      return;
+    }
+
+    if (mode === "first") {
+      // primeiro acesso de quem foi convidada: cria a conta;
+      // o convite pendente aplica tenant e papel automaticamente
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name } },
+      });
+      setLoading(false);
+      if (error) {
+        setError(
+          error.message.includes("already registered")
+            ? "Este e-mail já tem conta — use Entrar."
+            : "Não foi possível criar a conta. Verifique os dados."
+        );
+        return;
+      }
+      if (!data.session) {
+        setNotice("Conta criada! Confirme o cadastro no seu e-mail e depois entre normalmente.");
+        setMode("login");
+        return;
+      }
+      router.push("/");
+      router.refresh();
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setError("E-mail ou senha inválidos.");
+      setLoading(false);
+      return;
+    }
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <main
       style={{
+        minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        minHeight: "100vh",
         padding: 24,
       }}
     >
       <form
-        action={signIn}
+        onSubmit={handleSubmit}
+        className="glass rise"
         style={{
-          width: "100%",
-          maxWidth: 360,
-          display: "grid",
-          gap: 16,
-          background: "#fff",
-          border: "1px solid #e6ddc9",
-          borderRadius: 12,
-          padding: 32,
+          width: "min(400px, 92vw)",
+          padding: "48px 40px 40px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
         }}
       >
-        <div style={{ textAlign: "center" }}>
-          <h1 style={{ fontWeight: 900, letterSpacing: -1, margin: 0 }}>FLORA · ADMIN</h1>
-          <p style={{ margin: "4px 0 0", color: "#6b6354", fontSize: 14 }}>
-            Acesso restrito à equipe
+        <div style={{ textAlign: "center", marginBottom: 8 }}>
+          <span className="brand">
+            <span className="brand-main">
+              FL<span className="brand-dot">•</span>RA
+            </span>
+            <span className="brand-sub">BOTANICS</span>
+          </span>
+          <p className="eyebrow" style={{ marginTop: 18 }}>
+            Painel Administrativo
           </p>
         </div>
 
-        {error ? (
-          <p
-            style={{
-              margin: 0,
-              padding: "8px 12px",
-              borderRadius: 8,
-              background: "#fbeaea",
-              color: "#9a3232",
-              fontSize: 13,
-            }}
-          >
-            {error}
-          </p>
+        {mode === "first" ? (
+          <div className="field">
+            <label className="field-label" htmlFor="name">Seu nome</label>
+            <input
+              id="name"
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome e sobrenome"
+              required
+            />
+          </div>
         ) : null}
 
-        <label style={{ display: "grid", gap: 4, fontSize: 14 }}>
-          E-mail
+        <div className="field">
+          <label className="field-label" htmlFor="email">E-mail</label>
           <input
+            id="email"
+            className="input"
             type="email"
-            name="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="voce@florabotanics.com"
             required
             autoComplete="email"
-            style={inputStyle}
           />
-        </label>
+        </div>
 
-        <label style={{ display: "grid", gap: 4, fontSize: 14 }}>
-          Senha
-          <input
-            type="password"
-            name="password"
-            required
-            autoComplete="current-password"
-            style={inputStyle}
-          />
-        </label>
+        {mode !== "forgot" ? (
+          <div className="field">
+            <label className="field-label" htmlFor="password">Senha</label>
+            <input
+              id="password"
+              className="input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              autoComplete={mode === "first" ? "new-password" : "current-password"}
+            />
+          </div>
+        ) : null}
 
-        <button type="submit" style={buttonStyle}>
-          Entrar
+        {error ? (
+          <p style={{ color: "#e8a0a0", fontSize: 12, textAlign: "center" }}>{error}</p>
+        ) : null}
+        {notice ? (
+          <p style={{ color: "var(--gold-light)", fontSize: 12, textAlign: "center" }}>{notice}</p>
+        ) : null}
+
+        <button type="submit" disabled={loading} className="btn btn-gold" style={{ marginTop: 6 }}>
+          {loading
+            ? "Aguarde…"
+            : mode === "first"
+              ? "Criar acesso"
+              : mode === "forgot"
+                ? "Enviar link de recuperação"
+                : "Entrar"}
         </button>
+
+        {mode === "login" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => { setMode("first"); setError(null); setNotice(null); }}
+              style={{ background: "none", border: 0, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", color: "var(--cream-soft, inherit)", opacity: 0.8, fontFamily: "inherit" }}
+            >
+              Primeiro acesso? Fui convidada(o) por e-mail
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("forgot"); setError(null); setNotice(null); }}
+              style={{ background: "none", border: 0, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", color: "var(--cream-soft, inherit)", opacity: 0.8, fontFamily: "inherit" }}
+            >
+              Esqueci minha senha
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setMode("login"); setError(null); setNotice(null); }}
+            style={{ background: "none", border: 0, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", color: "var(--cream-soft, inherit)", opacity: 0.8, fontFamily: "inherit" }}
+          >
+            ← Voltar para entrar
+          </button>
+        )}
+
+        <p className="muted" style={{ fontSize: 10.5, textAlign: "center", letterSpacing: 0.4 }}>
+          Acesso restrito à equipe Flora Ecosystem
+        </p>
       </form>
     </main>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid #d9cfb8",
-  fontSize: 14,
-  fontFamily: "inherit",
-};
-
-const buttonStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "none",
-  background: "#28251d",
-  color: "#f2ecdf",
-  fontWeight: 700,
-  fontSize: 14,
-  cursor: "pointer",
-};
