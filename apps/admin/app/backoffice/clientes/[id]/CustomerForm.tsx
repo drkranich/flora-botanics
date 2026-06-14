@@ -115,24 +115,24 @@ const fieldGroup: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
 };
 
 const inputStyle: React.CSSProperties = {
-  border: "1px solid #e6ddc9",
+  border: "1px solid var(--glass-border)",
   borderRadius: 8,
   padding: "8px 12px",
   fontSize: 14,
   fontFamily: "inherit",
-  color: "#28251d",
-  background: "#fcfaf5",
+  color: "var(--cream)",
+  background: "rgba(10, 22, 11, 0.45)",
 };
 
 const buttonStyle: React.CSSProperties = {
-  background: "#28251d",
-  color: "#fdfbf6",
+  background: "var(--cream)",
+  color: "var(--forest-950)",
   border: "none",
   borderRadius: 8,
   padding: "10px 20px",

@@ -24,7 +24,7 @@ function formatDateTime(iso: string): string {
 function levelBadgeStyle(level: string): React.CSSProperties {
   const colors: Record<string, { bg: string; fg: string }> = {
     info: { bg: "#e6f0ea", fg: "#2f6b4a" },
-    warning: { bg: "#fbf0d9", fg: "#8a6512" },
+    warning: { bg: "rgba(185, 146, 77, 0.22)", fg: "#8a6512" },
     error: { bg: "#fbeaea", fg: "#9a3232" },
     critical: { bg: "#f5dede", fg: "#7a1f1f" },
   };
@@ -93,10 +93,10 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
   };
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
       <div>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Logs</h1>
-        <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           Erros e eventos do sistema (checkout, sincronização de marketplaces, NF-e, automações).
         </p>
       </div>
@@ -126,7 +126,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
         <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
-              <tr style={{ background: "#f2ecdf", textAlign: "left" }}>
+              <tr style={{ background: "rgba(242, 236, 223, 0.08)", textAlign: "left" }}>
                 <th style={thStyle}>Nível</th>
                 <th style={thStyle}>Origem</th>
                 <th style={thStyle}>Mensagem</th>
@@ -136,7 +136,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
             </thead>
             <tbody>
               {logs.map((log) => (
-                <tr key={log.id} style={{ borderTop: "1px solid #f2ecdf" }}>
+                <tr key={log.id} style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)" }}>
                   <td style={tdStyle}>
                     <span style={levelBadgeStyle(log.level)}>{LEVEL_LABELS[log.level] ?? log.level}</span>
                   </td>
@@ -144,7 +144,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                   <td style={tdStyle}>
                     {log.message}
                     {log.context && (
-                      <div style={{ fontSize: 12, color: "#6b6354", marginTop: 2, fontFamily: "monospace" }}>
+                      <div style={{ fontSize: 12, color: "var(--cream-dim)", marginTop: 2, fontFamily: "monospace" }}>
                         {JSON.stringify(log.context)}
                       </div>
                     )}
@@ -168,17 +168,20 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e6ddc9",
+  background: "var(--glass-bg-strong)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 12,
   padding: 20,
+  backdropFilter: "blur(18px) saturate(1.25)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
 };
 
 const thStyle: React.CSSProperties = {
   padding: "10px 16px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
 };
@@ -191,17 +194,17 @@ const tdStyle: React.CSSProperties = {
 const emptyStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 13,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
 };
 
 const resolveButtonStyle: React.CSSProperties = {
-  background: "#f2ecdf",
-  border: "1px solid #e6ddc9",
+  background: "rgba(242, 236, 223, 0.08)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 6,
   padding: "4px 10px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#28251d",
+  color: "var(--cream)",
   cursor: "pointer",
   whiteSpace: "nowrap",
 };
@@ -212,9 +215,9 @@ function filterChipStyle(active: boolean): React.CSSProperties {
     fontWeight: 700,
     padding: "6px 12px",
     borderRadius: 999,
-    border: "1px solid " + (active ? "#28251d" : "#e6ddc9"),
-    background: active ? "#28251d" : "#fff",
-    color: active ? "#fdfbf6" : "#28251d",
+    border: "1px solid " + (active ? "var(--cream)" : "var(--glass-border)"),
+    background: active ? "var(--cream)" : "var(--glass-bg-strong)",
+    color: active ? "var(--forest-950)" : "var(--cream)",
     textDecoration: "none",
   };
 }

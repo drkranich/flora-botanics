@@ -63,8 +63,8 @@ function formatDateTime(iso: string | null): string {
 function badgeStyle(kind: "connected" | "warning" | "neutral" | "error"): React.CSSProperties {
   const colors: Record<typeof kind, { bg: string; fg: string }> = {
     connected: { bg: "#e6f0ea", fg: "#2f6b4a" },
-    warning: { bg: "#fbf0d9", fg: "#8a6512" },
-    neutral: { bg: "#f2ecdf", fg: "#6b6354" },
+    warning: { bg: "rgba(185, 146, 77, 0.22)", fg: "#8a6512" },
+    neutral: { bg: "rgba(242, 236, 223, 0.08)", fg: "var(--cream-dim)" },
     error: { bg: "#fbeaea", fg: "#9a3232" },
   };
   const c = colors[kind];
@@ -157,10 +157,10 @@ export default async function MarketplacesPage() {
   const errorListings = listings.filter((l) => l.sync_status === "error" || l.status === "error");
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
       <div>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Marketplaces</h1>
-        <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           Conexões com canais externos e sincronização de anúncios/estoque. Ordem de prioridade:
           Shopee → Instagram/WhatsApp → Mercado Livre.
         </p>
@@ -173,17 +173,17 @@ export default async function MarketplacesPage() {
               <strong>{CHANNEL_LABELS[c.channel] ?? c.channel}</strong>
               <span style={channelStatusBadge(c.status)}>{STATUS_LABELS[c.status] ?? c.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "#6b6354", marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: "var(--cream-dim)", marginTop: 6 }}>
               {c.display_name ?? "Sem nome de exibição"}
             </div>
-            <div style={{ fontSize: 12, color: "#6b6354", marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: "var(--cream-dim)", marginTop: 4 }}>
               Última sincronização: {formatDateTime(c.last_sync_at)}
             </div>
             {c.last_error && (
               <div style={{ fontSize: 12, color: "#9a3232", marginTop: 4 }}>Erro: {c.last_error}</div>
             )}
             {c.status !== "connected" && (
-              <div style={{ fontSize: 12, color: "#6b6354", marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--cream-dim)", marginTop: 8 }}>
                 Conexão de API pendente — configurável em <Link href="/backoffice/config">Configurações</Link> quando
                 a integração com este canal estiver disponível.
               </div>
@@ -206,7 +206,7 @@ export default async function MarketplacesPage() {
                 <span>
                   {l.product_variants?.products?.name ?? "—"}
                   {l.product_variants?.name ? ` · ${l.product_variants.name}` : ""}{" "}
-                  <span style={{ color: "#6b6354" }}>
+                  <span style={{ color: "var(--cream-dim)" }}>
                     ({CHANNEL_LABELS[l.channel_accounts?.channel ?? ""] ?? l.channel_accounts?.channel})
                   </span>
                 </span>
@@ -228,7 +228,7 @@ export default async function MarketplacesPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
-                <tr style={{ background: "#f2ecdf", textAlign: "left" }}>
+                <tr style={{ background: "rgba(242, 236, 223, 0.08)", textAlign: "left" }}>
                   <th style={thStyle}>Produto</th>
                   <th style={thStyle}>Canal</th>
                   <th style={thStyle}>Preço</th>
@@ -240,11 +240,11 @@ export default async function MarketplacesPage() {
               </thead>
               <tbody>
                 {listings.map((l) => (
-                  <tr key={l.id} style={{ borderTop: "1px solid #f2ecdf" }}>
+                  <tr key={l.id} style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)" }}>
                     <td style={tdStyle}>
                       {l.product_variants?.products?.name ?? "—"}
                       {l.product_variants?.name ? ` · ${l.product_variants.name}` : ""}
-                      <div style={{ fontSize: 12, color: "#6b6354" }}>{l.product_variants?.sku}</div>
+                      <div style={{ fontSize: 12, color: "var(--cream-dim)" }}>{l.product_variants?.sku}</div>
                     </td>
                     <td style={tdStyle}>{CHANNEL_LABELS[l.channel_accounts?.channel ?? ""] ?? l.channel_accounts?.channel}</td>
                     <td style={tdStyle}>{formatBRL(l.price_cents)}</td>
@@ -274,10 +274,13 @@ export default async function MarketplacesPage() {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e6ddc9",
+  background: "var(--glass-bg-strong)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 12,
   padding: 20,
+  backdropFilter: "blur(18px) saturate(1.25)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
@@ -299,21 +302,21 @@ const listItemStyle: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   fontSize: 14,
-  borderBottom: "1px solid #f2ecdf",
+  borderBottom: "1px solid rgba(242, 236, 223, 0.08)",
   paddingBottom: 8,
 };
 
 const emptyStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 13,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
 };
 
 const thStyle: React.CSSProperties = {
   padding: "10px 16px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
 };
@@ -324,13 +327,13 @@ const tdStyle: React.CSSProperties = {
 };
 
 const toggleButtonStyle: React.CSSProperties = {
-  background: "#f2ecdf",
-  border: "1px solid #e6ddc9",
+  background: "rgba(242, 236, 223, 0.08)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 6,
   padding: "4px 10px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#28251d",
+  color: "var(--cream)",
   cursor: "pointer",
   whiteSpace: "nowrap",
 };

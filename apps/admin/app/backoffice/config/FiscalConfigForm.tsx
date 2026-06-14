@@ -68,7 +68,7 @@ export function FiscalConfigForm(props: FiscalConfigFormProps) {
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid #f2ecdf", paddingTop: 12, marginTop: 4 }}>
+      <div style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)", paddingTop: 12, marginTop: 4 }}>
         <div style={sectionLabel}>Endereço do emitente</div>
         <div style={rowStyle}>
           <div style={fieldGroup}>
@@ -104,7 +104,7 @@ export function FiscalConfigForm(props: FiscalConfigFormProps) {
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid #f2ecdf", paddingTop: 12, marginTop: 4 }}>
+      <div style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)", paddingTop: 12, marginTop: 4 }}>
         <div style={sectionLabel}>Emissão de NF-e (sistema próprio)</div>
         <div style={rowStyle}>
           <div style={fieldGroup}>
@@ -123,7 +123,7 @@ export function FiscalConfigForm(props: FiscalConfigFormProps) {
             <input id="proximo_numero_nfe" name="proximo_numero_nfe" type="number" min={1} defaultValue={props.proximoNumeroNfe} style={inputStyle} />
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6b6354", margin: "8px 0 0" }}>
+        <p style={{ fontSize: 12, color: "var(--cream-dim)", margin: "8px 0 0" }}>
           O certificado digital (A1/A3) e a integração com o webservice da SEFAZ ainda precisam ser
           configurados em uma etapa futura para emissão real. Estes campos preparam a numeração e o
           ambiente para quando isso estiver pronto.
@@ -157,7 +157,7 @@ const fieldGroup: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
 };
@@ -169,19 +169,19 @@ const sectionLabel: React.CSSProperties = {
 };
 
 const inputStyle: React.CSSProperties = {
-  border: "1px solid #e6ddc9",
+  border: "1px solid var(--glass-border)",
   borderRadius: 8,
   padding: "8px 12px",
   fontSize: 14,
   fontFamily: "inherit",
-  color: "#28251d",
-  background: "#fcfaf5",
+  color: "var(--cream)",
+  background: "rgba(10, 22, 11, 0.45)",
   width: "100%",
 };
 
 const buttonStyle: React.CSSProperties = {
-  background: "#28251d",
-  color: "#fdfbf6",
+  background: "var(--cream)",
+  color: "var(--forest-950)",
   border: "none",
   borderRadius: 8,
   padding: "10px 20px",

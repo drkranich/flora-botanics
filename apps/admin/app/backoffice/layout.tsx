@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { currentStaff, ROLE_LABELS } from "@/lib/auth";
+import { BackofficeTabs } from "./Tabs";
 
 /**
  * Layout do Backoffice (CRM/ERP/NF-e/Marketplaces/Mensagens/Logs/Config fiscal).
@@ -34,6 +35,7 @@ export default async function BackofficeLayout({
           {staff.fullName ?? staff.email} · {ROLE_LABELS[staff.role]}
         </span>
       </div>
+      <BackofficeTabs />
       {children}
     </div>
   );

@@ -114,10 +114,10 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gap: 24, padding: "24px 28px 48px" }}>
       <div>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Dashboard</h1>
-        <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           Visão geral dos últimos 30 dias.
         </p>
       </div>
@@ -125,7 +125,7 @@ export default async function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
         {kpis.map((kpi) => (
           <div key={kpi.label} style={cardStyle}>
-            <div style={{ fontSize: 13, color: "#6b6354" }}>{kpi.label}</div>
+            <div style={{ fontSize: 13, color: "var(--cream-dim)" }}>{kpi.label}</div>
             <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>{kpi.value}</div>
           </div>
         ))}
@@ -159,7 +159,7 @@ export default async function DashboardPage() {
                   <span>
                     {item.product_variants?.products?.name ?? "—"}
                     {item.product_variants?.name ? ` · ${item.product_variants.name}` : ""}{" "}
-                    <span style={{ color: "#6b6354" }}>({item.product_variants?.sku})</span>
+                    <span style={{ color: "var(--cream-dim)" }}>({item.product_variants?.sku})</span>
                   </span>
                   <strong>{item.quantity}</strong>
                 </li>
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
                 <li key={log.id} style={{ ...listItemStyle, alignItems: "flex-start", gap: 8 }}>
                   <div>
                     <div style={{ fontSize: 13 }}>{log.message}</div>
-                    <div style={{ fontSize: 12, color: "#6b6354" }}>
+                    <div style={{ fontSize: 12, color: "var(--cream-dim)" }}>
                       {log.source} · {formatDateTime(log.created_at)}
                     </div>
                   </div>
@@ -194,10 +194,13 @@ export default async function DashboardPage() {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e6ddc9",
+  background: "var(--glass-bg-strong)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 12,
   padding: 20,
+  backdropFilter: "blur(18px) saturate(1.25)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
@@ -219,20 +222,20 @@ const listItemStyle: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   fontSize: 14,
-  borderBottom: "1px solid #f2ecdf",
+  borderBottom: "1px solid rgba(242, 236, 223, 0.08)",
   paddingBottom: 8,
 };
 
 const emptyStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 13,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
 };
 
 function logBadgeStyle(level: string): React.CSSProperties {
   const colors: Record<string, { bg: string; fg: string }> = {
     info: { bg: "#e6f0ea", fg: "#2f6b4a" },
-    warning: { bg: "#fbf0d9", fg: "#8a6512" },
+    warning: { bg: "rgba(185, 146, 77, 0.22)", fg: "#8a6512" },
     error: { bg: "#fbeaea", fg: "#9a3232" },
     critical: { bg: "#f5dede", fg: "#7a1f1f" },
   };

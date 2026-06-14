@@ -135,15 +135,15 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const canceledCount = orders.filter((o) => o.status === "canceled").length;
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
       <div>
-        <Link href="/backoffice/clientes" style={{ fontSize: 13, color: "#6b6354" }}>
+        <Link href="/backoffice/clientes" style={{ fontSize: 13, color: "var(--cream-dim)" }}>
           ← Clientes
         </Link>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, margin: "4px 0" }}>
           {customer.full_name ?? "Cliente sem nome"}
         </h1>
-        <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           {customer.email}
           {customer.phone ? ` · ${customer.phone}` : ""} · cliente desde {formatDate(customer.created_at)}
         </p>
@@ -151,19 +151,19 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 }}>
         <div style={cardStyle}>
-          <div style={{ fontSize: 13, color: "#6b6354" }}>Total gasto</div>
+          <div style={{ fontSize: 13, color: "var(--cream-dim)" }}>Total gasto</div>
           <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>{formatBRL(totalSpent)}</div>
         </div>
         <div style={cardStyle}>
-          <div style={{ fontSize: 13, color: "#6b6354" }}>Pedidos</div>
+          <div style={{ fontSize: 13, color: "var(--cream-dim)" }}>Pedidos</div>
           <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>{orders.length}</div>
         </div>
         <div style={cardStyle}>
-          <div style={{ fontSize: 13, color: "#6b6354" }}>Cancelamentos</div>
+          <div style={{ fontSize: 13, color: "var(--cream-dim)" }}>Cancelamentos</div>
           <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>{canceledCount}</div>
         </div>
         <div style={cardStyle}>
-          <div style={{ fontSize: 13, color: "#6b6354" }}>Conversas</div>
+          <div style={{ fontSize: 13, color: "var(--cream-dim)" }}>Conversas</div>
           <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>{conversations.length}</div>
         </div>
       </div>
@@ -193,7 +193,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                     <strong>
                       {a.label ?? "Endereço"} {a.is_default_shipping ? "· padrão" : ""}
                     </strong>
-                    <span style={{ color: "#6b6354" }}>
+                    <span style={{ color: "var(--cream-dim)" }}>
                       {a.street}, {a.number ?? "s/n"} {a.district ? `· ${a.district}` : ""} · {a.city}/{a.state} · {a.zip}
                     </span>
                   </li>
@@ -214,7 +214,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                       #{o.number} · {formatDate(o.placed_at ?? o.created_at)}
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ color: "#6b6354" }}>{ORDER_STATUS_LABELS[o.status] ?? o.status}</span>
+                      <span style={{ color: "var(--cream-dim)" }}>{ORDER_STATUS_LABELS[o.status] ?? o.status}</span>
                       <strong>{formatBRL(o.total_cents)}</strong>
                     </span>
                   </li>
@@ -233,10 +233,10 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                   <li key={c.id} style={{ ...listItemStyle, alignItems: "flex-start", flexDirection: "column", gap: 2 }}>
                     <span style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                       <strong>{CONVERSATION_CHANNEL_LABELS[c.channel] ?? c.channel}</strong>
-                      <span style={{ color: "#6b6354" }}>{formatDateTime(c.last_message_at)}</span>
+                      <span style={{ color: "var(--cream-dim)" }}>{formatDateTime(c.last_message_at)}</span>
                     </span>
                     {c.last_message_preview && (
-                      <span style={{ color: "#6b6354" }}>{c.last_message_preview}</span>
+                      <span style={{ color: "var(--cream-dim)" }}>{c.last_message_preview}</span>
                     )}
                   </li>
                 ))}
@@ -250,10 +250,13 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 }
 
 const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e6ddc9",
+  background: "var(--glass-bg-strong)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 12,
   padding: 20,
+  backdropFilter: "blur(18px) saturate(1.25)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
@@ -275,12 +278,12 @@ const listItemStyle: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   fontSize: 14,
-  borderBottom: "1px solid #f2ecdf",
+  borderBottom: "1px solid rgba(242, 236, 223, 0.08)",
   paddingBottom: 8,
 };
 
 const emptyStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 13,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
 };

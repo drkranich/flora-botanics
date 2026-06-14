@@ -26,9 +26,9 @@ const STATUS_LABELS: Record<string, string> = {
 function statusBadgeStyle(status: string): React.CSSProperties {
   const colors: Record<string, { bg: string; fg: string }> = {
     connected: { bg: "#e6f0ea", fg: "#2f6b4a" },
-    disconnected: { bg: "#f2ecdf", fg: "#6b6354" },
+    disconnected: { bg: "rgba(242, 236, 223, 0.08)", fg: "var(--cream-dim)" },
     error: { bg: "#fbeaea", fg: "#9a3232" },
-    pending_auth: { bg: "#fbf0d9", fg: "#8a6512" },
+    pending_auth: { bg: "rgba(185, 146, 77, 0.22)", fg: "#8a6512" },
   };
   const c = colors[status] ?? colors.disconnected;
   return {
@@ -107,10 +107,10 @@ export default async function ConfigPage() {
   };
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
       <div>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Configurações</h1>
-        <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           Dados fiscais do tenant, canais conectados e preferências gerais.
         </p>
       </div>
@@ -167,7 +167,7 @@ export default async function ConfigPage() {
             ))}
           </ul>
         )}
-        <p style={{ fontSize: 12, color: "#6b6354", margin: "12px 0 0" }}>
+        <p style={{ fontSize: 12, color: "var(--cream-dim)", margin: "12px 0 0" }}>
           A conexão de credenciais/API (Shopee, Instagram/WhatsApp, Mercado Livre) será feita em uma
           etapa futura — esses canais aparecem aqui pré-cadastrados e poderão ser conectados pela
           página Marketplaces sem precisar de ajuda externa quando a integração estiver pronta.
@@ -178,10 +178,13 @@ export default async function ConfigPage() {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e6ddc9",
+  background: "var(--glass-bg-strong)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 12,
   padding: 20,
+  backdropFilter: "blur(18px) saturate(1.25)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
@@ -203,34 +206,34 @@ const listItemStyle: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   fontSize: 14,
-  borderBottom: "1px solid #f2ecdf",
+  borderBottom: "1px solid rgba(242, 236, 223, 0.08)",
   paddingBottom: 12,
 };
 
 const emptyStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 13,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
 };
 
 const inputStyle: React.CSSProperties = {
-  border: "1px solid #e6ddc9",
+  border: "1px solid var(--glass-border)",
   borderRadius: 8,
   padding: "6px 10px",
   fontSize: 13,
   fontFamily: "inherit",
-  color: "#28251d",
-  background: "#fcfaf5",
+  color: "var(--cream)",
+  background: "rgba(10, 22, 11, 0.45)",
   flex: 1,
 };
 
 const saveButtonStyle: React.CSSProperties = {
-  background: "#f2ecdf",
-  border: "1px solid #e6ddc9",
+  background: "rgba(242, 236, 223, 0.08)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 8,
   padding: "6px 14px",
   fontSize: 13,
   fontWeight: 700,
-  color: "#28251d",
+  color: "var(--cream)",
   cursor: "pointer",
 };

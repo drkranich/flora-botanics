@@ -33,17 +33,17 @@ export default async function ClientesPage() {
   const customers = (data ?? []) as CustomerRow[];
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
       <div>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Clientes</h1>
-        <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           {count ?? customers.length} cliente(s) cadastrado(s).
         </p>
       </div>
 
       {customers.length === 0 ? (
         <div style={cardStyle}>
-          <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+          <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
             Nenhum cliente ainda. A lista aparece aqui conforme os pedidos forem feitos no site
             ou clientes forem cadastrados manualmente.
           </p>
@@ -52,7 +52,7 @@ export default async function ClientesPage() {
         <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
-              <tr style={{ background: "#f2ecdf", textAlign: "left" }}>
+              <tr style={{ background: "rgba(242, 236, 223, 0.08)", textAlign: "left" }}>
                 <th style={thStyle}>Nome</th>
                 <th style={thStyle}>E-mail</th>
                 <th style={thStyle}>WhatsApp</th>
@@ -63,9 +63,9 @@ export default async function ClientesPage() {
             </thead>
             <tbody>
               {customers.map((c) => (
-                <tr key={c.id} style={{ borderTop: "1px solid #f2ecdf" }}>
+                <tr key={c.id} style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)" }}>
                   <td style={tdStyle}>
-                    <Link href={`/backoffice/clientes/${c.id}`} style={{ color: "#28251d", fontWeight: 600 }}>
+                    <Link href={`/backoffice/clientes/${c.id}`} style={{ color: "var(--cream)", fontWeight: 600 }}>
                       {c.full_name ?? "—"}
                     </Link>
                   </td>
@@ -85,17 +85,20 @@ export default async function ClientesPage() {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e6ddc9",
+  background: "var(--glass-bg-strong)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 12,
   padding: 20,
+  backdropFilter: "blur(18px) saturate(1.25)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
 };
 
 const thStyle: React.CSSProperties = {
   padding: "10px 16px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
 };

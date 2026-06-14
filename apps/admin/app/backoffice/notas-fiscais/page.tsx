@@ -14,8 +14,8 @@ const NFE_STATUS_LABELS: Record<string, string> = {
 
 function statusBadgeStyle(status: string): React.CSSProperties {
   const colors: Record<string, { bg: string; fg: string }> = {
-    rascunho: { bg: "#f2ecdf", fg: "#6b6354" },
-    enviando: { bg: "#fbf0d9", fg: "#8a6512" },
+    rascunho: { bg: "rgba(242, 236, 223, 0.08)", fg: "var(--cream-dim)" },
+    enviando: { bg: "rgba(185, 146, 77, 0.22)", fg: "#8a6512" },
     autorizada: { bg: "#e6f0ea", fg: "#2f6b4a" },
     rejeitada: { bg: "#fbeaea", fg: "#9a3232" },
     cancelada: { bg: "#f5dede", fg: "#7a1f1f" },
@@ -101,16 +101,16 @@ export default async function NotasFiscaisPage() {
   const pendingOrders = orders.filter((o) => !ordersWithNfe.has(o.id));
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
       <div>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Notas Fiscais</h1>
-        <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           Emissão e gestão de NF-e em sistema próprio.
         </p>
       </div>
 
       {!fiscal && (
-        <div style={{ ...cardStyle, borderColor: "#fbf0d9", background: "#fffaf0" }}>
+        <div style={{ ...cardStyle, borderColor: "rgba(185, 146, 77, 0.22)", background: "rgba(185, 146, 77, 0.10)" }}>
           <p style={{ margin: 0, fontSize: 14 }}>
             Configure os dados fiscais do emitente (CNPJ, razão social, endereço, série/numeração) em{" "}
             <Link href="/backoffice/config">Configurações</Link> antes de criar rascunhos de NF-e.
@@ -119,8 +119,8 @@ export default async function NotasFiscaisPage() {
       )}
 
       {fiscal && (
-        <div style={{ ...cardStyle, borderColor: "#fbf0d9", background: "#fffaf0" }}>
-          <p style={{ margin: 0, fontSize: 13, color: "#6b6354" }}>
+        <div style={{ ...cardStyle, borderColor: "rgba(185, 146, 77, 0.22)", background: "rgba(185, 146, 77, 0.10)" }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--cream-dim)" }}>
             Ambiente atual: <strong>{fiscal.ambiente === "producao" ? "Produção" : "Homologação"}</strong> ·
             Série {fiscal.serie_nfe} · Próximo número {fiscal.proximo_numero_nfe}. A emissão real
             (assinatura digital e envio à SEFAZ) ainda depende do certificado A1/A3 — etapa futura.
@@ -159,7 +159,7 @@ export default async function NotasFiscaisPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
-                <tr style={{ background: "#f2ecdf", textAlign: "left" }}>
+                <tr style={{ background: "rgba(242, 236, 223, 0.08)", textAlign: "left" }}>
                   <th style={thStyle}>Número</th>
                   <th style={thStyle}>Pedido</th>
                   <th style={thStyle}>Ambiente</th>
@@ -171,7 +171,7 @@ export default async function NotasFiscaisPage() {
               </thead>
               <tbody>
                 {nfes.map((n) => (
-                  <tr key={n.id} style={{ borderTop: "1px solid #f2ecdf" }}>
+                  <tr key={n.id} style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)" }}>
                     <td style={tdStyle}>
                       {n.numero ?? "—"}
                       {n.serie ? ` / série ${n.serie}` : ""}
@@ -202,10 +202,13 @@ export default async function NotasFiscaisPage() {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e6ddc9",
+  background: "var(--glass-bg-strong)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 12,
   padding: 20,
+  backdropFilter: "blur(18px) saturate(1.25)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
@@ -227,21 +230,21 @@ const listItemStyle: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   fontSize: 14,
-  borderBottom: "1px solid #f2ecdf",
+  borderBottom: "1px solid rgba(242, 236, 223, 0.08)",
   paddingBottom: 8,
 };
 
 const emptyStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 13,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
 };
 
 const thStyle: React.CSSProperties = {
   padding: "10px 16px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
 };
@@ -252,13 +255,13 @@ const tdStyle: React.CSSProperties = {
 };
 
 const actionButtonStyle: React.CSSProperties = {
-  background: "#f2ecdf",
-  border: "1px solid #e6ddc9",
+  background: "rgba(242, 236, 223, 0.08)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 6,
   padding: "4px 10px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#28251d",
+  color: "var(--cream)",
   cursor: "pointer",
   whiteSpace: "nowrap",
 };

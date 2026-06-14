@@ -40,8 +40,8 @@ const RUN_STATUS_LABELS: Record<string, string> = {
 function badgeStyle(kind: "ok" | "warning" | "neutral" | "error"): React.CSSProperties {
   const colors: Record<typeof kind, { bg: string; fg: string }> = {
     ok: { bg: "#e6f0ea", fg: "#2f6b4a" },
-    warning: { bg: "#fbf0d9", fg: "#8a6512" },
-    neutral: { bg: "#f2ecdf", fg: "#6b6354" },
+    warning: { bg: "rgba(185, 146, 77, 0.22)", fg: "#8a6512" },
+    neutral: { bg: "rgba(242, 236, 223, 0.08)", fg: "var(--cream-dim)" },
     error: { bg: "#fbeaea", fg: "#9a3232" },
   };
   const c = colors[kind];
@@ -132,10 +132,10 @@ export default async function MensagensPage() {
   const runs = (runsRes.data ?? []) as unknown as AutomationRunRow[];
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
       <div>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Mensagens</h1>
-        <p style={{ margin: 0, color: "#6b6354", fontSize: 14 }}>
+        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
           Templates de mensagem e automações (aniversário, carrinho abandonado, remarketing) para
           e-mail, WhatsApp, Instagram e SMS.
         </p>
@@ -158,14 +158,14 @@ export default async function MensagensPage() {
                     </form>
                   </span>
                 </div>
-                {t.subject && <span style={{ fontSize: 13, color: "#6b6354" }}>Assunto: {t.subject}</span>}
-                <span style={{ fontSize: 13, color: "#6b6354" }}>{t.body}</span>
+                {t.subject && <span style={{ fontSize: 13, color: "var(--cream-dim)" }}>Assunto: {t.subject}</span>}
+                <span style={{ fontSize: 13, color: "var(--cream-dim)" }}>{t.body}</span>
               </li>
             ))}
           </ul>
         )}
 
-        <form action={createTemplate} style={{ ...formGridStyle, marginTop: 16, borderTop: "1px solid #f2ecdf", paddingTop: 16 }}>
+        <form action={createTemplate} style={{ ...formGridStyle, marginTop: 16, borderTop: "1px solid rgba(242, 236, 223, 0.08)", paddingTop: 16 }}>
           <div style={sectionLabel}>Novo template</div>
           <div style={rowStyle}>
             <div style={fieldGroup}>
@@ -217,7 +217,7 @@ export default async function MensagensPage() {
               <li key={a.id} style={listItemStyle}>
                 <span>
                   <strong>{a.name}</strong>{" "}
-                  <span style={{ color: "#6b6354" }}>· {TRIGGER_LABELS[a.trigger] ?? a.trigger}</span>
+                  <span style={{ color: "var(--cream-dim)" }}>· {TRIGGER_LABELS[a.trigger] ?? a.trigger}</span>
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={automationStatusBadge(a.status)}>{AUTOMATION_STATUS_LABELS[a.status] ?? a.status}</span>
@@ -240,7 +240,7 @@ export default async function MensagensPage() {
           </ul>
         )}
 
-        <form action={createAutomation} style={{ ...formGridStyle, marginTop: 16, borderTop: "1px solid #f2ecdf", paddingTop: 16 }}>
+        <form action={createAutomation} style={{ ...formGridStyle, marginTop: 16, borderTop: "1px solid rgba(242, 236, 223, 0.08)", paddingTop: 16 }}>
           <div style={sectionLabel}>Nova automação</div>
           <div style={rowStyle}>
             <div style={fieldGroup}>
@@ -269,7 +269,7 @@ export default async function MensagensPage() {
               <input id="auto-actions" name="actions" type="text" placeholder='[{"channel": "whatsapp", "template": "aniversario-cliente"}]' style={inputStyle} />
             </div>
           </div>
-          <p style={{ fontSize: 12, color: "#6b6354", margin: 0 }}>
+          <p style={{ fontSize: 12, color: "var(--cream-dim)", margin: 0 }}>
             A automação é criada como rascunho. O disparo automático (worker que avalia gatilhos e
             envia mensagens pelos canais conectados) é uma etapa futura — por enquanto, ative/pause
             para registrar a intenção e organizar os templates por gatilho.
@@ -288,7 +288,7 @@ export default async function MensagensPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
-                <tr style={{ background: "#f2ecdf", textAlign: "left" }}>
+                <tr style={{ background: "rgba(242, 236, 223, 0.08)", textAlign: "left" }}>
                   <th style={thStyle}>Automação</th>
                   <th style={thStyle}>Cliente</th>
                   <th style={thStyle}>Canal</th>
@@ -298,7 +298,7 @@ export default async function MensagensPage() {
               </thead>
               <tbody>
                 {runs.map((r) => (
-                  <tr key={r.id} style={{ borderTop: "1px solid #f2ecdf" }}>
+                  <tr key={r.id} style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)" }}>
                     <td style={tdStyle}>{r.automations?.name ?? "—"}</td>
                     <td style={tdStyle}>{r.customers?.full_name ?? r.customers?.email ?? "—"}</td>
                     <td style={tdStyle}>{TEMPLATE_CHANNEL_LABELS[r.channel] ?? r.channel}</td>
@@ -319,10 +319,13 @@ export default async function MensagensPage() {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e6ddc9",
+  background: "var(--glass-bg-strong)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 12,
   padding: 20,
+  backdropFilter: "blur(18px) saturate(1.25)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
@@ -349,21 +352,21 @@ const listItemStyle: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   fontSize: 14,
-  borderBottom: "1px solid #f2ecdf",
+  borderBottom: "1px solid rgba(242, 236, 223, 0.08)",
   paddingBottom: 8,
 };
 
 const emptyStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 13,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
 };
 
 const thStyle: React.CSSProperties = {
   padding: "10px 16px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
 };
@@ -394,25 +397,25 @@ const fieldGroup: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
-  color: "#6b6354",
+  color: "var(--cream-dim)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
 };
 
 const inputStyle: React.CSSProperties = {
-  border: "1px solid #e6ddc9",
+  border: "1px solid var(--glass-border)",
   borderRadius: 8,
   padding: "8px 12px",
   fontSize: 14,
   fontFamily: "inherit",
-  color: "#28251d",
-  background: "#fcfaf5",
+  color: "var(--cream)",
+  background: "rgba(10, 22, 11, 0.45)",
   width: "100%",
 };
 
 const buttonStyle: React.CSSProperties = {
-  background: "#28251d",
-  color: "#fdfbf6",
+  background: "var(--cream)",
+  color: "var(--forest-950)",
   border: "none",
   borderRadius: 8,
   padding: "10px 20px",
@@ -422,13 +425,13 @@ const buttonStyle: React.CSSProperties = {
 };
 
 const actionButtonStyle: React.CSSProperties = {
-  background: "#f2ecdf",
-  border: "1px solid #e6ddc9",
+  background: "rgba(242, 236, 223, 0.08)",
+  border: "1px solid var(--glass-border)",
   borderRadius: 6,
   padding: "4px 10px",
   fontSize: 12,
   fontWeight: 700,
-  color: "#28251d",
+  color: "var(--cream)",
   cursor: "pointer",
   whiteSpace: "nowrap",
 };
