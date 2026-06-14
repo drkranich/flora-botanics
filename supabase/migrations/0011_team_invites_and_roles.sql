@@ -1,7 +1,6 @@
 -- ============================================================
 -- FLORA ECOSYSTEM · Migration 11: Equipe — convites e papéis
 -- tenant_invites, e-mail em profiles, RPCs de gestão de equipe
--- (aplicada em 2026-06-12 via MCP)
 -- ============================================================
 
 -- e-mail no perfil (facilita listagem da equipe)
@@ -183,10 +182,3 @@ grant execute on function public.team_invite(uuid, text, text) to authenticated;
 grant execute on function public.team_set_role(uuid, text) to authenticated;
 grant execute on function public.team_remove(uuid) to authenticated;
 grant execute on function public.team_revoke_invite(uuid) to authenticated;
-
--- seed: mc@florabotanics.com como Administrador da Flora Botanics
--- (convite pendente — aplicado automaticamente no primeiro cadastro)
-insert into public.tenant_invites (tenant_id, email, role)
-select id, 'mc@florabotanics.com', 'tenant_admin'
-from public.tenants where slug = 'flora-botanics'
-on conflict do nothing;

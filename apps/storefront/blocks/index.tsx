@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { currentTenant, db } from "@/lib/tenant";
 import { NewsletterForm } from "./NewsletterForm";
-import { BgWrap, type SectionBg } from "./background";
 
 type Props = Record<string, unknown>;
 type Cta = { label: string; href: string };
@@ -116,14 +115,10 @@ function IngredientGrid({ props }: { props: Props }) {
         <div className="ingredient-grid">
           {items.map((ing) => (
             <article className="ingredient-card" key={ing.title}>
-              <div className="avatar" role="img" aria-label={ing.title}>
-                {ing.image ? (
-                  <div
-                    className="avatar-img"
-                    style={{ backgroundImage: `url("${asset(ing.image)}")` }}
-                  />
-                ) : null}
-              </div>
+              {ing.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={asset(ing.image)} alt={ing.title} />
+              ) : null}
               <h3>{ing.title}</h3>
               <p>{ing.text}</p>
             </article>
@@ -266,31 +261,22 @@ export function SectionRenderer({
   section: { id: string; block: string; props: Props };
   header?: ReactNode;
 }) {
-  let node: ReactNode = null;
   switch (section.block) {
     case "hero":
-      node = <Hero props={section.props} header={header} />;
-      break;
+      return <Hero props={section.props} header={header} />;
     case "category_grid":
-      node = <CategoryGrid props={section.props} />;
-      break;
+      return <CategoryGrid props={section.props} />;
     case "ingredient_grid":
-      node = <IngredientGrid props={section.props} />;
-      break;
+      return <IngredientGrid props={section.props} />;
     case "manifesto":
-      node = <Manifesto props={section.props} />;
-      break;
+      return <Manifesto props={section.props} />;
     case "benefits":
-      node = <Benefits props={section.props} />;
-      break;
+      return <Benefits props={section.props} />;
     case "newsletter":
-      node = <Newsletter props={section.props} />;
-      break;
+      return <Newsletter props={section.props} />;
     case "rich_text":
-      node = <RichText props={section.props} />;
-      break;
+      return <RichText props={section.props} />;
     default:
       return null; // bloco desconhecido: ignora silenciosamente em produção
   }
-  return <BgWrap bg={section.props.background as SectionBg | undefined}>{node}</BgWrap>;
 }

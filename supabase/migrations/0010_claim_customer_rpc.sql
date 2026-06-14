@@ -1,6 +1,5 @@
 -- ============================================================
 -- FLORA ECOSYSTEM · Migration 10: vínculo cliente ↔ login
--- (aplicada em 2026-06-12 via MCP)
 -- Quando a cliente faz login no site, vincula os registros de
 -- customers (criados pelo checkout, por e-mail) ao seu usuário,
 -- liberando a leitura dos próprios pedidos via RLS.

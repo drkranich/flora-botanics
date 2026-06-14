@@ -1,6 +1,5 @@
 -- ============================================================
 -- FLORA ECOSYSTEM · Migration 9: Fundação omnichannel
--- (aplicada em 2026-06-12 via MCP)
 -- Tabelas prontas para as integrações futuras:
 -- canais conectados, conversas, mensagens e movimentações de estoque.
 -- ============================================================

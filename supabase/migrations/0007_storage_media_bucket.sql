@@ -1,6 +1,5 @@
 -- ============================================================
 -- FLORA ECOSYSTEM · Migration 7: Bucket de mídia
--- (aplicada em 2026-06-11 via MCP)
 -- Leitura pública (site), escrita por staff no caminho do tenant
 -- ============================================================
 
@@ -12,10 +11,12 @@ values (
 )
 on conflict (id) do nothing;
 
+-- leitura pública dos objetos do bucket media
 create policy "media_public_read"
 on storage.objects for select
 using (bucket_id = 'media');
 
+-- staff escreve apenas dentro da pasta do seu tenant: <tenant_id>/...
 create policy "media_staff_insert"
 on storage.objects for insert
 with check (

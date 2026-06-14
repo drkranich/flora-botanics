@@ -1,0 +1,19 @@
+Imagens referenciadas no index.html (presentes no repo GitHub em /assets,
+ainda nao copiadas localmente):
+
+assets/hero-floresta.jpg
+assets/hero-produtos.png
+assets/cat-seruns.jpg
+assets/cat-hidratantes.jpg
+assets/cat-limpadores.jpg
+assets/cat-oleos.jpg
+assets/ing-andiroba.jpg
+assets/ing-buriti.jpg
+assets/ing-pracaxi.jpg
+assets/ing-cupuacu.jpg
+assets/ing-acai.jpg
+assets/manifesto-modelo.jpg
+assets/newsletter-contagotas.jpg
+
+Repo: https://github.com/drkranich/flora-botanics
+Site: https://flora-botanics.gmoraes.workers.dev/

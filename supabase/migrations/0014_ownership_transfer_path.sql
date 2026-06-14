@@ -1,10 +1,7 @@
 -- ============================================================
--- FLORA ECOSYSTEM · Migration 14: transferência de propriedade
--- Proprietários não excluem a própria conta diretamente:
--- precisam transferir a marca, com aprovação eletrônica do
--- outro proprietário (senha reconfirmada + termo aceito +
--- trilha completa em audit_logs).
--- (aplicada em 2026-06-12 via MCP)
+-- Migration 14: transferência de propriedade — caminho pronto
+-- Proprietários não se excluem direto: precisam transferir a
+-- marca com aprovação eletrônica do outro proprietário.
 -- ============================================================
 
 create table public.ownership_transfers (
@@ -72,11 +69,13 @@ begin
 
   if approve then
     perform set_config('flora.allow_role_change', 'on', true);
+    -- destinatária vira proprietária
     update public.profiles set role = 'tenant_owner' where id = t.to_user;
     update auth.users
        set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
            || jsonb_build_object('role', 'tenant_owner')
      where id = t.to_user;
+    -- quem saiu vira administrador (e aí pode excluir a própria conta)
     update public.profiles set role = 'tenant_admin' where id = t.from_owner;
     update auth.users
        set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
@@ -113,29 +112,7 @@ begin
   delete from auth.users where id = auth.uid();
 end $$;
 
--- cancelamento de transferência pendente (só quem pediu)
-create or replace function public.cancel_ownership_transfer(transfer uuid)
-returns void language plpgsql security definer set search_path = public as $$
-declare
-  t record;
-begin
-  select * into t from public.ownership_transfers where id = transfer;
-  if t.id is null or t.status <> 'pending' then
-    raise exception 'Transferência não encontrada ou já decidida';
-  end if;
-  if auth.uid() is distinct from t.from_owner then
-    raise exception 'Apenas quem solicitou pode cancelar';
-  end if;
-  update public.ownership_transfers
-     set status = 'cancelled', decided_at = now() where id = transfer;
-  insert into public.audit_logs (tenant_id, actor_id, action, entity_type, entity_id, diff)
-  values (t.tenant_id, auth.uid(), 'ownership_transfer_cancelled', 'ownership_transfer',
-          transfer::text, jsonb_build_object('to_user', t.to_user));
-end $$;
-
 revoke execute on function public.request_ownership_transfer(uuid, text) from public, anon;
 revoke execute on function public.decide_ownership_transfer(uuid, boolean) from public, anon;
-revoke execute on function public.cancel_ownership_transfer(uuid) from public, anon;
 grant execute on function public.request_ownership_transfer(uuid, text) to authenticated;
 grant execute on function public.decide_ownership_transfer(uuid, boolean) to authenticated;
-grant execute on function public.cancel_ownership_transfer(uuid) to authenticated;

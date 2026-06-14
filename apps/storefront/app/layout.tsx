@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { currentTenant, db } from "@/lib/tenant";
 import { getTenantTheme } from "@flora/db";
-import { TranslateProvider } from "@/blocks/TranslateProvider";
 
 export const metadata: Metadata = {
   title: "Flora Botanics",
@@ -44,10 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
         <style dangerouslySetInnerHTML={{ __html: themeToCssVars(tokens) }} />
       </head>
-      <body>
-        {children}
-        <TranslateProvider />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
