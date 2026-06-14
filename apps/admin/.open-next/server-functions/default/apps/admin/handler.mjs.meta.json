@@ -3409,7 +3409,7 @@
       "format": "cjs"
     },
     "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/server/load-manifest.external.js": {
-      "bytes": 364251,
+      "bytes": 364249,
       "imports": [
         {
           "path": "path",
@@ -5672,8 +5672,8 @@
       ],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/apps/admin/.next/server/app/perfil/page.js": {
-      "bytes": 27344,
+    ".open-next/server-functions/default/apps/admin/.next/server/app/config/page.js": {
+      "bytes": 45897,
       "imports": [
         {
           "path": "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -5738,8 +5738,8 @@
       ],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/apps/admin/.next/server/app/config/page.js": {
-      "bytes": 45897,
+    ".open-next/server-functions/default/apps/admin/.next/server/app/perfil/page.js": {
+      "bytes": 27344,
       "imports": [
         {
           "path": "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -6355,14 +6355,14 @@
           "original": "C:\\Users\\GUSTAVO\\Claude\\Projects\\FLORA BOTANICS\\apps\\admin\\.open-next\\server-functions\\default\\apps\\admin\\.next\\server\\app\\canais\\page.js"
         },
         {
-          "path": ".open-next/server-functions/default/apps/admin/.next/server/app/perfil/page.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\GUSTAVO\\Claude\\Projects\\FLORA BOTANICS\\apps\\admin\\.open-next\\server-functions\\default\\apps\\admin\\.next\\server\\app\\perfil\\page.js"
-        },
-        {
           "path": ".open-next/server-functions/default/apps/admin/.next/server/app/config/page.js",
           "kind": "require-call",
           "original": "C:\\Users\\GUSTAVO\\Claude\\Projects\\FLORA BOTANICS\\apps\\admin\\.open-next\\server-functions\\default\\apps\\admin\\.next\\server\\app\\config\\page.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/apps/admin/.next/server/app/perfil/page.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\GUSTAVO\\Claude\\Projects\\FLORA BOTANICS\\apps\\admin\\.open-next\\server-functions\\default\\apps\\admin\\.next\\server\\app\\perfil\\page.js"
         },
         {
           "path": ".open-next/server-functions/default/apps/admin/.next/server/app/vendas/page.js",
@@ -10127,7 +10127,7 @@
           "bytesInOutput": 632
         },
         "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/server/load-manifest.external.js": {
-          "bytesInOutput": 332536
+          "bytesInOutput": 332534
         },
         "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/server/app-render/action-async-storage-instance.js": {
           "bytesInOutput": 547
@@ -10327,11 +10327,11 @@
         ".open-next/server-functions/default/apps/admin/.next/server/app/canais/page.js": {
           "bytesInOutput": 24828
         },
-        ".open-next/server-functions/default/apps/admin/.next/server/app/perfil/page.js": {
-          "bytesInOutput": 27709
-        },
         ".open-next/server-functions/default/apps/admin/.next/server/app/config/page.js": {
           "bytesInOutput": 46783
+        },
+        ".open-next/server-functions/default/apps/admin/.next/server/app/perfil/page.js": {
+          "bytesInOutput": 27709
         },
         ".open-next/server-functions/default/apps/admin/.next/server/app/vendas/page.js": {
           "bytesInOutput": 26066
@@ -10646,7 +10646,7 @@
           "bytesInOutput": 61671
         }
       },
-      "bytes": 5389550
+      "bytes": 5389548
     }
   }
 }
