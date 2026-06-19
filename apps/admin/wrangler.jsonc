@@ -1,21 +1,23 @@
 {
-  // Worker do PAINEL (admin). URL: flora-admin.gmoraes.workers.dev
-  "name": "flora-admin",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2025-03-25",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  },
-  "observability": {
-    "enabled": true
-  },
-  // ATENÇÃO: rollback temporário (2026-06-14) — site caiu com "Internal
-  // Server Error" em todas as rotas após remover esta var e reinstalar.
-  // Reintroduzido para restaurar o painel. Ver lib/supabase/middleware.ts
-  // — com isso, o refresh automático de sessão fica desativado.
-  "vars": {
-    "NEXT_PRIVATE_MINIMAL_MODE": "1"
-  }
+	// Worker do PAINEL (admin). URL: flora-admin.gmoraes.workers.dev
+	"name": "flora-admin",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2025-03-25",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	},
+	// ATENÇÃO: rollback temporário (2026-06-14) — site caiu com "Internal
+	// Server Error" em todas as rotas após remover esta var e reinstalar.
+	// Reintroduzido para restaurar o painel. Ver lib/supabase/middleware.ts
+	// — com isso, o refresh automático de sessão fica desativado.
+	"vars": {
+		"NEXT_PRIVATE_MINIMAL_MODE": "1"
+	}
 }
