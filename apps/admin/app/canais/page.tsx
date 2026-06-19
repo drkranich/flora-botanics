@@ -23,7 +23,7 @@ export default async function CanaisPage() {
     supabase.from("tenant_domains").select("domain").eq("tenant_id", tenantId).eq("is_primary", true).maybeSingle(),
   ]);
 
-  const resendOk = isResendConfigured();
+  const resendOk = await isResendConfigured();
 
   const channels = [
     {

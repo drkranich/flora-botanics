@@ -132,7 +132,7 @@ export default async function MensagensPage() {
   const templates = (templatesRes.data ?? []) as TemplateRow[];
   const automations = (automationsRes.data ?? []) as AutomationRow[];
   const runs = (runsRes.data ?? []) as unknown as AutomationRunRow[];
-  const resendOk = isResendConfigured();
+  const resendOk = await isResendConfigured();
 
   return (
     <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
