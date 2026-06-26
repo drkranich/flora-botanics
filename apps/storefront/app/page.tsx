@@ -1,5 +1,5 @@
 import { currentTenant, db } from "@/lib/tenant";
-import { getPublishedPage, getMenu } from "@flora/db";
+import { getPublishedPage, getMenu, getSiteSetting } from "@flora/db";
 import { SectionRenderer } from "@/blocks";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 
@@ -9,10 +9,13 @@ export default async function HomePage() {
   const tenant = await currentTenant();
   const client = db();
 
-  const [page, menu] = await Promise.all([
+  const [page, menu, logoSetting] = await Promise.all([
     getPublishedPage(client, tenant.tenantId, "home"),
     getMenu(client, tenant.tenantId, "header"),
+    getSiteSetting<{ image: string }>(client, tenant.tenantId, "logo"),
   ]);
+
+  const logoUrl = logoSetting?.image ?? "";
 
   if (!page) {
     return (
@@ -36,14 +39,14 @@ export default async function HomePage() {
   return (
     <>
       {heroFirst ? (
-        <SectionRenderer section={first} header={<SiteHeader menu={menu} />} />
+        <SectionRenderer section={first} header={<SiteHeader menu={menu} logoUrl={logoUrl} />} />
       ) : (
-        <SiteHeader menu={menu} />
+        <SiteHeader menu={menu} logoUrl={logoUrl} />
       )}
       {(heroFirst ? rest : sections).map((s) => (
         <SectionRenderer key={s.id} section={s} />
       ))}
-      <SiteFooter />
+      <SiteFooter logoUrl={logoUrl} />
     </>
   );
 }

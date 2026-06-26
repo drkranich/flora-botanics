@@ -82,6 +82,22 @@ export async function getTenantTheme(db: SupabaseClient, tenantId: string) {
   return (data?.tokens ?? {}) as Record<string, unknown>;
 }
 
+/** Carrega um valor de site_settings pelo tenant + chave. */
+export async function getSiteSetting<T = unknown>(
+  db: SupabaseClient,
+  tenantId: string,
+  key: string
+): Promise<T | null> {
+  const { data } = await db
+    .from("site_settings")
+    .select("value")
+    .eq("tenant_id", tenantId)
+    .eq("key", key)
+    .maybeSingle();
+  if (!data) return null;
+  return data.value as T;
+}
+
 /** Carrega menu por localização. */
 export async function getMenu(db: SupabaseClient, tenantId: string, location: string) {
   const { data } = await db

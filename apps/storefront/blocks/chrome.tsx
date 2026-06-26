@@ -1,20 +1,34 @@
 import Link from "next/link";
+import Image from "next/image";
 
-export function Logo() {
+export function Logo({ logoUrl }: { logoUrl?: string }) {
   return (
     <a href="/" className="logo">
-      <span className="logo-main">
-        FL<span className="logo-symbol"></span>RA
-      </span>
-      <span className="logo-sub">BOTANICS</span>
+      {logoUrl ? (
+        <Image
+          src={logoUrl}
+          alt="Logo"
+          width={160}
+          height={48}
+          style={{ objectFit: "contain", maxHeight: 48 }}
+          priority
+        />
+      ) : (
+        <>
+          <span className="logo-main">
+            FL<span className="logo-symbol"></span>RA
+          </span>
+          <span className="logo-sub">BOTANICS</span>
+        </>
+      )}
     </a>
   );
 }
 
-export function SiteHeader({ menu }: { menu: Array<{ label: string; href: string }> }) {
+export function SiteHeader({ menu, logoUrl }: { menu: Array<{ label: string; href: string }>; logoUrl?: string }) {
   return (
     <header className="header container">
-      <Logo />
+      <Logo logoUrl={logoUrl} />
       <nav className="nav">
         {menu.map((item) => (
           <Link key={item.href + item.label} href={item.href}>
@@ -43,11 +57,11 @@ export function SiteHeader({ menu }: { menu: Array<{ label: string; href: string
   );
 }
 
-export function SiteFooter() {
+export function SiteFooter({ logoUrl }: { logoUrl?: string }) {
   return (
     <footer className="footer">
       <div className="container footer-layout">
-        <Logo />
+        <Logo logoUrl={logoUrl} />
         <div>
           <h4>Produtos</h4>
           <ul>
