@@ -12,18 +12,24 @@ export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoFilter }: 
   return (
     <a href="/" className="logo">
       {logoUrl ? (
-        <Image
-          src={logoUrl}
-          alt="Logo"
-          width={logoWidth}
-          height={logoHeight}
+        // O span garante que o CSS filter seja aplicado de forma confiável
+        // (Next.js Image pode ignorar filter no estilo inline do próprio img)
+        <span
           style={{
-            objectFit: "contain",
-            maxHeight: logoHeight,
+            display: "inline-flex",
+            alignItems: "center",
             filter: logoFilter || undefined,
           }}
-          priority
-        />
+        >
+          <Image
+            src={logoUrl}
+            alt="Logo"
+            width={logoWidth}
+            height={logoHeight}
+            style={{ objectFit: "contain", maxHeight: logoHeight }}
+            priority
+          />
+        </span>
       ) : (
         <>
           <span className="logo-main">

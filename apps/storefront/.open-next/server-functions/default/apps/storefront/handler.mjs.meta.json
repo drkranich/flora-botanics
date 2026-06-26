@@ -3825,7 +3825,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/apps/storefront/.next/server/chunks/690.js": {
-      "bytes": 567227,
+      "bytes": 567229,
       "imports": [
         {
           "path": "@opentelemetry/api",
@@ -4206,7 +4206,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/apps/storefront/.next/server/pages/_error.js": {
-      "bytes": 79795,
+      "bytes": 79793,
       "imports": [
         {
           "path": "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js",
@@ -4263,7 +4263,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/apps/storefront/.next/server/app/page.js": {
-      "bytes": 121865,
+      "bytes": 121944,
       "imports": [
         {
           "path": "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -7915,7 +7915,7 @@
           "bytesInOutput": 71856
         },
         ".open-next/server-functions/default/apps/storefront/.next/server/chunks/690.js": {
-          "bytesInOutput": 591055
+          "bytesInOutput": 591057
         },
         ".open-next/server-functions/default/apps/storefront/.next/server/webpack-runtime.js": {
           "bytesInOutput": 1770
@@ -7966,13 +7966,13 @@
           "bytesInOutput": 466
         },
         ".open-next/server-functions/default/apps/storefront/.next/server/pages/_error.js": {
-          "bytesInOutput": 83035
+          "bytesInOutput": 83033
         },
         ".open-next/server-functions/default/apps/storefront/.next/server/pages/_app.js": {
           "bytesInOutput": 3593
         },
         ".open-next/server-functions/default/apps/storefront/.next/server/app/page.js": {
-          "bytesInOutput": 126967
+          "bytesInOutput": 127046
         },
         "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/server/require.js": {
           "bytesInOutput": 3174
@@ -8266,7 +8266,7 @@
           "bytesInOutput": 55693
         }
       },
-      "bytes": 3141041
+      "bytes": 3141120
     }
   }
 }
