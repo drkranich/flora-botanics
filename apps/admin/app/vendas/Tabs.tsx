@@ -7,16 +7,17 @@ const TABS = [
   { href: "/vendas", label: "Pedidos", key: "pedidos" as const },
   { href: "/vendas/clientes", label: "Clientes", key: "clientes" as const },
   { href: "/vendas/cupons", label: "Cupons", key: "cupons" as const },
+  { href: "/vendas/carrinhos", label: "Carrinhos", key: "carrinhos" as const },
 ];
 
 export function SalesTabs({
   counts,
 }: {
-  counts?: { pedidos?: number; clientes?: number; cupons?: number };
+  counts?: { pedidos?: number; clientes?: number; cupons?: number; carrinhos?: number };
 }) {
   const path = usePathname();
   return (
-    <nav style={{ display: "flex", gap: 8, marginBottom: 26 }}>
+    <nav style={{ display: "flex", gap: 8, marginBottom: 26, flexWrap: "wrap" }}>
       {TABS.map((t) => {
         const active =
           t.href === "/vendas" ? path === "/vendas" || /^\/vendas\/[0-9a-f-]{36}/.test(path) : path.startsWith(t.href);

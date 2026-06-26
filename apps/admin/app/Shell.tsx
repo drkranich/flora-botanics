@@ -35,6 +35,7 @@ const COMMANDS = [
   { label: "Ir para Vendas — Pedidos", href: "/vendas" },
   { label: "Ir para Vendas — Clientes", href: "/vendas/clientes" },
   { label: "Ir para Vendas — Cupons", href: "/vendas/cupons" },
+  { label: "Ir para Vendas — Carrinhos abandonados", href: "/vendas/carrinhos" },
   { label: "Ir para Inbox", href: "/inbox" },
   { label: "Ir para Canais de venda", href: "/canais" },
   { label: "Ir para Operações — Estoque", href: "/operacoes" },
