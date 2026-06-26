@@ -8,10 +8,11 @@ export interface LogoConfig {
   image: string;
   width: number;
   height: number;
-  filter: string;
+  /** Cor hex (ex: "#ffffff") ou "" para usar a cor original da imagem. */
+  color: string;
 }
 
-/** Salva o logo da marca (imagem + tamanho + filtro de cor) em site_settings.logo. */
+/** Salva o logo da marca (imagem + tamanho + cor) em site_settings.logo. */
 export async function updateLogo(logo: LogoConfig) {
   const session = await getStaffSession();
   if (!session) throw new Error("Não autorizado");
@@ -28,7 +29,7 @@ export async function updateLogo(logo: LogoConfig) {
           image: logo.image.trim(),
           width: logo.width,
           height: logo.height,
-          filter: logo.filter,
+          color: logo.color,
         },
       },
       { onConflict: "tenant_id,key" }

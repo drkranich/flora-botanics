@@ -1,36 +1,31 @@
-/**
- * Edge Function: cart-recovery
- *
- * Detecta carrinhos abandonados (ativos há >30min com e-mail capturado e
- * sem e-mail de recuperação já enviado) e envia um e-mail via Resend.
- *
- * Deploy:
- *   supabase functions deploy cart-recovery --project-ref mbpvzhcrimdwcqkqvoqr
- *
- * Secrets necessários (configurar via `supabase secrets set`):
- *   supabase secrets set RESEND_API_KEY=re_xxx
- *   supabase secrets set RESEND_FROM_EMAIL="Flora Botanics <noreply@florabotanics.com>"
- *
- * Agendamento automático via pg_cron (rodar no SQL Editor do Supabase):
- * ─────────────────────────────────────────────────────────────────────────
- *   select cron.schedule(
- *     'cart-recovery',
- *     '*/30 * * * *',
- *     $$
- *       select net.http_post(
- *         'https://mbpvzhcrimdwcqkqvoqr.supabase.co/functions/v1/cart-recovery',
- *         '{}',
- *         'application/json',
- *         ARRAY[http_header('Authorization','Bearer ' || current_setting('app.service_role_key'))]
- *       ) as request_id
- *     $$
- *   );
- * ─────────────────────────────────────────────────────────────────────────
- * Ou chame manualmente via POST na URL acima com o Bearer token do projeto.
- *
- * Invocação manual para teste:
- *   supabase functions invoke cart-recovery --project-ref mbpvzhcrimdwcqkqvoqr
- */
+// Edge Function: cart-recovery
+//
+// Detecta carrinhos abandonados (ativos há >30min com e-mail capturado e
+// sem e-mail de recuperação já enviado) e envia um e-mail via Resend.
+//
+// Deploy:
+//   supabase functions deploy cart-recovery
+//
+// Secrets necessários:
+//   supabase secrets set RESEND_API_KEY=re_xxx
+//   supabase secrets set RESEND_FROM_EMAIL="Flora Botanics <noreply@florabotanics.com>"
+//
+// Agendamento automático via pg_cron (SQL Editor do Supabase):
+//   select cron.schedule(
+//     'cart-recovery',
+//     '* /30 * * * *',   -- remova o espaço: */30 (a cada 30 min)
+//     $$
+//       select net.http_post(
+//         'https://mbpvzhcrimdwcqkqvoqr.supabase.co/functions/v1/cart-recovery',
+//         '{}',
+//         'application/json',
+//         ARRAY[http_header('Authorization','Bearer SEU_SERVICE_ROLE_KEY')]
+//       ) as request_id
+//     $$
+//   );
+//
+// Invocação manual para teste:
+//   supabase functions invoke cart-recovery
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 

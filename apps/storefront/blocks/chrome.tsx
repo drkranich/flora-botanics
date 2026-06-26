@@ -5,22 +5,34 @@ export interface LogoProps {
   logoUrl?: string;
   logoWidth?: number;
   logoHeight?: number;
-  logoFilter?: string;
+  /** Cor hex (ex: "#ffffff") ou "" para usar a cor original da imagem. */
+  logoColor?: string;
 }
 
-export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoFilter }: LogoProps) {
+export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoColor }: LogoProps) {
   return (
     <a href="/" className="logo">
       {logoUrl ? (
-        // O span garante que o CSS filter seja aplicado de forma confiável
-        // (Next.js Image pode ignorar filter no estilo inline do próprio img)
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            filter: logoFilter || undefined,
-          }}
-        >
+        logoColor ? (
+          /**
+           * CSS mask: colore o PNG com a cor exata escolhida no CMS.
+           * Funciona para qualquer cor — não depende de CSS filter.
+           * Requer que o Supabase Storage envie CORS (Access-Control-Allow-Origin: *)
+           * em buckets públicos, o que é o padrão.
+           */
+          <span
+            style={{
+              display: "inline-block",
+              flexShrink: 0,
+              width: logoWidth,
+              height: logoHeight,
+              WebkitMask: `url(${logoUrl}) no-repeat center / contain`,
+              mask: `url(${logoUrl}) no-repeat center / contain`,
+              backgroundColor: logoColor,
+            }}
+          />
+        ) : (
+          // Sem cor override: renderiza a imagem original
           <Image
             src={logoUrl}
             alt="Logo"
@@ -29,7 +41,7 @@ export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoFilter }: 
             style={{ objectFit: "contain", maxHeight: logoHeight }}
             priority
           />
-        </span>
+        )
       ) : (
         <>
           <span className="logo-main">
@@ -42,10 +54,16 @@ export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoFilter }: 
   );
 }
 
-export function SiteHeader({ menu, logoUrl, logoWidth, logoHeight, logoFilter }: { menu: Array<{ label: string; href: string }> } & LogoProps) {
+export function SiteHeader({
+  menu,
+  logoUrl,
+  logoWidth,
+  logoHeight,
+  logoColor,
+}: { menu: Array<{ label: string; href: string }> } & LogoProps) {
   return (
     <header className="header container">
-      <Logo logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoFilter={logoFilter} />
+      <Logo logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
       <nav className="nav">
         {menu.map((item) => (
           <Link key={item.href + item.label} href={item.href}>
@@ -74,11 +92,11 @@ export function SiteHeader({ menu, logoUrl, logoWidth, logoHeight, logoFilter }:
   );
 }
 
-export function SiteFooter({ logoUrl, logoWidth, logoHeight, logoFilter }: LogoProps) {
+export function SiteFooter({ logoUrl, logoWidth, logoHeight, logoColor }: LogoProps) {
   return (
     <footer className="footer">
       <div className="container footer-layout">
-        <Logo logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoFilter={logoFilter} />
+        <Logo logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
         <div>
           <h4>Produtos</h4>
           <ul>

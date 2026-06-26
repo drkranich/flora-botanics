@@ -43,12 +43,13 @@ export default async function ConfigPage() {
     .eq("tenant_id", tenantId)
     .eq("key", "logo")
     .maybeSingle();
-  const rawLogo = (logoSetting?.value ?? {}) as Partial<LogoConfig>;
+  const rawLogo = (logoSetting?.value ?? {}) as Partial<LogoConfig> & { filter?: string };
   const logoConfig: LogoConfig = {
     image: rawLogo.image ?? "",
     width: rawLogo.width ?? 160,
     height: rawLogo.height ?? 48,
-    filter: rawLogo.filter ?? "",
+    // Suporte ao campo legado "filter" — migrado para "color" transparentemente
+    color: rawLogo.color ?? "",
   };
 
   const colors =
