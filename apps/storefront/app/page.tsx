@@ -12,10 +12,17 @@ export default async function HomePage() {
   const [page, menu, logoSetting] = await Promise.all([
     getPublishedPage(client, tenant.tenantId, "home"),
     getMenu(client, tenant.tenantId, "header"),
-    getSiteSetting<{ image: string }>(client, tenant.tenantId, "logo"),
+    getSiteSetting<{ image: string; width?: number; height?: number; filter?: string }>(
+      client,
+      tenant.tenantId,
+      "logo"
+    ),
   ]);
 
   const logoUrl = logoSetting?.image ?? "";
+  const logoWidth = logoSetting?.width ?? 160;
+  const logoHeight = logoSetting?.height ?? 48;
+  const logoFilter = logoSetting?.filter ?? "";
 
   if (!page) {
     return (
@@ -39,14 +46,14 @@ export default async function HomePage() {
   return (
     <>
       {heroFirst ? (
-        <SectionRenderer section={first} header={<SiteHeader menu={menu} logoUrl={logoUrl} />} />
+        <SectionRenderer section={first} header={<SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoFilter={logoFilter} />} />
       ) : (
-        <SiteHeader menu={menu} logoUrl={logoUrl} />
+        <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoFilter={logoFilter} />
       )}
       {(heroFirst ? rest : sections).map((s) => (
         <SectionRenderer key={s.id} section={s} />
       ))}
-      <SiteFooter logoUrl={logoUrl} />
+      <SiteFooter logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoFilter={logoFilter} />
     </>
   );
 }

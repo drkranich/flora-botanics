@@ -1,16 +1,27 @@
 import Link from "next/link";
 import Image from "next/image";
 
-export function Logo({ logoUrl }: { logoUrl?: string }) {
+export interface LogoProps {
+  logoUrl?: string;
+  logoWidth?: number;
+  logoHeight?: number;
+  logoFilter?: string;
+}
+
+export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoFilter }: LogoProps) {
   return (
     <a href="/" className="logo">
       {logoUrl ? (
         <Image
           src={logoUrl}
           alt="Logo"
-          width={160}
-          height={48}
-          style={{ objectFit: "contain", maxHeight: 48 }}
+          width={logoWidth}
+          height={logoHeight}
+          style={{
+            objectFit: "contain",
+            maxHeight: logoHeight,
+            filter: logoFilter || undefined,
+          }}
           priority
         />
       ) : (
@@ -25,10 +36,10 @@ export function Logo({ logoUrl }: { logoUrl?: string }) {
   );
 }
 
-export function SiteHeader({ menu, logoUrl }: { menu: Array<{ label: string; href: string }>; logoUrl?: string }) {
+export function SiteHeader({ menu, logoUrl, logoWidth, logoHeight, logoFilter }: { menu: Array<{ label: string; href: string }> } & LogoProps) {
   return (
     <header className="header container">
-      <Logo logoUrl={logoUrl} />
+      <Logo logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoFilter={logoFilter} />
       <nav className="nav">
         {menu.map((item) => (
           <Link key={item.href + item.label} href={item.href}>
@@ -57,11 +68,11 @@ export function SiteHeader({ menu, logoUrl }: { menu: Array<{ label: string; hre
   );
 }
 
-export function SiteFooter({ logoUrl }: { logoUrl?: string }) {
+export function SiteFooter({ logoUrl, logoWidth, logoHeight, logoFilter }: LogoProps) {
   return (
     <footer className="footer">
       <div className="container footer-layout">
-        <Logo logoUrl={logoUrl} />
+        <Logo logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoFilter={logoFilter} />
         <div>
           <h4>Produtos</h4>
           <ul>

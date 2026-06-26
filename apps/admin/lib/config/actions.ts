@@ -4,8 +4,15 @@ import { revalidatePath } from "next/cache";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 
-/** Salva o logo da marca (imagem) em site_settings.logo. */
-export async function updateLogo(image: string) {
+export interface LogoConfig {
+  image: string;
+  width: number;
+  height: number;
+  filter: string;
+}
+
+/** Salva o logo da marca (imagem + tamanho + filtro de cor) em site_settings.logo. */
+export async function updateLogo(logo: LogoConfig) {
   const session = await getStaffSession();
   if (!session) throw new Error("Não autorizado");
   const tenantId = await effectiveTenantId();
@@ -14,7 +21,16 @@ export async function updateLogo(image: string) {
   const { error } = await supabase
     .from("site_settings")
     .upsert(
-      { tenant_id: tenantId, key: "logo", value: { image: image.trim() } },
+      {
+        tenant_id: tenantId,
+        key: "logo",
+        value: {
+          image: logo.image.trim(),
+          width: logo.width,
+          height: logo.height,
+          filter: logo.filter,
+        },
+      },
       { onConflict: "tenant_id,key" }
     );
   if (error) throw new Error(error.message);

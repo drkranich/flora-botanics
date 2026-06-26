@@ -6,7 +6,7 @@ import { ThemeEditor } from "./ThemeEditor";
 import { SocialEditor } from "./SocialEditor";
 import { LogoEditor } from "./LogoEditor";
 import { TeamEditor } from "./TeamEditor";
-import type { SocialItem } from "@/lib/config/actions";
+import type { SocialItem, LogoConfig } from "@/lib/config/actions";
 import type { TeamMember, PendingInvite } from "@/lib/config/team-actions";
 
 export default async function ConfigPage() {
@@ -43,8 +43,13 @@ export default async function ConfigPage() {
     .eq("tenant_id", tenantId)
     .eq("key", "logo")
     .maybeSingle();
-  const logoImage =
-    ((logoSetting?.value as { image?: string } | null)?.image ?? "") as string;
+  const rawLogo = (logoSetting?.value ?? {}) as Partial<LogoConfig>;
+  const logoConfig: LogoConfig = {
+    image: rawLogo.image ?? "",
+    width: rawLogo.width ?? 160,
+    height: rawLogo.height ?? 48,
+    filter: rawLogo.filter ?? "",
+  };
 
   const colors =
     ((theme?.tokens as Record<string, unknown> | null)?.colors as Record<string, string>) ?? {};
@@ -64,7 +69,7 @@ export default async function ConfigPage() {
         <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
           Aparece no topo e no rodapé do site.
         </p>
-        <LogoEditor initial={logoImage} tenantId={tenantId} />
+        <LogoEditor initial={logoConfig} tenantId={tenantId} />
       </section>
 
       {/* ---------- TEMA ---------- */}
