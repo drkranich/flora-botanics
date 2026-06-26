@@ -3409,7 +3409,7 @@
       "format": "cjs"
     },
     "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/server/load-manifest.external.js": {
-      "bytes": 27771,
+      "bytes": 28793,
       "imports": [
         {
           "path": "path",
@@ -3852,7 +3852,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/apps/storefront/.next/server/app/_not-found/page.js": {
-      "bytes": 19086,
+      "bytes": 19243,
       "imports": [
         {
           "path": "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -4263,7 +4263,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/apps/storefront/.next/server/app/page.js": {
-      "bytes": 99945,
+      "bytes": 121493,
       "imports": [
         {
           "path": "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -6499,7 +6499,7 @@
       "format": "esm"
     },
     ".open-next/server-functions/default/apps/storefront/index.mjs": {
-      "bytes": 81752,
+      "bytes": 81860,
       "imports": [
         {
           "path": "node:module",
@@ -7849,7 +7849,7 @@
           "bytesInOutput": 632
         },
         "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/server/load-manifest.external.js": {
-          "bytesInOutput": 21480
+          "bytesInOutput": 22320
         },
         "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/server/app-render/action-async-storage-instance.js": {
           "bytesInOutput": 547
@@ -7921,7 +7921,7 @@
           "bytesInOutput": 1770
         },
         ".open-next/server-functions/default/apps/storefront/.next/server/app/_not-found/page.js": {
-          "bytesInOutput": 19381
+          "bytesInOutput": 19547
         },
         "optional-deps-missing-dependency:/critters": {
           "bytesInOutput": 141
@@ -7972,7 +7972,7 @@
           "bytesInOutput": 3593
         },
         ".open-next/server-functions/default/apps/storefront/.next/server/app/page.js": {
-          "bytesInOutput": 104166
+          "bytesInOutput": 126561
         },
         "../../node_modules/.pnpm/next@15.5.19_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/server/require.js": {
           "bytesInOutput": 3174
@@ -8263,10 +8263,10 @@
           "bytesInOutput": 5090
         },
         ".open-next/server-functions/default/apps/storefront/index.mjs": {
-          "bytesInOutput": 55604
+          "bytesInOutput": 55693
         }
       },
-      "bytes": 3117145
+      "bytes": 3140635
     }
   }
 }
