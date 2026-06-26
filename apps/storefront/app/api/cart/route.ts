@@ -12,8 +12,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, currentTenant } from "@/lib/tenant";
 
-export const runtime = "edge";
-
 // ── GET ────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   try {

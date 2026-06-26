@@ -27,7 +27,16 @@ export default async function CarrinhosPage() {
   const session = await getStaffSession();
   if (!session) redirect("/login");
 
-  const [carts, stats] = await Promise.all([listAbandonedCarts(), getCartStats()]);
+  // A tabela carts pode ainda não existir se a migration 0019 não foi aplicada
+  let carts: Awaited<ReturnType<typeof listAbandonedCarts>> = [];
+  let stats = { totalAbandoned: 0, totalValueCents: 0, emailSent: 0, recovered: 0, recoveryRate: 0 };
+  let migrationPending = false;
+
+  try {
+    [carts, stats] = await Promise.all([listAbandonedCarts(), getCartStats()]);
+  } catch {
+    migrationPending = true;
+  }
 
   const abandoned30 = carts.filter((c) => c.minutes_abandoned >= 30);
   const recent = carts.filter((c) => c.minutes_abandoned < 30);
@@ -39,6 +48,32 @@ export default async function CarrinhosPage() {
       <h1 className="display" style={{ fontSize: 32, marginBottom: 28 }}>
         Carrinhos Abandonados
       </h1>
+
+      {/* ── Aviso: migration pendente ── */}
+      {migrationPending && (
+        <div
+          className="glass"
+          style={{ padding: "24px 28px", borderRadius: 10, borderLeft: "3px solid #f87171", marginBottom: 28 }}
+        >
+          <p className="eyebrow" style={{ marginBottom: 8, color: "#f87171" }}>
+            Migration pendente
+          </p>
+          <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.7 }}>
+            A tabela <code>carts</code> ainda não existe no banco de dados.
+            Aplique a migration abrindo o SQL Editor do Supabase e colando o conteúdo de{" "}
+            <code>supabase/migrations/0019_abandoned_carts.sql</code>.
+            <br />
+            <a
+              href="https://supabase.com/dashboard/project/mbpvzhcrimdwcqkqvoqr/sql/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--gold-light)" }}
+            >
+              Abrir SQL Editor →
+            </a>
+          </p>
+        </div>
+      )}
 
       {/* ── Stats ── */}
       <div
