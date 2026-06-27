@@ -3,26 +3,10 @@ import "./globals.css";
 import { currentTenant, db } from "@/lib/tenant";
 import { getTenantTheme, getSiteSetting } from "@flora/db";
 
-/** Metadata dinâmica: inclui favicon da marca se configurado no CMS. */
-export async function generateMetadata(): Promise<Metadata> {
-  try {
-    const tenant = await currentTenant();
-    const faviconSetting = await getSiteSetting<{ url: string }>(db(), tenant.tenantId, "favicon");
-    const faviconUrl = faviconSetting?.url;
-    return {
-      title: "Flora Botanics",
-      description: "Cosméticos inspirados pela biodiversidade brasileira.",
-      ...(faviconUrl
-        ? { icons: { icon: faviconUrl, apple: faviconUrl, shortcut: faviconUrl } }
-        : {}),
-    };
-  } catch {
-    return {
-      title: "Flora Botanics",
-      description: "Cosméticos inspirados pela biodiversidade brasileira.",
-    };
-  }
-}
+export const metadata: Metadata = {
+  title: "Flora Botanics",
+  description: "Cosméticos inspirados pela biodiversidade brasileira.",
+};
 
 function themeToCssVars(tokens: Record<string, unknown>): string {
   const colors = (tokens.colors ?? {}) as Record<string, string>;
@@ -46,11 +30,19 @@ function themeToCssVars(tokens: Record<string, unknown>): string {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const tenant = await currentTenant();
-  const tokens = await getTenantTheme(db(), tenant.tenantId);
+  const [tokens, faviconSetting] = await Promise.all([
+    getTenantTheme(db(), tenant.tenantId),
+    getSiteSetting<{ url: string }>(db(), tenant.tenantId, "favicon").catch(() => null),
+  ]);
+
+  const faviconUrl = faviconSetting?.url ?? null;
 
   return (
     <html lang="pt-BR">
       <head>
+        {faviconUrl && <link rel="icon" type="image/png" href={faviconUrl} />}
+        {faviconUrl && <link rel="shortcut icon" href={faviconUrl} />}
+        {faviconUrl && <link rel="apple-touch-icon" href={faviconUrl} />}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
