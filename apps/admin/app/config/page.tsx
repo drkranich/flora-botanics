@@ -5,6 +5,7 @@ import { effectiveTenantId } from "@/lib/cms/actions";
 import { ThemeEditor } from "./ThemeEditor";
 import { SocialEditor } from "./SocialEditor";
 import { LogoEditor } from "./LogoEditor";
+import { FaviconEditor } from "./FaviconEditor";
 import { TeamEditor } from "./TeamEditor";
 import type { SocialItem, LogoConfig } from "@/lib/config/actions";
 import type { TeamMember, PendingInvite } from "@/lib/config/team-actions";
@@ -37,12 +38,11 @@ export default async function ConfigPage() {
         .maybeSingle(),
     ]);
 
-  const { data: logoSetting } = await supabase
-    .from("site_settings")
-    .select("value")
-    .eq("tenant_id", tenantId)
-    .eq("key", "logo")
-    .maybeSingle();
+  const [{ data: logoSetting }, { data: faviconSetting }] = await Promise.all([
+    supabase.from("site_settings").select("value").eq("tenant_id", tenantId).eq("key", "logo").maybeSingle(),
+    supabase.from("site_settings").select("value").eq("tenant_id", tenantId).eq("key", "favicon").maybeSingle(),
+  ]);
+
   const rawLogo = (logoSetting?.value ?? {}) as Partial<LogoConfig> & { filter?: string };
   const logoConfig: LogoConfig = {
     image: rawLogo.image ?? "",
@@ -51,6 +51,8 @@ export default async function ConfigPage() {
     // Suporte ao campo legado "filter" — migrado para "color" transparentemente
     color: rawLogo.color ?? "",
   };
+
+  const faviconUrl = ((faviconSetting?.value as { url?: string } | null)?.url ?? "") as string;
 
   const colors =
     ((theme?.tokens as Record<string, unknown> | null)?.colors as Record<string, string>) ?? {};
@@ -71,6 +73,15 @@ export default async function ConfigPage() {
           Aparece no topo e no rodapé do site.
         </p>
         <LogoEditor initial={logoConfig} tenantId={tenantId} />
+      </section>
+
+      {/* ---------- FAVICON ---------- */}
+      <section className="glass rise rise-1" style={{ padding: 26, marginBottom: 18 }}>
+        <p className="eyebrow" style={{ marginBottom: 6 }}>Favicon</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
+          Ícone exibido na aba do navegador e em favoritos. Use PNG ou SVG quadrado (512×512 px recomendado).
+        </p>
+        <FaviconEditor initial={faviconUrl} tenantId={tenantId} />
       </section>
 
       {/* ---------- TEMA ---------- */}

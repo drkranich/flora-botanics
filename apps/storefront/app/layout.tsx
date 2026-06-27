@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { currentTenant, db } from "@/lib/tenant";
-import { getTenantTheme } from "@flora/db";
+import { getTenantTheme, getSiteSetting } from "@flora/db";
 
 export const metadata: Metadata = {
   title: "Flora Botanics",
@@ -30,7 +30,14 @@ function themeToCssVars(tokens: Record<string, unknown>): string {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const tenant = await currentTenant();
-  const tokens = await getTenantTheme(db(), tenant.tenantId);
+  const client = db();
+
+  const [tokens, faviconSetting] = await Promise.all([
+    getTenantTheme(client, tenant.tenantId),
+    getSiteSetting<{ url: string }>(client, tenant.tenantId, "favicon"),
+  ]);
+
+  const faviconUrl = faviconSetting?.url ?? "";
 
   return (
     <html lang="pt-BR">
@@ -42,6 +49,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           rel="stylesheet"
         />
         <style dangerouslySetInnerHTML={{ __html: themeToCssVars(tokens) }} />
+        {faviconUrl && (
+          <>
+            <link rel="icon" href={faviconUrl} />
+            <link rel="apple-touch-icon" href={faviconUrl} />
+          </>
+        )}
       </head>
       <body>{children}</body>
     </html>
