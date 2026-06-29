@@ -5,6 +5,13 @@ import { createPortal } from "react-dom";
 import { updateFavicon } from "@/lib/config/actions";
 import { ImageField } from "@/components/MediaPicker";
 
+const PREVIEW_SIZES = [
+  { size: 16, label: "Aba pequena" },
+  { size: 32, label: "Aba padrão" },
+  { size: 64, label: "Favoritos" },
+  { size: 180, label: "Apple touch" },
+] as const;
+
 export function FaviconEditor({
   initial,
   tenantId,
@@ -14,6 +21,7 @@ export function FaviconEditor({
 }) {
   const [url, setUrl] = useState(initial);
   const [expanded, setExpanded] = useState(false);
+  const [activeSize, setActiveSize] = useState(64);
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
@@ -136,41 +144,122 @@ export function FaviconEditor({
               </button>
             </header>
 
-            <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 18, alignItems: "center" }}>
-              <div
-                style={{
-                  width: 220,
-                  height: 220,
-                  borderRadius: 18,
-                  border: "1px solid var(--glass-border)",
-                  background: "rgba(255, 248, 234, 0.06)",
-                  display: "grid",
-                  placeItems: "center",
-                  overflow: "hidden",
-                }}
-              >
-                <img src={url} alt="Preview grande do favicon" style={{ width: 168, height: 168, objectFit: "contain" }} />
-              </div>
-
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(220px, 0.9fr)", gap: 18, alignItems: "stretch" }}>
               <div style={{ display: "grid", gap: 12 }}>
-                {[16, 32, 64, 180].map((size) => (
-                  <div key={size} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ width: 56, fontSize: 11, color: "var(--cream-dim)" }}>{size}px</span>
-                    <span
+                <div
+                  style={{
+                    minHeight: 240,
+                    borderRadius: 18,
+                    border: "1px solid var(--glass-border)",
+                    background: "rgba(255, 248, 234, 0.06)",
+                    display: "grid",
+                    placeItems: "center",
+                    overflow: "hidden",
+                    padding: 18,
+                  }}
+                >
+                  <div style={{ display: "grid", justifyItems: "center", gap: 12 }}>
+                    <div
                       style={{
-                        width: Math.max(size, 28),
-                        height: Math.max(size, 28),
-                        borderRadius: 8,
-                        border: "1px solid var(--glass-border)",
+                        width: 180,
+                        height: 180,
+                        borderRadius: 16,
+                        border: "1px solid rgba(242, 236, 223, 0.12)",
+                        background: "rgba(10, 22, 11, 0.45)",
                         display: "grid",
                         placeItems: "center",
-                        background: "rgba(10, 22, 11, 0.45)",
                       }}
                     >
-                      <img src={url} alt="" style={{ width: size, height: size, objectFit: "contain" }} />
-                    </span>
+                      <img src={url} alt={`Preview do favicon em ${activeSize}px`} style={{ width: activeSize, height: activeSize, objectFit: "contain" }} />
+                    </div>
+                    <span className="chip chip-live">{activeSize}px ativo</span>
                   </div>
-                ))}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    border: "1px solid var(--glass-border)",
+                    borderRadius: 12,
+                    padding: "10px 12px",
+                    background: "rgba(10, 22, 11, 0.38)",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 7,
+                      display: "grid",
+                      placeItems: "center",
+                      background: "rgba(255, 248, 234, 0.08)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <img src={url} alt="" style={{ width: Math.min(activeSize, 18), height: Math.min(activeSize, 18), objectFit: "contain" }} />
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>Flora Botanics</p>
+                    <p className="muted" style={{ margin: "2px 0 0", fontSize: 10 }}>
+                      Simulação da aba do navegador
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
+                {PREVIEW_SIZES.map(({ size, label }) => {
+                  const active = activeSize === size;
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setActiveSize(size)}
+                      aria-pressed={active}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "64px 1fr auto",
+                        alignItems: "center",
+                        gap: 12,
+                        borderRadius: 12,
+                        border: active ? "1px solid var(--gold-light)" : "1px solid var(--glass-border)",
+                        background: active ? "rgba(185, 146, 77, 0.18)" : "rgba(255, 248, 234, 0.05)",
+                        color: "inherit",
+                        padding: "10px 12px",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <span style={{ fontSize: 11, color: active ? "var(--gold-light)" : "var(--cream-dim)", fontWeight: 800 }}>
+                        {size}px
+                      </span>
+                      <span>
+                        <span style={{ display: "block", fontSize: 12, fontWeight: 700 }}>{label}</span>
+                        <span className="muted" style={{ display: "block", fontSize: 10, marginTop: 2 }}>
+                          Clique para testar este tamanho
+                        </span>
+                      </span>
+                      <span
+                        style={{
+                          width: Math.max(size, 28),
+                          height: Math.max(size, 28),
+                          maxWidth: 54,
+                          maxHeight: 54,
+                          borderRadius: 8,
+                          border: "1px solid var(--glass-border)",
+                          display: "grid",
+                          placeItems: "center",
+                          background: "rgba(10, 22, 11, 0.45)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <img src={url} alt="" style={{ width: size, height: size, maxWidth: 48, maxHeight: 48, objectFit: "contain" }} />
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
