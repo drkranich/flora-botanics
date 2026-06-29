@@ -25,7 +25,7 @@ export default function LoginPage() {
     if (mode === "forgot") {
       // envia o link de redefinição para a página dedicada do painel
       await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login/redefinir`,
+        redirectTo: `${window.location.origin}/admin/login/redefinir`,
       });
       setLoading(false);
       setNotice("Se este e-mail tiver acesso, você receberá um link para redefinir a senha.");

@@ -74,7 +74,7 @@ export default function AdminResetPage() {
               Link inválido ou expirado. Peça um novo em
               {" "}<strong>Esqueci minha senha</strong> na tela de login.
             </p>
-            <a className="btn btn-gold" href="/login" style={{ textAlign: "center" }}>Voltar ao login</a>
+            <a className="btn btn-gold" href="/admin/login" style={{ textAlign: "center" }}>Voltar ao login</a>
           </>
         ) : (
           <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>

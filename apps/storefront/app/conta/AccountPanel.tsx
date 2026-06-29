@@ -32,17 +32,6 @@ interface AccountSession {
   user: AccountUser;
 }
 
-const fieldStyle: React.CSSProperties = {
-  width: "100%",
-  height: 48,
-  border: "1px solid rgba(40, 37, 29, 0.18)",
-  background: "rgba(255, 248, 234, 0.74)",
-  color: "var(--text)",
-  padding: "0 16px",
-  fontFamily: "var(--font-body)",
-  fontSize: 13,
-};
-
 function displayName(user: AccountUser, profile: ProfileRow | null) {
   return (
     profile?.full_name ||
@@ -197,8 +186,9 @@ export function AccountPanel() {
 
   if (loading) {
     return (
-      <section style={{ maxWidth: 760 }}>
-        <p style={{ color: "var(--muted)" }}>Carregando sua conta...</p>
+      <section className="account-card account-status-card">
+        <span className="account-kicker">Conta Flora</span>
+        <p>Carregando sua conta...</p>
       </section>
     );
   }
@@ -208,139 +198,113 @@ export function AccountPanel() {
     const nameLabel = displayName(user, profile);
 
     return (
-      <section style={{ maxWidth: 820, display: "grid", gap: 22 }}>
-        <div>
-          <span className="eyebrow">Minha conta</span>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 500, lineHeight: 1 }}>
-            Ola, {nameLabel}
-          </h1>
-          <p style={{ marginTop: 12, color: "var(--muted)" }}>
-            Acompanhe seus dados, pedidos e preferencias da Flora Botanics.
-          </p>
+      <section className="account-card account-profile-card">
+        <div className="account-profile-heading">
+          <span className="account-kicker">Minha conta</span>
+          <h1>Ola, {nameLabel}</h1>
+          <p>Acompanhe seus dados, pedidos e preferencias da Flora Botanics.</p>
         </div>
 
-        <div
-          style={{
-            border: "1px solid rgba(40, 37, 29, 0.12)",
-            background: "rgba(255, 248, 234, 0.52)",
-            padding: 24,
-            display: "grid",
-            gap: 12,
-          }}
-        >
+        <div className="account-profile-summary">
           <strong>{user.email}</strong>
-          <span style={{ color: "var(--muted)", fontSize: 13 }}>
-            Login ativo via {user.app_metadata?.provider === "google" ? "Google" : "e-mail"}.
-          </span>
+          <span>Login ativo via {user.app_metadata?.provider === "google" ? "Google" : "e-mail"}.</span>
           {customers.length > 0 ? (
-            <span style={{ color: "var(--muted)", fontSize: 13 }}>
-              Cadastro de cliente vinculado: {customers[0].full_name ?? customers[0].email}
-            </span>
+            <span>Cadastro de cliente vinculado: {customers[0].full_name ?? customers[0].email}</span>
           ) : (
-            <span style={{ color: "var(--muted)", fontSize: 13 }}>
-              Nenhum pedido vinculado ainda. Ao comprar com este e-mail, seus pedidos aparecem aqui.
-            </span>
+            <span>Nenhum pedido vinculado ainda. Ao comprar com este e-mail, seus pedidos aparecem aqui.</span>
           )}
         </div>
 
-        <button type="button" className="btn" onClick={logout} disabled={pending} style={{ width: "fit-content" }}>
+        <button type="button" className="account-secondary-button" onClick={logout} disabled={pending}>
           Sair da conta
         </button>
-        {message ? <p style={{ color: "var(--gold-dark)" }}>{message}</p> : null}
+        {message ? <p className="account-success">{message}</p> : null}
       </section>
     );
   }
 
   return (
-    <section style={{ maxWidth: 520, display: "grid", gap: 22 }}>
-      <div>
-        <span className="eyebrow">Conta Flora</span>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 500, lineHeight: 1 }}>
-          Entrar ou criar conta
-        </h1>
-        <p style={{ marginTop: 12, color: "var(--muted)" }}>
-          Acesse seus dados, pedidos e beneficios usando e-mail ou Google.
-        </p>
+    <section className="account-auth-layout">
+      <aside className="account-copy-panel">
+        <span className="account-kicker">Conta Flora</span>
+        <h1>Entrar ou criar conta</h1>
+        <p>Guarde seus dados, acompanhe pedidos e volte para o carrinho com a mesma conta.</p>
+        <div className="account-mini-list">
+          <span>Google ou e-mail</span>
+          <span>Pedidos vinculados ao cliente</span>
+          <span>Carrinho salvo por e-mail</span>
+        </div>
+      </aside>
+
+      <div className="account-card account-form-card">
+        <div className="account-mode-switch" role="tablist" aria-label="Escolha o modo de acesso">
+          <button
+            type="button"
+            onClick={() => setMode("entrar")}
+            className={mode === "entrar" ? "is-active" : ""}
+            aria-pressed={mode === "entrar"}
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("cadastro")}
+            className={mode === "cadastro" ? "is-active" : ""}
+            aria-pressed={mode === "cadastro"}
+          >
+            Criar conta
+          </button>
+        </div>
+
+        <button type="button" onClick={loginWithGoogle} disabled={pending} className="account-google-button">
+          <span>G</span>
+          Continuar com Google
+        </button>
+
+        <div className="account-divider">
+          <span>ou acesse com e-mail</span>
+        </div>
+
+        <form onSubmit={submitEmailAuth} className="account-form">
+          {mode === "cadastro" ? (
+            <label>
+              Nome completo
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Seu nome"
+              />
+            </label>
+          ) : null}
+          <label>
+            E-mail
+            <input
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="voce@email.com"
+            />
+          </label>
+          <label>
+            Senha
+            <input
+              required
+              minLength={6}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Minimo de 6 caracteres"
+            />
+          </label>
+          <button type="submit" className="account-primary-button" disabled={pending}>
+            {pending ? "Aguarde..." : mode === "cadastro" ? "Criar conta" : "Entrar"}
+          </button>
+        </form>
+
+        {error ? <p className="account-error">{error}</p> : null}
+        {message ? <p className="account-success">{message}</p> : null}
       </div>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="button"
-          onClick={() => setMode("entrar")}
-          className="btn"
-          style={{
-            background: mode === "entrar" ? "var(--gold)" : "transparent",
-            color: mode === "entrar" ? "var(--white)" : "var(--text)",
-            border: "1px solid var(--gold)",
-          }}
-        >
-          Entrar
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("cadastro")}
-          className="btn"
-          style={{
-            background: mode === "cadastro" ? "var(--gold)" : "transparent",
-            color: mode === "cadastro" ? "var(--white)" : "var(--text)",
-            border: "1px solid var(--gold)",
-          }}
-        >
-          Criar conta
-        </button>
-      </div>
-
-      <button
-        type="button"
-        onClick={loginWithGoogle}
-        disabled={pending}
-        style={{
-          height: 50,
-          border: "1px solid rgba(40, 37, 29, 0.2)",
-          background: "#fff",
-          color: "var(--text)",
-          fontFamily: "var(--font-body)",
-          fontWeight: 800,
-          letterSpacing: 0.6,
-          cursor: "pointer",
-        }}
-      >
-        Continuar com Google
-      </button>
-
-      <form onSubmit={submitEmailAuth} style={{ display: "grid", gap: 12 }}>
-        {mode === "cadastro" ? (
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Nome completo"
-            style={fieldStyle}
-          />
-        ) : null}
-        <input
-          required
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="E-mail"
-          style={fieldStyle}
-        />
-        <input
-          required
-          minLength={6}
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="Senha"
-          style={fieldStyle}
-        />
-        <button type="submit" className="btn" disabled={pending}>
-          {pending ? "Aguarde..." : mode === "cadastro" ? "Criar conta" : "Entrar"}
-        </button>
-      </form>
-
-      {error ? <p style={{ color: "#9a3232", lineHeight: 1.5 }}>{error}</p> : null}
-      {message ? <p style={{ color: "var(--gold-dark)", lineHeight: 1.5 }}>{message}</p> : null}
     </section>
   );
 }

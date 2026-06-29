@@ -25,11 +25,11 @@ export default async function AccountPage() {
 
   return (
     <>
-      <div className="hero subpage-hero subpage-hero-compact">
+      <div className="account-header-shell">
         <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
       </div>
-      <main className="page-content">
-        <div className="container">
+      <main className="account-page">
+        <div className="container account-page-inner">
           <AccountPanel />
         </div>
       </main>

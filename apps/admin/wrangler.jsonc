@@ -1,10 +1,29 @@
 {
-	// Worker do PAINEL (admin). URL: flora-admin.gmoraes.workers.dev
+	// Worker do PAINEL (admin). URL publica: florabotanics.com.br/admin
 	"name": "flora-admin",
 	"main": ".open-next/worker.js",
+	"workers_dev": false,
 	"compatibility_date": "2025-03-25",
 	"compatibility_flags": [
 		"nodejs_compat"
+	],
+	"routes": [
+		{
+			"pattern": "florabotanics.com.br/admin",
+			"zone_name": "florabotanics.com.br"
+		},
+		{
+			"pattern": "florabotanics.com.br/admin/*",
+			"zone_name": "florabotanics.com.br"
+		},
+		{
+			"pattern": "www.florabotanics.com.br/admin",
+			"zone_name": "florabotanics.com.br"
+		},
+		{
+			"pattern": "www.florabotanics.com.br/admin/*",
+			"zone_name": "florabotanics.com.br"
+		}
 	],
 	"assets": {
 		"directory": ".open-next/assets",
