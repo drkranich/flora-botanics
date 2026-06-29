@@ -10,6 +10,18 @@ export function createAnonClient(url: string, anonKey: string): SupabaseClient {
   });
 }
 
+/** Cliente Supabase para auth no navegador do storefront. */
+export function createBrowserAuthClient(url: string, anonKey: string): SupabaseClient {
+  return createClient(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: "pkce",
+    },
+  });
+}
+
 export interface TenantContext {
   tenantId: string;
   slug: string;

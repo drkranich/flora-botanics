@@ -65,7 +65,7 @@ export function SiteHeader({
         ))}
       </nav>
       <div className="header-actions">
-        <Link href="/p/conta" aria-label="Conta">
+        <Link href="/conta" aria-label="Conta">
           <svg className="icon" viewBox="0 0 24 24">
             <circle cx="12" cy="7" r="4"></circle>
             <path d="M4 21a8 8 0 0 1 16 0"></path>
