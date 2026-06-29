@@ -11,15 +11,9 @@ export interface LogoProps {
 
 export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoColor }: LogoProps) {
   return (
-    <a href="/" className="logo">
+    <Link href="/" className="logo">
       {logoUrl ? (
         logoColor ? (
-          /**
-           * CSS mask: colore o PNG com a cor exata escolhida no CMS.
-           * Funciona para qualquer cor — não depende de CSS filter.
-           * Requer que o Supabase Storage envie CORS (Access-Control-Allow-Origin: *)
-           * em buckets públicos, o que é o padrão.
-           */
           <span
             style={{
               display: "inline-block",
@@ -32,7 +26,6 @@ export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoColor }: L
             }}
           />
         ) : (
-          // Sem cor override: renderiza a imagem original
           <Image
             src={logoUrl}
             alt="Logo"
@@ -50,7 +43,7 @@ export function Logo({ logoUrl, logoWidth = 160, logoHeight = 48, logoColor }: L
           <span className="logo-sub">BOTANICS</span>
         </>
       )}
-    </a>
+    </Link>
   );
 }
 
@@ -72,27 +65,46 @@ export function SiteHeader({
         ))}
       </nav>
       <div className="header-actions">
-        <a href="#" aria-label="Conta">
+        <Link href="/p/conta" aria-label="Conta">
           <svg className="icon" viewBox="0 0 24 24">
             <circle cx="12" cy="7" r="4"></circle>
             <path d="M4 21a8 8 0 0 1 16 0"></path>
           </svg>
-        </a>
-        <a href="#" aria-label="Sacola">
+        </Link>
+        <Link href="/carrinho" aria-label="Sacola">
           <svg className="icon" viewBox="0 0 24 24">
             <path d="M6 8h12l-1 13H7L6 8Z"></path>
             <path d="M9 8a3 3 0 0 1 6 0"></path>
           </svg>
-        </a>
-        <a href="#newsletter" className="btn">
+        </Link>
+        <Link href="/#newsletter" className="btn">
           Avise-me
-        </a>
+        </Link>
       </div>
     </header>
   );
 }
 
 export function SiteFooter({ logoUrl, logoWidth, logoHeight, logoColor }: LogoProps) {
+  const productLinks = [
+    { label: "Sérums", href: "/categorias/seruns" },
+    { label: "Hidratantes", href: "/categorias/hidratantes" },
+    { label: "Limpadores", href: "/categorias/limpadores" },
+    { label: "Óleos Botânicos", href: "/categorias/oleos-botanicos" },
+  ];
+  const institutionalLinks = [
+    { label: "Sobre Nós", href: "/p/sobre-nos" },
+    { label: "Ingredientes", href: "/p/ingredientes" },
+    { label: "Sustentabilidade", href: "/p/sustentabilidade" },
+    { label: "Blog", href: "/p/blog" },
+  ];
+  const helpLinks = [
+    { label: "Perguntas Frequentes", href: "/p/perguntas-frequentes" },
+    { label: "Trocas e Devoluções", href: "/p/trocas-e-devolucoes" },
+    { label: "Política de Privacidade", href: "/p/politica-de-privacidade" },
+    { label: "Fale Conosco", href: "/p/fale-conosco" },
+  ];
+
   return (
     <footer className="footer">
       <div className="container footer-layout">
@@ -100,36 +112,39 @@ export function SiteFooter({ logoUrl, logoWidth, logoHeight, logoColor }: LogoPr
         <div>
           <h4>Produtos</h4>
           <ul>
-            <li>Sérums</li>
-            <li>Hidratantes</li>
-            <li>Limpadores</li>
-            <li>Óleos Botânicos</li>
+            {productLinks.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href}>{item.label}</Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div>
           <h4>Institucional</h4>
           <ul>
-            <li>Sobre Nós</li>
-            <li>Ingredientes</li>
-            <li>Sustentabilidade</li>
-            <li>Blog</li>
+            {institutionalLinks.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href}>{item.label}</Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div>
           <h4>Ajuda</h4>
           <ul>
-            <li>Perguntas Frequentes</li>
-            <li>Trocas e Devoluções</li>
-            <li>Política de Privacidade</li>
-            <li>Fale Conosco</li>
+            {helpLinks.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href}>{item.label}</Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div>
           <h4>Siga-nos</h4>
           <div className="socials">
-            <a href="#">◎</a>
-            <a href="#">f</a>
-            <a href="#">p</a>
+            <Link href="/p/instagram" aria-label="Instagram">◎</Link>
+            <Link href="/p/facebook" aria-label="Facebook">f</Link>
+            <Link href="/p/pinterest" aria-label="Pinterest">p</Link>
           </div>
         </div>
       </div>

@@ -65,21 +65,14 @@ export default async function ProductsPage() {
 
   return (
     <>
-      <div className="hero" style={{ minHeight: 360 }}>
+      <div className="hero subpage-hero subpage-hero-compact">
         <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
-        <div className="container hero-inner" style={{ paddingTop: 48 }}>
-          <div className="hero-text">
-            <span className="eyebrow">Catalogo</span>
-            <h1>Produtos Flora Botanics</h1>
-            <p>Explore a colecao publicada no CMS, com os produtos ativos deste site.</p>
-          </div>
-        </div>
       </div>
 
       <main className="categories">
         <div className="container">
           <div className="section-heading">
-            <h2>Colecao completa</h2>
+            <h2>Catalogo</h2>
           </div>
 
           {rows.length === 0 ? (

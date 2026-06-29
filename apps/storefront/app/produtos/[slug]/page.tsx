@@ -96,7 +96,7 @@ export default async function ProductPage({
 
   return (
     <>
-      <div className="hero" style={{ minHeight: 360 }}>
+      <div className="hero subpage-hero">
         <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
         <div className="container hero-inner" style={{ paddingTop: 48 }}>
           <div className="hero-text">

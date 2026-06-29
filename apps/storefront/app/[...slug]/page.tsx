@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { currentTenant, db } from "@/lib/tenant";
 import { getPublishedPage, getMenu, getSiteSetting } from "@flora/db";
 import { SectionRenderer } from "@/blocks";
@@ -26,6 +26,14 @@ function pageSlugCandidates(segments: string[]) {
   return Array.from(new Set(candidates.filter(Boolean)));
 }
 
+function titleFromSlug(slug: string) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default async function CmsCatchAllPage({
   params,
 }: {
@@ -44,26 +52,41 @@ export default async function CmsCatchAllPage({
     ),
   ]);
 
-  let page:
-    | Awaited<ReturnType<typeof getPublishedPage>>
-    | null = null;
+  let page: Awaited<ReturnType<typeof getPublishedPage>> | null = null;
 
   for (const candidate of pageSlugCandidates(slug)) {
     page = await getPublishedPage(client, tenant.tenantId, candidate);
     if (page) break;
   }
 
-  if (!page) {
-    const last = slug[slug.length - 1] ?? "";
-    const fallback = FALLBACK_ANCHORS[last];
-    if (fallback) redirect(fallback);
-    notFound();
-  }
-
   const logoUrl = logoSetting?.image ?? "";
   const logoWidth = logoSetting?.width ?? 160;
   const logoHeight = logoSetting?.height ?? 48;
   const logoColor = logoSetting?.color ?? "";
+
+  if (!page) {
+    const last = slug[slug.length - 1] ?? "";
+    const fallback = FALLBACK_ANCHORS[last];
+    if (fallback && slug.length === 1) redirect(fallback);
+    const title = titleFromSlug(last || slug.join("-"));
+
+    return (
+      <>
+        <div className="hero subpage-hero subpage-hero-compact">
+          <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
+        </div>
+        <main className="page-content">
+          <div className="container">
+            <p>
+              Conteúdo de <strong>{title}</strong> — edite esta página no painel (CMS → {title}).
+            </p>
+          </div>
+        </main>
+        <SiteFooter logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
+      </>
+    );
+  }
+
   const sections = (page.sections ?? []) as Array<{
     id: string;
     block: string;
@@ -80,11 +103,15 @@ export default async function CmsCatchAllPage({
           header={<SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />}
         />
       ) : (
-        <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
+        <div className="hero subpage-hero subpage-hero-compact">
+          <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
+        </div>
       )}
-      {(heroFirst ? rest : sections).map((section) => (
-        <SectionRenderer key={section.id} section={section} />
-      ))}
+      <main className={heroFirst ? undefined : "page-content"}>
+        {(heroFirst ? rest : sections).map((section) => (
+          <SectionRenderer key={section.id} section={section} />
+        ))}
+      </main>
       <SiteFooter logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
     </>
   );

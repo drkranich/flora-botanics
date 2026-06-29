@@ -51,7 +51,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
         <style dangerouslySetInnerHTML={{ __html: themeToCssVars(tokens) }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <div className="site-shell">{children}</div>
+      </body>
     </html>
   );
 }
