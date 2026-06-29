@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type MediaRow = {
@@ -100,6 +101,7 @@ export function MediaLibraryModal({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -115,6 +117,7 @@ export function MediaLibraryModal({
   }
 
   useEffect(() => {
+    setMounted(true);
     load();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -157,7 +160,9 @@ export function MediaLibraryModal({
     }
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -165,7 +170,9 @@ export function MediaLibraryModal({
         inset: 0,
         background: "rgba(5, 12, 6, 0.7)",
         backdropFilter: "blur(6px)",
-        zIndex: 100,
+        zIndex: 2147483647,
+        isolation: "isolate",
+        transform: "translateZ(0)",
         display: "grid",
         placeItems: "center",
         padding: 24,
@@ -175,6 +182,8 @@ export function MediaLibraryModal({
         className="glass rise"
         onClick={(e) => e.stopPropagation()}
         style={{
+          position: "relative",
+          zIndex: 1,
           width: "min(760px, 100%)",
           maxHeight: "80vh",
           display: "flex",
@@ -274,6 +283,7 @@ export function MediaLibraryModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
