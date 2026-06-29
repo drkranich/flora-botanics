@@ -225,17 +225,6 @@ export function AccountPanel() {
 
   return (
     <section className="account-auth-layout">
-      <aside className="account-copy-panel">
-        <span className="account-kicker">Conta Flora</span>
-        <h1>Entrar ou criar conta</h1>
-        <p>Guarde seus dados, acompanhe pedidos e volte para o carrinho com a mesma conta.</p>
-        <div className="account-mini-list">
-          <span>Google ou e-mail</span>
-          <span>Pedidos vinculados ao cliente</span>
-          <span>Carrinho salvo por e-mail</span>
-        </div>
-      </aside>
-
       <div className="account-card account-form-card">
         <div className="account-mode-switch" role="tablist" aria-label="Escolha o modo de acesso">
           <button

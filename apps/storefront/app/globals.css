@@ -107,10 +107,9 @@ a { color: inherit; text-decoration: none; }
 
 .account-auth-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 0.88fr) minmax(320px, 520px);
-  gap: 34px;
-  align-items: stretch;
-  max-width: 980px;
+  grid-template-columns: minmax(320px, 520px);
+  justify-content: center;
+  max-width: 560px;
   margin: 0 auto;
 }
 

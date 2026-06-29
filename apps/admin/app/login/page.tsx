@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { requestAdminPasswordReset } from "./reset-actions";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,52 +21,51 @@ export default function LoginPage() {
     setError(null);
     setNotice(null);
 
-    const supabase = supabaseBrowser();
-
     if (mode === "forgot") {
-      // envia o link de redefinição para a página dedicada do painel
-      await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/admin/login/redefinir`,
-      });
+      const result = await requestAdminPasswordReset(email);
       setLoading(false);
-      setNotice("Se este e-mail tiver acesso, você receberá um link para redefinir a senha.");
+      setNotice(result.notice);
       setMode("login");
       return;
     }
 
+    const supabase = supabaseBrowser();
+
     if (mode === "first") {
-      // primeiro acesso de quem foi convidada: cria a conta;
-      // o convite pendente aplica tenant e papel automaticamente
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { full_name: name } },
       });
       setLoading(false);
-      if (error) {
+
+      if (signUpError) {
         setError(
-          error.message.includes("already registered")
-            ? "Este e-mail já tem conta — use Entrar."
-            : "Não foi possível criar a conta. Verifique os dados."
+          signUpError.message.includes("already registered")
+            ? "Este e-mail ja tem conta - use Entrar."
+            : "Nao foi possivel criar a conta. Verifique os dados."
         );
         return;
       }
+
       if (!data.session) {
-        setNotice("Conta criada! Confirme o cadastro no seu e-mail e depois entre normalmente.");
+        setNotice("Conta criada. Confirme o cadastro no seu e-mail e depois entre normalmente.");
         setMode("login");
         return;
       }
+
       router.push("/");
       router.refresh();
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError("E-mail ou senha inválidos.");
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError("E-mail ou senha invalidos.");
       setLoading(false);
       return;
     }
+
     router.push("/");
     router.refresh();
   }
@@ -155,11 +155,11 @@ export default function LoginPage() {
 
         <button type="submit" disabled={loading} className="btn btn-gold" style={{ marginTop: 6 }}>
           {loading
-            ? "Aguarde…"
+            ? "Aguarde..."
             : mode === "first"
               ? "Criar acesso"
               : mode === "forgot"
-                ? "Enviar link de recuperação"
+                ? "Enviar link de recuperacao"
                 : "Entrar"}
         </button>
 
@@ -191,7 +191,7 @@ export default function LoginPage() {
         )}
 
         <p className="muted" style={{ fontSize: 10.5, textAlign: "center", letterSpacing: 0.4 }}>
-          Acesso restrito à equipe Flora Ecosystem
+          Acesso restrito a equipe Flora Ecosystem
         </p>
       </form>
     </main>
