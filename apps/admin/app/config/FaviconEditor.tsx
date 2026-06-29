@@ -12,6 +12,7 @@ export function FaviconEditor({
   tenantId: string;
 }) {
   const [url, setUrl] = useState(initial);
+  const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -64,6 +65,16 @@ export function FaviconEditor({
         </button>
         {url && (
           <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="btn btn-ghost"
+            style={{ padding: "11px 18px", fontSize: 10 }}
+          >
+            Expandir
+          </button>
+        )}
+        {url && (
+          <button
             onClick={() => setUrl("")}
             className="btn btn-ghost"
             style={{ padding: "11px 18px", fontSize: 10 }}
@@ -77,6 +88,86 @@ export function FaviconEditor({
       <p className="muted" style={{ fontSize: 11, margin: 0 }}>
         Use PNG ou SVG quadrado (recomendado 512×512 px). Formatos aceitos: .ico, .png, .svg.
       </p>
+
+      {expanded && url ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setExpanded(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 120,
+            display: "grid",
+            placeItems: "center",
+            padding: 24,
+            background: "rgba(5, 12, 6, 0.72)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <div
+            className="glass"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(620px, 100%)",
+              padding: 24,
+              background: "rgba(15, 32, 18, 0.94)",
+              display: "grid",
+              gap: 20,
+            }}
+          >
+            <header style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
+              <div>
+                <p className="eyebrow" style={{ marginBottom: 6 }}>Preview expandido</p>
+                <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+                  Confira se o ícone continua legível nos tamanhos reais do navegador.
+                </p>
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => setExpanded(false)} style={{ padding: "8px 14px", fontSize: 10 }}>
+                Fechar
+              </button>
+            </header>
+
+            <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 18, alignItems: "center" }}>
+              <div
+                style={{
+                  width: 220,
+                  height: 220,
+                  borderRadius: 18,
+                  border: "1px solid var(--glass-border)",
+                  background: "rgba(255, 248, 234, 0.06)",
+                  display: "grid",
+                  placeItems: "center",
+                  overflow: "hidden",
+                }}
+              >
+                <img src={url} alt="Preview grande do favicon" style={{ width: 168, height: 168, objectFit: "contain" }} />
+              </div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                {[16, 32, 64, 180].map((size) => (
+                  <div key={size} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ width: 56, fontSize: 11, color: "var(--cream-dim)" }}>{size}px</span>
+                    <span
+                      style={{
+                        width: Math.max(size, 28),
+                        height: Math.max(size, 28),
+                        borderRadius: 8,
+                        border: "1px solid var(--glass-border)",
+                        display: "grid",
+                        placeItems: "center",
+                        background: "rgba(10, 22, 11, 0.45)",
+                      }}
+                    >
+                      <img src={url} alt="" style={{ width: size, height: size, objectFit: "contain" }} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

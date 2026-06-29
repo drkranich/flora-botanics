@@ -4,6 +4,7 @@ import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { MessageForm } from "../MessageForm";
 import { StatusSelect } from "../StatusSelect";
+import { ConversationEditor } from "../ConversationEditor";
 import { CHANNEL_LABEL, formatDateTime } from "../constants";
 
 interface MessageRow {
@@ -24,9 +25,9 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const supabase = await supabaseServer();
 
   const [{ data: conversation }, { data: messages }] = await Promise.all([
-    supabase
-      .from("conversations")
-      .select("id, channel, contact_name, contact_handle, status, created_at")
+        supabase
+          .from("conversations")
+          .select("id, channel, contact_name, contact_handle, status, tags, created_at")
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .maybeSingle(),
@@ -56,7 +57,18 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
               {conversation.contact_handle ? ` · ${conversation.contact_handle}` : ""}
             </p>
           </div>
-          <StatusSelect conversationId={conversation.id} status={conversation.status} />
+          <div style={{ display: "grid", gap: 10, justifyItems: "end" }}>
+            <StatusSelect conversationId={conversation.id} status={conversation.status} />
+            <ConversationEditor
+              conversation={{
+                id: conversation.id,
+                contact_name: conversation.contact_name,
+                contact_handle: conversation.contact_handle,
+                status: conversation.status,
+                tags: (conversation.tags ?? []) as string[],
+              }}
+            />
+          </div>
         </div>
       </header>
 

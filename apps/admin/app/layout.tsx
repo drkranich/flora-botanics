@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Shell } from "./Shell";
-import { getStaffSession } from "@/lib/supabase/server";
+import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
+import { effectiveTenantId } from "@/lib/cms/actions";
 
 export const metadata: Metadata = {
   title: "Flora · Admin",
@@ -10,10 +11,30 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getStaffSession();
+  let faviconUrl: string | null = null;
+
+  if (session) {
+    try {
+      const tenantId = await effectiveTenantId();
+      const supabase = await supabaseServer();
+      const { data } = await supabase
+        .from("site_settings")
+        .select("value")
+        .eq("tenant_id", tenantId)
+        .eq("key", "favicon")
+        .maybeSingle();
+      faviconUrl = ((data?.value as { url?: string } | null)?.url ?? null) as string | null;
+    } catch {
+      faviconUrl = null;
+    }
+  }
 
   return (
     <html lang="pt-BR">
       <head>
+        {faviconUrl ? <link rel="icon" href={faviconUrl} /> : null}
+        {faviconUrl ? <link rel="shortcut icon" href={faviconUrl} /> : null}
+        {faviconUrl ? <link rel="apple-touch-icon" href={faviconUrl} /> : null}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

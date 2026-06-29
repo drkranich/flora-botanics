@@ -31,11 +31,13 @@ export default async function CarrinhosPage() {
   let carts: Awaited<ReturnType<typeof listAbandonedCarts>> = [];
   let stats = { totalAbandoned: 0, totalValueCents: 0, emailSent: 0, recovered: 0, recoveryRate: 0 };
   let migrationPending = false;
+  let loadError: string | null = null;
 
   try {
     [carts, stats] = await Promise.all([listAbandonedCarts(), getCartStats()]);
-  } catch {
-    migrationPending = true;
+  } catch (e) {
+    loadError = e instanceof Error ? e.message : "Falha ao carregar carrinhos.";
+    migrationPending = /does not exist|schema cache|Could not find|relation .*carts|column .* does not exist/i.test(loadError);
   }
 
   const abandoned30 = carts.filter((c) => c.minutes_abandoned >= 30);
@@ -74,6 +76,20 @@ export default async function CarrinhosPage() {
           </p>
         </div>
       )}
+
+      {loadError && !migrationPending ? (
+        <div
+          className="glass"
+          style={{ padding: "24px 28px", borderRadius: 10, borderLeft: "3px solid #f87171", marginBottom: 28 }}
+        >
+          <p className="eyebrow" style={{ marginBottom: 8, color: "#f87171" }}>
+            Erro ao carregar carrinhos
+          </p>
+          <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.7 }}>
+            {loadError}
+          </p>
+        </div>
+      ) : null}
 
       {/* ── Stats ── */}
       <div
@@ -378,14 +394,10 @@ export default async function CarrinhosPage() {
       >
         <p className="eyebrow" style={{ marginBottom: 6 }}>Remarketing automático</p>
         <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.7 }}>
-          Para envio automático a cada 30 minutos, execute a Edge Function <code>cart-recovery</code> no Supabase
-          ou rode o comando abaixo na pasta do projeto:
-          <br />
-          <code style={{ fontSize: 11 }}>
-            supabase functions deploy cart-recovery --project-ref mbpvzhcrimdwcqkqvoqr
-          </code>
-          <br />
-          Em seguida, configure um pg_cron no SQL Editor para chamar a função automaticamente.
+          Ativo no Supabase: a Edge Function <code>cart-recovery</code> está publicada e o
+          <code> pg_cron</code> chama a recuperação a cada 30 minutos. Quando houver carrinhos
+          ativos com e-mail capturado e mais de 30 minutos sem atividade, o envio entra na fila
+          automaticamente.
         </p>
       </div>
     </main>

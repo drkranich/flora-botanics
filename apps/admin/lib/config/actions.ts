@@ -12,10 +12,26 @@ export interface LogoConfig {
   color: string;
 }
 
+function normalizeDomain(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split("/")[0]
+    .split(":")[0];
+}
+
+async function requireConfigAdmin() {
+  const session = await getStaffSession();
+  if (!session) throw new Error("Nao autorizado");
+  if (session.role === "tenant_editor") throw new Error("Editores nao podem alterar configuracoes.");
+  return session;
+}
+
 /** Salva o logo da marca (imagem + tamanho + cor) em site_settings.logo. */
 export async function updateLogo(logo: LogoConfig) {
-  const session = await getStaffSession();
-  if (!session) throw new Error("Não autorizado");
+  await requireConfigAdmin();
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
@@ -40,8 +56,7 @@ export async function updateLogo(logo: LogoConfig) {
 
 /** Salva o favicon da marca em site_settings.favicon. */
 export async function updateFavicon(url: string) {
-  const session = await getStaffSession();
-  if (!session) throw new Error("Não autorizado");
+  await requireConfigAdmin();
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
@@ -53,14 +68,103 @@ export async function updateFavicon(url: string) {
     );
   if (error) throw new Error(error.message);
   revalidatePath("/config");
+  revalidatePath("/");
+}
+
+export async function addTenantDomain(domain: string) {
+  await requireConfigAdmin();
+  const clean = normalizeDomain(domain);
+  if (!clean || !clean.includes(".")) throw new Error("Informe um domínio válido.");
+
+  const tenantId = await effectiveTenantId();
+  const supabase = await supabaseServer();
+
+  const { data: existing } = await supabase
+    .from("tenant_domains")
+    .select("tenant_id")
+    .eq("domain", clean)
+    .maybeSingle();
+
+  if (existing && existing.tenant_id !== tenantId) {
+    throw new Error("Este domínio já está vinculado a outra marca.");
+  }
+
+  if (!existing) {
+    const { count } = await supabase
+      .from("tenant_domains")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+
+    const { error } = await supabase.from("tenant_domains").insert({
+      tenant_id: tenantId,
+      domain: clean,
+      is_primary: (count ?? 0) === 0,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath("/config");
+}
+
+export async function setPrimaryTenantDomain(domain: string) {
+  await requireConfigAdmin();
+  const clean = normalizeDomain(domain);
+  const tenantId = await effectiveTenantId();
+  const supabase = await supabaseServer();
+
+  const { error: resetError } = await supabase
+    .from("tenant_domains")
+    .update({ is_primary: false })
+    .eq("tenant_id", tenantId);
+  if (resetError) throw new Error(resetError.message);
+
+  const { error } = await supabase
+    .from("tenant_domains")
+    .update({ is_primary: true })
+    .eq("tenant_id", tenantId)
+    .eq("domain", clean);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/config");
+}
+
+export async function verifyTenantDomain(domain: string) {
+  await requireConfigAdmin();
+  const clean = normalizeDomain(domain);
+  const tenantId = await effectiveTenantId();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase
+    .from("tenant_domains")
+    .update({ verified_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId)
+    .eq("domain", clean);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/config");
+}
+
+export async function removeTenantDomain(domain: string) {
+  await requireConfigAdmin();
+  const clean = normalizeDomain(domain);
+  const tenantId = await effectiveTenantId();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase
+    .from("tenant_domains")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("domain", clean);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/config");
 }
 
 export type SocialItem = { label: string; image: string; href: string };
 
 /** Salva os botões de redes sociais (imagem + link) em site_settings.social. */
 export async function updateSocialLinks(items: SocialItem[]) {
-  const session = await getStaffSession();
-  if (!session) throw new Error("Não autorizado");
+  await requireConfigAdmin();
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
@@ -83,8 +187,7 @@ export async function updateSocialLinks(items: SocialItem[]) {
 }
 
 export async function updateThemeColors(colors: Record<string, string>) {
-  const session = await getStaffSession();
-  if (!session) throw new Error("Não autorizado");
+  await requireConfigAdmin();
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 

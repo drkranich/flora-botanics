@@ -9,6 +9,7 @@ export type MessageActionResult = { ok: true } | { ok: false; error: string };
 export type CreateConversationResult = { ok: true; id: string } | { ok: false; error: string };
 
 const VALID_CHANNELS = ["email", "whatsapp", "instagram", "sms", "site"];
+const VALID_STATUSES = ["new", "open", "waiting", "resolved"];
 
 /**
  * Cria uma nova conversa + primeira mensagem (direction "out").
@@ -154,4 +155,59 @@ export async function setConversationStatus(conversationId: string, status: stri
 
   revalidatePath(`/inbox/${conversationId}`);
   revalidatePath("/inbox");
+}
+
+export async function updateConversation(conversationId: string, formData: FormData): Promise<MessageActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const contactName = String(formData.get("contact_name") ?? "").trim();
+  const contactHandle = String(formData.get("contact_handle") ?? "").trim();
+  const status = String(formData.get("status") ?? "open");
+  const tagsRaw = String(formData.get("tags") ?? "").trim();
+
+  if (!contactHandle) return { ok: false, error: "Informe o contato da conversa." };
+  if (!VALID_STATUSES.includes(status)) return { ok: false, error: "Status inválido." };
+
+  const tags = tagsRaw
+    ? tagsRaw
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    : [];
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("conversations")
+    .update({
+      contact_name: contactName || null,
+      contact_handle: contactHandle,
+      status,
+      tags,
+    })
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/inbox/${conversationId}`);
+  revalidatePath("/inbox");
+  return { ok: true };
+}
+
+export async function deleteConversation(conversationId: string): Promise<MessageActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("conversations")
+    .delete()
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/inbox");
+  return { ok: true };
 }

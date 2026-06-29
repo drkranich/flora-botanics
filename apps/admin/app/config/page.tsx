@@ -6,6 +6,7 @@ import { ThemeEditor } from "./ThemeEditor";
 import { SocialEditor } from "./SocialEditor";
 import { LogoEditor } from "./LogoEditor";
 import { FaviconEditor } from "./FaviconEditor";
+import { DomainEditor, type DomainRow } from "./DomainEditor";
 import { TeamEditor } from "./TeamEditor";
 import type { SocialItem, LogoConfig } from "@/lib/config/actions";
 import type { TeamMember, PendingInvite } from "@/lib/config/team-actions";
@@ -106,20 +107,11 @@ export default async function ConfigPage() {
 
       {/* ---------- DOMÍNIOS ---------- */}
       <section className="glass rise rise-2" style={{ padding: 26, marginBottom: 18 }}>
-        <p className="eyebrow" style={{ marginBottom: 14 }}>Domínios</p>
-        {(domains ?? []).map((d) => (
-          <div key={d.domain} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--glass-border)" }}>
-            <span style={{ fontSize: 13.5 }}>{d.domain}</span>
-            <span style={{ display: "flex", gap: 8 }}>
-              {d.is_primary ? <span className="chip chip-live">Primário</span> : null}
-              {d.verified_at ? <span className="chip chip-live">Verificado</span> : <span className="chip chip-draft">Pendente</span>}
-            </span>
-          </div>
-        ))}
-        <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>
-          Adição de domínio próprio (ex.: florabotanics.com.br) será habilitada na
-          etapa de deploy na Cloudflare — DNS e certificado são configurados lá.
+        <p className="eyebrow" style={{ marginBottom: 6 }}>Domínios</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
+          Conecte o domínio próprio da marca e escolha qual endereço aparece como principal.
         </p>
+        <DomainEditor domains={(domains ?? []) as DomainRow[]} />
       </section>
 
       {/* ---------- EQUIPE ---------- */}
