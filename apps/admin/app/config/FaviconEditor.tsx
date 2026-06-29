@@ -111,7 +111,9 @@ export function FaviconEditor({
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 9999,
+            zIndex: 2147483647,
+            isolation: "isolate",
+            transform: "translateZ(0)",
             display: "grid",
             placeItems: "center",
             padding: 24,
@@ -123,6 +125,8 @@ export function FaviconEditor({
             className="glass"
             onClick={(e) => e.stopPropagation()}
             style={{
+              position: "relative",
+              zIndex: 1,
               width: "min(620px, 100%)",
               maxHeight: "calc(100vh - 48px)",
               overflowY: "auto",
