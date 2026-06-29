@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { updateFavicon } from "@/lib/config/actions";
 import { ImageField } from "@/components/MediaPicker";
 
@@ -13,8 +14,13 @@ export function FaviconEditor({
 }) {
   const [url, setUrl] = useState(initial);
   const [expanded, setExpanded] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   function save() {
     setMsg(null);
@@ -89,7 +95,7 @@ export function FaviconEditor({
         Use PNG ou SVG quadrado (recomendado 512×512 px). Formatos aceitos: .ico, .png, .svg.
       </p>
 
-      {expanded && url ? (
+      {mounted && expanded && url ? createPortal((
         <div
           role="dialog"
           aria-modal="true"
@@ -97,7 +103,7 @@ export function FaviconEditor({
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 120,
+            zIndex: 9999,
             display: "grid",
             placeItems: "center",
             padding: 24,
@@ -110,6 +116,8 @@ export function FaviconEditor({
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "min(620px, 100%)",
+              maxHeight: "calc(100vh - 48px)",
+              overflowY: "auto",
               padding: 24,
               background: "rgba(15, 32, 18, 0.94)",
               display: "grid",
@@ -167,7 +175,7 @@ export function FaviconEditor({
             </div>
           </div>
         </div>
-      ) : null}
+      ), document.body) : null}
     </div>
   );
 }
