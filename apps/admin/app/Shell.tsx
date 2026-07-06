@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type NavItem = { href: string; label: string; icon: string; match: (p: string) => boolean };
@@ -209,7 +210,7 @@ function CommandPalette({
       return;
     }
     if (href === "__site__") {
-      window.open("http://localhost:3000", "_blank");
+      window.open(getStorefrontUrl(), "_blank");
       return;
     }
     router.push(href);

@@ -37,6 +37,7 @@
 	// Reintroduzido para restaurar o painel. Ver lib/supabase/middleware.ts
 	// — com isso, o refresh automático de sessão fica desativado.
 	"vars": {
-		"NEXT_PRIVATE_MINIMAL_MODE": "1"
+		"NEXT_PRIVATE_MINIMAL_MODE": "1",
+		"NEXT_PUBLIC_STOREFRONT_URL": "https://florabotanics.com.br"
 	}
 }

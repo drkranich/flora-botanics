@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 import { LogoutButton } from "./LogoutButton";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -67,7 +68,7 @@ export default async function AdminHome() {
     (s) => s.href && s.href !== "#"
   );
 
-  const storefrontUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "http://localhost:3000";
+  const storefrontUrl = getStorefrontUrl();
 
   const metrics = [
     { label: "Páginas no ar", value: String(pagesLive ?? 0), href: "/cms" },

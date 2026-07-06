@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 import { PageEditor } from "./PageEditor";
 
 export default async function CmsPageEditor({
@@ -38,7 +39,7 @@ export default async function CmsPageEditor({
 
   const isLatestPublished = latest?.id === page.published_version_id;
   const tenantId = await effectiveTenantId();
-  const storefrontUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "http://localhost:3000";
+  const storefrontUrl = getStorefrontUrl();
 
   return (
     <main style={{ maxWidth: 1480, margin: "0 auto", padding: "48px 28px 120px" }}>

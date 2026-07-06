@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 import { PagesList, type PageRow } from "./PagesList";
 
 export default async function CmsPagesList() {
@@ -17,7 +18,7 @@ export default async function CmsPagesList() {
     .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
 
-  const storefrontUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "http://localhost:3000";
+  const storefrontUrl = getStorefrontUrl();
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "48px 28px 80px" }}>
