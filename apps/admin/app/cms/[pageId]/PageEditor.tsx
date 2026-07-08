@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { saveDraft, saveAndPublish, type SectionData } from "@/lib/cms/actions";
 import { ImageField } from "@/components/MediaPicker";
 import { BackgroundField, type SectionBackground } from "./BackgroundField";
@@ -44,7 +44,18 @@ const BLOCK_DEFAULTS: Record<string, Record<string, unknown>> = {
   },
   benefits: { items: [{ icon: "leaf", title: "Novo benefício", text: "" }] },
   newsletter: { title: "Título", text: "", perks: [""] },
-  rich_text: { content: "<p>Escreva aqui…</p>" },
+  rich_text: {
+    content: "<h2>Um texto com respiro editorial</h2><p>Escreva aqui com parágrafos, subtítulos e ritmo de leitura. O resultado no site público não precisa parecer um bloco colado: ele pode ter largura, alinhamento, contraste e tipografia de publicação.</p>",
+    typography: {
+      displayFont: "Cormorant Garamond",
+      bodyFont: "Montserrat",
+      align: "left",
+      width: "760px",
+      titleSize: "42px",
+      bodySize: "17px",
+      lineHeight: "1.85",
+    },
+  },
   banner: { image: "", href: "", full_width: true },
   faq: { items: [{ q: "Pergunta?", a: "Resposta." }] },
   product_carousel: { heading: "Título da seção", collection_slug: "" },
@@ -82,6 +93,32 @@ const FIELD_LABEL: Record<string, string> = {
 };
 
 const IMAGE_KEYS = new Set(["image", "product_image"]);
+const TYPOGRAPHY_KEY = "typography";
+
+const DISPLAY_FONTS = [
+  { label: "Cormorant editorial", value: "Cormorant Garamond" },
+  { label: "Fraunces sofisticada", value: "Fraunces" },
+  { label: "Lora clássica", value: "Lora" },
+  { label: "Montserrat limpa", value: "Montserrat" },
+];
+
+const BODY_FONTS = [
+  { label: "Montserrat", value: "Montserrat" },
+  { label: "Inter", value: "Inter" },
+  { label: "Lora", value: "Lora" },
+  { label: "Cormorant Garamond", value: "Cormorant Garamond" },
+];
+
+type TypographySettings = {
+  displayFont?: string;
+  bodyFont?: string;
+  align?: "left" | "center" | "right";
+  width?: string;
+  titleSize?: string;
+  bodySize?: string;
+  lineHeight?: string;
+  color?: string;
+};
 
 const label = (k: string) => FIELD_LABEL[k] ?? k;
 
@@ -96,6 +133,192 @@ function blankClone(v: unknown): unknown {
     );
   }
   return v;
+}
+
+function typographyValue(value: unknown): TypographySettings {
+  return value && typeof value === "object" ? (value as TypographySettings) : {};
+}
+
+function inputMiniStyle(): CSSProperties {
+  return {
+    minHeight: 38,
+    border: "1px solid var(--glass-border)",
+    borderRadius: 9,
+    padding: "0 10px",
+    color: "var(--cream)",
+    background: "rgba(10, 22, 11, 0.42)",
+    fontFamily: "inherit",
+    fontSize: 12,
+  };
+}
+
+function TypographyEditor({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (value: TypographySettings) => void;
+}) {
+  const settings = typographyValue(value);
+  const patch = (next: Partial<TypographySettings>) => onChange({ ...settings, ...next });
+
+  return (
+    <div className="glass" style={{ padding: 16, marginBottom: 16, background: "rgba(255, 248, 234, 0.045)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <p className="eyebrow" style={{ marginBottom: 5 }}>Tipografia da seção</p>
+          <p className="muted" style={{ fontSize: 11 }}>
+            Fonte, largura, alinhamento e ritmo do texto no site público.
+          </p>
+        </div>
+        <button type="button" className="btn btn-ghost" onClick={() => onChange({})} style={{ padding: "8px 12px", fontSize: 9 }}>
+          Limpar
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+        <label className="field">
+          <span className="field-label">Fonte dos títulos</span>
+          <select value={settings.displayFont ?? "Cormorant Garamond"} onChange={(e) => patch({ displayFont: e.target.value })} style={inputMiniStyle()}>
+            {DISPLAY_FONTS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Fonte do texto</span>
+          <select value={settings.bodyFont ?? "Montserrat"} onChange={(e) => patch({ bodyFont: e.target.value })} style={inputMiniStyle()}>
+            {BODY_FONTS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Posição</span>
+          <select value={settings.align ?? "left"} onChange={(e) => patch({ align: e.target.value as TypographySettings["align"] })} style={inputMiniStyle()}>
+            <option value="left">Esquerda</option>
+            <option value="center">Centro</option>
+            <option value="right">Direita</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Largura do texto</span>
+          <select value={settings.width ?? "760px"} onChange={(e) => patch({ width: e.target.value })} style={inputMiniStyle()}>
+            <option value="620px">Coluna estreita</option>
+            <option value="760px">Editorial</option>
+            <option value="920px">Página larga</option>
+            <option value="1120px">Cheio na seção</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Tamanho do título</span>
+          <input value={settings.titleSize ?? "42px"} onChange={(e) => patch({ titleSize: e.target.value })} placeholder="42px" style={inputMiniStyle()} />
+        </label>
+        <label className="field">
+          <span className="field-label">Tamanho do texto</span>
+          <input value={settings.bodySize ?? "17px"} onChange={(e) => patch({ bodySize: e.target.value })} placeholder="17px" style={inputMiniStyle()} />
+        </label>
+        <label className="field">
+          <span className="field-label">Entrelinha</span>
+          <input value={settings.lineHeight ?? "1.85"} onChange={(e) => patch({ lineHeight: e.target.value })} placeholder="1.85" style={inputMiniStyle()} />
+        </label>
+        <label className="field">
+          <span className="field-label">Cor do texto</span>
+          <input value={settings.color ?? ""} onChange={(e) => patch({ color: e.target.value })} placeholder="ex: #28251d" style={inputMiniStyle()} />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function RichTextContentEditor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [source, setSource] = useState(false);
+
+  useEffect(() => {
+    if (!source && editorRef.current && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value;
+    }
+  }, [value, source]);
+
+  function sync() {
+    onChange(editorRef.current?.innerHTML ?? "");
+  }
+
+  function command(cmd: string, arg?: string) {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, arg);
+    sync();
+  }
+
+  function addLink() {
+    const href = window.prompt("Cole o link");
+    if (!href) return;
+    command("createLink", href);
+  }
+
+  const toolStyle: CSSProperties = {
+    minWidth: 34,
+    height: 34,
+    border: "1px solid var(--glass-border)",
+    borderRadius: 8,
+    color: "var(--cream)",
+    background: "rgba(255, 248, 234, 0.07)",
+    cursor: "pointer",
+    fontWeight: 800,
+  };
+
+  return (
+    <div style={{ display: "grid", gap: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <button type="button" style={toolStyle} onClick={() => command("formatBlock", "p")}>P</button>
+        <button type="button" style={toolStyle} onClick={() => command("formatBlock", "h2")}>H2</button>
+        <button type="button" style={toolStyle} onClick={() => command("formatBlock", "h3")}>H3</button>
+        <button type="button" style={toolStyle} onClick={() => command("bold")}>B</button>
+        <button type="button" style={{ ...toolStyle, fontStyle: "italic" }} onClick={() => command("italic")}>I</button>
+        <button type="button" style={{ ...toolStyle, textDecoration: "underline" }} onClick={() => command("underline")}>U</button>
+        <button type="button" style={toolStyle} onClick={() => command("justifyLeft")}>←</button>
+        <button type="button" style={toolStyle} onClick={() => command("justifyCenter")}>↔</button>
+        <button type="button" style={toolStyle} onClick={() => command("justifyRight")}>→</button>
+        <button type="button" style={toolStyle} onClick={() => command("insertUnorderedList")}>•</button>
+        <button type="button" style={toolStyle} onClick={() => command("insertOrderedList")}>1.</button>
+        <button type="button" style={toolStyle} onClick={addLink}>↗</button>
+        <button type="button" className="btn btn-ghost" onClick={() => setSource((v) => !v)} style={{ padding: "0 12px", fontSize: 9 }}>
+          {source ? "Visual" : "HTML"}
+        </button>
+      </div>
+
+      {source ? (
+        <textarea
+          className="input"
+          value={value}
+          rows={10}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ fontFamily: "monospace", fontSize: 12, lineHeight: 1.6 }}
+        />
+      ) : (
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={sync}
+          onBlur={sync}
+          style={{
+            minHeight: 220,
+            border: "1px solid var(--glass-border)",
+            borderRadius: 14,
+            padding: 16,
+            background: "rgba(10, 22, 11, 0.48)",
+            color: "var(--cream)",
+            lineHeight: 1.75,
+            outline: "none",
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
 /* ---------- editor genérico de props ---------- */
@@ -114,6 +337,9 @@ function FieldEditor({
   tenantId: string;
 }) {
   if (typeof value === "string") {
+    if (blockType === "rich_text" && fieldKey === "content") {
+      return <RichTextContentEditor value={value} onChange={onChange as (value: string) => void} />;
+    }
     if (IMAGE_KEYS.has(fieldKey)) {
       return <ImageField value={value} tenantId={tenantId} onChange={onChange} />;
     }
@@ -205,7 +431,7 @@ function FieldEditor({
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {Object.entries(obj)
-          .filter(([k]) => k !== "background") // editado pelo controle dedicado
+          .filter(([k]) => k !== "background" && k !== TYPOGRAPHY_KEY) // editados por controles dedicados
           .map(([k, v]) => (
           <div key={k} className="field">
             <span className="field-label">{label(k)}</span>
@@ -419,6 +645,18 @@ export function PageEditor({
                             sections.map((x) =>
                               x.id === s.id
                                 ? { ...x, props: { ...x.props, background: bg } }
+                                : x
+                            )
+                          );
+                        }}
+                      />
+                      <TypographyEditor
+                        value={s.props.typography}
+                        onChange={(typography) => {
+                          setSections(
+                            sections.map((x) =>
+                              x.id === s.id
+                                ? { ...x, props: { ...x.props, typography } }
                                 : x
                             )
                           );

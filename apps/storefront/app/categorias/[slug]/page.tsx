@@ -128,10 +128,14 @@ export default async function CategoryPage({
                 return (
                   <article className="category-card" key={product.id}>
                     {image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={image} alt={product.name} />
+                      <div className="category-card-media">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img className="category-card-image" src={image} alt={product.name} />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img className="category-card-hover-image" src={image} alt="" aria-hidden />
+                      </div>
                     ) : (
-                      <div style={{ height: 176, background: "#d9d0bd", marginBottom: 14 }} />
+                      <div className="category-card-media" />
                     )}
                     <h3>{product.name}</h3>
                     {product.subtitle ? <p>{product.subtitle}</p> : null}

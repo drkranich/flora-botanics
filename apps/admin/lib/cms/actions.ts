@@ -80,7 +80,22 @@ export async function createPage(form: { title: string; type: string }) {
     page_id: page.id,
     version: 1,
     sections: [
-      { id: "s1", block: "rich_text", props: { content: `<p>Conteúdo de ${form.title}…</p>` } },
+      {
+        id: "s1",
+        block: "rich_text",
+        props: {
+          content: `<h2>${form.title}</h2><p>Escreva esta página com parágrafos, subtítulos e respiro editorial. O texto publicado no site pode ter largura, alinhamento, fonte e ritmo visual próprios.</p>`,
+          typography: {
+            displayFont: "Cormorant Garamond",
+            bodyFont: "Montserrat",
+            align: "left",
+            width: "760px",
+            titleSize: "42px",
+            bodySize: "17px",
+            lineHeight: "1.85",
+          },
+        },
+      },
     ],
     created_by: session.userId,
   });

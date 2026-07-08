@@ -1,11 +1,66 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { currentTenant, db } from "@/lib/tenant";
 import { NewsletterForm } from "./NewsletterForm";
 
 type Props = Record<string, unknown>;
 type Cta = { label: string; href: string };
+type TypographySettings = {
+  displayFont?: string;
+  bodyFont?: string;
+  align?: "left" | "center" | "right";
+  width?: string;
+  titleSize?: string;
+  bodySize?: string;
+  lineHeight?: string;
+  color?: string;
+};
 
 const asset = (p?: string) => (p ? (p.startsWith("/") || p.startsWith("http") ? p : `/${p}`) : "");
+
+function typography(props: Props): CSSProperties {
+  const t = (props.typography ?? {}) as TypographySettings;
+  return {
+    "--section-display-font": t.displayFont ? `"${t.displayFont}", serif` : "var(--font-display)",
+    "--section-body-font": t.bodyFont ? `"${t.bodyFont}", sans-serif` : "var(--font-body)",
+    "--section-align": t.align ?? "left",
+    "--section-width": t.width ?? "760px",
+    "--section-title-size": t.titleSize ?? "42px",
+    "--section-body-size": t.bodySize ?? "16px",
+    "--section-line-height": t.lineHeight ?? "1.75",
+    "--section-text-color": t.color || "var(--text)",
+  } as CSSProperties;
+}
+
+function SmartText({ text }: { text: string }) {
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return (
+    <>
+      {(paragraphs.length ? paragraphs : [text]).map((paragraph, index) => (
+        <p key={index}>{paragraph}</p>
+      ))}
+    </>
+  );
+}
+
+function editorialHtml(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return "";
+
+  if (/<[a-z][\s\S]*>/i.test(raw)) {
+    return raw;
+  }
+
+  return raw
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${p.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
+    .join("");
+}
 
 /* ---------- HERO ---------- */
 function Hero({ props, header }: { props: Props; header?: ReactNode }) {
@@ -14,6 +69,7 @@ function Hero({ props, header }: { props: Props; header?: ReactNode }) {
     <section
       className="hero"
       style={{
+        ...typography(props),
         background: `linear-gradient(90deg, rgba(10,22,11,.90) 0%, rgba(10,22,11,.70) 36%, rgba(10,22,11,.32) 66%, rgba(10,22,11,.58) 100%), url("${asset(props.image as string)}") center / cover`,
       }}
     >
@@ -21,7 +77,7 @@ function Hero({ props, header }: { props: Props; header?: ReactNode }) {
       <div className="container hero-inner">
         <div className="hero-text">
           <h1>{props.title as string}</h1>
-          {props.subtitle ? <p>{props.subtitle as string}</p> : null}
+          {props.subtitle ? <SmartText text={props.subtitle as string} /> : null}
           {cta ? (
             <a href={cta.href} className="btn">
               {cta.label}
@@ -56,7 +112,7 @@ async function CategoryGrid({ props }: { props: Props }) {
   const bySlug = new Map((cats ?? []).map((c) => [c.slug, c]));
 
   return (
-    <section className="categories" id="produtos">
+    <section className="categories" id="produtos" style={typography(props)}>
       <div className="container">
         <div className="section-heading">
           <h2>{props.heading as string}</h2>
@@ -68,8 +124,12 @@ async function CategoryGrid({ props }: { props: Props }) {
             return (
               <article className="category-card" key={item.category_slug}>
                 {item.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={asset(item.image)} alt={cat.name} />
+                  <div className="category-card-media">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className="category-card-image" src={asset(item.image)} alt={cat.name} />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className="category-card-hover-image" src={asset(item.image)} alt="" aria-hidden />
+                  </div>
                 ) : null}
                 <h3>{cat.name}</h3>
                 <p>{cat.description}</p>
@@ -91,7 +151,7 @@ function IngredientGrid({ props }: { props: Props }) {
   const items = (props.items ?? []) as Array<{ title: string; text: string; image?: string }>;
   const [l1, l2] = (props.heading as string).split(" para ");
   return (
-    <section className="ingredients" id="ingredientes">
+    <section className="ingredients" id="ingredientes" style={typography(props)}>
       <div className="container ingredients-layout">
         <div className="ingredients-text">
           <h2>
@@ -105,7 +165,7 @@ function IngredientGrid({ props }: { props: Props }) {
               (props.heading as string)
             )}
           </h2>
-          {props.text ? <p>{props.text as string}</p> : null}
+          {props.text ? <SmartText text={props.text as string} /> : null}
           {cta ? (
             <a href={cta.href} className="link">
               {cta.label}
@@ -120,7 +180,7 @@ function IngredientGrid({ props }: { props: Props }) {
                 <img src={asset(ing.image)} alt={ing.title} />
               ) : null}
               <h3>{ing.title}</h3>
-              <p>{ing.text}</p>
+              <SmartText text={ing.text} />
             </article>
           ))}
         </div>
@@ -137,6 +197,7 @@ function Manifesto({ props }: { props: Props }) {
       className="manifesto"
       id="sobre"
       style={{
+        ...typography(props),
         background: `linear-gradient(90deg, rgba(13,30,14,.96) 0%, rgba(13,30,14,.88) 35%, rgba(13,30,14,.32) 62%, rgba(13,30,14,.45) 100%), url("${asset(props.image as string)}") center / cover`,
       }}
     >
@@ -144,7 +205,7 @@ function Manifesto({ props }: { props: Props }) {
         <div className="manifesto-text">
           {props.eyebrow ? <span className="eyebrow">{props.eyebrow as string}</span> : null}
           <h2>{props.title as string}</h2>
-          <p>{props.text as string}</p>
+          <SmartText text={props.text as string} />
           {cta ? (
             <a href={cta.href} className="link">
               {cta.label}
@@ -199,14 +260,14 @@ const BENEFIT_ICONS: Record<string, ReactNode> = {
 function Benefits({ props }: { props: Props }) {
   const items = (props.items ?? []) as Array<{ icon: string; title: string; text: string }>;
   return (
-    <section className="benefits" id="sustentabilidade">
+    <section className="benefits" id="sustentabilidade" style={typography(props)}>
       <div className="container benefit-grid">
         {items.map((b) => (
           <article className="benefit-card" key={b.title}>
             {BENEFIT_ICONS[b.icon] ?? BENEFIT_ICONS.leaf}
             <div>
               <h3>{b.title}</h3>
-              <p>{b.text}</p>
+              <SmartText text={b.text} />
             </div>
           </article>
         ))}
@@ -223,13 +284,14 @@ function Newsletter({ props }: { props: Props }) {
       className="newsletter"
       id="newsletter"
       style={{
+        ...typography(props),
         background: `linear-gradient(90deg, rgba(12,29,13,.96) 0%, rgba(12,29,13,.88) 46%, rgba(12,29,13,.45) 75%, rgba(12,29,13,.25) 100%), url("/assets/newsletter-contagotas.jpg") center right / cover`,
       }}
     >
       <div className="container newsletter-layout">
         <div>
           <h2>{props.title as string}</h2>
-          {props.text ? <p>{props.text as string}</p> : null}
+          {props.text ? <SmartText text={props.text as string} /> : null}
         </div>
         <div>
           <NewsletterForm />
@@ -247,8 +309,13 @@ function Newsletter({ props }: { props: Props }) {
 /* ---------- RICH TEXT ---------- */
 function RichText({ props }: { props: Props }) {
   return (
-    <section className="container" style={{ padding: "40px 0" }}>
-      <div dangerouslySetInnerHTML={{ __html: props.content as string }} />
+    <section className="editorial-section" style={typography(props)}>
+      <div className="container">
+        <div
+          className="editorial-rich-text"
+          dangerouslySetInnerHTML={{ __html: editorialHtml(props.content) }}
+        />
+      </div>
     </section>
   );
 }
