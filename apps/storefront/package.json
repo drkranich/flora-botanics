@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node ../../node_modules/next/dist/bin/next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "deploy:cf": "node ../../node_modules/@opennextjs/cloudflare/dist/cli/index.js build && node ../../scripts/deploy-worker.mjs"
   },
   "dependencies": {
     "@flora/core": "workspace:*",

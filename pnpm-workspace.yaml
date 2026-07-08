@@ -1,6 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+nodeLinker: hoisted
+shamefullyHoist: true
+confirmModulesPurge: false
 allowBuilds:
   esbuild: true
   sharp: true
