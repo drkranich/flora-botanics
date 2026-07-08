@@ -14,6 +14,12 @@ type TypographySettings = {
   lineHeight?: string;
   color?: string;
 };
+type ImageFrameSettings = {
+  imageFit?: "cover" | "contain";
+  imageX?: number;
+  imageY?: number;
+  imageHeight?: string;
+};
 
 const asset = (p?: string) => (p ? (p.startsWith("/") || p.startsWith("http") ? p : `/${p}`) : "");
 
@@ -192,15 +198,31 @@ function IngredientGrid({ props }: { props: Props }) {
 /* ---------- MANIFESTO ---------- */
 function Manifesto({ props }: { props: Props }) {
   const cta = props.cta as Cta | undefined;
+  const image = asset(props.image as string);
+  const frame = props as ImageFrameSettings;
+  const imageFit = frame.imageFit ?? "contain";
+  const imageX = typeof frame.imageX === "number" ? frame.imageX : 50;
+  const imageY = typeof frame.imageY === "number" ? frame.imageY : 50;
+  const imageHeight = frame.imageHeight ?? "380px";
+
   return (
     <section
       className="manifesto"
       id="sobre"
       style={{
         ...typography(props),
-        background: `linear-gradient(90deg, rgba(13,30,14,.96) 0%, rgba(13,30,14,.88) 35%, rgba(13,30,14,.32) 62%, rgba(13,30,14,.45) 100%), url("${asset(props.image as string)}") center / cover`,
-      }}
+        "--manifesto-height": imageHeight,
+        "--manifesto-fit": imageFit,
+        "--manifesto-position": `${imageX}% ${imageY}%`,
+      } as CSSProperties}
     >
+      {image ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="manifesto-image" src={image} alt="" aria-hidden />
+          <div className="manifesto-overlay" />
+        </>
+      ) : null}
       <div className="container manifesto-inner">
         <div className="manifesto-text">
           {props.eyebrow ? <span className="eyebrow">{props.eyebrow as string}</span> : null}

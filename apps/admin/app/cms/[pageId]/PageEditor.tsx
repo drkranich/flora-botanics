@@ -40,6 +40,10 @@ const BLOCK_DEFAULTS: Record<string, Record<string, unknown>> = {
     title: "Novo título",
     text: "",
     image: "",
+    imageFit: "contain",
+    imageX: 50,
+    imageY: 50,
+    imageHeight: "380px",
     cta: { label: "Saiba mais", href: "#" },
   },
   benefits: { items: [{ icon: "leaf", title: "Novo benefício", text: "" }] },
@@ -94,6 +98,14 @@ const FIELD_LABEL: Record<string, string> = {
 
 const IMAGE_KEYS = new Set(["image", "product_image"]);
 const TYPOGRAPHY_KEY = "typography";
+const DEDICATED_PROP_KEYS = new Set([
+  "background",
+  TYPOGRAPHY_KEY,
+  "imageFit",
+  "imageX",
+  "imageY",
+  "imageHeight",
+]);
 
 const DISPLAY_FONTS = [
   { label: "Cormorant editorial", value: "Cormorant Garamond" },
@@ -118,6 +130,13 @@ type TypographySettings = {
   bodySize?: string;
   lineHeight?: string;
   color?: string;
+};
+
+type ImageFrameSettings = {
+  imageFit?: "cover" | "contain";
+  imageX?: number;
+  imageY?: number;
+  imageHeight?: string;
 };
 
 const label = (k: string) => FIELD_LABEL[k] ?? k;
@@ -150,6 +169,70 @@ function inputMiniStyle(): CSSProperties {
     fontFamily: "inherit",
     fontSize: 12,
   };
+}
+
+function numberValue(value: unknown, fallback: number) {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function ImageFrameEditor({
+  value,
+  onChange,
+}: {
+  value: ImageFrameSettings;
+  onChange: (value: ImageFrameSettings) => void;
+}) {
+  const settings: ImageFrameSettings = {
+    imageFit: value.imageFit ?? "contain",
+    imageX: numberValue(value.imageX, 50),
+    imageY: numberValue(value.imageY, 50),
+    imageHeight: value.imageHeight ?? "380px",
+  };
+  const patch = (next: Partial<ImageFrameSettings>) => onChange({ ...settings, ...next });
+
+  return (
+    <div className="glass" style={{ padding: 16, marginBottom: 16, background: "rgba(255, 248, 234, 0.045)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <p className="eyebrow" style={{ marginBottom: 5 }}>Enquadramento da imagem</p>
+          <p className="muted" style={{ fontSize: 11 }}>
+            Ajuste como a imagem ocupa a faixa no site público.
+          </p>
+        </div>
+        <button type="button" className="btn btn-ghost" onClick={() => onChange({ imageFit: "contain", imageX: 50, imageY: 50, imageHeight: "380px" })} style={{ padding: "8px 12px", fontSize: 9 }}>
+          Padrão
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+        <label className="field">
+          <span className="field-label">Modo da imagem</span>
+          <select value={settings.imageFit} onChange={(e) => patch({ imageFit: e.target.value as ImageFrameSettings["imageFit"] })} style={inputMiniStyle()}>
+            <option value="contain">Imagem completa</option>
+            <option value="cover">Preencher área</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Altura da faixa</span>
+          <select value={settings.imageHeight} onChange={(e) => patch({ imageHeight: e.target.value })} style={inputMiniStyle()}>
+            <option value="315px">Compacta</option>
+            <option value="380px">Equilibrada</option>
+            <option value="460px">Editorial</option>
+            <option value="560px">Imersiva</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Posição horizontal: {settings.imageX}%</span>
+          <input type="range" min={0} max={100} value={settings.imageX} onChange={(e) => patch({ imageX: Number(e.target.value) })} />
+        </label>
+        <label className="field">
+          <span className="field-label">Posição vertical: {settings.imageY}%</span>
+          <input type="range" min={0} max={100} value={settings.imageY} onChange={(e) => patch({ imageY: Number(e.target.value) })} />
+        </label>
+      </div>
+    </div>
+  );
 }
 
 function TypographyEditor({
@@ -431,7 +514,7 @@ function FieldEditor({
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {Object.entries(obj)
-          .filter(([k]) => k !== "background" && k !== TYPOGRAPHY_KEY) // editados por controles dedicados
+          .filter(([k]) => !DEDICATED_PROP_KEYS.has(k)) // editados por controles dedicados
           .map(([k, v]) => (
           <div key={k} className="field">
             <span className="field-label">{label(k)}</span>
@@ -662,6 +745,25 @@ export function PageEditor({
                           );
                         }}
                       />
+                      {s.block === "manifesto" ? (
+                        <ImageFrameEditor
+                          value={{
+                            imageFit: s.props.imageFit as ImageFrameSettings["imageFit"],
+                            imageX: s.props.imageX as number | undefined,
+                            imageY: s.props.imageY as number | undefined,
+                            imageHeight: s.props.imageHeight as string | undefined,
+                          }}
+                          onChange={(frame) => {
+                            setSections(
+                              sections.map((x) =>
+                                x.id === s.id
+                                  ? { ...x, props: { ...x.props, ...frame } }
+                                  : x
+                              )
+                            );
+                          }}
+                        />
+                      ) : null}
                       <FieldEditor
                         fieldKey={s.block}
                         blockType={s.block}

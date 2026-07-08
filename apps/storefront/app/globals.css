@@ -437,8 +437,36 @@ a { color: inherit; text-decoration: none; }
 .ingredient-card p { max-width: 150px; margin: 0 auto 8px; font-family: var(--section-body-font, var(--font-body)); font-size: 12px; line-height: 1.45; color: #373229; }
 
 /* MANIFESTO */
-.manifesto { min-height: 315px; color: var(--white); background-size: cover; background-position: center; }
-.manifesto-inner { min-height: 315px; display: flex; align-items: center; }
+.manifesto {
+  position: relative;
+  min-height: var(--manifesto-height, 380px);
+  color: var(--white);
+  overflow: hidden;
+  background: #102111;
+}
+.manifesto-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: var(--manifesto-fit, contain);
+  object-position: var(--manifesto-position, 50% 50%);
+  opacity: 0.9;
+}
+.manifesto-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(13,30,14,.98) 0%, rgba(13,30,14,.9) 34%, rgba(13,30,14,.3) 66%, rgba(13,30,14,.12) 100%),
+    radial-gradient(circle at 18% 50%, rgba(13, 30, 14, 0.35), transparent 42%);
+}
+.manifesto-inner {
+  position: relative;
+  z-index: 1;
+  min-height: var(--manifesto-height, 380px);
+  display: flex;
+  align-items: center;
+}
 .manifesto-text { max-width: 500px; }
 .eyebrow { display: inline-block; position: relative; margin-bottom: 26px; color: var(--gold); font-size: 12px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; }
 .eyebrow::after { content: ""; position: absolute; left: 0; bottom: -12px; width: 70px; height: 1px; background: var(--gold); }
