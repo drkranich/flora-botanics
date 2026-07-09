@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const STAFF_ROLES = ["platform_admin", "tenant_owner", "tenant_admin", "tenant_editor"];
 
 /** Rotas acessíveis sem sessão autenticada. */
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/admin/login", "/login"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -37,7 +37,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!user) {
     if (!isPublic) {
-      const loginUrl = new URL("/login", request.url);
+      const loginUrl = new URL("/admin/login", request.url);
       return NextResponse.redirect(loginUrl);
     }
     return response;
@@ -45,7 +45,7 @@ export async function updateSession(request: NextRequest) {
 
   // Usuário logado tentando ver /login -> manda pro painel.
   if (isPublic) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
 
   if (path === "/sem-acesso") {
@@ -60,7 +60,7 @@ export async function updateSession(request: NextRequest) {
 
   const role = profile?.role ?? "";
   if (!profile?.tenant_id || !STAFF_ROLES.includes(role)) {
-    return NextResponse.redirect(new URL("/sem-acesso", request.url));
+    return NextResponse.redirect(new URL("/admin/sem-acesso", request.url));
   }
 
   return response;
