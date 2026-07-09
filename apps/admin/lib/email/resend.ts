@@ -16,6 +16,8 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
+const LEGACY_FROM_DOMAIN = "florabotanics.com";
+const VERIFIED_FROM_DOMAIN = "florabotanics.com.br";
 
 export interface SendEmailInput {
   to: string;
@@ -29,6 +31,24 @@ export type SendEmailResult =
   | { ok: true; id: string }
   | { ok: false; error: string };
 
+function normalizeFromEmail(from: string): string {
+  return from.replace(
+    new RegExp(`@${LEGACY_FROM_DOMAIN.replace(".", "\\.")}(?=[>\\s]|$)`, "i"),
+    `@${VERIFIED_FROM_DOMAIN}`
+  );
+}
+
+function formatResendError(message: string | undefined, status: number): string {
+  const fallback = `Resend retornou ${status}`;
+  const error = message ?? fallback;
+
+  if (/domain is not verified|add and verify your domain/i.test(error)) {
+    return `O remetente RESEND_FROM_EMAIL usa um dominio nao verificado no Resend. Use "Flora Botanics <contato@${VERIFIED_FROM_DOMAIN}>" ou outro e-mail do dominio ${VERIFIED_FROM_DOMAIN} ja verificado.`;
+  }
+
+  return error;
+}
+
 /**
  * Lê RESEND_API_KEY e RESEND_FROM_EMAIL do contexto do Worker em runtime.
  * Tenta getCloudflareContext primeiro (produção / wrangler dev); cai em
@@ -40,7 +60,7 @@ async function getResendEnv(): Promise<{ apiKey: string; from: string } | null> 
     const { env } = await getCloudflareContext({ async: true });
     const apiKey = (env as Record<string, string>).RESEND_API_KEY;
     const from = (env as Record<string, string>).RESEND_FROM_EMAIL;
-    if (apiKey && from) return { apiKey, from };
+    if (apiKey && from) return { apiKey, from: normalizeFromEmail(from) };
   } catch {
     // getCloudflareContext lança fora do Worker (ex: next dev puro)
   }
@@ -48,7 +68,7 @@ async function getResendEnv(): Promise<{ apiKey: string; from: string } | null> 
   // Tentativa 2: process.env (desenvolvimento local com .env.local)
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
-  if (apiKey && from) return { apiKey, from };
+  if (apiKey && from) return { apiKey, from: normalizeFromEmail(from) };
 
   return null;
 }
@@ -104,7 +124,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     if (!res.ok) {
       return {
         ok: false,
-        error: data?.message ?? `Resend retornou ${res.status}`,
+        error: formatResendError(data?.message, res.status),
       };
     }
 

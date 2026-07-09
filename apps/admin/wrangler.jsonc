@@ -38,6 +38,8 @@
 	// — com isso, o refresh automático de sessão fica desativado.
 	"vars": {
 		"NEXT_PRIVATE_MINIMAL_MODE": "1",
-		"NEXT_PUBLIC_STOREFRONT_URL": "https://florabotanics.com.br"
+		"NEXT_PUBLIC_STOREFRONT_URL": "https://florabotanics.com.br",
+		"NEXT_PUBLIC_SUPABASE_URL": "https://mbpvzhcrimdwcqkqvoqr.supabase.co",
+		"NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_zZbCUfG-1KifCBk1VJ_NTw_-RpL9A8g"
 	}
 }

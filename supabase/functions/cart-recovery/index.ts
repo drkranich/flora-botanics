@@ -8,7 +8,7 @@
 //
 // Secrets necessários:
 //   supabase secrets set RESEND_API_KEY=re_xxx
-//   supabase secrets set RESEND_FROM_EMAIL="Flora Botanics <noreply@florabotanics.com>"
+//   supabase secrets set RESEND_FROM_EMAIL="Flora Botanics <noreply@florabotanics.com.br>"
 //
 // Agendamento automático via pg_cron (SQL Editor do Supabase):
 //   select cron.schedule(
@@ -31,6 +31,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API = "https://api.resend.com/emails";
 const ABANDON_MINUTES = 30;
+const LEGACY_FROM_DOMAIN = "florabotanics.com";
+const VERIFIED_FROM_DOMAIN = "florabotanics.com.br";
 
 interface CartItem {
   product_id: string;
@@ -54,6 +56,21 @@ interface Cart {
 
 function money(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function normalizeFromEmail(from: string): string {
+  return from.replace(
+    new RegExp(`@${LEGACY_FROM_DOMAIN.replace(".", "\\.")}(?=[>\\s]|$)`, "i"),
+    `@${VERIFIED_FROM_DOMAIN}`,
+  );
+}
+
+function formatResendError(message: string | undefined, status: number): string {
+  const error = message ?? `HTTP ${status}`;
+  if (/domain is not verified|add and verify your domain/i.test(error)) {
+    return `O remetente RESEND_FROM_EMAIL usa um dominio nao verificado no Resend. Use Flora Botanics <noreply@${VERIFIED_FROM_DOMAIN}> ou outro e-mail do dominio ${VERIFIED_FROM_DOMAIN} verificado.`;
+  }
+  return error;
 }
 
 function buildEmail(cart: Cart): string {
@@ -119,7 +136,7 @@ function buildEmail(cart: Cart): string {
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td align="center">
-                  <a href="https://flora-botanics.gmoraes.workers.dev"
+                  <a href="https://florabotanics.com.br"
                      style="display:inline-block;background:#1a1a1a;color:#c9a96e;text-decoration:none;
                             font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
                             padding:16px 40px;border-radius:4px;">
@@ -160,7 +177,8 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const resendKey = Deno.env.get("RESEND_API_KEY");
-  const fromEmail = Deno.env.get("RESEND_FROM_EMAIL");
+  const fromEmailRaw = Deno.env.get("RESEND_FROM_EMAIL");
+  const fromEmail = fromEmailRaw ? normalizeFromEmail(fromEmailRaw) : null;
 
   if (!resendKey || !fromEmail) {
     return Response.json(
@@ -227,7 +245,7 @@ Deno.serve(async (req) => {
 
       results.push({ cart_id: cart.id, ok: true, detail: data?.id ?? "sent" });
     } else {
-      results.push({ cart_id: cart.id, ok: false, detail: data?.message ?? `HTTP ${res.status}` });
+      results.push({ cart_id: cart.id, ok: false, detail: formatResendError(data?.message, res.status) });
     }
   }
 

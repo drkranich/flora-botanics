@@ -198,7 +198,7 @@ export async function sendCartRecovery(cartId: string): Promise<{ ok: boolean; m
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td align="center">
-                  <a href="https://flora-botanics.gmoraes.workers.dev"
+                  <a href="https://florabotanics.com.br"
                      style="display:inline-block;background:#1a1a1a;color:#c9a96e;text-decoration:none;
                             font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
                             padding:16px 40px;border-radius:4px;">
