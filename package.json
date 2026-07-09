@@ -7,6 +7,10 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "build:cf:admin": "cd apps/admin && node ../../node_modules/@opennextjs/cloudflare/dist/cli/index.js build",
+    "deploy:cf:admin": "cd apps/admin && node ../../scripts/deploy-worker.mjs",
+    "build:cf:storefront": "cd apps/storefront && node ../../node_modules/@opennextjs/cloudflare/dist/cli/index.js build",
+    "deploy:cf:storefront": "cd apps/storefront && node ../../scripts/deploy-worker.mjs",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint"
   },

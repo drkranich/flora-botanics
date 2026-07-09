@@ -6,7 +6,10 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const wranglerBin = path.join(repoRoot, "node_modules", "wrangler", "bin", "wrangler.js");
 
-const result = spawnSync(process.execPath, [wranglerBin, "deploy", ...process.argv.slice(2)], {
+const args = process.argv.slice(2);
+if (args[0] === "--") args.shift();
+
+const result = spawnSync(process.execPath, [wranglerBin, "deploy", ...args], {
   cwd: process.cwd(),
   stdio: "inherit",
   env: {
