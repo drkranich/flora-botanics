@@ -41,10 +41,10 @@ interface AddressRow {
   street: string;
   number: string | null;
   complement: string | null;
-  neighborhood: string | null;
+  district: string | null;
   city: string;
   state: string;
-  postal_code: string;
+  zip: string;
   country: string;
 }
 
@@ -97,10 +97,10 @@ function emptyAddress(customerId: string): AddressRow {
     street: "",
     number: "",
     complement: "",
-    neighborhood: "",
+    district: "",
     city: "",
     state: "",
-    postal_code: "",
+    zip: "",
     country: "BR",
   };
 }
@@ -140,7 +140,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
     }
 
     try {
-      await supabase.rpc("claim_my_customer");
+      await supabase.rpc("claim_my_customer_for_tenant", { p_tenant_id: tenantId });
     } catch {
       // A conta continua funcionando mesmo se ainda nao houver cliente para reivindicar.
     }
@@ -154,13 +154,38 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
       supabase
         .from("customers")
         .select("id, email, full_name, phone, accepts_marketing, created_at")
+        .eq("tenant_id", tenantId)
         .eq("profile_id", current.user.id)
         .order("created_at", { ascending: false })
         .limit(5),
     ]);
 
     const loadedProfile = (profileData ?? null) as ProfileRow | null;
-    const loadedCustomers = (customerData ?? []) as CustomerRow[];
+    let loadedCustomers = (customerData ?? []) as CustomerRow[];
+
+    if (loadedCustomers.length === 0 && current.user.email) {
+      const customerName = displayName(current.user, loadedProfile);
+      const { data: createdCustomer, error: customerCreateError } = await supabase
+        .from("customers")
+        .insert({
+          tenant_id: tenantId,
+          profile_id: current.user.id,
+          email: current.user.email,
+          full_name: customerName,
+          phone: loadedProfile?.phone ?? null,
+          accepts_marketing: false,
+        })
+        .select("id, email, full_name, phone, accepts_marketing, created_at")
+        .maybeSingle();
+
+      if (customerCreateError) {
+        setError(customerCreateError.message);
+      }
+
+      if (createdCustomer) {
+        loadedCustomers = [createdCustomer as CustomerRow];
+      }
+    }
     const customerIds = loadedCustomers.map((customer) => customer.id);
 
     let loadedOrders: OrderRow[] = [];
@@ -171,12 +196,14 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
         supabase
           .from("orders")
           .select("id, number, status, total_cents, currency, placed_at, created_at")
+          .eq("tenant_id", tenantId)
           .in("customer_id", customerIds)
           .order("created_at", { ascending: false })
           .limit(6),
         supabase
           .from("addresses")
-          .select("id, customer_id, label, recipient, street, number, complement, neighborhood, city, state, postal_code, country")
+          .select("id, customer_id, label, recipient, street, number, complement, district, city, state, zip, country")
+          .eq("tenant_id", tenantId)
           .in("customer_id", customerIds)
           .limit(8),
       ]);
@@ -317,6 +344,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
             full_name: profileName,
             phone: profilePhone,
           })
+          .eq("tenant_id", tenantId)
           .eq("id", primaryCustomer.id);
       }
 
@@ -335,6 +363,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
       const { error: customerError } = await supabase
         .from("customers")
         .update({ accepts_marketing: next })
+        .eq("tenant_id", tenantId)
         .eq("id", primaryCustomer.id);
 
       if (customerError) {
@@ -363,15 +392,15 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
         street: address.street,
         number: address.number || null,
         complement: address.complement || null,
-        neighborhood: address.neighborhood || null,
+        district: address.district || null,
         city: address.city,
         state: address.state,
-        postal_code: address.postal_code,
+        zip: address.zip,
         country: address.country || "BR",
       };
 
       const query = address.id
-        ? supabase.from("addresses").update(payload).eq("id", address.id)
+        ? supabase.from("addresses").update(payload).eq("tenant_id", tenantId).eq("id", address.id)
         : supabase.from("addresses").insert(payload);
 
       const { error: addressError } = await query;
@@ -471,12 +500,13 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
             {primaryCustomer && address ? (
               <form className="account-address-form" onSubmit={saveAddress}>
                 <input placeholder="Nome do destinatario" value={address.recipient} onChange={(event) => setAddress({ ...address, recipient: event.target.value })} required />
-                <input placeholder="CEP" value={address.postal_code} onChange={(event) => setAddress({ ...address, postal_code: event.target.value })} required />
+                <input placeholder="CEP" value={address.zip} onChange={(event) => setAddress({ ...address, zip: event.target.value })} required />
                 <input placeholder="Rua" value={address.street} onChange={(event) => setAddress({ ...address, street: event.target.value })} required />
                 <div className="account-address-row">
                   <input placeholder="Numero" value={address.number ?? ""} onChange={(event) => setAddress({ ...address, number: event.target.value })} />
                   <input placeholder="Complemento" value={address.complement ?? ""} onChange={(event) => setAddress({ ...address, complement: event.target.value })} />
                 </div>
+                <input placeholder="Bairro" value={address.district ?? ""} onChange={(event) => setAddress({ ...address, district: event.target.value })} />
                 <div className="account-address-row">
                   <input placeholder="Cidade" value={address.city} onChange={(event) => setAddress({ ...address, city: event.target.value })} required />
                   <input placeholder="UF" value={address.state} onChange={(event) => setAddress({ ...address, state: event.target.value.toUpperCase().slice(0, 2) })} required />

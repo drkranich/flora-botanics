@@ -370,10 +370,16 @@ a { color: inherit; text-decoration: none; }
 
 .account-secondary-button {
   width: fit-content;
-  padding: 0 22px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
   color: var(--white);
   border: 1px solid rgba(242, 236, 223, 0.18);
   background: rgba(255, 248, 234, 0.08);
+  line-height: 1;
+  text-decoration: none;
 }
 
 .account-mode-switch button:hover,
@@ -1217,6 +1223,12 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.cart-actions-row .btn {
+  min-height: 44px;
+  padding-inline: 24px;
+  line-height: 1;
 }
 
 /* CHECKOUT */
