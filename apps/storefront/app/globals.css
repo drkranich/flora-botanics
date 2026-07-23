@@ -43,6 +43,8 @@ a { color: inherit; text-decoration: none; }
 /* BUTTONS */
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 30px; background: var(--gold); color: var(--white); border: 0; font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; cursor: pointer; transition: 0.25s ease; }
 .btn:hover { background: var(--gold-dark); }
+.btn-secondary { border: 1px solid rgba(104, 75, 44, 0.18); background: transparent; color: var(--text); }
+.btn-secondary:hover { border-color: var(--gold); background: rgba(185, 146, 77, 0.08); color: var(--gold-dark); }
 .link { display: inline-flex; align-items: center; gap: 8px; padding-bottom: 4px; border-bottom: 1px solid currentColor; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
 .link::after { content: "›"; font-size: 17px; line-height: 1; }
 
@@ -1084,6 +1086,139 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.7;
 }
 
+.cart-progress-card {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 22px;
+  padding: 16px;
+  border: 1px solid rgba(104, 75, 44, 0.12);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0.1)),
+    rgba(185, 146, 77, 0.08);
+}
+
+.cart-progress-card strong,
+.cart-progress-card span {
+  display: block;
+}
+
+.cart-progress-card strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.cart-progress-card span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cart-progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(104, 75, 44, 0.12);
+}
+
+.cart-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold), var(--gold-dark));
+  transition: width 0.25s ease;
+}
+
+.cart-summary-soft {
+  margin-top: 0;
+  margin-bottom: 8px;
+  padding-top: 10px;
+  border-top-style: dashed;
+}
+
+.cart-summary-soft strong {
+  font-size: 15px;
+}
+
+.cart-total {
+  margin-top: 12px;
+  padding-top: 16px;
+}
+
+.cart-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.cart-mini-form {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(104, 75, 44, 0.12);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.cart-mini-form label {
+  color: var(--gold-dark);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.cart-mini-form > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.cart-mini-form input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(104, 75, 44, 0.16);
+  background: rgba(255, 248, 234, 0.64);
+  color: var(--text);
+  font: inherit;
+  padding: 0 12px;
+}
+
+.cart-mini-form button {
+  min-height: 42px;
+  border: 0;
+  background: var(--text);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cart-mini-form button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.cart-form-ok,
+.cart-form-error {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.cart-form-ok { color: var(--gold-dark); }
+.cart-form-error { color: #9a3232; }
+
+.cart-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* CATEGORIES */
 .categories { flex: 1; background: var(--cream); padding: 34px 0 48px; }
 .catalog-intro {
@@ -1558,6 +1693,7 @@ a { color: inherit; text-decoration: none; }
   .account-copy-panel { min-height: auto; }
   .cart-item { grid-template-columns: 76px 1fr; }
   .cart-qty, .cart-remove { justify-self: start; }
+  .cart-tools-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   .container { width: min(100% - 32px, 1160px); }
@@ -1638,4 +1774,6 @@ a { color: inherit; text-decoration: none; }
   .cart-card { padding: 22px; }
   .cart-item { gap: 12px; }
   .cart-item img, .cart-item-image { width: 72px; height: 72px; }
+  .cart-mini-form > div { grid-template-columns: 1fr; }
+  .cart-actions-row .btn { width: 100%; }
 }
