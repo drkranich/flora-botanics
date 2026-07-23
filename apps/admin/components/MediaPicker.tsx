@@ -2,19 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { supabaseBrowser } from "@/lib/supabase/client";
 
 type MediaRow = {
   id: string;
   storage_path: string;
   alt: string | null;
   created_at: string;
+  public_url: string;
 };
-
-function publicUrl(path: string) {
-  const supabase = supabaseBrowser();
-  return supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
-}
 
 /** Campo de imagem premium: thumbnail + biblioteca + upload. */
 export function ImageField({
@@ -105,15 +100,18 @@ export function MediaLibraryModal({
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
-    const supabase = supabaseBrowser();
-    const { data } = await supabase
-      .from("media")
-      .select("id, storage_path, alt, created_at")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-      .limit(60);
-    setItems((data ?? []) as MediaRow[]);
-    setLoading(false);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/media?tenantId=${encodeURIComponent(tenantId)}`);
+      const data = (await res.json().catch(() => null)) as { items?: MediaRow[]; error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? "Falha ao carregar biblioteca.");
+      setItems(data?.items ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao carregar biblioteca.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -129,29 +127,12 @@ export function MediaLibraryModal({
     setUploading(true);
     setError(null);
     try {
-      const supabase = supabaseBrowser();
-      const clean = file.name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9.]+/g, "-");
-      const path = `${tenantId}/${Date.now()}-${clean}`;
-
-      const { error: upErr } = await supabase.storage
-        .from("media")
-        .upload(path, file, { cacheControl: "31536000", upsert: false });
-      if (upErr) throw upErr;
-
-      const { error: dbErr } = await supabase.from("media").insert({
-        tenant_id: tenantId,
-        storage_path: path,
-        provider: "supabase",
-        mime: file.type,
-        byte_size: file.size,
-        alt: file.name.replace(/\.[^.]+$/, ""),
-      });
-      if (dbErr) throw dbErr;
-
+      const body = new FormData();
+      body.set("tenantId", tenantId);
+      body.set("file", file);
+      const res = await fetch("/api/media", { method: "POST", body });
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? "Falha no upload.");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no upload");
@@ -254,7 +235,7 @@ export function MediaLibraryModal({
             </p>
           ) : (
             items.map((m) => {
-              const url = publicUrl(m.storage_path);
+              const url = m.public_url;
               return (
                 <button
                   key={m.id}
