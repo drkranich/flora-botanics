@@ -1,13 +1,15 @@
-name: CI + Deploy
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
 
+# O deploy é feito automaticamente pela integração nativa do Cloudflare Workers
+# (GitHub App → "Construções dos Trabalhadores" visível nos checks do commit).
+# Este workflow valida tipos e build em PRs e pushes ao main.
+
 jobs:
-  # ── Typecheck ─────────────────────────────────────────────────────────────
-  # Roda em PRs e em push para main. Valida build do Next.js (turbo).
   typecheck:
     name: Typecheck & Build
     runs-on: ubuntu-latest
@@ -28,39 +30,3 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://mbpvzhcrimdwcqkqvoqr.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-
-  # ── Deploy Cloudflare ──────────────────────────────────────────────────────
-  # Roda apenas em push para main (não em PRs).
-  # Requer os secrets do repositório:
-  #   CLOUDFLARE_API_TOKEN  — CF Dashboard → My Profile → API Tokens → Create Token
-  #                           Template: "Edit Cloudflare Workers"
-  #   CLOUDFLARE_ACCOUNT_ID — CF Dashboard → lado direito da home (Account ID)
-  #   VITE_SUPABASE_PUBLISHABLE_KEY — anon key do Supabase (já deve existir)
-  deploy:
-    name: Deploy → Cloudflare Workers
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: typecheck
-    runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      NEXT_PUBLIC_SUPABASE_URL: https://mbpvzhcrimdwcqkqvoqr.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile=false
-
-      - name: Build + Deploy storefront (flora-botanics)
-        run: pnpm build:cf:storefront && pnpm deploy:cf:storefront
-
-      - name: Build + Deploy admin (flora-admin)
-        run: pnpm build:cf:admin && pnpm deploy:cf:admin
