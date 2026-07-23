@@ -9,6 +9,7 @@ interface ProductRow {
   slug: string;
   name: string;
   subtitle: string | null;
+  type: string;
   product_variants?: Array<{
     price_cents: number;
     currency: string;
@@ -45,7 +46,7 @@ export default async function ProductsPage() {
     client
       .from("products")
       .select(
-        `id, slug, name, subtitle,
+        `id, slug, name, subtitle, type,
          product_variants(price_cents, currency, is_default),
          product_media(role, media(storage_path, alt))`
       )
@@ -99,6 +100,7 @@ export default async function ProductsPage() {
                       <div className="category-card-media" />
                     )}
                     <h3>{product.name}</h3>
+                    {product.type === "kit" ? <span className="category-card-badge">Kit</span> : null}
                     {product.subtitle ? <p>{product.subtitle}</p> : null}
                     {variant ? (
                       <p style={{ marginBottom: 10, color: "var(--gold-dark)", fontWeight: 700 }}>

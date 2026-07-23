@@ -1,12 +1,9 @@
 /**
- * Utilitários de carrinho do storefront.
+ * Utilitarios de carrinho do storefront.
  *
- * Uso básico:
- *   import { getCart, addToCart, captureEmail } from "@/lib/cart";
- *
- * O session_id é um UUID v4 gerado uma vez e persistido em localStorage.
- * Toda operação de escrita sincroniza com /api/cart para rastreamento de
- * carrinhos abandonados no CMS admin.
+ * O session_id e um UUID v4 gerado uma vez e persistido em localStorage.
+ * Toda escrita sincroniza com /api/cart para carrinhos abandonados.
+ * O servidor recalcula nome, preco e subtotal com dados do Supabase.
  */
 
 export interface CartItem {
@@ -22,9 +19,6 @@ export interface CartItem {
 const SESSION_KEY = "flora_cart_session";
 const CART_KEY = "flora_cart_items";
 
-// ── Session ID ──────────────────────────────────────────────────────────────
-
-/** Retorna ou gera o session_id persistido em localStorage. */
 export function getSessionId(): string {
   if (typeof window === "undefined") return "";
   let id = localStorage.getItem(SESSION_KEY);
@@ -35,9 +29,6 @@ export function getSessionId(): string {
   return id;
 }
 
-// ── Leitura local ────────────────────────────────────────────────────────────
-
-/** Lê os itens do carrinho do localStorage (rápido, sem rede). */
 export function getLocalCart(): CartItem[] {
   if (typeof window === "undefined") return [];
   try {
@@ -47,12 +38,9 @@ export function getLocalCart(): CartItem[] {
   }
 }
 
-/** Subtotal em centavos. */
 export function calcSubtotal(items: CartItem[]): number {
   return items.reduce((sum, i) => sum + i.price_cents * i.quantity, 0);
 }
-
-// ── Escrita (local + sync) ───────────────────────────────────────────────────
 
 function saveLocal(items: CartItem[]) {
   if (typeof window !== "undefined") {
@@ -60,11 +48,15 @@ function saveLocal(items: CartItem[]) {
   }
 }
 
-async function syncToServer(items: CartItem[], extras?: { customer_email?: string; customer_name?: string }) {
+async function syncToServer(
+  items: CartItem[],
+  extras?: { customer_email?: string; customer_name?: string }
+): Promise<CartItem[] | null> {
   const session_id = getSessionId();
-  if (!session_id) return;
+  if (!session_id) return null;
+
   try {
-    await fetch("/api/cart", {
+    const res = await fetch("/api/cart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -74,43 +66,45 @@ async function syncToServer(items: CartItem[], extras?: { customer_email?: strin
         ...extras,
       }),
     });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json().catch(() => null)) as { items?: CartItem[] } | null;
+    if (Array.isArray(data?.items)) {
+      saveLocal(data.items);
+      return data.items;
+    }
   } catch {
-    // Falha silenciosa — o remarketing pode perder este evento, mas o UX não é afetado
+    // O carrinho local continua funcionando mesmo se a sincronizacao falhar.
   }
+
+  return null;
 }
 
-/** Adiciona ou incrementa um item no carrinho. */
 export async function addToCart(item: CartItem): Promise<CartItem[]> {
   const items = getLocalCart();
   const key = item.variant_id ?? item.product_id;
   const existing = items.find((i) => (i.variant_id ?? i.product_id) === key);
 
-  let updated: CartItem[];
-  if (existing) {
-    updated = items.map((i) =>
-      (i.variant_id ?? i.product_id) === key
-        ? { ...i, quantity: i.quantity + item.quantity }
-        : i
-    );
-  } else {
-    updated = [...items, item];
-  }
+  const updated = existing
+    ? items.map((i) =>
+        (i.variant_id ?? i.product_id) === key
+          ? { ...i, quantity: i.quantity + item.quantity }
+          : i
+      )
+    : [...items, item];
 
   saveLocal(updated);
-  await syncToServer(updated);
-  return updated;
+  return (await syncToServer(updated)) ?? updated;
 }
 
-/** Remove um item do carrinho. */
 export async function removeFromCart(productId: string, variantId?: string): Promise<CartItem[]> {
   const key = variantId ?? productId;
   const updated = getLocalCart().filter((i) => (i.variant_id ?? i.product_id) !== key);
   saveLocal(updated);
-  await syncToServer(updated);
-  return updated;
+  return (await syncToServer(updated)) ?? updated;
 }
 
-/** Atualiza a quantidade de um item. */
 export async function updateQuantity(
   productId: string,
   quantity: number,
@@ -123,21 +117,16 @@ export async function updateQuantity(
       : getLocalCart().map((i) =>
           (i.variant_id ?? i.product_id) === key ? { ...i, quantity } : i
         );
+
   saveLocal(updated);
-  await syncToServer(updated);
-  return updated;
+  return (await syncToServer(updated)) ?? updated;
 }
 
-/** Limpa o carrinho (ex: após finalizar pedido). */
 export async function clearCart(): Promise<void> {
   saveLocal([]);
   await syncToServer([]);
 }
 
-/**
- * Captura o e-mail do cliente para habilitar remarketing.
- * Chamar quando o usuário preenche o campo de e-mail (newsletter, checkout).
- */
 export async function captureEmail(email: string, name?: string): Promise<void> {
   const items = getLocalCart();
   await syncToServer(items, { customer_email: email, customer_name: name });
