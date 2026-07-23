@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { sendEmail, renderTemplate, textToHtml } from "@/lib/email/resend";
+import { TEMPLATE_PRESETS } from "./template-presets";
 
 export type SendTestResult = { ok: true } | { ok: false; error: string };
 
@@ -57,6 +58,29 @@ function parseJson(input: string, fallback: unknown) {
   } catch {
     return fallback;
   }
+}
+
+export async function createTemplateFromPreset(presetId: string) {
+  const staff = await currentStaff();
+  if (!staff) return;
+
+  const preset = TEMPLATE_PRESETS.find((item) => item.id === presetId);
+  if (!preset) return;
+
+  const supabase = await createClient();
+  await supabase.from("message_templates").upsert(
+    {
+      tenant_id: staff.tenantId,
+      name: preset.template.name,
+      channel: preset.template.channel,
+      subject: preset.template.subject,
+      body: preset.template.body,
+      variables: preset.template.variables,
+    },
+    { onConflict: "tenant_id,name", ignoreDuplicates: true }
+  );
+
+  revalidatePath("/backoffice/mensagens");
 }
 
 export async function createTemplate(formData: FormData) {

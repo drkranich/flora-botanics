@@ -4,11 +4,13 @@ import { isResendConfigured } from "@/lib/email/resend";
 import { SendTestEmail } from "./SendTestEmail";
 import {
   createTemplate,
+  createTemplateFromPreset,
   deleteTemplate,
   createAutomation,
   setAutomationStatus,
   deleteAutomation,
 } from "./actions";
+import { TEMPLATE_PRESETS } from "./template-presets";
 
 const TEMPLATE_CHANNEL_LABELS: Record<string, string> = {
   email: "E-mail",
@@ -164,6 +166,45 @@ export default async function MensagensPage() {
             : "Configure RESEND_API_KEY e RESEND_FROM_EMAIL no Worker flora-admin para habilitar o envio de e-mails."}
         </p>
       </div>
+
+      <section style={cardStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div>
+            <div style={sectionLabel}>Biblioteca Flora</div>
+            <h2 style={{ ...sectionTitleStyle, marginTop: 4 }}>Modelos prontos de mensagem</h2>
+            <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 12.5, maxWidth: 720 }}>
+              Adicione modelos editoriais e operacionais ao CMS. Depois de adicionados, eles aparecem
+              na lista abaixo para edição, teste e uso em automações.
+            </p>
+          </div>
+          <span className="chip chip-draft">{TEMPLATE_PRESETS.length} modelos</span>
+        </div>
+
+        <ul style={{ ...listStyle, marginTop: 16 }}>
+          {TEMPLATE_PRESETS.map((preset) => (
+            <li key={preset.id} style={{ ...listItemStyle, alignItems: "flex-start", gap: 16 }}>
+              <div style={{ display: "grid", gap: 6, minWidth: 220, flex: 1 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <span style={badgeStyle("neutral")}>
+                    {TEMPLATE_CHANNEL_LABELS[preset.template.channel] ?? preset.template.channel}
+                  </span>
+                  <span style={badgeStyle("warning")}>{preset.triggerLabel}</span>
+                </div>
+                <strong>{preset.title}</strong>
+                <span style={{ fontSize: 12.5, color: "var(--cream-dim)", lineHeight: 1.5 }}>
+                  {preset.description}
+                </span>
+                <span style={{ fontSize: 11, color: "var(--cream-dim)" }}>
+                  Variáveis: {preset.template.variables.map((item) => `{{${item}}}`).join(", ")}
+                </span>
+              </div>
+              <form action={createTemplateFromPreset.bind(null, preset.id)}>
+                <button type="submit" style={actionButtonStyle}>Adicionar ao CMS</button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section style={cardStyle}>
         <h2 style={sectionTitleStyle}>Templates de mensagem</h2>
