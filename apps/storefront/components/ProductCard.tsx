@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FavoriteButton } from "@/components/FavoriteButton";
 
 export interface ProductCardProduct {
   id: string;
@@ -63,9 +64,11 @@ export function productImages(product: ProductCardProduct, storageBase: string) 
 export function ProductCard({
   product,
   storageBase,
+  tenantId,
 }: {
   product: ProductCardProduct;
   storageBase: string;
+  tenantId?: string;
 }) {
   const variant = defaultVariant(product);
   const images = productImages(product, storageBase);
@@ -75,6 +78,11 @@ export function ProductCard({
 
   return (
     <article className="category-card">
+      {tenantId ? (
+        <div className="category-card-favorite">
+          <FavoriteButton tenantId={tenantId} productId={product.id} compact />
+        </div>
+      ) : null}
       {mainImage ? (
         <Link href={`/produtos/${product.slug}`} className="category-card-media" aria-label={product.name}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

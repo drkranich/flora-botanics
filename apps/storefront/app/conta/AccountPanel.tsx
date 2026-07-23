@@ -541,6 +541,9 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
         </div>
 
         <div className="account-actions-row">
+          <Link href="/favoritos" className="account-secondary-button">
+            Ver favoritos
+          </Link>
           <Link href="/produtos" className="account-secondary-button">
             Continuar comprando
           </Link>

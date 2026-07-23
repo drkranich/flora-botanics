@@ -131,7 +131,7 @@ export default async function CategoryPage({
           ) : (
             <div className="category-grid">
               {rows.map((product) => (
-                <ProductCard key={product.id} product={product} storageBase={storageBase} />
+                <ProductCard key={product.id} product={product} storageBase={storageBase} tenantId={tenant.tenantId} />
               ))}
             </div>
           )}

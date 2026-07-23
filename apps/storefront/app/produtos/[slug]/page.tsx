@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { currentTenant, db } from "@/lib/tenant";
 import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { AddToCartButton } from "./AddToCartButton";
 import { ProductGallery, type GalleryImage } from "./ProductGallery";
 import { absoluteUrl, buildMetadata, currentSiteUrl, DEFAULT_DESCRIPTION } from "@/lib/seo";
@@ -465,25 +466,28 @@ export default async function ProductPage({
               </div>
             ) : null}
 
-            {variant ? (
-              <AddToCartButton
-                item={{
-                  product_id: row.id,
-                  variant_id: variant.id,
-                  name: row.name,
-                  slug: row.slug,
-                  image: image ?? undefined,
-                  price_cents: variant.price_cents,
-                  quantity: 1,
-                }}
-                disabled={row.type === "kit" && kitAvailable <= 0}
-                disabledLabel="Kit indisponível"
-              />
-            ) : (
-              <a href="#newsletter" className="btn" style={{ marginTop: 28 }}>
-                Avise-me
-              </a>
-            )}
+            <div className="product-info-actions">
+              {variant ? (
+                <AddToCartButton
+                  item={{
+                    product_id: row.id,
+                    variant_id: variant.id,
+                    name: row.name,
+                    slug: row.slug,
+                    image: image ?? undefined,
+                    price_cents: variant.price_cents,
+                    quantity: 1,
+                  }}
+                  disabled={row.type === "kit" && kitAvailable <= 0}
+                  disabledLabel="Kit indisponível"
+                />
+              ) : (
+                <a href="#newsletter" className="btn">
+                  Avise-me
+                </a>
+              )}
+              <FavoriteButton tenantId={tenant.tenantId} productId={row.id} label="Salvar favorito" />
+            </div>
           </section>
         </div>
 
