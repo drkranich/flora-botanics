@@ -61,17 +61,23 @@ function editorialHtml(value: unknown) {
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((p) => `<p>${p}</p>`)
+    .map((p) => `<p>${p.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
     .join("");
 }
 
 function Hero({ props, header }: { props: Record<string, unknown>; header?: ReactNode }) {
   const cta = props.cta as Cta | undefined;
   return (
-    <section className="hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(10,25,11,.96) 0%, rgba(10,25,11,.84) 42%, rgba(10,25,11,.25) 100%), url("${asset(props.image as string)}")` }}>
+    <section
+      className="hero"
+      style={{
+        ...typography(props),
+        background: `linear-gradient(90deg, rgba(10,22,11,.90) 0%, rgba(10,22,11,.70) 36%, rgba(10,22,11,.32) 66%, rgba(10,22,11,.58) 100%), url("${asset(props.image as string)}") center / cover`,
+      }}
+    >
       {header}
-      <div className="container hero-content">
-        <div>
+      <div className="container hero-inner">
+        <div className="hero-text">
           <h1>{props.title as string}</h1>
           {props.subtitle ? text(props.subtitle) : null}
           {cta?.label ? <a href={cta.href ?? "#"} className="btn">{cta.label}</a> : null}

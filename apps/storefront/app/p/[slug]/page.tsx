@@ -2,16 +2,9 @@ import { currentTenant, db } from "@/lib/tenant";
 import { getPublishedPage, getMenu, getSiteSetting } from "@flora/db";
 import { SectionRenderer } from "@/blocks";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
+import { publicFallbackPage } from "@/lib/public-pages";
 
 export const revalidate = 60;
-
-function titleFromSlug(slug: string) {
-  return slug
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 export default async function CmsPublicPage({
   params,
@@ -38,20 +31,42 @@ export default async function CmsPublicPage({
   const logoColor = logoSetting?.color ?? "";
 
   if (!page) {
-    const title = titleFromSlug(slug);
+    const fallback = publicFallbackPage(slug);
+
     return (
       <>
         <div className="hero subpage-hero subpage-hero-compact">
-          <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
+          <SiteHeader
+            menu={menu}
+            logoUrl={logoUrl}
+            logoWidth={logoWidth}
+            logoHeight={logoHeight}
+            logoColor={logoColor}
+          />
         </div>
-        <main className="page-content">
-          <div className="container">
-            <p>
-              Conteúdo de <strong>{title}</strong> — edite esta página no painel (CMS → {title}).
-            </p>
+        <main className="public-page">
+          <div className="container public-page-inner">
+            <span className="eyebrow">{fallback.eyebrow}</span>
+            <h1>{fallback.title}</h1>
+            <p className="public-page-intro">{fallback.intro}</p>
+            <div className="public-page-copy">
+              {fallback.paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+            {fallback.cta ? (
+              <a href={fallback.cta.href} className="btn">
+                {fallback.cta.label}
+              </a>
+            ) : null}
           </div>
         </main>
-        <SiteFooter logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
+        <SiteFooter
+          logoUrl={logoUrl}
+          logoWidth={logoWidth}
+          logoHeight={logoHeight}
+          logoColor={logoColor}
+        />
       </>
     );
   }
@@ -69,11 +84,25 @@ export default async function CmsPublicPage({
       {heroFirst ? (
         <SectionRenderer
           section={first}
-          header={<SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />}
+          header={
+            <SiteHeader
+              menu={menu}
+              logoUrl={logoUrl}
+              logoWidth={logoWidth}
+              logoHeight={logoHeight}
+              logoColor={logoColor}
+            />
+          }
         />
       ) : (
         <div className="hero subpage-hero subpage-hero-compact">
-          <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
+          <SiteHeader
+            menu={menu}
+            logoUrl={logoUrl}
+            logoWidth={logoWidth}
+            logoHeight={logoHeight}
+            logoColor={logoColor}
+          />
         </div>
       )}
       <main className={heroFirst ? undefined : "page-content"}>
@@ -81,7 +110,12 @@ export default async function CmsPublicPage({
           <SectionRenderer key={section.id} section={section} />
         ))}
       </main>
-      <SiteFooter logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
+      <SiteFooter
+        logoUrl={logoUrl}
+        logoWidth={logoWidth}
+        logoHeight={logoHeight}
+        logoColor={logoColor}
+      />
     </>
   );
 }

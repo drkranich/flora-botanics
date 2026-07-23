@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
 import { currentTenant, db } from "@/lib/tenant";
 import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
+import { titleFromSlug } from "@/lib/public-pages";
 
 export const revalidate = 60;
 
@@ -64,12 +64,12 @@ export default async function CategoryPage({
     ),
   ]);
 
-  if (!category) notFound();
-
-  const { data: links } = await client
-    .from("product_categories")
-    .select("product_id")
-    .eq("category_id", category.id);
+  const { data: links } = category
+    ? await client
+        .from("product_categories")
+        .select("product_id")
+        .eq("category_id", category.id)
+    : { data: [] };
   const productIds = (links ?? []).map((item) => item.product_id).filter(Boolean);
 
   const { data: products } = productIds.length
@@ -92,7 +92,14 @@ export default async function CategoryPage({
   const logoHeight = logoSetting?.height ?? 48;
   const logoColor = logoSetting?.color ?? "";
   const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/`;
-  const cat = category as CategoryRow;
+  const cat =
+    category ??
+    ({
+      id: "",
+      slug,
+      name: titleFromSlug(slug),
+      description: "Esta categoria esta pronta para receber produtos publicados no CMS.",
+    } as CategoryRow);
   const rows = (products ?? []) as unknown as ProductRow[];
 
   return (
