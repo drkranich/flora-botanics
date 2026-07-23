@@ -4,6 +4,7 @@ import { currentTenant, db } from "@/lib/tenant";
 import { getTenantTheme, getSiteSetting } from "@flora/db";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://florabotanics.com.br"),
   title: "Flora Botanics",
   description: "Cosméticos inspirados pela biodiversidade brasileira.",
 };

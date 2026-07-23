@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import { currentTenant, db } from "@/lib/tenant";
 import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
+import { buildMetadata, currentSiteUrl } from "@/lib/seo";
 
 export const revalidate = 60;
 
@@ -30,6 +32,16 @@ function coverUrl(product: ProductRow, storageBase: string) {
   const raw = mediaRows.find((item) => item.role === "cover")?.media ?? mediaRows[0]?.media ?? null;
   const media = Array.isArray(raw) ? raw[0] : raw;
   return media?.storage_path ? `${storageBase}${media.storage_path}` : null;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await currentSiteUrl();
+  return buildMetadata({
+    baseUrl,
+    title: "Catalogo",
+    description: "Conheca a colecao publicada da Flora Botanics.",
+    path: "/produtos",
+  });
 }
 
 export default async function ProductsPage() {

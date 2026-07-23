@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { currentTenant, db } from "@/lib/tenant";
 import { getPublishedPage, getMenu, getSiteSetting } from "@flora/db";
 import { SectionRenderer } from "@/blocks";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 import { publicFallbackPage } from "@/lib/public-pages";
+import { buildMetadata, currentSiteUrl, seoFromValue } from "@/lib/seo";
 
 export const revalidate = 60;
 
@@ -25,6 +27,48 @@ function pageSlugCandidates(segments: string[]) {
   }
 
   return Array.from(new Set(candidates.filter(Boolean)));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const tenant = await currentTenant();
+  const client = db();
+  const baseUrl = await currentSiteUrl();
+  let page: Awaited<ReturnType<typeof getPublishedPage>> | null = null;
+  let matchedSlug = slug.join("/");
+
+  for (const candidate of pageSlugCandidates(slug)) {
+    page = await getPublishedPage(client, tenant.tenantId, candidate);
+    if (page) {
+      matchedSlug = candidate;
+      break;
+    }
+  }
+
+  if (!page) {
+    const last = slug[slug.length - 1] ?? slug.join("-");
+    const fallback = publicFallbackPage(last);
+    return buildMetadata({
+      baseUrl,
+      title: fallback.title,
+      description: fallback.intro,
+      path: `/${slug.join("/")}`,
+    });
+  }
+
+  const seo = seoFromValue(page.seo);
+  return buildMetadata({
+    baseUrl,
+    title: seo.title ?? page.title,
+    description: seo.description,
+    image: seo.image,
+    path: `/${matchedSlug}`,
+    type: "article",
+  });
 }
 
 export default async function CmsCatchAllPage({

@@ -1,9 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { currentTenant, db } from "@/lib/tenant";
 import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 import { AddToCartButton } from "./AddToCartButton";
+import { absoluteUrl, buildMetadata, currentSiteUrl, DEFAULT_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 60;
 
@@ -72,6 +74,47 @@ function first<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const tenant = await currentTenant();
+  const client = db();
+  const baseUrl = await currentSiteUrl();
+
+  const { data: product } = await client
+    .from("products")
+    .select("name, subtitle, product_media(role, media(storage_path))")
+    .eq("tenant_id", tenant.tenantId)
+    .eq("slug", slug)
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!product) {
+    return buildMetadata({
+      baseUrl,
+      title: "Produto nao encontrado",
+      description: DEFAULT_DESCRIPTION,
+      path: `/produtos/${slug}`,
+    });
+  }
+
+  const row = product as unknown as ProductRow;
+  const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/`;
+  const image = coverUrl(row, storageBase);
+
+  return buildMetadata({
+    baseUrl,
+    title: row.name,
+    description: row.subtitle ?? DEFAULT_DESCRIPTION,
+    path: `/produtos/${slug}`,
+    image,
+  });
+}
+
 export default async function ProductPage({
   params,
 }: {
@@ -114,6 +157,7 @@ export default async function ProductPage({
   const variant = variants.find((item) => item.is_default) ?? variants[0];
   const image = coverUrl(row, storageBase);
   const description = richTextToPlain(row.description_rich);
+  const productUrl = absoluteUrl(await currentSiteUrl(), `/produtos/${row.slug}`);
   let kitItems: Array<KitItemRow & { component?: KitComponentRow; stock: number }> = [];
   let kitAvailable = 0;
 
@@ -154,6 +198,33 @@ export default async function ProductPage({
 
   return (
     <>
+      {variant ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Product",
+              name: row.name,
+              description: row.subtitle ?? description ?? DEFAULT_DESCRIPTION,
+              image: image ? [image] : undefined,
+              sku: variant.sku,
+              url: productUrl,
+              brand: { "@type": "Brand", name: "Flora Botanics" },
+              offers: {
+                "@type": "Offer",
+                url: productUrl,
+                priceCurrency: variant.currency,
+                price: (variant.price_cents / 100).toFixed(2),
+                availability:
+                  row.type === "kit" && kitAvailable <= 0
+                    ? "https://schema.org/OutOfStock"
+                    : "https://schema.org/InStock",
+              },
+            }),
+          }}
+        />
+      ) : null}
       <div className="hero subpage-hero product-hero-compact">
         <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
         <div className="container hero-inner" style={{ paddingTop: 48 }}>

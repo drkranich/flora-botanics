@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import { currentTenant, db } from "@/lib/tenant";
 import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 import { titleFromSlug } from "@/lib/public-pages";
+import { buildMetadata, currentSiteUrl } from "@/lib/seo";
 
 export const revalidate = 60;
 
@@ -37,6 +39,31 @@ function coverUrl(product: ProductRow, storageBase: string) {
   const raw = mediaRows.find((item) => item.role === "cover")?.media ?? mediaRows[0]?.media ?? null;
   const media = Array.isArray(raw) ? raw[0] : raw;
   return media?.storage_path ? `${storageBase}${media.storage_path}` : null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const tenant = await currentTenant();
+  const client = db();
+  const baseUrl = await currentSiteUrl();
+  const { data: category } = await client
+    .from("categories")
+    .select("name, description")
+    .eq("tenant_id", tenant.tenantId)
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+
+  return buildMetadata({
+    baseUrl,
+    title: category?.name ?? titleFromSlug(slug),
+    description: category?.description ?? "Produtos publicados nesta categoria da Flora Botanics.",
+    path: `/categorias/${slug}`,
+  });
 }
 
 export default async function CategoryPage({
