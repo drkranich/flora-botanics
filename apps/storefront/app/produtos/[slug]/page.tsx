@@ -7,6 +7,7 @@ import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { AddToCartButton } from "./AddToCartButton";
 import { ProductGallery, type GalleryImage } from "./ProductGallery";
+import { ProductReviews, type ApprovedReview } from "./ProductReviews";
 import { absoluteUrl, buildMetadata, currentSiteUrl, DEFAULT_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 60;
@@ -301,6 +302,15 @@ export default async function ProductPage({
       : "Use na rotina conforme a orientação do rótulo e complemente com os demais cuidados Flora.";
   const editorial = editorialContent(row.editorial_content, benefitTags, routineText);
   const faqItems = editorial.faqItems;
+  const { data: reviewRows } = await client
+    .from("product_reviews")
+    .select("id, rating, title, body, display_name, created_at")
+    .eq("tenant_id", tenant.tenantId)
+    .eq("product_id", row.id)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+    .limit(12);
+  const reviews = (reviewRows ?? []) as ApprovedReview[];
   let kitItems: Array<KitItemRow & { component?: KitComponentRow; stock: number }> = [];
   let kitAvailable = 0;
 
@@ -523,6 +533,10 @@ export default async function ProductPage({
               ))}
             </div>
           </section>
+        </div>
+
+        <div className="container product-reviews-container">
+          <ProductReviews tenantId={tenant.tenantId} productId={row.id} reviews={reviews} />
         </div>
 
         {variant ? (

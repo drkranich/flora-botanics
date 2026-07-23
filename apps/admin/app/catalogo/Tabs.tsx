@@ -7,12 +7,13 @@ const TABS = [
   { href: "/catalogo", label: "Produtos" },
   { href: "/catalogo/kits", label: "Kits" },
   { href: "/catalogo/categorias", label: "Categorias" },
+  { href: "/catalogo/avaliacoes", label: "Avaliações" },
 ];
 
 export function CatalogTabs() {
   const path = usePathname();
   return (
-    <nav style={{ display: "flex", gap: 8, marginBottom: 26 }}>
+    <nav style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 26 }}>
       {TABS.map((t) => {
         const active = t.href === "/catalogo" ? path === "/catalogo" : path.startsWith(t.href);
         return (
