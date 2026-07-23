@@ -431,6 +431,162 @@ a { color: inherit; text-decoration: none; }
 .account-profile-summary strong { color: var(--white); }
 .account-profile-summary span { color: rgba(255, 248, 234, 0.66); font-size: 13px; line-height: 1.5; }
 
+.account-auth-layout.single {
+  max-width: 560px;
+}
+
+.account-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.account-panel-block {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(242, 236, 223, 0.14);
+  border-radius: 20px;
+  background: rgba(7, 19, 8, 0.36);
+}
+
+.account-block-heading {
+  display: grid;
+  gap: 5px;
+}
+
+.account-block-heading span {
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+.account-block-heading strong {
+  color: var(--white);
+  font-size: 16px;
+}
+
+.account-form.compact {
+  gap: 10px;
+}
+
+.account-form.compact input,
+.account-address-form input {
+  height: 44px;
+}
+
+.account-order-list {
+  display: grid;
+  gap: 10px;
+}
+
+.account-order-list article {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid rgba(242, 236, 223, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 248, 234, 0.045);
+}
+
+.account-order-list strong,
+.account-order-list span,
+.account-order-list em,
+.account-order-list b {
+  display: block;
+}
+
+.account-order-list strong {
+  color: var(--white);
+  font-size: 13px;
+}
+
+.account-order-list span,
+.account-order-list em {
+  margin-top: 4px;
+  color: rgba(255, 248, 234, 0.58);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.account-order-list b {
+  color: var(--gold);
+  font-size: 13px;
+  text-align: right;
+}
+
+.account-empty,
+.account-fineprint {
+  margin: 0;
+  color: rgba(255, 248, 234, 0.62);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.account-address-form {
+  display: grid;
+  gap: 10px;
+}
+
+.account-address-row {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 10px;
+}
+
+.account-address-form input {
+  width: 100%;
+  border: 1px solid rgba(242, 236, 223, 0.16);
+  border-radius: 14px;
+  outline: 0;
+  background: rgba(7, 19, 8, 0.50);
+  color: var(--white);
+  padding: 0 14px;
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.account-address-form input::placeholder {
+  color: rgba(255, 248, 234, 0.42);
+}
+
+.account-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: rgba(255, 248, 234, 0.72);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.account-toggle input {
+  margin-top: 3px;
+  accent-color: var(--gold);
+}
+
+.account-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.account-link-button {
+  width: fit-content;
+  border: 0;
+  color: var(--gold);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 /* PRODUCT DETAIL */
 .product-hero-compact {
   min-height: 300px;
@@ -936,6 +1092,7 @@ a { color: inherit; text-decoration: none; }
   .ingredients-layout, .newsletter-layout, .footer-layout { grid-template-columns: 1fr; }
   .product-detail-grid { grid-template-columns: 1fr; }
   .product-info-panel { position: static; }
+  .account-dashboard-grid { grid-template-columns: 1fr; }
   .account-auth-layout { grid-template-columns: 1fr; max-width: 620px; }
   .account-copy-panel { min-height: auto; }
   .cart-item { grid-template-columns: 76px 1fr; }
@@ -961,6 +1118,9 @@ a { color: inherit; text-decoration: none; }
   }
   .account-copy-panel h1, .account-profile-heading h1 { font-size: 42px; }
   .account-mode-switch { border-radius: 18px; grid-template-columns: 1fr; }
+  .account-address-row { grid-template-columns: 1fr; }
+  .account-order-list article { flex-direction: column; }
+  .account-order-list b { text-align: left; }
   .public-page h1, .cart-card h1 { font-size: 42px; }
   .product-info-panel h2 { font-size: 42px; }
   .product-gallery-card,

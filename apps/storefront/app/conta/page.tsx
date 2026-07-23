@@ -30,7 +30,7 @@ export default async function AccountPage() {
       </div>
       <main className="account-page">
         <div className="container account-page-inner">
-          <AccountPanel />
+          <AccountPanel tenantId={tenant.tenantId} />
         </div>
       </main>
       <SiteFooter logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
