@@ -150,7 +150,6 @@ export function MediaLibraryModal({
 
   async function upload(file: File) {
     setUploading(true);
-    setError(null);
     try {
       const body = new FormData();
       body.set("tenantId", tenantId);
@@ -217,10 +216,17 @@ export function MediaLibraryModal({
               ref={fileRef}
               type="file"
               accept="image/*"
+              multiple
               hidden
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) upload(f);
+                const files = Array.from(e.target.files ?? []);
+                if (files.length > 0) {
+                  setError(null);
+                  void files.reduce(
+                    (promise, file) => promise.then(() => upload(file)),
+                    Promise.resolve()
+                  );
+                }
                 e.target.value = "";
               }}
             />

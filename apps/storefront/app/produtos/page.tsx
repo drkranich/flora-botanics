@@ -36,7 +36,7 @@ interface CategoryRow {
 const PRODUCT_TYPES = [
   { value: "all", label: "Todos os tipos" },
   { value: "simple", label: "Produtos simples" },
-  { value: "variable", label: "Com variacoes" },
+  { value: "variable", label: "Com variações" },
   { value: "kit", label: "Kits" },
   { value: "digital", label: "Digitais" },
   { value: "subscription", label: "Assinaturas" },
@@ -45,8 +45,8 @@ const PRODUCT_TYPES = [
 const SORT_OPTIONS = [
   { value: "recentes", label: "Mais recentes" },
   { value: "nome", label: "Nome A-Z" },
-  { value: "preco-menor", label: "Menor preco" },
-  { value: "preco-maior", label: "Maior preco" },
+  { value: "preco-menor", label: "Menor preço" },
+  { value: "preco-maior", label: "Maior preço" },
 ] as const;
 
 function param(value: string | string[] | undefined): string {

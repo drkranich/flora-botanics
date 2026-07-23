@@ -18,6 +18,7 @@ export type ProductRow = {
   category_id: string | null;
   cover_url: string | null;
   cover_media_id: string | null;
+  gallery_images: Array<{ id: string; url: string; role?: string }>;
 };
 
 type Category = { id: string; name: string };
@@ -166,9 +167,34 @@ function ProductFormFields({
   const [stock, setStock] = useState(String(defaults?.stock ?? 0));
   const [categoryId, setCategoryId] = useState(defaults?.category_id ?? "");
   const [published, setPublished] = useState((defaults?.status ?? "draft") === "published");
-  const [coverUrl, setCoverUrl] = useState(defaults?.cover_url ?? "");
-  const [coverId, setCoverId] = useState<string | null>(defaults?.cover_media_id ?? null);
+  const [galleryImages, setGalleryImages] = useState<Array<{ id: string; url: string }>>(
+    defaults?.gallery_images?.length
+      ? defaults.gallery_images.map((image) => ({ id: image.id, url: image.url }))
+      : defaults?.cover_media_id && defaults.cover_url
+        ? [{ id: defaults.cover_media_id, url: defaults.cover_url }]
+        : []
+  );
   const [libOpen, setLibOpen] = useState(false);
+  const coverUrl = galleryImages[0]?.url ?? "";
+
+  function addImage(url: string, mediaId?: string) {
+    if (!mediaId) return;
+    setGalleryImages((current) =>
+      current.some((image) => image.id === mediaId) ? current : [...current, { id: mediaId, url }]
+    );
+  }
+
+  function removeImage(mediaId: string) {
+    setGalleryImages((current) => current.filter((image) => image.id !== mediaId));
+  }
+
+  function makeCover(mediaId: string) {
+    setGalleryImages((current) => {
+      const selected = current.find((image) => image.id === mediaId);
+      if (!selected) return current;
+      return [selected, ...current.filter((image) => image.id !== mediaId)];
+    });
+  }
 
   return (
     <form
@@ -184,7 +210,8 @@ function ProductFormFields({
             : null,
           stock: parseInt(stock || "0", 10),
           category_id: categoryId || null,
-          media_id: coverId,
+          media_id: galleryImages[0]?.id ?? null,
+          gallery_media_ids: galleryImages.map((image) => image.id),
           status: published ? "published" : "draft",
         });
       }}
@@ -219,6 +246,77 @@ function ProductFormFields({
             <input className="input" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
           </div>
         </div>
+      </div>
+
+      <div className="field">
+        <span className="field-label">Reel / galeria de imagens</span>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
+          {galleryImages.map((image, index) => (
+            <div key={image.id} style={{ width: 96, display: "grid", gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => makeCover(image.id)}
+                title={index === 0 ? "Imagem de capa" : "Definir como capa"}
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: 14,
+                  border: index === 0 ? "1px solid var(--gold-light)" : "1px solid var(--glass-border)",
+                  background: `linear-gradient(rgba(10,22,11,0.05), rgba(10,22,11,0.05)), url("${image.url}") center / cover`,
+                  cursor: "pointer",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                {index === 0 ? (
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: 8,
+                      bottom: 8,
+                      borderRadius: 999,
+                      padding: "4px 8px",
+                      fontSize: 9,
+                      fontWeight: 800,
+                      letterSpacing: 0.8,
+                      textTransform: "uppercase",
+                      color: "var(--forest-950)",
+                      background: "var(--gold-light)",
+                    }}
+                  >
+                    Capa
+                  </span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => removeImage(image.id)}
+                style={{ padding: "6px 8px", fontSize: 9 }}
+              >
+                Remover
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setLibOpen(true)}
+            style={{
+              width: 96,
+              minHeight: 96,
+              padding: 10,
+              borderStyle: "dashed",
+              fontSize: 10,
+              lineHeight: 1.35,
+            }}
+          >
+            + Adicionar imagem
+          </button>
+        </div>
+        <span className="muted" style={{ fontSize: 10.5 }}>
+          Selecione uma ou mais imagens na biblioteca. A primeira imagem vira capa no catálogo e na página do produto.
+        </span>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
@@ -264,9 +362,7 @@ function ProductFormFields({
           tenantId={tenantId}
           onClose={() => setLibOpen(false)}
           onSelect={(url, mediaId) => {
-            setCoverUrl(url);
-            setCoverId(mediaId ?? null);
-            setLibOpen(false);
+            addImage(url, mediaId);
           }}
         />
       ) : null}

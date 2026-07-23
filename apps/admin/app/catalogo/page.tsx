@@ -27,7 +27,7 @@ export default async function ProdutosPage() {
         `id, name, subtitle, slug, status,
          product_variants(id, sku, price_cents, compare_at_cents, is_default, inventory(quantity)),
          product_categories(category_id),
-         product_media(role, media(id, storage_path))`
+         product_media(role, sort_order, media(id, storage_path))`
       )
       .eq("tenant_id", tenantId)
       .neq("type", "kit")
@@ -55,10 +55,22 @@ export default async function ProdutosPage() {
     const inv = Array.isArray(v?.inventory) ? v?.inventory[0] : v?.inventory;
     const pm = (p.product_media ?? []) as unknown as Array<{
       role: string;
+      sort_order: number;
       media: { id: string; storage_path: string } | { id: string; storage_path: string }[] | null;
     }>;
-    const coverRaw = pm.find((m) => m.role === "cover")?.media ?? null;
-    const cover = Array.isArray(coverRaw) ? coverRaw[0] ?? null : coverRaw;
+    const gallery = pm
+      .slice()
+      .sort((a, b) => {
+        if (a.role === "cover" && b.role !== "cover") return -1;
+        if (b.role === "cover" && a.role !== "cover") return 1;
+        return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      })
+      .flatMap((item) => {
+        const media = Array.isArray(item.media) ? item.media : item.media ? [item.media] : [];
+        return media.map((m) => ({ id: m.id, url: storageBase + m.storage_path, role: item.role }));
+      })
+      .filter((item, index, arr) => arr.findIndex((other) => other.id === item.id) === index);
+    const cover = gallery[0] ?? null;
     const pc = (p.product_categories ?? []) as unknown as Array<{ category_id: string }>;
 
     return {
@@ -73,8 +85,9 @@ export default async function ProdutosPage() {
       compare_at_cents: v?.compare_at_cents ?? null,
       stock: inv?.quantity ?? 0,
       category_id: pc[0]?.category_id ?? null,
-      cover_url: cover ? storageBase + cover.storage_path : null,
+      cover_url: cover?.url ?? null,
       cover_media_id: cover?.id ?? null,
+      gallery_images: gallery,
     };
   });
 

@@ -602,13 +602,18 @@ a { color: inherit; text-decoration: none; }
 
 .product-detail-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(320px, 0.92fr);
+  grid-template-columns: minmax(360px, 1.08fr) minmax(320px, 0.92fr);
   gap: clamp(28px, 5vw, 64px);
   align-items: start;
 }
 
+.product-gallery-stack {
+  display: grid;
+  gap: 14px;
+}
+
 .product-gallery-card {
-  min-height: clamp(420px, 52vw, 620px);
+  min-height: clamp(520px, 58vw, 720px);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -622,8 +627,8 @@ a { color: inherit; text-decoration: none; }
 .product-detail-image {
   width: 100%;
   height: 100%;
-  min-height: clamp(420px, 52vw, 620px);
-  padding: clamp(20px, 4vw, 42px);
+  min-height: clamp(520px, 58vw, 720px);
+  padding: clamp(8px, 2.2vw, 24px);
   object-fit: contain;
   transition: transform 0.45s ease, filter 0.45s ease;
 }
@@ -631,6 +636,37 @@ a { color: inherit; text-decoration: none; }
 .product-gallery-card:hover .product-detail-image {
   transform: scale(1.055) translateY(-6px);
   filter: saturate(1.04) contrast(1.02) drop-shadow(0 30px 32px rgba(40, 37, 29, 0.18));
+}
+
+.product-gallery-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 10px;
+}
+
+.product-gallery-thumbs button {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid rgba(104, 75, 44, 0.14);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 248, 234, 0.92), rgba(230, 221, 203, 0.60)),
+    #efe6d5;
+  cursor: pointer;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.product-gallery-thumbs button:hover,
+.product-gallery-thumbs button.is-active {
+  border-color: rgba(185, 146, 77, 0.78);
+  box-shadow: 0 12px 28px rgba(40, 37, 29, 0.10);
+  transform: translateY(-2px);
+}
+
+.product-gallery-thumbs img {
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  object-fit: contain;
 }
 
 .product-info-panel {
@@ -678,6 +714,57 @@ a { color: inherit; text-decoration: none; }
   font-size: 15px;
   line-height: 1.75;
   white-space: pre-wrap;
+}
+
+.product-care-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.product-care-notes article {
+  min-height: 76px;
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  padding: 14px;
+  border: 1px solid rgba(104, 75, 44, 0.12);
+  background: rgba(255, 255, 255, 0.20);
+}
+
+.product-care-notes strong {
+  color: var(--gold-dark);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.product-care-notes span {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.product-tag-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.product-tag-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(185, 146, 77, 0.26);
+  color: var(--gold-dark);
+  background: rgba(185, 146, 77, 0.08);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
 }
 
 .product-buy-box {
@@ -1309,6 +1396,7 @@ a { color: inherit; text-decoration: none; }
   .ingredients-layout, .newsletter-layout, .footer-layout { grid-template-columns: 1fr; }
   .product-detail-grid { grid-template-columns: 1fr; }
   .product-info-panel { position: static; }
+  .product-care-notes { grid-template-columns: 1fr; }
   .account-dashboard-grid { grid-template-columns: 1fr; }
   .account-auth-layout { grid-template-columns: 1fr; max-width: 620px; }
   .account-copy-panel { min-height: auto; }
@@ -1344,8 +1432,9 @@ a { color: inherit; text-decoration: none; }
   .product-info-panel h2 { font-size: 42px; }
   .product-gallery-card,
   .product-detail-image {
-    min-height: 360px;
+    min-height: 430px;
   }
+  .product-gallery-thumbs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .cart-card { padding: 22px; }
   .cart-item { gap: 12px; }
   .cart-item img, .cart-item-image { width: 72px; height: 72px; }

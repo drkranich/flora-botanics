@@ -5,6 +5,7 @@ import { currentTenant, db } from "@/lib/tenant";
 import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 import { AddToCartButton } from "./AddToCartButton";
+import { ProductGallery, type GalleryImage } from "./ProductGallery";
 import { absoluteUrl, buildMetadata, currentSiteUrl, DEFAULT_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 60;
@@ -15,6 +16,8 @@ interface ProductRow {
   name: string;
   subtitle: string | null;
   type: string;
+  brand_line: string | null;
+  tags: string[];
   description_rich: unknown;
   product_variants?: Array<{
     id: string;
@@ -27,6 +30,7 @@ interface ProductRow {
   }>;
   product_media?: Array<{
     role: string;
+    sort_order: number;
     media: { storage_path: string; alt: string | null } | Array<{ storage_path: string; alt: string | null }> | null;
   }>;
 }
@@ -55,6 +59,29 @@ function coverUrl(product: ProductRow, storageBase: string) {
   return media?.storage_path ? `${storageBase}${media.storage_path}` : null;
 }
 
+function galleryImages(product: ProductRow, storageBase: string): GalleryImage[] {
+  const seen = new Set<string>();
+  return (product.product_media ?? [])
+    .slice()
+    .sort((a, b) => {
+      if (a.role === "cover" && b.role !== "cover") return -1;
+      if (b.role === "cover" && a.role !== "cover") return 1;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    })
+    .flatMap((item) => {
+      const media = Array.isArray(item.media) ? item.media : item.media ? [item.media] : [];
+      return media.map((m) => ({
+        url: `${storageBase}${m.storage_path}`,
+        alt: m.alt ?? product.name,
+      }));
+    })
+    .filter((image) => {
+      if (seen.has(image.url)) return false;
+      seen.add(image.url);
+      return true;
+    });
+}
+
 function richTextToPlain(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") return value;
@@ -73,6 +100,14 @@ function first<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
 }
+
+const PRODUCT_TYPE_LABELS: Record<string, string> = {
+  simple: "Produto",
+  variable: "Produto com variações",
+  kit: "Kit botanico",
+  digital: "Produto digital",
+  subscription: "Assinatura",
+};
 
 export async function generateMetadata({
   params,
@@ -128,9 +163,9 @@ export default async function ProductPage({
     client
       .from("products")
       .select(
-        `id, slug, name, subtitle, type, description_rich,
+        `id, slug, name, subtitle, type, brand_line, tags, description_rich,
          product_variants(id, sku, name, price_cents, compare_at_cents, currency, is_default),
-         product_media(role, media(storage_path, alt))`
+         product_media(role, sort_order, media(storage_path, alt))`
       )
       .eq("tenant_id", tenant.tenantId)
       .eq("slug", slug)
@@ -155,7 +190,8 @@ export default async function ProductPage({
   const row = product as unknown as ProductRow;
   const variants = row.product_variants ?? [];
   const variant = variants.find((item) => item.is_default) ?? variants[0];
-  const image = coverUrl(row, storageBase);
+  const images = galleryImages(row, storageBase);
+  const image = images[0]?.url ?? coverUrl(row, storageBase);
   const description = richTextToPlain(row.description_rich);
   const productUrl = absoluteUrl(await currentSiteUrl(), `/produtos/${row.slug}`);
   let kitItems: Array<KitItemRow & { component?: KitComponentRow; stock: number }> = [];
@@ -207,7 +243,7 @@ export default async function ProductPage({
               "@type": "Product",
               name: row.name,
               description: row.subtitle ?? description ?? DEFAULT_DESCRIPTION,
-              image: image ? [image] : undefined,
+              image: images.length > 0 ? images.map((item) => item.url) : image ? [image] : undefined,
               sku: variant.sku,
               url: productUrl,
               brand: { "@type": "Brand", name: "Flora Botanics" },
@@ -240,18 +276,7 @@ export default async function ProductPage({
 
       <main className="product-page">
         <div className="container product-detail-grid">
-          <div className="product-gallery-card">
-            {image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={image}
-                alt={row.name}
-                className="product-detail-image"
-              />
-            ) : (
-              <div className="product-detail-image" />
-            )}
-          </div>
+          <ProductGallery images={images} fallbackAlt={row.name} />
 
           <section className="product-info-panel">
             <span className="eyebrow">Produto</span>
@@ -266,6 +291,31 @@ export default async function ProductPage({
               <p className="product-description">
                 {description}
               </p>
+            ) : null}
+
+            <div className="product-care-notes">
+              <article>
+                <strong>Linha</strong>
+                <span>{row.brand_line ?? "Flora Botanics"}</span>
+              </article>
+              <article>
+                <strong>Tipo</strong>
+                <span>{PRODUCT_TYPE_LABELS[row.type] ?? row.type}</span>
+              </article>
+              {variant?.sku ? (
+                <article>
+                  <strong>SKU</strong>
+                  <span>{variant.sku}</span>
+                </article>
+              ) : null}
+            </div>
+
+            {row.tags?.length ? (
+              <div className="product-tag-row" aria-label="Caracteristicas do produto">
+                {row.tags.slice(0, 8).map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </div>
             ) : null}
 
             {row.type === "kit" ? (

@@ -81,8 +81,33 @@ export type ProductForm = {
   stock: number;
   category_id?: string | null;
   media_id?: string | null;
+  gallery_media_ids?: string[];
   status: "draft" | "published";
 };
+
+function galleryIds(form: ProductForm) {
+  const ids = form.gallery_media_ids?.length ? form.gallery_media_ids : form.media_id ? [form.media_id] : [];
+  return Array.from(new Set(ids.filter(Boolean)));
+}
+
+async function replaceProductMedia(productId: string, mediaIds: string[]) {
+  const supabase = await supabaseServer();
+
+  await supabase.from("product_media").delete().eq("product_id", productId);
+
+  if (mediaIds.length === 0) return;
+
+  const { error } = await supabase.from("product_media").insert(
+    mediaIds.map((mediaId, index) => ({
+      product_id: productId,
+      media_id: mediaId,
+      role: index === 0 ? "cover" : "gallery",
+      sort_order: index,
+    }))
+  );
+
+  if (error) throw new Error(error.message);
+}
 
 export async function createProduct(form: ProductForm) {
   await requireStaff();
@@ -131,11 +156,7 @@ export async function createProduct(form: ProductForm) {
       .from("product_categories")
       .insert({ product_id: product.id, category_id: form.category_id });
   }
-  if (form.media_id) {
-    await supabase
-      .from("product_media")
-      .insert({ product_id: product.id, media_id: form.media_id, role: "cover" });
-  }
+  await replaceProductMedia(product.id, galleryIds(form));
 
   revalidatePath("/catalogo");
 }
@@ -182,18 +203,9 @@ export async function updateProduct(
       .insert({ product_id: productId, category_id: form.category_id });
   }
 
-  // capa
-  if (form.media_id !== undefined) {
-    await supabase
-      .from("product_media")
-      .delete()
-      .eq("product_id", productId)
-      .eq("role", "cover");
-    if (form.media_id) {
-      await supabase
-        .from("product_media")
-        .insert({ product_id: productId, media_id: form.media_id, role: "cover" });
-    }
+  // Galeria/reel: primeira imagem vira capa, demais entram como galeria.
+  if (form.gallery_media_ids !== undefined || form.media_id !== undefined) {
+    await replaceProductMedia(productId, galleryIds(form));
   }
 
   revalidatePath("/catalogo");
