@@ -398,21 +398,53 @@ function ProductFormFields({
           ))}
           <button
             type="button"
-            className="btn btn-ghost"
             onClick={() => setLibOpen(true)}
             style={{
-              width: 124,
+              width: 112,
               minHeight: 96,
-              padding: 10,
+              padding: "10px 8px",
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
               borderStyle: "dashed",
-              fontSize: 10,
-              lineHeight: 1.35,
+              border: "1px dashed var(--glass-border)",
+              borderRadius: 14,
+              background: "rgba(242, 236, 223, 0.055)",
+              color: "var(--cream-soft)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: 9,
+              fontWeight: 800,
+              letterSpacing: 1.1,
+              lineHeight: 1.25,
               textAlign: "center",
+              textTransform: "uppercase",
               whiteSpace: "normal",
-              overflowWrap: "anywhere",
+              overflow: "hidden",
+              overflowWrap: "break-word",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
             }}
           >
-            + Adicionar imagem
+            <span
+              aria-hidden="true"
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: 999,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px solid rgba(217, 184, 122, 0.45)",
+                color: "var(--gold-light)",
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+            >
+              +
+            </span>
+            <span style={{ maxWidth: 82 }}>Adicionar imagem</span>
           </button>
         </div>
         <span className="muted" style={{ fontSize: 10.5 }}>
