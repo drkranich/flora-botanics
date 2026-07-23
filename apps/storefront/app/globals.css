@@ -1062,6 +1062,89 @@ a { color: inherit; text-decoration: none; }
   font-size: calc(var(--section-body-size, 17px) * 1.28);
   line-height: 1.35;
 }
+
+/* CMS: BANNER, FAQ E CARROSSEL */
+.cms-banner-section {
+  padding: clamp(26px, 5vw, 58px) 0;
+  background: var(--cream);
+}
+.cms-banner-section a { display: block; }
+.cms-banner-card {
+  min-height: clamp(240px, 34vw, 520px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 248, 234, 0.92), rgba(230, 221, 203, 0.52)),
+    var(--cream-dark);
+}
+.cms-banner-card img {
+  display: block;
+  width: 100%;
+  height: clamp(240px, 34vw, 520px);
+  object-fit: cover;
+}
+.cms-banner-empty {
+  width: 100%;
+  height: clamp(240px, 34vw, 520px);
+}
+.cms-faq-section {
+  background: var(--cream-dark);
+  padding: clamp(44px, 7vw, 86px) 0;
+}
+.cms-faq-list {
+  max-width: min(var(--section-width, 780px), 100%);
+  margin-inline: auto;
+  display: grid;
+  gap: 12px;
+}
+.cms-faq-item {
+  border: 1px solid rgba(104, 75, 44, 0.16);
+  background: rgba(255, 248, 234, 0.48);
+}
+.cms-faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 18px 22px;
+  color: var(--text);
+  font-family: var(--section-body-font, var(--font-body));
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+.cms-faq-item summary::-webkit-details-marker { display: none; }
+.cms-faq-item summary::after {
+  content: "+";
+  float: right;
+  color: var(--gold-dark);
+}
+.cms-faq-item[open] summary::after { content: "-"; }
+.cms-faq-item div {
+  padding: 0 22px 20px;
+  color: var(--muted);
+  font-family: var(--section-body-font, var(--font-body));
+  font-size: var(--section-body-size, 14px);
+  line-height: var(--section-line-height, 1.75);
+}
+.cms-product-carousel {
+  background: var(--cream);
+  padding: clamp(44px, 7vw, 88px) 0;
+}
+.cms-product-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(230px, 1fr);
+  gap: 28px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scroll-snap-type: x proximity;
+}
+.cms-product-row > * { scroll-snap-align: start; }
+.cms-empty-copy {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 28px 0;
+}
 .newsletter-form { display: flex; max-width: 610px; height: 54px; border: 1px solid var(--gold); margin-bottom: 24px; }
 .newsletter-form input { flex: 1; border: 0; outline: 0; background: rgba(13, 30, 14, 0.8); color: var(--white); padding: 0 22px; font-family: var(--font-body); font-size: 12px; }
 .newsletter-form input::placeholder { color: #f4ead7; }

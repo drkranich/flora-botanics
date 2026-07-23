@@ -573,6 +573,13 @@ export function PageEditor({
   }, [sections, preview]);
 
   useEffect(() => {
+    if (!preview) return;
+    const t = window.setInterval(pushPreview, 900);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, preview]);
+
+  useEffect(() => {
     function onReady(e: MessageEvent) {
       if (e.data?.type === "flora-preview-ready") pushPreview();
     }

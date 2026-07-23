@@ -20,6 +20,22 @@ type ImageFrameSettings = {
   imageY?: number;
   imageHeight?: string;
 };
+type ProductSummary = {
+  id: string;
+  slug: string;
+  name: string;
+  subtitle: string | null;
+  type: string;
+  product_variants?: Array<{
+    price_cents: number;
+    currency: string;
+    is_default: boolean;
+  }>;
+  product_media?: Array<{
+    role: string;
+    media: { storage_path: string; alt: string | null } | Array<{ storage_path: string; alt: string | null }> | null;
+  }>;
+};
 
 const asset = (p?: string) => (p ? (p.startsWith("/") || p.startsWith("http") ? p : `/${p}`) : "");
 
@@ -66,6 +82,17 @@ function editorialHtml(value: unknown): string {
     .filter(Boolean)
     .map((p) => `<p>${p.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
     .join("");
+}
+
+function money(cents: number, currency = "BRL") {
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency });
+}
+
+function productCoverUrl(product: ProductSummary, storageBase: string) {
+  const mediaRows = product.product_media ?? [];
+  const raw = mediaRows.find((item) => item.role === "cover")?.media ?? mediaRows[0]?.media ?? null;
+  const media = Array.isArray(raw) ? raw[0] : raw;
+  return media?.storage_path ? `${storageBase}${media.storage_path}` : null;
 }
 
 /* ---------- HERO ---------- */
@@ -342,6 +369,146 @@ function RichText({ props }: { props: Props }) {
   );
 }
 
+function Banner({ props }: { props: Props }) {
+  const image = asset(props.image as string);
+  const href = String(props.href ?? "").trim();
+  const fullWidth = props.full_width !== false;
+  const body = (
+    <div className="cms-banner-card">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" />
+      ) : (
+        <div className="cms-banner-empty" />
+      )}
+    </div>
+  );
+
+  return (
+    <section className="cms-banner-section" style={typography(props)}>
+      <div className={fullWidth ? undefined : "container"}>
+        {href ? <a href={href}>{body}</a> : body}
+      </div>
+    </section>
+  );
+}
+
+function Faq({ props }: { props: Props }) {
+  const items = (props.items ?? []) as Array<{ q?: string; a?: string }>;
+  return (
+    <section className="cms-faq-section" style={typography(props)}>
+      <div className="container">
+        <div className="section-heading">
+          <h2>{(props.heading as string) || "Perguntas frequentes"}</h2>
+        </div>
+        <div className="cms-faq-list">
+          {items.map((item, index) => (
+            <details key={`${item.q ?? "pergunta"}-${index}`} className="cms-faq-item">
+              <summary>{item.q || "Pergunta"}</summary>
+              <div>{item.a ? <SmartText text={item.a} /> : null}</div>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+async function ProductCarousel({ props }: { props: Props }) {
+  const tenant = await currentTenant();
+  const client = db();
+  const collectionSlug = String(props.collection_slug ?? "").trim();
+  let productIds: string[] | null = null;
+
+  if (collectionSlug) {
+    const { data: collection } = await client
+      .from("collections")
+      .select("id")
+      .eq("tenant_id", tenant.tenantId)
+      .eq("slug", collectionSlug)
+      .eq("status", "published")
+      .maybeSingle();
+
+    if (collection?.id) {
+      const { data: links } = await client
+        .from("collection_products")
+        .select("product_id")
+        .eq("collection_id", collection.id)
+        .order("sort_order");
+      productIds = (links ?? []).map((item) => item.product_id).filter(Boolean);
+    } else {
+      productIds = [];
+    }
+  }
+
+  const query = client
+    .from("products")
+    .select(
+      `id, slug, name, subtitle, type,
+       product_variants(price_cents, currency, is_default),
+       product_media(role, media(storage_path, alt))`
+    )
+    .eq("tenant_id", tenant.tenantId)
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .limit(8);
+
+  const { data } = productIds
+    ? productIds.length
+      ? await query.in("id", productIds)
+      : { data: [] }
+    : await query.order("created_at", { ascending: false });
+
+  const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/`;
+  const products = (data ?? []) as unknown as ProductSummary[];
+
+  return (
+    <section className="cms-product-carousel" style={typography(props)}>
+      <div className="container">
+        <div className="section-heading">
+          <h2>{(props.heading as string) || "Produtos selecionados"}</h2>
+        </div>
+        {products.length === 0 ? (
+          <p className="cms-empty-copy">Nenhum produto publicado para este carrossel.</p>
+        ) : (
+          <div className="cms-product-row">
+            {products.map((product) => {
+              const variants = product.product_variants ?? [];
+              const variant = variants.find((item) => item.is_default) ?? variants[0];
+              const image = productCoverUrl(product, storageBase);
+              return (
+                <article className="category-card" key={product.id}>
+                  {image ? (
+                    <div className="category-card-media">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="category-card-image" src={image} alt={product.name} />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="category-card-hover-image" src={image} alt="" aria-hidden />
+                    </div>
+                  ) : (
+                    <div className="category-card-media" />
+                  )}
+                  <h3>{product.name}</h3>
+                  {product.type === "kit" ? <span className="category-card-badge">Kit</span> : null}
+                  {product.subtitle ? <p>{product.subtitle}</p> : null}
+                  {variant ? (
+                    <p style={{ marginBottom: 10, color: "var(--gold-dark)", fontWeight: 700 }}>
+                      {money(variant.price_cents, variant.currency)}
+                    </p>
+                  ) : null}
+                  <a href={`/produtos/${product.slug}`} className="link">
+                    Ver produto
+                  </a>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /* ---------- RENDERER ---------- */
 export function SectionRenderer({
   section,
@@ -365,6 +532,12 @@ export function SectionRenderer({
       return <Newsletter props={section.props} />;
     case "rich_text":
       return <RichText props={section.props} />;
+    case "banner":
+      return <Banner props={section.props} />;
+    case "faq":
+      return <Faq props={section.props} />;
+    case "product_carousel":
+      return <ProductCarousel props={section.props} />;
     default:
       return null; // bloco desconhecido: ignora silenciosamente em produção
   }

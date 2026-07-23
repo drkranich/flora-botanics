@@ -233,6 +233,71 @@ function RichText({ props }: { props: Record<string, unknown> }) {
   );
 }
 
+function Banner({ props }: { props: Record<string, unknown> }) {
+  const image = asset(props.image as string);
+  const href = String(props.href ?? "").trim();
+  const fullWidth = props.full_width !== false;
+  const body = (
+    <div className="cms-banner-card">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" />
+      ) : (
+        <div className="cms-banner-empty" />
+      )}
+    </div>
+  );
+
+  return (
+    <section className="cms-banner-section" style={typography(props)}>
+      <div className={fullWidth ? undefined : "container"}>
+        {href ? <a href={href}>{body}</a> : body}
+      </div>
+    </section>
+  );
+}
+
+function Faq({ props }: { props: Record<string, unknown> }) {
+  const items = (props.items ?? []) as Array<{ q?: string; a?: string }>;
+  return (
+    <section className="cms-faq-section" style={typography(props)}>
+      <div className="container">
+        <div className="section-heading"><h2>{(props.heading as string) || "Perguntas frequentes"}</h2></div>
+        <div className="cms-faq-list">
+          {items.map((item, index) => (
+            <details key={`${item.q ?? "pergunta"}-${index}`} className="cms-faq-item" open={index === 0}>
+              <summary>{item.q || "Pergunta"}</summary>
+              <div>{item.a ? text(item.a) : null}</div>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProductCarousel({ props }: { props: Record<string, unknown> }) {
+  const slug = String(props.collection_slug ?? "").trim();
+  const labels = slug ? [`Colecao: ${slug}`, "Produto publicado", "Kit publicado"] : ["Produto publicado", "Kit publicado", "Novo destaque"];
+  return (
+    <section className="cms-product-carousel" style={typography(props)}>
+      <div className="container">
+        <div className="section-heading"><h2>{(props.heading as string) || "Produtos selecionados"}</h2></div>
+        <div className="cms-product-row">
+          {labels.map((label, index) => (
+            <article className="category-card" key={`${label}-${index}`}>
+              <div className="category-card-media" />
+              <h3>{label}</h3>
+              <p>Preview do carrossel. Produtos reais aparecem no site publicado conforme colecao e estoque.</p>
+              <a href="#" className="link">Ver produto</a>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PreviewBlock({ section, header }: { section: PreviewSection; header?: ReactNode }) {
   switch (section.block) {
     case "hero":
@@ -249,6 +314,12 @@ function PreviewBlock({ section, header }: { section: PreviewSection; header?: R
       return <Newsletter props={section.props} />;
     case "rich_text":
       return <RichText props={section.props} />;
+    case "banner":
+      return <Banner props={section.props} />;
+    case "faq":
+      return <Faq props={section.props} />;
+    case "product_carousel":
+      return <ProductCarousel props={section.props} />;
     default:
       return null;
   }
