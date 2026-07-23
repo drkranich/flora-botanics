@@ -7,7 +7,7 @@ import { addToCart, type CartItem } from "@/lib/cart";
 export function AddToCartButton({
   item,
   disabled,
-  disabledLabel = "Indisponivel",
+  disabledLabel = "Indisponível",
 }: {
   item: CartItem;
   disabled?: boolean;

@@ -104,7 +104,7 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
   simple: "Produto",
   variable: "Produto com variações",
-  kit: "Kit botanico",
+  kit: "Kit botânico",
   digital: "Produto digital",
   subscription: "Assinatura",
 };
@@ -131,7 +131,7 @@ export async function generateMetadata({
   if (!product) {
     return buildMetadata({
       baseUrl,
-      title: "Produto nao encontrado",
+      title: "Produto não encontrado",
       description: DEFAULT_DESCRIPTION,
       path: `/produtos/${slug}`,
     });
@@ -194,6 +194,27 @@ export default async function ProductPage({
   const image = images[0]?.url ?? coverUrl(row, storageBase);
   const description = richTextToPlain(row.description_rich);
   const productUrl = absoluteUrl(await currentSiteUrl(), `/produtos/${row.slug}`);
+  const benefitTags = (row.tags ?? []).filter(Boolean).slice(0, 6);
+  const routineText =
+    row.type === "kit"
+      ? "Combine os itens do kit conforme a ordem sugerida pela rotina da marca."
+      : "Use na rotina conforme a orientação do rótulo e complemente com os demais cuidados Flora.";
+  const faqItems = [
+    {
+      question: "Como incluir este produto na rotina?",
+      answer: routineText,
+    },
+    {
+      question: "Como vejo prazo e entrega?",
+      answer:
+        "A entrega e o endereço são tratados no carrinho e no checkout, mantendo preço e dados do pedido recalculados no servidor.",
+    },
+    {
+      question: "Este produto tem compra segura?",
+      answer:
+        "Sim. O carrinho usa o produto e a variante cadastrados no catálogo; preço e identificação não dependem do navegador.",
+    },
+  ];
   let kitItems: Array<KitItemRow & { component?: KitComponentRow; stock: number }> = [];
   let kitAvailable = 0;
 
@@ -261,12 +282,29 @@ export default async function ProductPage({
           }}
         />
       ) : null}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: faqItems.map((item) => ({
+              "@type": "Question",
+              name: item.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: item.answer,
+              },
+            })),
+          }),
+        }}
+      />
       <div className="hero subpage-hero product-hero-compact">
         <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
         <div className="container hero-inner" style={{ paddingTop: 48 }}>
           <div className="hero-text">
             <Link href="/produtos" className="eyebrow">
-              Catalogo
+              Catálogo
             </Link>
             <h1>{row.name}</h1>
             {row.subtitle ? <p>{row.subtitle}</p> : null}
@@ -281,7 +319,7 @@ export default async function ProductPage({
           <section className="product-info-panel">
             <span className="eyebrow">Produto</span>
             <h2>{row.name}</h2>
-            {row.type === "kit" ? <span className="product-kind-badge">Kit botanico</span> : null}
+            {row.type === "kit" ? <span className="product-kind-badge">Kit botânico</span> : null}
             {variant ? (
               <p className="product-price">
                 {money(variant.price_cents, variant.currency)}
@@ -311,7 +349,7 @@ export default async function ProductPage({
             </div>
 
             {row.tags?.length ? (
-              <div className="product-tag-row" aria-label="Caracteristicas do produto">
+              <div className="product-tag-row" aria-label="Características do produto">
                 {row.tags.slice(0, 8).map((tag) => (
                   <span key={tag}>{tag}</span>
                 ))}
@@ -322,7 +360,7 @@ export default async function ProductPage({
               <div className="kit-composition">
                 <strong>Este kit inclui</strong>
                 {kitItems.length === 0 ? (
-                  <p>Componentes ainda nao cadastrados para este kit.</p>
+                  <p>Componentes ainda não cadastrados para este kit.</p>
                 ) : (
                   <ul>
                     {kitItems.map((item) => {
@@ -354,7 +392,7 @@ export default async function ProductPage({
                   quantity: 1,
                 }}
                 disabled={row.type === "kit" && kitAvailable <= 0}
-                disabledLabel="Kit indisponivel"
+                disabledLabel="Kit indisponível"
               />
             ) : (
               <a href="#newsletter" className="btn" style={{ marginTop: 28 }}>
@@ -363,6 +401,74 @@ export default async function ProductPage({
             )}
           </section>
         </div>
+
+        <div className="container product-after-grid">
+          <section className="product-editorial-grid" aria-label="Detalhes do cuidado">
+            <article>
+              <span className="eyebrow">Benefícios</span>
+              <h3>{benefitTags.length > 0 ? "O que este cuidado entrega" : "Cuidado Flora Botanics"}</h3>
+              {benefitTags.length > 0 ? (
+                <div className="product-benefit-list">
+                  {benefitTags.map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                </div>
+              ) : (
+                <p>
+                  Os benefícios deste produto podem ser organizados por tags no catálogo para aparecerem aqui.
+                </p>
+              )}
+            </article>
+            <article>
+              <span className="eyebrow">Rotina</span>
+              <h3>Como encaixar no cuidado diário</h3>
+              <p>{routineText}</p>
+            </article>
+            <article>
+              <span className="eyebrow">Compra</span>
+              <h3>Dados seguros do catálogo</h3>
+              <p>
+                A sacola usa o produto e a variante cadastrados no banco. O preço final é recalculado no servidor.
+              </p>
+            </article>
+          </section>
+
+          <section className="product-faq-panel" aria-label="Perguntas frequentes do produto">
+            <div className="section-heading catalog-heading">
+              <h2>Dúvidas rápidas</h2>
+            </div>
+            <div className="product-faq-list">
+              {faqItems.map((item) => (
+                <details key={item.question} className="product-faq-item">
+                  <summary>{item.question}</summary>
+                  <p>{item.answer}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {variant ? (
+          <div className="product-mobile-buy" aria-label="Compra rápida">
+            <div>
+              <strong>{row.name}</strong>
+              <span>{money(variant.price_cents, variant.currency)}</span>
+            </div>
+            <AddToCartButton
+              item={{
+                product_id: row.id,
+                variant_id: variant.id,
+                name: row.name,
+                slug: row.slug,
+                image: image ?? undefined,
+                price_cents: variant.price_cents,
+                quantity: 1,
+              }}
+              disabled={row.type === "kit" && kitAvailable <= 0}
+              disabledLabel="Kit indisponível"
+            />
+          </div>
+        ) : null}
       </main>
 
       <SiteFooter logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
