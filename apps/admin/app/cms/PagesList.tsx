@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { GlassSelect } from "@/components/GlassSelect";
 import { createPage } from "@/lib/cms/actions";
 
 export type PageRow = {
@@ -20,6 +21,22 @@ const TYPE_LABEL: Record<string, string> = {
   institutional: "Institucional",
   blog_post: "Blog",
 };
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "Todos os status" },
+  { value: "published", label: "No ar" },
+  { value: "draft", label: "Rascunho" },
+];
+
+const TYPE_OPTIONS = [
+  { value: "all", label: "Todos os tipos" },
+  { value: "home", label: TYPE_LABEL.home },
+  { value: "landing", label: TYPE_LABEL.landing },
+  { value: "institutional", label: TYPE_LABEL.institutional },
+  { value: "blog_post", label: TYPE_LABEL.blog_post },
+];
+
+const NEW_TYPE_OPTIONS = TYPE_OPTIONS.filter((option) => option.value !== "all" && option.value !== "home");
 
 export function PagesList({ rows, storefrontUrl }: { rows: PageRow[]; storefrontUrl: string }) {
   const router = useRouter();
@@ -59,18 +76,20 @@ export function PagesList({ rows, storefrontUrl }: { rows: PageRow[]; storefront
           onChange={(e) => setQ(e.target.value)}
           style={{ flex: 1, minWidth: 180 }}
         />
-        <select className="input" value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: 150 }}>
-          <option value="all">Todos os status</option>
-          <option value="published">No ar</option>
-          <option value="draft">Rascunho</option>
-        </select>
-        <select className="input" value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
-          <option value="all">Todos os tipos</option>
-          <option value="home">Página inicial</option>
-          <option value="landing">Landing page</option>
-          <option value="institutional">Institucional</option>
-          <option value="blog_post">Blog</option>
-        </select>
+        <GlassSelect
+          value={status}
+          options={STATUS_OPTIONS}
+          ariaLabel="Filtrar status"
+          onChange={setStatus}
+          style={{ width: 150 }}
+        />
+        <GlassSelect
+          value={type}
+          options={TYPE_OPTIONS}
+          ariaLabel="Filtrar tipo de pagina"
+          onChange={setType}
+          style={{ width: 160 }}
+        />
         <button className="btn btn-gold" onClick={() => setCreating((v) => !v)} style={{ padding: "11px 20px" }}>
           + Nova página
         </button>
@@ -101,11 +120,13 @@ export function PagesList({ rows, storefrontUrl }: { rows: PageRow[]; storefront
             required
             style={{ flex: 1, minWidth: 220 }}
           />
-          <select className="input" value={newType} onChange={(e) => setNewType(e.target.value)} style={{ width: 160 }}>
-            <option value="landing">Landing page</option>
-            <option value="institutional">Institucional</option>
-            <option value="blog_post">Blog</option>
-          </select>
+          <GlassSelect
+            value={newType}
+            options={NEW_TYPE_OPTIONS}
+            ariaLabel="Tipo da nova pagina"
+            onChange={setNewType}
+            style={{ width: 160 }}
+          />
           <button type="submit" disabled={pending} className="btn btn-gold" style={{ padding: "11px 22px" }}>
             {pending ? "Criando…" : "Criar e editar"}
           </button>

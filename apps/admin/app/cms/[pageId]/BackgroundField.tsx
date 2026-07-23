@@ -1,5 +1,7 @@
 "use client";
 
+import { ColorPickerField } from "@/components/ColorPickerField";
+import { GlassSelect } from "@/components/GlassSelect";
 import { ImageField } from "@/components/MediaPicker";
 
 /**
@@ -82,50 +84,41 @@ export function BackgroundField({
       </div>
 
       {bg.type === "color" ? (
-        <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-          <input
-            type="color"
-            value={bg.color ?? "#f2ecdf"}
-            onChange={(e) => patch({ color: e.target.value })}
-            style={{ width: 44, height: 44, border: "1px solid var(--glass-border)", borderRadius: 10, background: "transparent", cursor: "pointer", padding: 2 }}
-          />
-          <span className="muted" style={{ fontSize: 11, fontFamily: "monospace" }}>{bg.color ?? "#f2ecdf"}</span>
-        </label>
+        <ColorPickerField
+          label="Cor da secao"
+          value={bg.color ?? "#f2ecdf"}
+          onChange={(color) => patch({ color })}
+          allowClear={false}
+        />
       ) : null}
 
       {bg.type === "gradient" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-              <input
-                type="color"
-                value={bg.color ?? "#0f2012"}
-                onChange={(e) => patch({ color: e.target.value })}
-                style={{ width: 40, height: 40, border: "1px solid var(--glass-border)", borderRadius: 10, background: "transparent", cursor: "pointer", padding: 2 }}
-              />
-              <span className="muted" style={{ fontSize: 10 }}>Cor 1</span>
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-              <input
-                type="color"
-                value={bg.color2 ?? "#b9924d"}
-                onChange={(e) => patch({ color2: e.target.value })}
-                style={{ width: 40, height: 40, border: "1px solid var(--glass-border)", borderRadius: 10, background: "transparent", cursor: "pointer", padding: 2 }}
-              />
-              <span className="muted" style={{ fontSize: 10 }}>Cor 2</span>
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 160 }}>
-              <input
-                type="range"
-                min={0}
-                max={360}
-                value={bg.angle ?? 135}
-                onChange={(e) => patch({ angle: Number(e.target.value) })}
-                style={{ flex: 1, accentColor: "var(--gold)" }}
-              />
-              <span className="muted" style={{ fontSize: 10, width: 38 }}>{bg.angle ?? 135}°</span>
-            </label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+            <ColorPickerField
+              label="Cor 1"
+              value={bg.color ?? "#0f2012"}
+              onChange={(color) => patch({ color })}
+              allowClear={false}
+            />
+            <ColorPickerField
+              label="Cor 2"
+              value={bg.color2 ?? "#b9924d"}
+              onChange={(color) => patch({ color2: color })}
+              allowClear={false}
+            />
           </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="range"
+              min={0}
+              max={360}
+              value={bg.angle ?? 135}
+              onChange={(e) => patch({ angle: Number(e.target.value) })}
+              style={{ flex: 1, accentColor: "var(--gold)" }}
+            />
+            <span className="muted" style={{ fontSize: 10, width: 42 }}>{bg.angle ?? 135} deg</span>
+          </label>
           <div
             style={{
               height: 34,
@@ -146,15 +139,12 @@ export function BackgroundField({
           />
           <div className="field">
             <span className="field-label">Mesclagem (incorporar à página)</span>
-            <select
-              className="input"
+            <GlassSelect
               value={bg.blend ?? "normal"}
-              onChange={(e) => patch({ blend: e.target.value as SectionBackground["blend"] })}
-            >
-              {BLENDS.map((b) => (
-                <option key={b.value} value={b.value}>{b.label}</option>
-              ))}
-            </select>
+              options={BLENDS}
+              ariaLabel="Mesclagem"
+              onChange={(value) => patch({ blend: value as SectionBackground["blend"] })}
+            />
           </div>
         </div>
       ) : null}
@@ -162,15 +152,12 @@ export function BackgroundField({
       {bg.type !== "none" ? (
         <div className="field" style={{ marginTop: 12 }}>
           <span className="field-label">Efeito</span>
-          <select
-            className="input"
+          <GlassSelect
             value={bg.effect ?? "none"}
-            onChange={(e) => patch({ effect: e.target.value as SectionBackground["effect"] })}
-          >
-            {EFFECTS.map((ef) => (
-              <option key={ef.value} value={ef.value}>{ef.label}</option>
-            ))}
-          </select>
+            options={EFFECTS}
+            ariaLabel="Efeito"
+            onChange={(value) => patch({ effect: value as SectionBackground["effect"] })}
+          />
         </div>
       ) : null}
 

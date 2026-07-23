@@ -1,18 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ColorPickerField } from "@/components/ColorPickerField";
 import { updateLogo, type LogoConfig } from "@/lib/config/actions";
 import { ImageField } from "@/components/MediaPicker";
 
 /** Swatches de acesso rápido — o usuário pode escolher qualquer cor além desses. */
 const SWATCHES = [
-  { label: "Branco",   hex: "#ffffff" },
-  { label: "Preto",    hex: "#1a1a1a" },
-  { label: "Dourado",  hex: "#c9a96e" },
-  { label: "Bege",     hex: "#f5f0eb" },
-  { label: "Verde",    hex: "#2d5a27" },
-  { label: "Azul",     hex: "#1e3a5f" },
-  { label: "Rosa",     hex: "#d4789a" },
+  { label: "Branco", value: "#ffffff" },
+  { label: "Preto", value: "#1a1a1a" },
+  { label: "Dourado", value: "#c9a96e" },
+  { label: "Bege", value: "#f5f0eb" },
+  { label: "Verde", value: "#2d5a27" },
+  { label: "Azul", value: "#1e3a5f" },
+  { label: "Rosa", value: "#d4789a" },
 ];
 
 export function LogoEditor({
@@ -128,87 +129,23 @@ export function LogoEditor({
 
       {/* Cor */}
       <div>
-        <p className="muted" style={{ fontSize: 11, marginBottom: 10 }}>Cor do logo</p>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          {/* Color picker livre */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
-            <div style={{ position: "relative", width: 44, height: 44 }}>
-              <input
-                type="color"
-                value={color || "#ffffff"}
-                onChange={(e) => setColor(e.target.value)}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 8,
-                  border: "2px solid var(--glass-border)",
-                  cursor: "pointer",
-                  padding: 2,
-                  background: "none",
-                }}
-              />
-            </div>
-            <span className="muted" style={{ fontSize: 9 }}>Livre</span>
-          </div>
-
-          <div style={{ width: 1, height: 44, background: "var(--glass-border)" }} />
-
-          {/* Swatches rápidos */}
-          {SWATCHES.map((s) => (
-            <div key={s.hex} style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
-              <button
-                onClick={() => setColor(s.hex)}
-                title={s.label}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 6,
-                  background: s.hex,
-                  border: color === s.hex
-                    ? "3px solid var(--gold-light)"
-                    : "2px solid var(--glass-border)",
-                  cursor: "pointer",
-                  padding: 0,
-                  flexShrink: 0,
-                }}
-              />
-              <span className="muted" style={{ fontSize: 9 }}>{s.label}</span>
-            </div>
-          ))}
-
-          <div style={{ width: 1, height: 44, background: "var(--glass-border)" }} />
-
-          {/* Original */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
-            <button
-              onClick={() => setColor("")}
-              title="Cor original da imagem"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 6,
-                border: color === ""
-                  ? "3px solid var(--gold-light)"
-                  : "2px solid var(--glass-border)",
-                cursor: "pointer",
-                background:
-                  "linear-gradient(135deg, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)",
-              }}
-            />
-            <span className="muted" style={{ fontSize: 9 }}>Original</span>
-          </div>
-        </div>
+        <ColorPickerField
+          label="Cor do logo"
+          value={color}
+          onChange={setColor}
+          placeholder="Cor original ou #ffffff"
+          swatches={SWATCHES}
+        />
 
         {color && (
           <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
             Cor selecionada: <code style={{ fontSize: 11 }}>{color}</code>
-            {" — usa CSS mask para colorir o PNG de forma exata."}
+            {" - usa CSS mask para colorir o PNG de forma exata."}
           </p>
         )}
         {!color && (
           <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
-            Cor original da imagem (sem alteração).
+            Cor original da imagem (sem alteracao).
           </p>
         )}
       </div>

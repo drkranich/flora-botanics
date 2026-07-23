@@ -10,6 +10,7 @@ import {
   type ProductFaqItem,
   type ProductForm,
 } from "@/lib/catalog/actions";
+import { GlassSelect } from "@/components/GlassSelect";
 import { MediaLibraryModal } from "@/components/MediaPicker";
 
 export type ProductRow = {
@@ -241,6 +242,10 @@ function ProductFormFields({
   );
   const [libOpen, setLibOpen] = useState(false);
   const coverUrl = galleryImages[0]?.url ?? "";
+  const categoryOptions = [
+    { value: "", label: "Sem categoria" },
+    ...categories.map((category) => ({ value: category.id, label: category.name })),
+  ];
 
   function addImage(url: string, mediaId?: string) {
     if (!mediaId) return;
@@ -558,12 +563,12 @@ function ProductFormFields({
         </div>
         <div className="field">
           <span className="field-label">Categoria</span>
-          <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">— sem categoria —</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <GlassSelect
+            value={categoryId}
+            options={categoryOptions}
+            ariaLabel="Categoria"
+            onChange={setCategoryId}
+          />
         </div>
       </div>
 

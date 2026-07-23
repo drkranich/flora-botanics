@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { saveDraft, saveAndPublish, type SectionData } from "@/lib/cms/actions";
 import { ImageField } from "@/components/MediaPicker";
+import { ColorPickerField } from "@/components/ColorPickerField";
+import { GlassSelect } from "@/components/GlassSelect";
 import { BackgroundField, type SectionBackground } from "./BackgroundField";
 
 const BLOCK_LABEL: Record<string, string> = {
@@ -121,6 +123,31 @@ const BODY_FONTS = [
   { label: "Cormorant Garamond", value: "Cormorant Garamond" },
 ];
 
+const IMAGE_FIT_OPTIONS = [
+  { label: "Imagem completa", value: "contain" },
+  { label: "Preencher area", value: "cover" },
+];
+
+const IMAGE_HEIGHT_OPTIONS = [
+  { label: "Compacta", value: "315px" },
+  { label: "Equilibrada", value: "380px" },
+  { label: "Editorial", value: "460px" },
+  { label: "Imersiva", value: "560px" },
+];
+
+const ALIGN_OPTIONS = [
+  { label: "Esquerda", value: "left" },
+  { label: "Centro", value: "center" },
+  { label: "Direita", value: "right" },
+];
+
+const TEXT_WIDTH_OPTIONS = [
+  { label: "Coluna estreita", value: "620px" },
+  { label: "Editorial", value: "760px" },
+  { label: "Pagina larga", value: "920px" },
+  { label: "Cheio na secao", value: "1120px" },
+];
+
 type TypographySettings = {
   displayFont?: string;
   bodyFont?: string;
@@ -208,19 +235,21 @@ function ImageFrameEditor({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
         <label className="field">
           <span className="field-label">Modo da imagem</span>
-          <select value={settings.imageFit} onChange={(e) => patch({ imageFit: e.target.value as ImageFrameSettings["imageFit"] })} style={inputMiniStyle()}>
-            <option value="contain">Imagem completa</option>
-            <option value="cover">Preencher área</option>
-          </select>
+          <GlassSelect
+            value={settings.imageFit}
+            options={IMAGE_FIT_OPTIONS}
+            ariaLabel="Modo da imagem"
+            onChange={(value) => patch({ imageFit: value as ImageFrameSettings["imageFit"] })}
+          />
         </label>
         <label className="field">
           <span className="field-label">Altura da faixa</span>
-          <select value={settings.imageHeight} onChange={(e) => patch({ imageHeight: e.target.value })} style={inputMiniStyle()}>
-            <option value="315px">Compacta</option>
-            <option value="380px">Equilibrada</option>
-            <option value="460px">Editorial</option>
-            <option value="560px">Imersiva</option>
-          </select>
+          <GlassSelect
+            value={settings.imageHeight}
+            options={IMAGE_HEIGHT_OPTIONS}
+            ariaLabel="Altura da faixa"
+            onChange={(value) => patch({ imageHeight: value })}
+          />
         </label>
         <label className="field">
           <span className="field-label">Posição horizontal: {settings.imageX}%</span>
@@ -262,32 +291,39 @@ function TypographyEditor({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         <label className="field">
           <span className="field-label">Fonte dos títulos</span>
-          <select value={settings.displayFont ?? "Cormorant Garamond"} onChange={(e) => patch({ displayFont: e.target.value })} style={inputMiniStyle()}>
-            {DISPLAY_FONTS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
-          </select>
+          <GlassSelect
+            value={settings.displayFont ?? "Cormorant Garamond"}
+            options={DISPLAY_FONTS}
+            ariaLabel="Fonte dos titulos"
+            onChange={(value) => patch({ displayFont: value })}
+          />
         </label>
         <label className="field">
           <span className="field-label">Fonte do texto</span>
-          <select value={settings.bodyFont ?? "Montserrat"} onChange={(e) => patch({ bodyFont: e.target.value })} style={inputMiniStyle()}>
-            {BODY_FONTS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
-          </select>
+          <GlassSelect
+            value={settings.bodyFont ?? "Montserrat"}
+            options={BODY_FONTS}
+            ariaLabel="Fonte do texto"
+            onChange={(value) => patch({ bodyFont: value })}
+          />
         </label>
         <label className="field">
           <span className="field-label">Posição</span>
-          <select value={settings.align ?? "left"} onChange={(e) => patch({ align: e.target.value as TypographySettings["align"] })} style={inputMiniStyle()}>
-            <option value="left">Esquerda</option>
-            <option value="center">Centro</option>
-            <option value="right">Direita</option>
-          </select>
+          <GlassSelect
+            value={settings.align ?? "left"}
+            options={ALIGN_OPTIONS}
+            ariaLabel="Posicao do texto"
+            onChange={(value) => patch({ align: value as TypographySettings["align"] })}
+          />
         </label>
         <label className="field">
           <span className="field-label">Largura do texto</span>
-          <select value={settings.width ?? "760px"} onChange={(e) => patch({ width: e.target.value })} style={inputMiniStyle()}>
-            <option value="620px">Coluna estreita</option>
-            <option value="760px">Editorial</option>
-            <option value="920px">Página larga</option>
-            <option value="1120px">Cheio na seção</option>
-          </select>
+          <GlassSelect
+            value={settings.width ?? "760px"}
+            options={TEXT_WIDTH_OPTIONS}
+            ariaLabel="Largura do texto"
+            onChange={(value) => patch({ width: value })}
+          />
         </label>
         <label className="field">
           <span className="field-label">Tamanho do título</span>
@@ -301,10 +337,11 @@ function TypographyEditor({
           <span className="field-label">Entrelinha</span>
           <input value={settings.lineHeight ?? "1.85"} onChange={(e) => patch({ lineHeight: e.target.value })} placeholder="1.85" style={inputMiniStyle()} />
         </label>
-        <label className="field">
-          <span className="field-label">Cor do texto</span>
-          <input value={settings.color ?? ""} onChange={(e) => patch({ color: e.target.value })} placeholder="ex: #28251d" style={inputMiniStyle()} />
-        </label>
+        <ColorPickerField
+          label="Cor do texto"
+          value={settings.color ?? ""}
+          onChange={(color) => patch({ color })}
+        />
       </div>
     </div>
   );

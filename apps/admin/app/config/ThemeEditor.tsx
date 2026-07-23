@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ColorPickerField } from "@/components/ColorPickerField";
 import { updateThemeColors } from "@/lib/config/actions";
 
 const COLOR_LABEL: Record<string, string> = {
@@ -39,26 +40,13 @@ export function ThemeEditor({ initial }: { initial: Record<string, string> }) {
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
         {keys.map((k) => (
-          <label key={k} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-            <input
-              type="color"
-              value={colors[k]}
-              onChange={(e) => setColors({ ...colors, [k]: e.target.value })}
-              style={{
-                width: 42,
-                height: 42,
-                border: "1px solid var(--glass-border)",
-                borderRadius: 10,
-                background: "transparent",
-                cursor: "pointer",
-                padding: 2,
-              }}
-            />
-            <span>
-              <span style={{ fontSize: 12, display: "block" }}>{COLOR_LABEL[k]}</span>
-              <span className="muted" style={{ fontSize: 10.5, fontFamily: "monospace" }}>{colors[k]}</span>
-            </span>
-          </label>
+          <ColorPickerField
+            key={k}
+            label={COLOR_LABEL[k]}
+            value={colors[k]}
+            onChange={(color) => setColors({ ...colors, [k]: color })}
+            allowClear={false}
+          />
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 20 }}>
