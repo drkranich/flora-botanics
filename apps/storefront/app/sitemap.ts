@@ -43,6 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl(baseUrl, "/produtos"), lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
     { url: absoluteUrl(baseUrl, "/conta"), lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
     { url: absoluteUrl(baseUrl, "/carrinho"), lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
+    { url: absoluteUrl(baseUrl, "/checkout"), lastModified: new Date(), changeFrequency: "monthly", priority: 0.35 },
   ];
 
   for (const page of (pages ?? []) as DatedSlug[]) {

@@ -127,6 +127,16 @@ export async function clearCart(): Promise<void> {
   await syncToServer([]);
 }
 
+export function clearLocalCart(): void {
+  saveLocal([]);
+}
+
+export async function syncCart(
+  extras?: { customer_email?: string; customer_name?: string }
+): Promise<CartItem[] | null> {
+  return syncToServer(getLocalCart(), extras);
+}
+
 export async function captureEmail(email: string, name?: string): Promise<void> {
   const items = getLocalCart();
   await syncToServer(items, { customer_email: email, customer_name: name });

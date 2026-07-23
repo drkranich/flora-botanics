@@ -264,15 +264,14 @@ export function CartPanel() {
         </form>
       </div>
       <p className="cart-note">
-        Checkout com pagamento e frete será ligado ao fluxo final. A sacola já registra atividade para
-        carrinhos abandonados e recalcula os preços no servidor.
+        O checkout recalcula os preços no servidor, registra o cliente e converte a sacola em pedido.
       </p>
       <div className="cart-actions-row">
         <Link href="/produtos" className="btn btn-secondary">
           Continuar comprando
         </Link>
-        <Link href="/conta" className="btn">
-          Entrar para finalizar
+        <Link href="/checkout" className="btn">
+          Finalizar pedido
         </Link>
       </div>
     </section>
