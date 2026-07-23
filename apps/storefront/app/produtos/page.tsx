@@ -2,29 +2,17 @@ import type { Metadata } from "next";
 import { currentTenant, db } from "@/lib/tenant";
 import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
+import { ProductCard, productPrice, type ProductCardProduct } from "@/components/ProductCard";
 import { buildMetadata, currentSiteUrl } from "@/lib/seo";
 
 export const revalidate = 60;
 
-interface ProductRow {
-  id: string;
-  slug: string;
-  name: string;
-  subtitle: string | null;
+interface ProductRow extends ProductCardProduct {
   type: string;
   brand_line: string | null;
   tags: string[];
   created_at: string;
   updated_at: string;
-  product_variants?: Array<{
-    price_cents: number;
-    currency: string;
-    is_default: boolean;
-  }>;
-  product_media?: Array<{
-    role: string;
-    media: { storage_path: string; alt: string | null } | Array<{ storage_path: string; alt: string | null }> | null;
-  }>;
 }
 
 interface CategoryRow {
@@ -59,26 +47,6 @@ function normalize(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
-}
-
-function money(cents: number, currency = "BRL") {
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency });
-}
-
-function defaultVariant(product: ProductRow) {
-  const variants = product.product_variants ?? [];
-  return variants.find((item) => item.is_default) ?? variants[0] ?? null;
-}
-
-function productPrice(product: ProductRow) {
-  return defaultVariant(product)?.price_cents ?? 0;
-}
-
-function coverUrl(product: ProductRow, storageBase: string) {
-  const mediaRows = product.product_media ?? [];
-  const raw = mediaRows.find((item) => item.role === "cover")?.media ?? mediaRows[0]?.media ?? null;
-  const media = Array.isArray(raw) ? raw[0] : raw;
-  return media?.storage_path ? `${storageBase}${media.storage_path}` : null;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -126,7 +94,7 @@ export default async function ProductsPage({
       .select(
         `id, slug, name, subtitle, type, brand_line, tags, created_at, updated_at,
          product_variants(price_cents, currency, is_default),
-         product_media(role, media(storage_path, alt))`
+         product_media(role, sort_order, media(storage_path, alt))`
       )
       .eq("tenant_id", tenant.tenantId)
       .eq("status", "published")
@@ -136,26 +104,68 @@ export default async function ProductsPage({
   ]);
 
   const categoryRows = (categories ?? []) as CategoryRow[];
-  const selectedCategory = categoryRows.find((item) => item.slug === categorySlug) ?? null;
-  const { data: categoryLinks } = selectedCategory
-    ? await client
-        .from("product_categories")
-        .select("product_id")
-        .eq("category_id", selectedCategory.id)
-    : { data: [] };
-  const categoryProductIds = new Set((categoryLinks ?? []).map((item) => item.product_id));
   const logoUrl = logoSetting?.image ?? "";
   const logoWidth = logoSetting?.width ?? 160;
   const logoHeight = logoSetting?.height ?? 48;
   const logoColor = logoSetting?.color ?? "";
   const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/`;
   const allRows = (products ?? []) as unknown as ProductRow[];
+  const allProductIds = allRows.map((product) => product.id);
+  const { data: productCategoryRows } = allProductIds.length
+    ? await client
+        .from("product_categories")
+        .select("product_id, categories(name, slug)")
+        .in("product_id", allProductIds)
+    : { data: [] };
+  const categoriesByProduct = new Map<string, string[]>();
+  const categoryProductIds = new Set<string>();
+
+  for (const item of productCategoryRows ?? []) {
+    const category = Array.isArray(item.categories) ? item.categories[0] : item.categories;
+    if (!category) continue;
+
+    const names = categoriesByProduct.get(item.product_id) ?? [];
+    names.push(category.name);
+    categoriesByProduct.set(item.product_id, names);
+
+    if (category.slug === categorySlug) {
+      categoryProductIds.add(item.product_id);
+    }
+  }
+
+  const searchSuggestions = Array.from(
+    new Set(
+      [
+        ...categoryRows.map((category) => category.name),
+        ...allRows.flatMap((product) => [
+          product.name,
+          product.subtitle,
+          product.brand_line,
+          ...(product.tags ?? []),
+          ...(categoriesByProduct.get(product.id) ?? []),
+        ]),
+      ]
+        .filter((item): item is string => Boolean(item))
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  )
+    .sort((a, b) => a.localeCompare(b, "pt-BR"))
+    .slice(0, 80);
   const rows = allRows
     .filter((product) => {
-      const matchesCategory = !categorySlug || (selectedCategory && categoryProductIds.has(product.id));
+      const matchesCategory = !categorySlug || categoryProductIds.has(product.id);
       const matchesType = type === "all" || product.type === type;
       const haystack = normalize(
-        [product.name, product.subtitle, product.brand_line, ...(product.tags ?? [])].filter(Boolean).join(" ")
+        [
+          product.name,
+          product.subtitle,
+          product.brand_line,
+          ...(product.tags ?? []),
+          ...(categoriesByProduct.get(product.id) ?? []),
+        ]
+          .filter(Boolean)
+          .join(" ")
       );
       const matchesSearch =
         !normalizedSearch || normalizedSearch.split(/\s+/).every((token) => haystack.includes(token));
@@ -208,8 +218,19 @@ export default async function ProductsPage({
           <form className="catalog-filter-panel" action="/produtos" method="get">
             <label className="catalog-field">
               <span>Buscar</span>
-              <input name="q" type="search" defaultValue={search} placeholder="Nome, beneficio, linha ou tag" />
+              <input
+                name="q"
+                type="search"
+                defaultValue={search}
+                list="catalog-search-suggestions"
+                placeholder="Nome, benefício, linha, categoria ou tag"
+              />
             </label>
+            <datalist id="catalog-search-suggestions">
+              {searchSuggestions.map((suggestion) => (
+                <option key={suggestion} value={suggestion} />
+              ))}
+            </datalist>
             <label className="catalog-field">
               <span>Categoria</span>
               <select name="categoria" defaultValue={categorySlug}>
@@ -272,36 +293,9 @@ export default async function ProductsPage({
             </div>
           ) : (
             <div className="category-grid">
-              {rows.map((product) => {
-                const variant = defaultVariant(product);
-                const image = coverUrl(product, storageBase);
-
-                return (
-                  <article className="category-card" key={product.id}>
-                    {image ? (
-                      <div className="category-card-media">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img className="category-card-image" src={image} alt={product.name} />
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img className="category-card-hover-image" src={image} alt="" aria-hidden />
-                      </div>
-                    ) : (
-                      <div className="category-card-media" />
-                    )}
-                    <h3>{product.name}</h3>
-                    {product.type === "kit" ? <span className="category-card-badge">Kit</span> : null}
-                    {product.subtitle ? <p>{product.subtitle}</p> : null}
-                    {variant ? (
-                      <p style={{ marginBottom: 10, color: "var(--gold-dark)", fontWeight: 700 }}>
-                        {money(variant.price_cents, variant.currency)}
-                      </p>
-                    ) : null}
-                    <a href={`/produtos/${product.slug}`} className="link">
-                      Ver produto
-                    </a>
-                  </article>
-                );
-              })}
+              {rows.map((product) => (
+                <ProductCard key={product.id} product={product} storageBase={storageBase} />
+              ))}
             </div>
           )}
         </div>

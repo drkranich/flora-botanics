@@ -1128,6 +1128,11 @@ a { color: inherit; text-decoration: none; }
   background:
     radial-gradient(circle at 50% 22%, rgba(255, 248, 234, 0.92), rgba(230, 221, 203, 0.50) 62%, rgba(185, 146, 77, 0.10)),
     #efe6d5;
+  transition: border-color 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease;
+}
+.category-card-media:hover {
+  border-color: rgba(185, 146, 77, 0.32);
+  box-shadow: 0 22px 54px rgba(40, 37, 29, 0.10);
 }
 .category-card-media img {
   position: absolute;
@@ -1145,6 +1150,39 @@ a { color: inherit; text-decoration: none; }
 }
 .category-card:hover .category-card-image { opacity: 0.18; transform: scale(0.96); }
 .category-card:hover .category-card-hover-image { opacity: 1; transform: scale(1.1) translateY(-8px); }
+.category-card-meta,
+.category-card-tags {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.category-card-meta {
+  min-height: 20px;
+  margin-bottom: 7px;
+}
+.category-card-meta span,
+.category-card-tags span {
+  width: fit-content;
+  border: 1px solid rgba(185, 146, 77, 0.24);
+  color: var(--gold-dark);
+  background: rgba(185, 146, 77, 0.09);
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+.category-card-meta span {
+  padding: 4px 7px;
+}
+.category-card-tags {
+  margin: 0 0 10px;
+}
+.category-card-tags span {
+  padding: 4px 6px;
+  color: rgba(40, 37, 29, 0.62);
+  background: rgba(255, 248, 234, 0.58);
+}
 .category-card h3 { font-family: var(--section-body-font, var(--font-body)); font-size: 16px; font-weight: 800; letter-spacing: 1.8px; color: #684b2c; text-transform: uppercase; margin-bottom: 7px; }
 .category-card-badge {
   display: inline-flex;
@@ -1160,6 +1198,15 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase;
 }
 .category-card p { font-family: var(--section-body-font, var(--font-body)); font-size: 13px; line-height: 1.55; max-width: 260px; margin-bottom: 14px; color: #383329; }
+.category-card .category-card-price {
+  margin-bottom: 10px;
+  color: var(--gold-dark);
+  font-weight: 800;
+}
+.category-card-link {
+  display: inline-flex;
+  width: fit-content;
+}
 
 /* INGREDIENTS */
 .ingredients { background: var(--cream-dark); padding: 44px 0 50px; }
