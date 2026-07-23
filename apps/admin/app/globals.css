@@ -9,9 +9,13 @@
   --forest-900: #0f2012;
   --forest-800: #172b17;
   --forest-700: #21351d;
+
+  /* Cor de acento — substituída dinamicamente pelo ThemeController */
   --gold: #b9924d;
   --gold-light: #d9b87a;
   --gold-dark: #96763f;
+  --gold-rgb: 185, 146, 77; /* para rgba() sem CSS color-mix */
+
   --cream: #f2ecdf;
   --cream-soft: rgba(242, 236, 223, 0.78);
   --cream-dim: rgba(242, 236, 223, 0.45);
@@ -19,15 +23,19 @@
   --glass-bg: rgba(255, 248, 234, 0.055);
   --glass-bg-strong: rgba(255, 248, 234, 0.09);
   --glass-border: rgba(242, 236, 223, 0.14);
-  --glass-border-hover: rgba(217, 184, 122, 0.45);
+  --glass-border-hover: rgba(var(--gold-rgb), 0.45);
   --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 42px rgba(185, 146, 77, 0.18);
+  --shadow-glow: 0 0 42px rgba(var(--gold-rgb), 0.18);
 
   --radius-lg: 22px;
   --radius-md: 14px;
   --radius-sm: 10px;
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Transição suave ao mudar de tema */
+  --theme-transition: color 0.3s ease, background-color 0.3s ease,
+    border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,14 +47,14 @@ body {
   color: var(--cream);
   min-height: 100vh;
   background:
-    radial-gradient(1200px 700px at 85% -10%, rgba(185, 146, 77, 0.16), transparent 60%),
+    radial-gradient(1200px 700px at 85% -10%, rgba(var(--gold-rgb), 0.16), transparent 60%),
     radial-gradient(900px 600px at -10% 110%, rgba(33, 53, 29, 0.9), transparent 60%),
     radial-gradient(700px 500px at 50% 50%, rgba(23, 43, 23, 0.55), transparent 70%),
     linear-gradient(160deg, var(--forest-950) 0%, var(--forest-900) 45%, #132a16 100%);
   background-attachment: fixed;
 }
 
-::selection { background: rgba(185, 146, 77, 0.4); }
+::selection { background: rgba(var(--gold-rgb), 0.4); }
 
 a { color: inherit; text-decoration: none; }
 
@@ -111,11 +119,11 @@ a { color: inherit; text-decoration: none; }
 .btn-gold {
   background: linear-gradient(135deg, var(--gold-light), var(--gold) 55%, var(--gold-dark));
   color: var(--forest-950);
-  box-shadow: 0 6px 22px rgba(185, 146, 77, 0.35);
+  box-shadow: 0 6px 22px rgba(var(--gold-rgb), 0.35);
 }
 .btn-gold:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 30px rgba(185, 146, 77, 0.5);
+  box-shadow: 0 10px 30px rgba(var(--gold-rgb), 0.5);
   filter: brightness(1.06);
 }
 
@@ -173,7 +181,7 @@ a { color: inherit; text-decoration: none; }
 }
 .input:focus {
   border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(185, 146, 77, 0.18);
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.18);
 }
 .input::placeholder { color: var(--cream-dim); }
 
@@ -213,7 +221,7 @@ select:focus,
 select.input:focus {
   border-color: var(--gold) !important;
   box-shadow:
-    0 0 0 3px rgba(185, 146, 77, 0.18),
+    0 0 0 3px rgba(var(--gold-rgb), 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 
@@ -268,7 +276,7 @@ select option:focus {
 .glass-select-trigger:focus-visible {
   border-color: var(--gold);
   box-shadow:
-    0 0 0 3px rgba(185, 146, 77, 0.18),
+    0 0 0 3px rgba(var(--gold-rgb), 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   outline: none;
 }
@@ -358,7 +366,7 @@ select option:focus {
 
 .cms-color-input:focus {
   border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(185, 146, 77, 0.18);
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.18);
 }
 
 .cms-color-swatches {
@@ -385,7 +393,7 @@ select option:focus {
 .cms-color-swatch.is-active {
   border-color: var(--gold-light);
   transform: translateY(-1px);
-  box-shadow: 0 0 0 3px rgba(185, 146, 77, 0.18);
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.18);
   outline: none;
 }
 
@@ -445,8 +453,8 @@ select option:focus {
 }
 .chip-draft {
   color: var(--gold-light);
-  border-color: rgba(185, 146, 77, 0.4);
-  background: rgba(185, 146, 77, 0.12);
+  border-color: rgba(var(--gold-rgb), 0.4);
+  background: rgba(var(--gold-rgb), 0.12);
 }
 
 /* ---------- animações ---------- */
@@ -541,9 +549,9 @@ select option:focus {
 }
 
 .side-item-active {
-  background: linear-gradient(135deg, rgba(217, 184, 122, 0.22), rgba(185, 146, 77, 0.12));
+  background: linear-gradient(135deg, rgba(var(--gold-rgb), 0.22), rgba(var(--gold-rgb), 0.12));
   color: var(--gold-light);
-  box-shadow: inset 0 0 0 1px rgba(217, 184, 122, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), 0.25);
 }
 
 .side-icon {
@@ -575,7 +583,7 @@ select option:focus {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(217, 184, 122, 0.28) transparent;
+  scrollbar-color: rgba(var(--gold-rgb), 0.28) transparent;
 }
 
 ::-webkit-scrollbar { width: 7px; height: 7px; }
@@ -585,7 +593,7 @@ select option:focus {
   background: linear-gradient(
     180deg,
     rgba(242, 236, 223, 0.12),
-    rgba(217, 184, 122, 0.25) 50%,
+    rgba(var(--gold-rgb), 0.25) 50%,
     rgba(242, 236, 223, 0.12)
   );
   border-radius: 999px;
@@ -594,8 +602,8 @@ select option:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(
     180deg,
-    rgba(217, 184, 122, 0.35),
-    rgba(217, 184, 122, 0.55) 50%,
-    rgba(217, 184, 122, 0.35)
+    rgba(var(--gold-rgb), 0.35),
+    rgba(var(--gold-rgb), 0.55) 50%,
+    rgba(var(--gold-rgb), 0.35)
   );
 }

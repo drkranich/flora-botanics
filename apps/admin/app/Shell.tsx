@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getStorefrontUrl } from "@/lib/storefront-url";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { ThemeController } from "@/components/ThemeController";
+import { ThemePicker } from "@/components/ThemePicker";
 
 type NavItem = { href: string; label: string; icon: string; match: (p: string) => boolean };
 
@@ -91,6 +93,7 @@ export function Shell({
   if (isLogin) return <>{children}</>;
 
   return (
+    <ThemeController>
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <aside className="shell-sidebar glass">
         <Link href="/" className="side-logo" title="Flora Ecosystem">
@@ -131,6 +134,8 @@ export function Shell({
           </span>
         </button>
 
+        <ThemePicker />
+
         <LogoutItem />
       </aside>
 
@@ -144,6 +149,7 @@ export function Shell({
         />
       ) : null}
     </div>
+    </ThemeController>
   );
 }
 
