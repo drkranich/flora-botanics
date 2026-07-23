@@ -53,8 +53,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await currentSiteUrl();
   return buildMetadata({
     baseUrl,
-    title: "Catalogo",
-    description: "Conheca a colecao publicada da Flora Botanics.",
+    title: "Catálogo",
+    description: "Conheça a coleção publicada da Flora Botanics.",
     path: "/produtos",
   });
 }
@@ -208,7 +208,7 @@ export default async function ProductsPage({
         <div className="container">
           <div className="catalog-intro">
             <div className="section-heading catalog-heading">
-              <h2>Catalogo</h2>
+              <h2>Catálogo</h2>
             </div>
             <p className="catalog-summary">
               {rows.length} {rows.length === 1 ? "produto encontrado" : "produtos encontrados"}
@@ -287,9 +287,9 @@ export default async function ProductsPage({
             <div className="catalog-empty-state">
               <h3>Nenhum produto encontrado</h3>
               <p>
-                Ajuste os filtros ou limpe a busca para ver todos os produtos publicados no catalogo.
+                Ajuste os filtros ou limpe a busca para ver todos os produtos publicados no catálogo.
               </p>
-              <a href="/produtos" className="btn">Ver catalogo completo</a>
+              <a href="/produtos" className="btn">Ver catálogo completo</a>
             </div>
           ) : (
             <div className="category-grid">
