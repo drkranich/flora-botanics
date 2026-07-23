@@ -374,27 +374,38 @@ export default async function ProductPage({
                     ? "https://schema.org/OutOfStock"
                     : "https://schema.org/InStock",
               },
+              ...(reviews.length > 0 ? {
+                aggregateRating: {
+                  "@type": "AggregateRating",
+                  ratingValue: (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1),
+                  reviewCount: reviews.length,
+                  bestRating: 5,
+                  worstRating: 1,
+                },
+              } : {}),
             }),
           }}
         />
       ) : null}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            mainEntity: faqItems.map((item) => ({
-              "@type": "Question",
-              name: item.question,
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: item.answer,
-              },
-            })),
-          }),
-        }}
-      />
+      {faqItems.length > 0 ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: faqItems.map((item) => ({
+                "@type": "Question",
+                name: item.question,
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: item.answer,
+                },
+              })),
+            }),
+          }}
+        />
+      ) : null}
       <div className="hero subpage-hero product-hero-compact">
         <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
         <div className="container hero-inner" style={{ paddingTop: 48 }}>

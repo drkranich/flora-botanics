@@ -2078,6 +2078,44 @@ a { color: inherit; text-decoration: none; }
   width: fit-content;
 }
 
+/* QUICK ADD — botão que sobe no hover do card */
+.category-card-quick-add {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 10px 14px;
+  background: linear-gradient(0deg, rgba(239, 230, 213, 0.98) 70%, transparent);
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 0.28s cubic-bezier(0.34, 1.42, 0.64, 1), opacity 0.22s ease;
+  pointer-events: none;
+  z-index: 4;
+}
+.category-card:hover .category-card-quick-add {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.quick-add-btn {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  background: var(--gold);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.18s ease;
+}
+.quick-add-btn:hover { background: var(--gold-dark); transform: translateY(-1px); }
+.quick-add-btn:disabled { opacity: 0.65; cursor: wait; transform: none; }
+
+/* Overflow visible no card para overlay funcionar */
+.category-card { overflow: hidden; }
+
 /* FAVORITOS */
 .wishlist-page {
   flex: 1;

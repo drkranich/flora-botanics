@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { QuickAddToCartButton } from "@/components/QuickAddToCartButton";
 
 export interface ProductCardProduct {
   id: string;
@@ -10,6 +11,7 @@ export interface ProductCardProduct {
   brand_line?: string | null;
   tags?: string[] | null;
   product_variants?: Array<{
+    id?: string;
     price_cents: number;
     currency: string;
     is_default: boolean;
@@ -115,6 +117,17 @@ export function ProductCard({
       <Link href={`/produtos/${product.slug}`} className="link category-card-link">
         Ver produto
       </Link>
+      {variant ? (
+        <div className="category-card-quick-add">
+          <QuickAddToCartButton
+            productId={product.id}
+            variantId={variant.id}
+            name={product.name}
+            priceCents={variant.price_cents}
+            image={mainImage?.url}
+          />
+        </div>
+      ) : null}
     </article>
   );
 }

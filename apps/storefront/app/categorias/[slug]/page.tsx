@@ -80,7 +80,7 @@ export default async function CategoryPage({
         .from("products")
         .select(
           `id, slug, name, subtitle, type, brand_line, tags,
-           product_variants(price_cents, currency, is_default),
+           product_variants(id, price_cents, currency, is_default),
            product_media(role, sort_order, media(storage_path, alt))`
         )
         .eq("tenant_id", tenant.tenantId)

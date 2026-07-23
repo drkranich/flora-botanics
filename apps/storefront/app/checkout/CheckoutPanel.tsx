@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   calcSubtotal,
   clearLocalCart,
@@ -11,46 +10,95 @@ import {
   type CartItem,
 } from "@/lib/cart";
 
-interface CheckoutResult {
-  ok?: boolean;
-  error?: string;
-  order_number?: number;
-  subtotal_cents?: number;
-  discount_cents?: number;
-  shipping_cents?: number;
-  total_cents?: number;
-  currency?: string;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ShippingQuote {
+  service_id: number;
+  service_name: string;
+  carrier: string;
+  carrier_logo: string;
+  price_cents: number;
+  days: number;
+  days_min: number;
 }
+
+interface CouponResult {
+  ok: boolean;
+  code?: string;
+  discount_cents?: number;
+  free_shipping?: boolean;
+  error?: string;
+}
+
+type Step = "contact" | "address" | "shipping" | "payment" | "confirm";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function money(cents: number, currency = "BRL") {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency });
 }
 
+function maskCep(value: string) {
+  return value.replace(/\D/g, "").slice(0, 8).replace(/^(\d{5})(\d)/, "$1-$2");
+}
+
+function maskPhone(value: string) {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 10) return d.replace(/^(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3").trim().replace(/-$/, "");
+  return d.replace(/^(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3").trim().replace(/-$/, "");
+}
+
+const STEPS: { id: Step; label: string }[] = [
+  { id: "contact", label: "Contato" },
+  { id: "address", label: "Endereço" },
+  { id: "shipping", label: "Frete" },
+  { id: "payment", label: "Pagamento" },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export function CheckoutPanel() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [sessionId, setSessionId] = useState("");
+  const [step, setStep] = useState<Step>("contact");
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState("");
-  const [result, setResult] = useState<CheckoutResult | null>(null);
 
-  const [customer, setCustomer] = useState({
-    email: "",
-    name: "",
-    phone: "",
-    acceptsMarketing: true,
-  });
-  const [address, setAddress] = useState({
-    recipient: "",
-    zip: "",
-    street: "",
-    number: "",
-    complement: "",
-    district: "",
-    city: "",
-    state: "SP",
-  });
+  // Contact
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [acceptsMarketing, setAcceptsMarketing] = useState(true);
+
+  // Address
+  const [zip, setZip] = useState("");
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [complement, setComplement] = useState("");
+  const [district, setDistrict] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("SP");
+  const [recipient, setRecipient] = useState("");
+  const [cepLoading, setCepLoading] = useState(false);
+
+  // Shipping
+  const [quotes, setQuotes] = useState<ShippingQuote[]>([]);
+  const [quotesLoading, setQuotesLoading] = useState(false);
+  const [quotesError, setQuotesError] = useState("");
+  const [selectedQuote, setSelectedQuote] = useState<ShippingQuote | null>(null);
+
+  // Coupon
   const [couponCode, setCouponCode] = useState("");
+  const [couponResult, setCouponResult] = useState<CouponResult | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  // Notes / Order result
   const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
+  const [orderResult, setOrderResult] = useState<{ order_number: number; total_cents: number } | null>(null);
+
+  const _zipRef = useRef<HTMLInputElement>(null);
+
+  // ── Init ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     setItems(getLocalCart());
@@ -58,21 +106,123 @@ export function CheckoutPanel() {
   }, []);
 
   const subtotal = useMemo(() => calcSubtotal(items), [items]);
+  const discount = couponResult?.discount_cents ?? 0;
+  const shippingCents = couponResult?.free_shipping ? 0 : (selectedQuote?.price_cents ?? 0);
+  const total = Math.max(subtotal - discount + shippingCents, 0);
 
-  function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  // ── CEP lookup ────────────────────────────────────────────────────────────
+
+  const lookupCep = useCallback(async (rawCep: string) => {
+    const clean = rawCep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`/api/cep?cep=${clean}`);
+      const data = await res.json() as { ok: boolean; street?: string; district?: string; city?: string; state?: string };
+      if (data.ok) {
+        setStreet(data.street ?? "");
+        setDistrict(data.district ?? "");
+        setCity(data.city ?? "");
+        setState(data.state ?? "");
+      }
+    } catch { /* silent */ }
+    finally { setCepLoading(false); }
+  }, []);
+
+  // ── Shipping quotes ───────────────────────────────────────────────────────
+
+  const fetchQuotes = useCallback(async () => {
+    const cleanZip = zip.replace(/\D/g, "");
+    if (cleanZip.length !== 8) return;
+    setQuotesLoading(true);
+    setQuotesError("");
+    setSelectedQuote(null);
+    try {
+      const res = await fetch("/api/shipping/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          zip_to: cleanZip,
+          items: items.map((item) => ({
+            weight_g: 200,
+            width_cm: 10,
+            height_cm: 5,
+            depth_cm: 10,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+      const data = await res.json() as { ok: boolean; quotes?: ShippingQuote[]; error?: string };
+      if (data.ok && data.quotes?.length) {
+        setQuotes(data.quotes);
+        setSelectedQuote(data.quotes[0]);
+      } else {
+        setQuotesError(data.error ?? "Sem opções de frete disponíveis.");
+      }
+    } catch {
+      setQuotesError("Erro ao buscar frete. Tente novamente.");
+    } finally {
+      setQuotesLoading(false);
+    }
+  }, [zip, items]);
+
+  // ── Coupon ────────────────────────────────────────────────────────────────
+
+  async function validateCoupon() {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponResult(null);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode.trim().toUpperCase(), subtotal_cents: subtotal }),
+      });
+      const data = await res.json() as CouponResult;
+      setCouponResult(data);
+    } catch {
+      setCouponResult({ ok: false, error: "Erro ao validar cupom." });
+    } finally {
+      setCouponLoading(false);
+    }
+  }
+
+  // ── Step navigation ───────────────────────────────────────────────────────
+
+  function goTo(target: Step) {
     setError("");
+    setStep(target);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
-    if (items.length === 0) {
-      setError("Sua sacola está vazia.");
+  function submitContact(e: FormEvent) {
+    e.preventDefault();
+    if (!email || !name) { setError("Preencha e-mail e nome."); return; }
+    if (!recipient) setRecipient(name);
+    goTo("address");
+  }
+
+  function submitAddress(e: FormEvent) {
+    e.preventDefault();
+    const cleanZip = zip.replace(/\D/g, "");
+    if (cleanZip.length !== 8 || !street || !city || state.length !== 2) {
+      setError("Preencha todos os campos obrigatórios do endereço.");
       return;
     }
+    fetchQuotes().then(() => goTo("shipping"));
+  }
 
+  function submitShipping(e: FormEvent) {
+    e.preventDefault();
+    if (!selectedQuote && !quotesError) { setError("Selecione uma opção de frete."); return; }
+    goTo("payment");
+  }
+
+  function submitPayment(e: FormEvent) {
+    e.preventDefault();
+    setError("");
     startTransition(async () => {
-      const synced = await syncCart({
-        customer_email: customer.email,
-        customer_name: customer.name,
-      });
+      const synced = await syncCart({ customer_email: email, customer_name: name });
       if (Array.isArray(synced)) setItems(synced);
 
       const res = await fetch("/api/checkout", {
@@ -80,29 +230,22 @@ export function CheckoutPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           session_id: sessionId || getSessionId(),
-          coupon_code: couponCode.trim().toUpperCase() || null,
+          coupon_code: couponResult?.ok ? couponCode.trim().toUpperCase() : null,
           notes: notes.trim() || null,
-          customer: {
-            email: customer.email,
-            name: customer.name,
-            phone: customer.phone,
-            accepts_marketing: customer.acceptsMarketing,
-          },
+          customer: { email, name, phone: phone.replace(/\D/g, ""), accepts_marketing: acceptsMarketing },
           shipping_address: {
-            recipient: address.recipient || customer.name,
-            street: address.street,
-            number: address.number,
-            complement: address.complement,
-            district: address.district,
-            city: address.city,
-            state: address.state,
-            zip: address.zip,
+            recipient: recipient || name,
+            street, number, complement, district, city,
+            state: state.toUpperCase().slice(0, 2),
+            zip: zip.replace(/\D/g, ""),
             country: "BR",
           },
         }),
       });
 
-      const data = (await res.json().catch(() => null)) as CheckoutResult | null;
+      const data = await res.json().catch(() => null) as {
+        ok?: boolean; error?: string; order_number?: number; total_cents?: number
+      } | null;
 
       if (!res.ok || !data?.ok) {
         setError(data?.error ?? "Não foi possível finalizar o pedido.");
@@ -111,246 +254,320 @@ export function CheckoutPanel() {
 
       clearLocalCart();
       setItems([]);
-      setResult(data);
+      setOrderResult({ order_number: data.order_number!, total_cents: data.total_cents! });
+      goTo("confirm");
     });
   }
 
-  if (result?.ok) {
+  // ── Confirmation ──────────────────────────────────────────────────────────
+
+  if (step === "confirm" && orderResult) {
     return (
       <section className="checkout-success-card">
-        <span className="eyebrow">Pedido recebido</span>
-        <h1>Pedido #{result.order_number} criado</h1>
+        <div className="checkout-success-icon">✓</div>
+        <h1>Pedido #{orderResult.order_number} confirmado!</h1>
         <p>
-          Sua compra ficou registrada no sistema. O pagamento online entra na próxima etapa de integração
-          com a Stripe; por enquanto o pedido nasce como pendente para acompanhamento no painel.
+          Você receberá um e-mail em <strong>{email}</strong> com os detalhes e rastreamento.
         </p>
-        <div className="checkout-total-line">
-          <span>Total do pedido</span>
-          <strong>{money(Number(result.total_cents ?? 0), result.currency ?? "BRL")}</strong>
+        <div className="checkout-success-total">
+          Total: <strong>{money(orderResult.total_cents)}</strong>
         </div>
-        <div className="cart-actions-row">
-          <Link href="/conta" className="btn">
-            Acompanhar na conta
-          </Link>
-          <Link href="/produtos" className="btn btn-secondary">
-            Voltar ao catálogo
-          </Link>
+        <div className="checkout-success-actions">
+          <a href="/conta" className="btn">Minha conta</a>
+          <a href="/produtos" className="btn btn-outline">Continuar comprando</a>
         </div>
       </section>
     );
   }
 
-  if (items.length === 0) {
-    return (
-      <section className="checkout-empty-card">
-        <span className="eyebrow">Checkout</span>
-        <h1>Sua sacola está vazia</h1>
-        <p>Adicione um produto antes de finalizar o pedido.</p>
-        <Link href="/produtos" className="btn">
-          Ver catálogo
-        </Link>
-      </section>
-    );
-  }
+  const stepIndex = STEPS.findIndex((s) => s.id === step);
 
   return (
-    <form className="checkout-grid" onSubmit={submit}>
+    <div className="checkout-grid">
+
+      {/* ── Left: Form steps ── */}
       <section className="checkout-panel">
-        <span className="eyebrow">Checkout Flora</span>
-        <h1>Dados para finalizar</h1>
-        <p className="checkout-copy">
-          O pedido é recalculado no servidor antes de ser criado. Assim preço, cupom e produtos vêm do
-          catálogo publicado, não do navegador.
-        </p>
 
-        <div className="checkout-section">
-          <h2>Contato</h2>
-          <div className="checkout-field-grid">
-            <label className="checkout-field">
-              <span>E-mail</span>
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={customer.email}
-                onChange={(e) => setCustomer((current) => ({ ...current, email: e.target.value }))}
-              />
-            </label>
-            <label className="checkout-field">
-              <span>Nome</span>
-              <input
-                required
-                autoComplete="name"
-                value={customer.name}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setCustomer((current) => ({ ...current, name: value }));
-                  setAddress((current) => ({
-                    ...current,
-                    recipient: current.recipient || value,
-                  }));
-                }}
-              />
-            </label>
-            <label className="checkout-field">
-              <span>Telefone</span>
-              <input
-                autoComplete="tel"
-                value={customer.phone}
-                onChange={(e) => setCustomer((current) => ({ ...current, phone: e.target.value }))}
-              />
-            </label>
-          </div>
-          <label className="checkout-checkbox">
-            <input
-              type="checkbox"
-              checked={customer.acceptsMarketing}
-              onChange={(e) =>
-                setCustomer((current) => ({ ...current, acceptsMarketing: e.target.checked }))
-              }
-            />
-            <span>Receber novidades, recompra e recuperação de carrinho por e-mail.</span>
-          </label>
-        </div>
+        {/* Step progress */}
+        <nav className="checkout-steps" aria-label="Etapas">
+          {STEPS.map((s, i) => (
+            <div
+              key={s.id}
+              className={`checkout-step${i < stepIndex ? " is-done" : i === stepIndex ? " is-active" : ""}`}
+              aria-current={i === stepIndex ? "step" : undefined}
+            >
+              <span className="checkout-step-num">{i < stepIndex ? "✓" : i + 1}</span>
+              <span className="checkout-step-label">{s.label}</span>
+            </div>
+          ))}
+        </nav>
 
-        <div className="checkout-section">
-          <h2>Entrega</h2>
-          <div className="checkout-field-grid">
-            <label className="checkout-field checkout-field-wide">
-              <span>Destinatário</span>
-              <input
-                required
-                autoComplete="name"
-                value={address.recipient}
-                onChange={(e) => setAddress((current) => ({ ...current, recipient: e.target.value }))}
-              />
+        {/* ── 1: Contato ── */}
+        {step === "contact" && (
+          <form onSubmit={submitContact} className="checkout-form" noValidate>
+            <h2 className="checkout-section-title">Suas informações</h2>
+            <div className="checkout-field-grid">
+              <label className="checkout-field checkout-field-wide">
+                <span>E-mail *</span>
+                <input type="email" required autoComplete="email" value={email}
+                  onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" />
+              </label>
+              <label className="checkout-field">
+                <span>Nome completo *</span>
+                <input required autoComplete="name" value={name}
+                  onChange={(e) => { setName(e.target.value); if (!recipient) setRecipient(e.target.value); }}
+                  placeholder="Seu nome" />
+              </label>
+              <label className="checkout-field">
+                <span>Telefone / WhatsApp</span>
+                <input type="tel" autoComplete="tel" value={phone}
+                  onChange={(e) => setPhone(maskPhone(e.target.value))}
+                  placeholder="(11) 99999-9999" />
+              </label>
+            </div>
+            <label className="checkout-checkbox">
+              <input type="checkbox" checked={acceptsMarketing}
+                onChange={(e) => setAcceptsMarketing(e.target.checked)} />
+              <span>Quero receber novidades e ofertas exclusivas por e-mail.</span>
             </label>
-            <label className="checkout-field">
-              <span>CEP</span>
-              <input
-                required
-                inputMode="numeric"
-                autoComplete="postal-code"
-                value={address.zip}
-                onChange={(e) => setAddress((current) => ({ ...current, zip: e.target.value }))}
-              />
-            </label>
-            <label className="checkout-field checkout-field-wide">
-              <span>Rua</span>
-              <input
-                required
-                autoComplete="address-line1"
-                value={address.street}
-                onChange={(e) => setAddress((current) => ({ ...current, street: e.target.value }))}
-              />
-            </label>
-            <label className="checkout-field">
-              <span>Número</span>
-              <input
-                autoComplete="address-line2"
-                value={address.number}
-                onChange={(e) => setAddress((current) => ({ ...current, number: e.target.value }))}
-              />
-            </label>
-            <label className="checkout-field">
-              <span>Complemento</span>
-              <input
-                value={address.complement}
-                onChange={(e) => setAddress((current) => ({ ...current, complement: e.target.value }))}
-              />
-            </label>
-            <label className="checkout-field">
-              <span>Bairro</span>
-              <input
-                value={address.district}
-                onChange={(e) => setAddress((current) => ({ ...current, district: e.target.value }))}
-              />
-            </label>
-            <label className="checkout-field">
-              <span>Cidade</span>
-              <input
-                required
-                autoComplete="address-level2"
-                value={address.city}
-                onChange={(e) => setAddress((current) => ({ ...current, city: e.target.value }))}
-              />
-            </label>
-            <label className="checkout-field">
-              <span>UF</span>
-              <input
-                required
-                maxLength={2}
-                autoComplete="address-level1"
-                value={address.state}
-                onChange={(e) =>
-                  setAddress((current) => ({ ...current, state: e.target.value.toUpperCase() }))
-                }
-              />
-            </label>
-          </div>
-        </div>
+            {error && <p className="checkout-error" role="alert">{error}</p>}
+            <button type="submit" className="btn checkout-next-btn">Continuar →</button>
+          </form>
+        )}
 
-        <div className="checkout-section">
-          <h2>Pedido</h2>
-          <div className="checkout-field-grid">
+        {/* ── 2: Endereço ── */}
+        {step === "address" && (
+          <form onSubmit={submitAddress} className="checkout-form" noValidate>
+            <h2 className="checkout-section-title">Endereço de entrega</h2>
+            <div className="checkout-field-grid">
+              <label className="checkout-field checkout-field-wide">
+                <span>Destinatário *</span>
+                <input required value={recipient} onChange={(e) => setRecipient(e.target.value)} />
+              </label>
+              <label className="checkout-field">
+                <span>CEP *</span>
+                <div className="checkout-cep-wrap">
+                  <input
+                    ref={_zipRef}
+                    required
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    value={zip}
+                    onChange={(e) => setZip(maskCep(e.target.value))}
+                    onBlur={(e) => lookupCep(e.target.value)}
+                    placeholder="00000-000"
+                  />
+                  {cepLoading && <span className="checkout-cep-loader" aria-live="polite">buscando…</span>}
+                </div>
+                <a className="checkout-cep-link"
+                  href="https://buscacepinter.correios.com.br/app/endereco/"
+                  target="_blank" rel="noreferrer">
+                  Não sei meu CEP
+                </a>
+              </label>
+              <label className="checkout-field checkout-field-wide">
+                <span>Rua *</span>
+                <input required autoComplete="address-line1" value={street}
+                  onChange={(e) => setStreet(e.target.value)} />
+              </label>
+              <label className="checkout-field">
+                <span>Número *</span>
+                <input required value={number} onChange={(e) => setNumber(e.target.value)} />
+              </label>
+              <label className="checkout-field">
+                <span>Complemento</span>
+                <input value={complement} onChange={(e) => setComplement(e.target.value)} placeholder="Apto, bloco…" />
+              </label>
+              <label className="checkout-field">
+                <span>Bairro</span>
+                <input value={district} onChange={(e) => setDistrict(e.target.value)} />
+              </label>
+              <label className="checkout-field">
+                <span>Cidade *</span>
+                <input required autoComplete="address-level2" value={city}
+                  onChange={(e) => setCity(e.target.value)} />
+              </label>
+              <label className="checkout-field">
+                <span>UF *</span>
+                <input required maxLength={2} value={state}
+                  onChange={(e) => setState(e.target.value.toUpperCase())} />
+              </label>
+            </div>
+            {error && <p className="checkout-error" role="alert">{error}</p>}
+            <div className="checkout-btn-row">
+              <button type="button" className="btn btn-outline" onClick={() => goTo("contact")}>← Voltar</button>
+              <button type="submit" className="btn checkout-next-btn">Calcular frete →</button>
+            </div>
+          </form>
+        )}
+
+        {/* ── 3: Frete ── */}
+        {step === "shipping" && (
+          <form onSubmit={submitShipping} className="checkout-form">
+            <h2 className="checkout-section-title">Opções de entrega</h2>
+            <p className="checkout-shipping-to">
+              Entregando em <strong>{city} – {state}</strong>, CEP {zip}
+            </p>
+            {quotesLoading && (
+              <div className="checkout-shipping-loading">
+                <span className="checkout-spinner" role="status" aria-label="Calculando" />
+                Calculando opções de frete…
+              </div>
+            )}
+            {!quotesLoading && quotesError && (
+              <div className="checkout-error">
+                <p>{quotesError}</p>
+                <button type="button" className="btn btn-sm" onClick={fetchQuotes}>Tentar novamente</button>
+              </div>
+            )}
+            {!quotesLoading && quotes.length > 0 && (
+              <div className="checkout-shipping-list" role="radiogroup" aria-label="Transportadoras">
+                {quotes.map((q) => (
+                  <label
+                    key={q.service_id}
+                    className={`checkout-shipping-option${selectedQuote?.service_id === q.service_id ? " is-selected" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="shipping"
+                      value={q.service_id}
+                      checked={selectedQuote?.service_id === q.service_id}
+                      onChange={() => setSelectedQuote(q)}
+                    />
+                    <div className="checkout-shipping-info">
+                      <span className="checkout-shipping-carrier">{q.carrier} — {q.service_name}</span>
+                      <span className="checkout-shipping-days">
+                        {q.days_min === q.days
+                          ? `${q.days} dias úteis`
+                          : `${q.days_min}–${q.days} dias úteis`}
+                      </span>
+                    </div>
+                    <span className="checkout-shipping-price">
+                      {couponResult?.free_shipping
+                        ? <><s>{money(q.price_cents)}</s> <strong className="checkout-free-badge">Grátis</strong></>
+                        : money(q.price_cents)
+                      }
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {error && <p className="checkout-error" role="alert">{error}</p>}
+            <div className="checkout-btn-row">
+              <button type="button" className="btn btn-outline" onClick={() => goTo("address")}>← Voltar</button>
+              <button type="submit" className="btn checkout-next-btn"
+                disabled={!selectedQuote && !quotesError}>
+                Ir para pagamento →
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ── 4: Pagamento ── */}
+        {step === "payment" && (
+          <form onSubmit={submitPayment} className="checkout-form">
+            <h2 className="checkout-section-title">Finalizar pedido</h2>
+
+            {/* Cupom */}
+            <div className="checkout-section">
+              <label className="checkout-field">
+                <span>Cupom de desconto</span>
+                <div className="checkout-coupon-row">
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); validateCoupon(); } }}
+                    placeholder="FLORA10"
+                    autoComplete="off"
+                  />
+                  <button type="button" className="btn btn-sm" onClick={validateCoupon} disabled={couponLoading}>
+                    {couponLoading ? "…" : "Aplicar"}
+                  </button>
+                </div>
+              </label>
+              {couponResult?.ok && (
+                <p className="checkout-coupon-ok">
+                  ✓ {couponResult.free_shipping
+                    ? "Frete grátis aplicado!"
+                    : `Desconto de ${money(couponResult.discount_cents ?? 0)} aplicado.`}
+                </p>
+              )}
+              {couponResult && !couponResult.ok && (
+                <p className="checkout-error">{couponResult.error}</p>
+              )}
+            </div>
+
             <label className="checkout-field">
-              <span>Cupom</span>
-              <input
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="FLORA10"
-                autoComplete="off"
-              />
+              <span>Observação para o pedido</span>
+              <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+                placeholder="Alguma instrução especial?" />
             </label>
-            <label className="checkout-field checkout-field-wide">
-              <span>Observação</span>
-              <textarea
-                rows={3}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Alguma orientação para o pedido?"
-              />
-            </label>
-          </div>
-        </div>
 
-        {error ? <p className="checkout-error">{error}</p> : null}
+            <div className="checkout-payment-notice">
+              <span className="checkout-payment-icon">💳</span>
+              <div>
+                <strong>Pagamento via Stripe</strong>
+                <p>Após criar o pedido você será direcionado para a página segura de pagamento — cartão de crédito ou PIX.</p>
+              </div>
+            </div>
 
-        <button type="submit" className="btn checkout-submit" disabled={pending}>
-          {pending ? "Criando pedido..." : "Criar pedido"}
-        </button>
+            {error && <p className="checkout-error" role="alert">{error}</p>}
+            <div className="checkout-btn-row">
+              <button type="button" className="btn btn-outline" onClick={() => goTo("shipping")}>← Voltar</button>
+              <button type="submit" className="btn checkout-next-btn checkout-submit" disabled={pending}>
+                {pending ? "Criando pedido…" : `Criar pedido · ${money(total)}`}
+              </button>
+            </div>
+          </form>
+        )}
       </section>
 
+      {/* ── Right: Order summary ── */}
       <aside className="checkout-summary-panel" aria-label="Resumo do pedido">
-        <span className="eyebrow">Sacola</span>
-        <h2>Resumo</h2>
+        <h2 className="checkout-summary-title">Resumo</h2>
         <div className="checkout-summary-list">
           {items.map((item) => (
             <article className="checkout-summary-item" key={item.variant_id ?? item.product_id}>
-              {item.image ? (
+              {item.image
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.image} alt={item.name} />
-              ) : (
-                <div className="checkout-summary-thumb" />
-              )}
+                ? <img src={item.image} alt={item.name} />
+                : <div className="checkout-summary-thumb" />}
               <div>
                 <strong>{item.name}</strong>
-                <span>
-                  {item.quantity} x {money(item.price_cents)}
-                </span>
+                <span>{item.quantity} × {money(item.price_cents)}</span>
               </div>
               <b>{money(item.price_cents * item.quantity)}</b>
             </article>
           ))}
         </div>
-        <div className="checkout-total-line">
-          <span>Subtotal</span>
-          <strong>{money(subtotal)}</strong>
+        <div className="checkout-summary-lines">
+          <div className="checkout-total-line">
+            <span>Subtotal</span><strong>{money(subtotal)}</strong>
+          </div>
+          {discount > 0 && (
+            <div className="checkout-total-line checkout-discount-line">
+              <span>Desconto</span><strong>− {money(discount)}</strong>
+            </div>
+          )}
+          {selectedQuote && (
+            <div className="checkout-total-line">
+              <span>Frete</span>
+              <strong>{couponResult?.free_shipping ? "Grátis" : money(shippingCents)}</strong>
+            </div>
+          )}
+          <div className="checkout-total-line checkout-grand-total">
+            <span>Total</span><strong>{money(total)}</strong>
+          </div>
         </div>
-        <p className="checkout-summary-note">
-          Cupom e endereço são validados no envio. Frete e pagamento Stripe entram na próxima etapa.
-        </p>
+        {selectedQuote && (
+          <p className="checkout-summary-delivery">
+            🚚 {selectedQuote.carrier} — {selectedQuote.service_name} ·{" "}
+            {selectedQuote.days_min === selectedQuote.days
+              ? `${selectedQuote.days} dias úteis`
+              : `${selectedQuote.days_min}–${selectedQuote.days} dias úteis`}
+          </p>
+        )}
       </aside>
-    </form>
+    </div>
   );
 }

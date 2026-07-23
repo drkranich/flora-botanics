@@ -8,12 +8,14 @@ const TABS = [
   { href: "/vendas/clientes", label: "Clientes", key: "clientes" as const },
   { href: "/vendas/cupons", label: "Cupons", key: "cupons" as const },
   { href: "/vendas/carrinhos", label: "Carrinhos", key: "carrinhos" as const },
+  { href: "/vendas/assinaturas", label: "Assinaturas", key: "assinaturas" as const },
+  { href: "/vendas/campanhas", label: "Campanhas", key: "campanhas" as const },
 ];
 
 export function SalesTabs({
   counts,
 }: {
-  counts?: { pedidos?: number; clientes?: number; cupons?: number; carrinhos?: number };
+  counts?: { pedidos?: number; clientes?: number; cupons?: number; carrinhos?: number; assinaturas?: number; campanhas?: number };
 }) {
   const path = usePathname();
   return (

@@ -23,11 +23,9 @@ interface CategoryRow {
 }
 
 const PRODUCT_TYPES = [
-  { value: "all", label: "Todos os tipos" },
-  { value: "simple", label: "Produtos simples" },
-  { value: "variable", label: "Com variações" },
+  { value: "all", label: "Todos" },
+  { value: "simple", label: "Avulsos" },
   { value: "kit", label: "Kits" },
-  { value: "digital", label: "Digitais" },
   { value: "subscription", label: "Assinaturas" },
 ] as const;
 
@@ -36,6 +34,23 @@ const SORT_OPTIONS = [
   { value: "nome", label: "Nome A-Z" },
   { value: "preco-menor", label: "Menor preço" },
   { value: "preco-maior", label: "Maior preço" },
+  { value: "avaliacao", label: "Mais avaliados" },
+] as const;
+
+const PRICE_RANGES = [
+  { value: "", label: "Todos os preços" },
+  { value: "0-5000", label: "Até R$ 50" },
+  { value: "5000-10000", label: "R$ 50 – R$ 100" },
+  { value: "10000-20000", label: "R$ 100 – R$ 200" },
+  { value: "20000-", label: "Acima de R$ 200" },
+] as const;
+
+const ROUTINE_OPTIONS = [
+  { value: "", label: "Todas as rotinas" },
+  { value: "manha", label: "Manhã" },
+  { value: "noite", label: "Noite" },
+  { value: "completa", label: "Rotina completa" },
+  { value: "presente", label: "Presente" },
 ] as const;
 
 function param(value: string | string[] | undefined): string {
@@ -70,6 +85,8 @@ export default async function ProductsPage({
   const categorySlug = param(rawParams.categoria);
   const requestedType = param(rawParams.tipo) || "all";
   const requestedSort = param(rawParams.ordenar) || "recentes";
+  const priceRange = param(rawParams.preco) || "";
+  const routine = param(rawParams.rotina) || "";
   const type = PRODUCT_TYPES.some((item) => item.value === requestedType) ? requestedType : "all";
   const sort = SORT_OPTIONS.some((item) => item.value === requestedSort) ? requestedSort : "recentes";
   const normalizedSearch = normalize(search);
@@ -94,7 +111,7 @@ export default async function ProductsPage({
       .from("products")
       .select(
         `id, slug, name, subtitle, type, brand_line, tags, created_at, updated_at,
-         product_variants(price_cents, currency, is_default),
+         product_variants(id, price_cents, currency, is_default),
          product_media(role, sort_order, media(storage_path, alt))`
       )
       .eq("tenant_id", tenant.tenantId)
@@ -153,6 +170,12 @@ export default async function ProductsPage({
   )
     .sort((a, b) => a.localeCompare(b, "pt-BR"))
     .slice(0, 80);
+  const [priceMin, priceMax] = (() => {
+    if (!priceRange) return [0, Infinity];
+    const [minStr, maxStr] = priceRange.split("-");
+    return [parseInt(minStr || "0", 10), maxStr ? parseInt(maxStr, 10) : Infinity];
+  })();
+
   const rows = allRows
     .filter((product) => {
       const matchesCategory = !categorySlug || categoryProductIds.has(product.id);
@@ -171,7 +194,13 @@ export default async function ProductsPage({
       const matchesSearch =
         !normalizedSearch || normalizedSearch.split(/\s+/).every((token) => haystack.includes(token));
 
-      return matchesCategory && matchesType && matchesSearch;
+      const price = productPrice(product);
+      const matchesPrice = price >= priceMin && price <= priceMax;
+
+      const matchesRoutine = !routine || haystack.includes(normalize(routine)) ||
+        (product.tags ?? []).some((tag) => normalize(tag).includes(normalize(routine)));
+
+      return matchesCategory && matchesType && matchesSearch && matchesPrice && matchesRoutine;
     })
     .sort((a, b) => {
       if (sort === "nome") return a.name.localeCompare(b.name, "pt-BR");
@@ -180,13 +209,15 @@ export default async function ProductsPage({
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-  function catalogHref(overrides: Partial<{ q: string; categoria: string; tipo: string; ordenar: string }>) {
+  function catalogHref(overrides: Partial<{ q: string; categoria: string; tipo: string; ordenar: string; preco: string; rotina: string }>) {
     const params = new URLSearchParams();
     const next = {
       q: search,
       categoria: categorySlug,
       tipo: type,
       ordenar: sort,
+      preco: priceRange,
+      rotina: routine,
       ...overrides,
     };
 
@@ -194,6 +225,8 @@ export default async function ProductsPage({
     if (next.categoria) params.set("categoria", next.categoria);
     if (next.tipo && next.tipo !== "all") params.set("tipo", next.tipo);
     if (next.ordenar && next.ordenar !== "recentes") params.set("ordenar", next.ordenar);
+    if (next.preco) params.set("preco", next.preco);
+    if (next.rotina) params.set("rotina", next.rotina);
 
     const query = params.toString();
     return query ? `/produtos?${query}` : "/produtos";
@@ -248,11 +281,21 @@ export default async function ProductsPage({
               <CatalogDropdown name="tipo" value={type} options={PRODUCT_TYPES} />
             </div>
             <div className="catalog-field">
+              <span>Preço</span>
+              <CatalogDropdown name="preco" value={priceRange} options={PRICE_RANGES} />
+            </div>
+            <div className="catalog-field">
+              <span>Rotina</span>
+              <CatalogDropdown name="rotina" value={routine} options={ROUTINE_OPTIONS} />
+            </div>
+            <div className="catalog-field">
               <span>Ordenar</span>
               <CatalogDropdown name="ordenar" value={sort} options={SORT_OPTIONS} />
             </div>
             <button type="submit" className="catalog-filter-button">Filtrar</button>
-            <a href="/produtos" className="catalog-clear-link">Limpar</a>
+            {(search || categorySlug || type !== "all" || priceRange || routine) && (
+              <a href="/produtos" className="catalog-clear-link">Limpar filtros</a>
+            )}
           </form>
 
           {categoryRows.length > 0 ? (

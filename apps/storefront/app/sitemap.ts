@@ -19,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const client = db();
   const baseUrl = await currentSiteUrl();
 
-  const [{ data: pages }, { data: products }, { data: categories }] = await Promise.all([
+  const [{ data: pages }, { data: products }, { data: categories }, { data: campaigns }] = await Promise.all([
     client
       .from("pages")
       .select("slug, updated_at")
@@ -36,11 +36,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select("slug, updated_at")
       .eq("tenant_id", tenant.tenantId)
       .eq("status", "published"),
+    client
+      .from("campaigns")
+      .select("slug, updated_at")
+      .eq("tenant_id", tenant.tenantId)
+      .eq("status", "active"),
   ]);
 
   const entries: MetadataRoute.Sitemap = [
     { url: absoluteUrl(baseUrl, "/"), lastModified: new Date(), changeFrequency: "daily", priority: 1 },
     { url: absoluteUrl(baseUrl, "/produtos"), lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
+    { url: absoluteUrl(baseUrl, "/montar-kit"), lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
+    { url: absoluteUrl(baseUrl, "/favoritos"), lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
     { url: absoluteUrl(baseUrl, "/conta"), lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
     { url: absoluteUrl(baseUrl, "/carrinho"), lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
     { url: absoluteUrl(baseUrl, "/checkout"), lastModified: new Date(), changeFrequency: "monthly", priority: 0.35 },
@@ -73,6 +80,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(dateOf(category)),
       changeFrequency: "weekly",
       priority: 0.65,
+    });
+  }
+
+  for (const campaign of (campaigns ?? []) as DatedSlug[]) {
+    if (!campaign.slug) continue;
+    entries.push({
+      url: absoluteUrl(baseUrl, `/c/${campaign.slug}`),
+      lastModified: new Date(dateOf(campaign)),
+      changeFrequency: "daily",
+      priority: 0.7,
     });
   }
 
