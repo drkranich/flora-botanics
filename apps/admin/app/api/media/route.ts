@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 
 function canUseTenant(sessionTenantId: string, role: string, tenantId: string) {
@@ -81,18 +82,25 @@ export async function POST(req: NextRequest) {
     if (!file.type.startsWith("image/")) return jsonError("Envie apenas arquivos de imagem.", 400);
     if (file.size > 10 * 1024 * 1024) return jsonError("Imagem acima do limite de 10 MB.", 413);
 
-    const supabase = await supabaseServer();
     const clean = cleanFileName(file.name);
     const path = `${tenantId}/${Date.now()}-${clean}`;
     const bytes = await file.arrayBuffer();
+    const admin = await createAdminClient();
 
-    const { error: uploadError } = await supabase.storage
+    if (!admin) {
+      return jsonError(
+        "Upload indisponivel: configure SUPABASE_SERVICE_ROLE_KEY nos secrets do Worker flora-admin.",
+        500
+      );
+    }
+
+    const { error: uploadError } = await admin.storage
       .from("media")
       .upload(path, bytes, { cacheControl: "31536000", upsert: false, contentType: file.type });
 
     if (uploadError) return jsonError(uploadError.message);
 
-    const { data, error: insertError } = await supabase
+    const { data, error: insertError } = await admin
       .from("media")
       .insert({
         tenant_id: tenantId,
@@ -106,14 +114,14 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (insertError) {
-      await supabase.storage.from("media").remove([path]).catch(() => undefined);
+      await admin.storage.from("media").remove([path]).catch(() => undefined);
       return jsonError(insertError.message);
     }
 
     return NextResponse.json({
       item: {
         ...data,
-        public_url: supabase.storage.from("media").getPublicUrl(data.storage_path).data.publicUrl,
+        public_url: admin.storage.from("media").getPublicUrl(data.storage_path).data.publicUrl,
       },
     });
   } catch (err) {

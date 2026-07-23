@@ -11,6 +11,31 @@ type MediaRow = {
   public_url: string;
 };
 
+function apiPath(path: string) {
+  const configuredBase = process.env.NEXT_PUBLIC_ADMIN_BASE_PATH?.replace(/\/+$/, "");
+  if (configuredBase) return `${configuredBase}${path}`;
+
+  if (
+    typeof window !== "undefined" &&
+    (window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/"))
+  ) {
+    return `/admin${path}`;
+  }
+
+  return path;
+}
+
+async function readJson<T>(res: Response): Promise<T | null> {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return { error: text.slice(0, 220) } as T;
+  }
+}
+
 /** Campo de imagem premium: thumbnail + biblioteca + upload. */
 export function ImageField({
   value,
@@ -103,8 +128,8 @@ export function MediaLibraryModal({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/media?tenantId=${encodeURIComponent(tenantId)}`);
-      const data = (await res.json().catch(() => null)) as { items?: MediaRow[]; error?: string } | null;
+      const res = await fetch(`${apiPath("/api/media")}?tenantId=${encodeURIComponent(tenantId)}`);
+      const data = await readJson<{ items?: MediaRow[]; error?: string }>(res);
       if (!res.ok) throw new Error(data?.error ?? "Falha ao carregar biblioteca.");
       setItems(data?.items ?? []);
     } catch (e) {
@@ -130,8 +155,8 @@ export function MediaLibraryModal({
       const body = new FormData();
       body.set("tenantId", tenantId);
       body.set("file", file);
-      const res = await fetch("/api/media", { method: "POST", body });
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      const res = await fetch(apiPath("/api/media"), { method: "POST", body });
+      const data = await readJson<{ error?: string }>(res);
       if (!res.ok) throw new Error(data?.error ?? "Falha no upload.");
       await load();
     } catch (e) {
