@@ -19,6 +19,7 @@ interface ProductRow {
   brand_line: string | null;
   tags: string[];
   description_rich: unknown;
+  editorial_content: unknown;
   product_variants?: Array<{
     id: string;
     sku: string;
@@ -47,6 +48,23 @@ interface KitComponentRow {
   inventory?: { quantity: number; reserved: number | null } | Array<{ quantity: number; reserved: number | null }> | null;
   products?: { name: string; slug: string } | Array<{ name: string; slug: string }> | null;
 }
+
+type ProductEditorialCard = {
+  eyebrow: string;
+  title: string;
+  body: string;
+};
+
+type ProductFaqItem = {
+  question: string;
+  answer: string;
+};
+
+type ProductEditorialContent = {
+  cards: ProductEditorialCard[];
+  faqTitle: string;
+  faqItems: ProductFaqItem[];
+};
 
 function money(cents: number, currency = "BRL") {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency });
@@ -99,6 +117,87 @@ function richTextToPlain(value: unknown): string | null {
 function first<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
+}
+
+function textValue(value: unknown, fallback = "") {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function editorialContent(
+  value: unknown,
+  benefitTags: string[],
+  routineText: string
+): ProductEditorialContent {
+  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const rawCards = Array.isArray(record.cards) ? record.cards : [];
+  const rawFaq = Array.isArray(record.faq) ? record.faq : [];
+
+  const fallbackCards: ProductEditorialCard[] = [
+    {
+      eyebrow: "Benefícios",
+      title: benefitTags.length > 0 ? "O que este cuidado entrega" : "Cuidado Flora Botanics",
+      body:
+        benefitTags.length > 0
+          ? benefitTags.join(" · ")
+          : "Os benefícios deste produto podem ser organizados no catálogo para aparecerem aqui.",
+    },
+    {
+      eyebrow: "Rotina",
+      title: "Como encaixar no cuidado diário",
+      body: routineText,
+    },
+    {
+      eyebrow: "Compra",
+      title: "Dados seguros do catálogo",
+      body:
+        "A sacola usa o produto e a variante cadastrados no banco. O preço final é recalculado no servidor.",
+    },
+  ];
+
+  const fallbackFaq: ProductFaqItem[] = [
+    { question: "Como incluir este produto na rotina?", answer: routineText },
+    {
+      question: "Como vejo prazo e entrega?",
+      answer:
+        "A entrega e o endereço são tratados no carrinho e no checkout, mantendo preço e dados do pedido recalculados no servidor.",
+    },
+    {
+      question: "Este produto tem compra segura?",
+      answer:
+        "Sim. O carrinho usa o produto e a variante cadastrados no catálogo; preço e identificação não dependem do navegador.",
+    },
+  ];
+
+  const cards = rawCards
+    .slice(0, 6)
+    .map((item, index) => {
+      const card = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const fallback = fallbackCards[index] ?? fallbackCards[0];
+      return {
+        eyebrow: textValue(card.eyebrow, fallback.eyebrow),
+        title: textValue(card.title, fallback.title),
+        body: textValue(card.body, fallback.body),
+      };
+    })
+    .filter((item) => item.eyebrow || item.title || item.body);
+
+  const faqItems = rawFaq
+    .slice(0, 10)
+    .map((item, index) => {
+      const faq = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const fallback = fallbackFaq[index] ?? { question: "Pergunta", answer: "" };
+      return {
+        question: textValue(faq.question, fallback.question),
+        answer: textValue(faq.answer, fallback.answer),
+      };
+    })
+    .filter((item) => item.question && item.answer);
+
+  return {
+    cards: cards.length > 0 ? cards : fallbackCards,
+    faqTitle: textValue(record.faq_title, "Dúvidas rápidas"),
+    faqItems: faqItems.length > 0 ? faqItems : fallbackFaq,
+  };
 }
 
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
@@ -163,7 +262,7 @@ export default async function ProductPage({
     client
       .from("products")
       .select(
-        `id, slug, name, subtitle, type, brand_line, tags, description_rich,
+        `id, slug, name, subtitle, type, brand_line, tags, description_rich, editorial_content,
          product_variants(id, sku, name, price_cents, compare_at_cents, currency, is_default),
          product_media(role, sort_order, media(storage_path, alt))`
       )
@@ -199,22 +298,8 @@ export default async function ProductPage({
     row.type === "kit"
       ? "Combine os itens do kit conforme a ordem sugerida pela rotina da marca."
       : "Use na rotina conforme a orientação do rótulo e complemente com os demais cuidados Flora.";
-  const faqItems = [
-    {
-      question: "Como incluir este produto na rotina?",
-      answer: routineText,
-    },
-    {
-      question: "Como vejo prazo e entrega?",
-      answer:
-        "A entrega e o endereço são tratados no carrinho e no checkout, mantendo preço e dados do pedido recalculados no servidor.",
-    },
-    {
-      question: "Este produto tem compra segura?",
-      answer:
-        "Sim. O carrinho usa o produto e a variante cadastrados no catálogo; preço e identificação não dependem do navegador.",
-    },
-  ];
+  const editorial = editorialContent(row.editorial_content, benefitTags, routineText);
+  const faqItems = editorial.faqItems;
   let kitItems: Array<KitItemRow & { component?: KitComponentRow; stock: number }> = [];
   let kitAvailable = 0;
 
@@ -404,38 +489,26 @@ export default async function ProductPage({
 
         <div className="container product-after-grid">
           <section className="product-editorial-grid" aria-label="Detalhes do cuidado">
-            <article>
-              <span className="eyebrow">Benefícios</span>
-              <h3>{benefitTags.length > 0 ? "O que este cuidado entrega" : "Cuidado Flora Botanics"}</h3>
-              {benefitTags.length > 0 ? (
-                <div className="product-benefit-list">
-                  {benefitTags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-              ) : (
-                <p>
-                  Os benefícios deste produto podem ser organizados por tags no catálogo para aparecerem aqui.
-                </p>
-              )}
-            </article>
-            <article>
-              <span className="eyebrow">Rotina</span>
-              <h3>Como encaixar no cuidado diário</h3>
-              <p>{routineText}</p>
-            </article>
-            <article>
-              <span className="eyebrow">Compra</span>
-              <h3>Dados seguros do catálogo</h3>
-              <p>
-                A sacola usa o produto e a variante cadastrados no banco. O preço final é recalculado no servidor.
-              </p>
-            </article>
+            {editorial.cards.map((card, index) => (
+              <article key={`${card.eyebrow}-${index}`}>
+                <span className="eyebrow">{card.eyebrow}</span>
+                <h3>{card.title}</h3>
+                {index === 0 && benefitTags.length > 0 && card.body === benefitTags.join(" · ") ? (
+                  <div className="product-benefit-list">
+                    {benefitTags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <p>{card.body}</p>
+                )}
+              </article>
+            ))}
           </section>
 
           <section className="product-faq-panel" aria-label="Perguntas frequentes do produto">
             <div className="section-heading catalog-heading">
-              <h2>Dúvidas rápidas</h2>
+              <h2>{editorial.faqTitle}</h2>
             </div>
             <div className="product-faq-list">
               {faqItems.map((item) => (

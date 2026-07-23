@@ -24,7 +24,7 @@ export default async function ProdutosPage() {
     supabase
       .from("products")
       .select(
-        `id, name, subtitle, slug, status,
+        `id, name, subtitle, slug, status, editorial_content,
          product_variants(id, sku, price_cents, compare_at_cents, is_default, inventory(quantity)),
          product_categories(category_id),
          product_media(role, sort_order, media(id, storage_path))`
@@ -79,6 +79,7 @@ export default async function ProdutosPage() {
       subtitle: p.subtitle,
       slug: p.slug,
       status: p.status,
+      editorial_content: p.editorial_content,
       variant_id: v?.id ?? "",
       sku: v?.sku ?? "",
       price_cents: v?.price_cents ?? 0,

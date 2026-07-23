@@ -82,12 +82,59 @@ export type ProductForm = {
   category_id?: string | null;
   media_id?: string | null;
   gallery_media_ids?: string[];
+  editorial_content?: ProductEditorialContent;
   status: "draft" | "published";
+};
+
+export type ProductEditorialCard = {
+  eyebrow: string;
+  title: string;
+  body: string;
+};
+
+export type ProductFaqItem = {
+  question: string;
+  answer: string;
+};
+
+export type ProductEditorialContent = {
+  cards: ProductEditorialCard[];
+  faq_title: string;
+  faq: ProductFaqItem[];
 };
 
 function galleryIds(form: ProductForm) {
   const ids = form.gallery_media_ids?.length ? form.gallery_media_ids : form.media_id ? [form.media_id] : [];
   return Array.from(new Set(ids.filter(Boolean)));
+}
+
+function cleanText(value: unknown, max = 700) {
+  return String(value ?? "").trim().slice(0, max);
+}
+
+function normalizeEditorialContent(value?: ProductEditorialContent) {
+  const cards = (value?.cards ?? [])
+    .slice(0, 6)
+    .map((card) => ({
+      eyebrow: cleanText(card.eyebrow, 80),
+      title: cleanText(card.title, 140),
+      body: cleanText(card.body, 900),
+    }))
+    .filter((card) => card.eyebrow || card.title || card.body);
+
+  const faq = (value?.faq ?? [])
+    .slice(0, 10)
+    .map((item) => ({
+      question: cleanText(item.question, 180),
+      answer: cleanText(item.answer, 1000),
+    }))
+    .filter((item) => item.question || item.answer);
+
+  return {
+    cards,
+    faq_title: cleanText(value?.faq_title, 100) || "Dúvidas rápidas",
+    faq,
+  };
 }
 
 async function replaceProductMedia(productId: string, mediaIds: string[]) {
@@ -125,6 +172,7 @@ export async function createProduct(form: ProductForm) {
       slug,
       type: "simple",
       status: form.status,
+      editorial_content: normalizeEditorialContent(form.editorial_content),
     })
     .select("id")
     .single();
@@ -176,6 +224,7 @@ export async function updateProduct(
       subtitle: form.subtitle?.trim() || null,
       slug: form.slug?.trim() || slugify(form.name),
       status: form.status,
+      editorial_content: normalizeEditorialContent(form.editorial_content),
     })
     .eq("id", productId);
   if (pErr) throw new Error(pErr.message);

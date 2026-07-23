@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createProduct, updateProduct, archiveProduct, type ProductForm } from "@/lib/catalog/actions";
+import {
+  createProduct,
+  updateProduct,
+  archiveProduct,
+  type ProductEditorialCard,
+  type ProductEditorialContent,
+  type ProductFaqItem,
+  type ProductForm,
+} from "@/lib/catalog/actions";
 import { MediaLibraryModal } from "@/components/MediaPicker";
 
 export type ProductRow = {
@@ -16,6 +24,7 @@ export type ProductRow = {
   compare_at_cents: number | null;
   stock: number;
   category_id: string | null;
+  editorial_content: ProductEditorialContent | null;
   cover_url: string | null;
   cover_media_id: string | null;
   gallery_images: Array<{ id: string; url: string; role?: string }>;
@@ -25,6 +34,59 @@ type Category = { id: string; name: string };
 
 const money = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const DEFAULT_EDITORIAL: ProductEditorialContent = {
+  cards: [
+    {
+      eyebrow: "Benefícios",
+      title: "Cuidado Flora Botanics",
+      body: "Organize aqui os benefícios reais deste produto, com linguagem clara e elegante para a página pública.",
+    },
+    {
+      eyebrow: "Rotina",
+      title: "Como encaixar no cuidado diário",
+      body: "Explique como usar este produto na rotina, em qual etapa aplicar e com quais cuidados Flora ele combina.",
+    },
+    {
+      eyebrow: "Compra",
+      title: "Dados seguros do catálogo",
+      body: "Use este espaço para reforçar segurança, entrega, conservação ou qualquer informação importante da compra.",
+    },
+  ],
+  faq_title: "Dúvidas rápidas",
+  faq: [
+    {
+      question: "Como incluir este produto na rotina?",
+      answer: "Use conforme a orientação do rótulo e complemente com os demais cuidados Flora.",
+    },
+    {
+      question: "Como vejo prazo e entrega?",
+      answer: "A entrega e o endereço são tratados no carrinho e no checkout.",
+    },
+    {
+      question: "Este produto tem compra segura?",
+      answer: "Sim. O preço e os dados do pedido são recalculados no servidor.",
+    },
+  ],
+};
+
+function normalizeEditableEditorial(value?: ProductEditorialContent | null): ProductEditorialContent {
+  const cards = value?.cards?.length ? value.cards : DEFAULT_EDITORIAL.cards;
+  const faq = value?.faq?.length ? value.faq : DEFAULT_EDITORIAL.faq;
+
+  return {
+    cards: cards.slice(0, 6).map((card, index) => ({
+      eyebrow: card.eyebrow ?? DEFAULT_EDITORIAL.cards[index]?.eyebrow ?? "",
+      title: card.title ?? DEFAULT_EDITORIAL.cards[index]?.title ?? "",
+      body: card.body ?? DEFAULT_EDITORIAL.cards[index]?.body ?? "",
+    })),
+    faq_title: value?.faq_title || DEFAULT_EDITORIAL.faq_title,
+    faq: faq.slice(0, 10).map((item, index) => ({
+      question: item.question ?? DEFAULT_EDITORIAL.faq[index]?.question ?? "",
+      answer: item.answer ?? DEFAULT_EDITORIAL.faq[index]?.answer ?? "",
+    })),
+  };
+}
 
 export function ProductManager({
   initial,
@@ -167,6 +229,9 @@ function ProductFormFields({
   const [stock, setStock] = useState(String(defaults?.stock ?? 0));
   const [categoryId, setCategoryId] = useState(defaults?.category_id ?? "");
   const [published, setPublished] = useState((defaults?.status ?? "draft") === "published");
+  const [editorial, setEditorial] = useState<ProductEditorialContent>(() =>
+    normalizeEditableEditorial(defaults?.editorial_content)
+  );
   const [galleryImages, setGalleryImages] = useState<Array<{ id: string; url: string }>>(
     defaults?.gallery_images?.length
       ? defaults.gallery_images.map((image) => ({ id: image.id, url: image.url }))
@@ -196,6 +261,38 @@ function ProductFormFields({
     });
   }
 
+  function patchCard(index: number, patch: Partial<ProductEditorialCard>) {
+    setEditorial((current) => ({
+      ...current,
+      cards: current.cards.map((card, cardIndex) =>
+        cardIndex === index ? { ...card, ...patch } : card
+      ),
+    }));
+  }
+
+  function patchFaq(index: number, patch: Partial<ProductFaqItem>) {
+    setEditorial((current) => ({
+      ...current,
+      faq: current.faq.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item
+      ),
+    }));
+  }
+
+  function addFaq() {
+    setEditorial((current) => ({
+      ...current,
+      faq: [...current.faq, { question: "Nova pergunta", answer: "" }].slice(0, 10),
+    }));
+  }
+
+  function removeFaq(index: number) {
+    setEditorial((current) => ({
+      ...current,
+      faq: current.faq.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  }
+
   return (
     <form
       style={{ display: "flex", flexDirection: "column", gap: 14 }}
@@ -212,6 +309,7 @@ function ProductFormFields({
           category_id: categoryId || null,
           media_id: galleryImages[0]?.id ?? null,
           gallery_media_ids: galleryImages.map((image) => image.id),
+          editorial_content: editorial,
           status: published ? "published" : "draft",
         });
       }}
@@ -303,12 +401,15 @@ function ProductFormFields({
             className="btn btn-ghost"
             onClick={() => setLibOpen(true)}
             style={{
-              width: 96,
+              width: 124,
               minHeight: 96,
               padding: 10,
               borderStyle: "dashed",
               fontSize: 10,
               lineHeight: 1.35,
+              textAlign: "center",
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
             }}
           >
             + Adicionar imagem
@@ -318,6 +419,97 @@ function ProductFormFields({
           Selecione uma ou mais imagens na biblioteca. A primeira imagem vira capa no catálogo e na página do produto.
         </span>
       </div>
+
+      <section className="glass" style={{ padding: 16, display: "grid", gap: 14 }}>
+        <div>
+          <p className="eyebrow" style={{ marginBottom: 6 }}>Conteúdo da página pública</p>
+          <p className="muted" style={{ fontSize: 11, lineHeight: 1.55, margin: 0 }}>
+            Edite os cards e as dúvidas que aparecem na página pública deste produto.
+          </p>
+        </div>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {editorial.cards.map((card, index) => (
+            <div
+              key={`card-${index}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 10,
+              }}
+            >
+              <input
+                className="input"
+                value={card.eyebrow}
+                onChange={(e) => patchCard(index, { eyebrow: e.target.value })}
+                placeholder="Etiqueta"
+              />
+              <input
+                className="input"
+                value={card.title}
+                onChange={(e) => patchCard(index, { title: e.target.value })}
+                placeholder="Título do card"
+              />
+              <textarea
+                className="input"
+                value={card.body}
+                onChange={(e) => patchCard(index, { body: e.target.value })}
+                placeholder="Texto do card"
+                rows={3}
+                style={{ gridColumn: "1 / -1", resize: "vertical", paddingTop: 10, lineHeight: 1.55 }}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="field">
+          <span className="field-label">Título do FAQ</span>
+          <input
+            className="input"
+            value={editorial.faq_title}
+            onChange={(e) => setEditorial((current) => ({ ...current, faq_title: e.target.value }))}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 10 }}>
+          {editorial.faq.map((item, index) => (
+            <div key={`faq-${index}`} style={{ display: "grid", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                <input
+                  className="input"
+                  value={item.question}
+                  onChange={(e) => patchFaq(index, { question: e.target.value })}
+                  placeholder="Pergunta"
+                />
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => removeFaq(index)}
+                  style={{ padding: "0 12px", fontSize: 9 }}
+                >
+                  Remover
+                </button>
+              </div>
+              <textarea
+                className="input"
+                value={item.answer}
+                onChange={(e) => patchFaq(index, { answer: e.target.value })}
+                placeholder="Resposta"
+                rows={2}
+                style={{ resize: "vertical", paddingTop: 10, lineHeight: 1.55 }}
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={addFaq}
+            style={{ padding: "10px 14px", fontSize: 10, borderStyle: "dashed" }}
+          >
+            + Adicionar pergunta
+          </button>
+        </div>
+      </section>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
         <div className="field">

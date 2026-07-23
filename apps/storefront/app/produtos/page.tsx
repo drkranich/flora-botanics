@@ -4,6 +4,7 @@ import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 import { ProductCard, productPrice, type ProductCardProduct } from "@/components/ProductCard";
 import { buildMetadata, currentSiteUrl } from "@/lib/seo";
+import { CatalogDropdown } from "./CatalogDropdown";
 
 export const revalidate = 60;
 
@@ -231,37 +232,25 @@ export default async function ProductsPage({
                 <option key={suggestion} value={suggestion} />
               ))}
             </datalist>
-            <label className="catalog-field">
+            <div className="catalog-field">
               <span>Categoria</span>
-              <select name="categoria" defaultValue={categorySlug}>
-                <option value="">Todas</option>
-                {categoryRows.map((category) => (
-                  <option key={category.id} value={category.slug}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="catalog-field">
+              <CatalogDropdown
+                name="categoria"
+                value={categorySlug}
+                options={[
+                  { value: "", label: "Todas" },
+                  ...categoryRows.map((category) => ({ value: category.slug, label: category.name })),
+                ]}
+              />
+            </div>
+            <div className="catalog-field">
               <span>Tipo</span>
-              <select name="tipo" defaultValue={type}>
-                {PRODUCT_TYPES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="catalog-field">
+              <CatalogDropdown name="tipo" value={type} options={PRODUCT_TYPES} />
+            </div>
+            <div className="catalog-field">
               <span>Ordenar</span>
-              <select name="ordenar" defaultValue={sort}>
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <CatalogDropdown name="ordenar" value={sort} options={SORT_OPTIONS} />
+            </div>
             <button type="submit" className="catalog-filter-button">Filtrar</button>
             <a href="/produtos" className="catalog-clear-link">Limpar</a>
           </form>
