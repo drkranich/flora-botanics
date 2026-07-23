@@ -1,12 +1,29 @@
 {
   // Worker do STOREFRONT (loja pública). URL: flora-botanics.gmoraes.workers.dev
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "flora-botanics",
   "main": ".open-next/worker.js",
-  "compatibility_date": "2025-03-25",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2026-06-17",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // Self-reference service binding, the service name must match the worker name
+      // see https://opennext.js.org/cloudflare/caching
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "flora-botanics"
+    }
+  ],
+  "images": {
+    // Enable image optimization
+    // see https://opennext.js.org/cloudflare/howtos/image
+    "binding": "IMAGES"
   },
   "observability": {
     "enabled": true
