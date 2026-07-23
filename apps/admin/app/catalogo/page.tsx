@@ -30,6 +30,7 @@ export default async function ProdutosPage() {
          product_media(role, media(id, storage_path))`
       )
       .eq("tenant_id", tenantId)
+      .neq("type", "kit")
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     supabase

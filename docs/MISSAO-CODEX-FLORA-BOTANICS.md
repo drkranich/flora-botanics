@@ -60,14 +60,14 @@ Banco modelado nas migrations:
 - Inbox com conversas e mensagens.
 - Resend parcialmente integrado para envio real de e-mail.
 - Backoffice com notas fiscais em rascunho, marketplaces, mensagens, logs e configuracao fiscal.
+- Kits iniciados no catalogo: migration `20260723122212_product_kits_foundation.sql`, aba `Catalogo > Kits`, composicao por variantes e calculo de disponibilidade por componentes.
 
 ## 4. Lacunas principais contra o PDF
 
 ### Produto, kits e catalogo
 
-- Kits ainda nao aparecem como modulo dedicado completo.
-- Falta construtor visual de kits.
-- Falta calculo real de estoque de kits por componentes.
+- Kits ainda precisam ser aplicados no Supabase publicado e conectados ao checkout/baixa de estoque.
+- Falta pagina publica premium especifica para kits.
 - Falta modelagem operacional de embalagens premium, transporte e presente.
 - Falta filtro avancado de produtos com URL persistente, drawer mobile, ordenacao e estado vazio inteligente.
 - Falta busca completa com autocomplete e busca por beneficio, ingrediente, rotina, categoria e conteudo.
