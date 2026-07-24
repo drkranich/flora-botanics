@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { isResendConfigured } from "@/lib/email/resend";
-import { SendTestEmail } from "./SendTestEmail";
 import {
   createTemplate,
   createTemplateFromPreset,
@@ -11,13 +10,7 @@ import {
   deleteAutomation,
 } from "./actions";
 import { TEMPLATE_PRESETS } from "./template-presets";
-
-const TEMPLATE_CHANNEL_LABELS: Record<string, string> = {
-  email: "E-mail",
-  whatsapp: "WhatsApp",
-  instagram: "Instagram",
-  sms: "SMS",
-};
+import { TemplateStudio, type StudioTemplate } from "./TemplateStudio";
 
 const TRIGGER_LABELS: Record<string, string> = {
   birthday: "Aniversário do cliente",
@@ -41,49 +34,11 @@ const RUN_STATUS_LABELS: Record<string, string> = {
   skipped: "Ignorado",
 };
 
-function badgeStyle(kind: "ok" | "warning" | "neutral" | "error"): React.CSSProperties {
-  const colors: Record<typeof kind, { bg: string; fg: string }> = {
-    ok: { bg: "#e6f0ea", fg: "#2f6b4a" },
-    warning: { bg: "rgba(185, 146, 77, 0.22)", fg: "#8a6512" },
-    neutral: { bg: "rgba(242, 236, 223, 0.08)", fg: "var(--cream-dim)" },
-    error: { bg: "#fbeaea", fg: "#9a3232" },
-  };
-  const c = colors[kind];
-  return {
-    fontSize: 11,
-    fontWeight: 700,
-    padding: "2px 8px",
-    borderRadius: 6,
-    background: c.bg,
-    color: c.fg,
-    whiteSpace: "nowrap",
-  };
-}
-
-function automationStatusBadge(status: string): React.CSSProperties {
-  if (status === "active") return badgeStyle("ok");
-  if (status === "paused") return badgeStyle("warning");
-  return badgeStyle("neutral");
-}
-
-function runStatusBadge(status: string): React.CSSProperties {
-  if (status === "sent") return badgeStyle("ok");
-  if (status === "failed") return badgeStyle("error");
-  if (status === "skipped") return badgeStyle("neutral");
-  return badgeStyle("warning");
-}
-
 function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
-}
-
-interface TemplateRow {
-  id: string;
-  name: string;
-  channel: string;
-  subject: string | null;
-  body: string;
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(
+    new Date(iso)
+  );
 }
 
 interface AutomationRow {
@@ -125,395 +80,409 @@ export default async function MensagensPage() {
       .order("created_at", { ascending: false }),
     supabase
       .from("automation_runs")
-      .select("id, channel, status, error, sent_at, created_at, automations(name), customers(full_name, email)")
+      .select(
+        "id, channel, status, error, sent_at, created_at, automations(name), customers(full_name, email)"
+      )
       .eq("tenant_id", staff.tenantId)
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
 
-  const templates = (templatesRes.data ?? []) as TemplateRow[];
+  const templates = (templatesRes.data ?? []) as StudioTemplate[];
   const automations = (automationsRes.data ?? []) as AutomationRow[];
   const runs = (runsRes.data ?? []) as unknown as AutomationRunRow[];
   const resendOk = await isResendConfigured();
 
+  const emailTemplates = templates.filter((t) => t.channel === "email");
+
   return (
-    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
-      <div>
-        <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Mensagens</h1>
-        <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
-          Templates de mensagem e automações (aniversário, carrinho abandonado, remarketing) para
-          e-mail, WhatsApp, Instagram e SMS.
-        </p>
-      </div>
-
-      <div
-        style={{
-          ...cardStyle,
-          padding: "12px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          borderColor: resendOk ? "rgba(127, 191, 158, 0.3)" : "rgba(185, 146, 77, 0.22)",
-          background: resendOk ? "rgba(127, 191, 158, 0.08)" : "rgba(185, 146, 77, 0.10)",
-        }}
-      >
-        <span className={resendOk ? "chip chip-live" : "chip chip-draft"}>
-          {resendOk ? "E-mail conectado" : "E-mail não conectado"}
-        </span>
-        <p style={{ margin: 0, fontSize: 12.5, color: "var(--cream-dim)" }}>
-          {resendOk
-            ? "Envio via Resend configurado — use \"Enviar teste\" nos templates de e-mail abaixo."
-            : "Configure RESEND_API_KEY e RESEND_FROM_EMAIL no Worker flora-admin para habilitar o envio de e-mails."}
-        </p>
-      </div>
-
-      <section style={cardStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div>
-            <div style={sectionLabel}>Biblioteca Flora</div>
-            <h2 style={{ ...sectionTitleStyle, marginTop: 4 }}>Modelos prontos de mensagem</h2>
-            <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 12.5, maxWidth: 720 }}>
-              Adicione modelos editoriais e operacionais ao CMS. Depois de adicionados, eles aparecem
-              na lista abaixo para edição, teste e uso em automações.
-            </p>
-          </div>
-          <span className="chip chip-draft">{TEMPLATE_PRESETS.length} modelos</span>
+    <div style={{ display: "grid", gap: 24, padding: "24px 28px 48px" }}>
+      {/* ── header ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Mensagens</h1>
+          <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
+            Crie templates de e-mail visualmente, configure automações e acompanhe disparos.
+          </p>
         </div>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 16px",
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 700,
+            background: resendOk ? "rgba(143,212,134,0.12)" : "rgba(185,146,77,0.12)",
+            border: `1px solid ${resendOk ? "rgba(143,212,134,0.35)" : "rgba(185,146,77,0.35)"}`,
+            color: resendOk ? "#8fd486" : "#d4aa5a",
+          }}
+        >
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: resendOk ? "#8fd486" : "#d4aa5a",
+              boxShadow: resendOk ? "0 0 7px #8fd486" : "0 0 7px #d4aa5a",
+            }}
+          />
+          {resendOk ? "Resend conectado" : "Resend não configurado"}
+        </span>
+      </div>
 
-        <ul style={{ ...listStyle, marginTop: 16 }}>
-          {TEMPLATE_PRESETS.map((preset) => (
-            <li key={preset.id} style={{ ...listItemStyle, alignItems: "flex-start", gap: 16 }}>
-              <div style={{ display: "grid", gap: 6, minWidth: 220, flex: 1 }}>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <span style={badgeStyle("neutral")}>
-                    {TEMPLATE_CHANNEL_LABELS[preset.template.channel] ?? preset.template.channel}
-                  </span>
-                  <span style={badgeStyle("warning")}>{preset.triggerLabel}</span>
-                </div>
-                <strong>{preset.title}</strong>
-                <span style={{ fontSize: 12.5, color: "var(--cream-dim)", lineHeight: 1.5 }}>
+      {/* ── biblioteca de modelos prontos ── */}
+      {TEMPLATE_PRESETS.length > 0 && emailTemplates.length === 0 && (
+        <section className="glass" style={{ padding: 20, borderRadius: 16 }}>
+          <div style={{ marginBottom: 14 }}>
+            <p className="eyebrow" style={{ marginBottom: 4 }}>Biblioteca Flora</p>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Modelos prontos para começar</h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+            {TEMPLATE_PRESETS.map((preset) => (
+              <div
+                key={preset.id}
+                className="glass"
+                style={{ padding: 16, borderRadius: 12, display: "grid", gap: 8 }}
+              >
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    color: "var(--gold-light)",
+                  }}
+                >
+                  {preset.triggerLabel}
+                </span>
+                <strong style={{ fontSize: 13 }}>{preset.title}</strong>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--cream-dim)", lineHeight: 1.5 }}>
                   {preset.description}
-                </span>
-                <span style={{ fontSize: 11, color: "var(--cream-dim)" }}>
-                  Variáveis: {preset.template.variables.map((item) => `{{${item}}}`).join(", ")}
-                </span>
+                </p>
+                <form action={createTemplateFromPreset.bind(null, preset.id)}>
+                  <button
+                    type="submit"
+                    className="btn btn-ghost"
+                    style={{ padding: "8px 16px", fontSize: 10, width: "100%" }}
+                  >
+                    Usar este modelo
+                  </button>
+                </form>
               </div>
-              <form action={createTemplateFromPreset.bind(null, preset.id)}>
-                <button type="submit" style={actionButtonStyle}>Adicionar ao CMS</button>
-              </form>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── compositor visual de e-mail ── */}
+      <section className="glass" style={{ padding: 24, borderRadius: 16 }}>
+        <div style={{ marginBottom: 20 }}>
+          <p className="eyebrow" style={{ marginBottom: 4 }}>Editor visual</p>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Compositor de e-mail</h2>
+        </div>
+        <TemplateStudio
+          templates={emailTemplates}
+          tenantId={staff.tenantId}
+          resendOk={resendOk}
+        />
       </section>
 
-      <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>Templates de mensagem</h2>
-        {templates.length === 0 ? (
-          <p style={emptyStyle}>Nenhum template criado ainda.</p>
-        ) : (
-          <ul style={listStyle}>
-            {templates.map((t) => (
-              <li key={t.id} style={{ ...listItemStyle, alignItems: "flex-start", flexDirection: "column", gap: 4 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-                  <strong>{t.name}</strong>
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={badgeStyle("neutral")}>{TEMPLATE_CHANNEL_LABELS[t.channel] ?? t.channel}</span>
-                    <form action={deleteTemplate.bind(null, t.id)}>
-                      <button type="submit" style={dangerButtonStyle}>Excluir</button>
-                    </form>
-                  </span>
-                </div>
-                {t.subject && <span style={{ fontSize: 13, color: "var(--cream-dim)" }}>Assunto: {t.subject}</span>}
-                <span style={{ fontSize: 13, color: "var(--cream-dim)" }}>{t.body}</span>
-                {t.channel === "email" && resendOk ? (
-                  <div style={{ marginTop: 4 }}>
-                    <SendTestEmail templateId={t.id} />
+      {/* ── templates de outros canais ── */}
+      {templates.filter((t) => t.channel !== "email").length > 0 && (
+        <section className="glass" style={{ padding: 20, borderRadius: 16 }}>
+          <h2 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>
+            Outros canais (WhatsApp, SMS, Instagram)
+          </h2>
+          <div style={{ display: "grid", gap: 8 }}>
+            {templates
+              .filter((t) => t.channel !== "email")
+              .map((t) => (
+                <div
+                  key={t.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    padding: "14px 0",
+                    borderBottom: "1px solid rgba(242,236,223,0.08)",
+                  }}
+                >
+                  <div style={{ display: "grid", gap: 3 }}>
+                    <strong style={{ fontSize: 13 }}>{t.name}</strong>
+                    <span style={{ fontSize: 12, color: "var(--cream-dim)", lineHeight: 1.5 }}>
+                      {t.body?.slice(0, 120)}
+                      {t.body?.length > 120 ? "…" : ""}
+                    </span>
                   </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
+                  <form action={deleteTemplate.bind(null, t.id)}>
+                    <button
+                      type="submit"
+                      style={{
+                        background: "none",
+                        border: "1px solid rgba(232,160,160,0.3)",
+                        borderRadius: 8,
+                        padding: "4px 10px",
+                        fontSize: 11,
+                        color: "#e8a0a0",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      Excluir
+                    </button>
+                  </form>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
 
-        <form action={createTemplate} style={{ ...formGridStyle, marginTop: 16, borderTop: "1px solid rgba(242, 236, 223, 0.08)", paddingTop: 16 }}>
-          <div style={sectionLabel}>Novo template</div>
-          <div style={rowStyle}>
-            <div style={fieldGroup}>
-              <label style={labelStyle} htmlFor="tpl-name">Nome</label>
-              <input id="tpl-name" name="name" type="text" required placeholder="aniversario-cliente" style={inputStyle} />
+      {/* criar template manual (outros canais) */}
+      <details className="glass" style={{ padding: 20, borderRadius: 16 }}>
+        <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13, userSelect: "none" }}>
+          + Criar template manual (WhatsApp / SMS / Instagram)
+        </summary>
+        <form
+          action={createTemplate}
+          style={{ display: "grid", gap: 12, marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(242,236,223,0.08)" }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>Nome</label>
+              <input name="name" type="text" required placeholder="aniversario-whatsapp" className="input" />
             </div>
-            <div style={fieldGroup}>
-              <label style={labelStyle} htmlFor="tpl-channel">Canal</label>
-              <select id="tpl-channel" name="channel" style={inputStyle} defaultValue="email">
-                <option value="email">E-mail</option>
+            <div style={{ display: "grid", gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>Canal</label>
+              <select name="channel" className="input" defaultValue="whatsapp">
                 <option value="whatsapp">WhatsApp</option>
                 <option value="instagram">Instagram</option>
                 <option value="sms">SMS</option>
               </select>
             </div>
           </div>
-          <div style={fieldGroup}>
-            <label style={labelStyle} htmlFor="tpl-subject">Assunto (e-mail)</label>
-            <input id="tpl-subject" name="subject" type="text" placeholder="Feliz aniversário, {{nome}}!" style={inputStyle} />
-          </div>
-          <div style={fieldGroup}>
-            <label style={labelStyle} htmlFor="tpl-body">Mensagem</label>
+          <div style={{ display: "grid", gap: 4 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>Mensagem</label>
             <textarea
-              id="tpl-body"
               name="body"
               required
               rows={3}
-              placeholder="Olá {{nome}}, a Flora Botanics deseja um feliz aniversário! Use o cupom {{cupom}}."
-              style={{ ...inputStyle, resize: "vertical" }}
+              placeholder="Olá {{nome}}, a Flora Botanics tem algo especial pra você! 🌿"
+              className="input"
+              style={{ resize: "vertical" }}
             />
           </div>
-          <div style={fieldGroup}>
-            <label style={labelStyle} htmlFor="tpl-variables">Variáveis (JSON, opcional)</label>
-            <input id="tpl-variables" name="variables" type="text" placeholder='["nome", "cupom"]' style={inputStyle} />
-          </div>
           <div>
-            <button type="submit" style={buttonStyle}>Criar template</button>
+            <button type="submit" className="btn btn-ghost" style={{ padding: "10px 20px" }}>
+              Criar template
+            </button>
           </div>
         </form>
-      </section>
+      </details>
 
-      <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>Automações</h2>
-        {automations.length === 0 ? (
-          <p style={emptyStyle}>Nenhuma automação criada ainda.</p>
-        ) : (
-          <ul style={listStyle}>
+      {/* ── automações ── */}
+      <section className="glass" style={{ padding: 20, borderRadius: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Automações</h2>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "3px 10px",
+              borderRadius: 999,
+              background: "rgba(242,236,223,0.08)",
+              color: "var(--cream-dim)",
+            }}
+          >
+            {automations.length} ativa{automations.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {automations.length > 0 ? (
+          <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
             {automations.map((a) => (
-              <li key={a.id} style={listItemStyle}>
-                <span>
-                  <strong>{a.name}</strong>{" "}
-                  <span style={{ color: "var(--cream-dim)" }}>· {TRIGGER_LABELS[a.trigger] ?? a.trigger}</span>
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={automationStatusBadge(a.status)}>{AUTOMATION_STATUS_LABELS[a.status] ?? a.status}</span>
+              <div
+                key={a.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  background: "rgba(10,22,11,0.35)",
+                  border: "1px solid var(--glass-border)",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <strong style={{ fontSize: 13 }}>{a.name}</strong>
+                  <span style={{ fontSize: 12, color: "var(--cream-dim)", marginLeft: 8 }}>
+                    · {TRIGGER_LABELS[a.trigger] ?? a.trigger}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 10px",
+                      borderRadius: 6,
+                      background:
+                        a.status === "active"
+                          ? "rgba(143,212,134,0.15)"
+                          : a.status === "paused"
+                          ? "rgba(185,146,77,0.15)"
+                          : "rgba(242,236,223,0.08)",
+                      color:
+                        a.status === "active"
+                          ? "#8fd486"
+                          : a.status === "paused"
+                          ? "#d4aa5a"
+                          : "var(--cream-dim)",
+                    }}
+                  >
+                    {AUTOMATION_STATUS_LABELS[a.status] ?? a.status}
+                  </span>
                   {a.status !== "active" && (
                     <form action={setAutomationStatus.bind(null, a.id, "active")}>
-                      <button type="submit" style={actionButtonStyle}>Ativar</button>
+                      <button type="submit" className="btn btn-ghost" style={{ padding: "5px 12px", fontSize: 10 }}>
+                        Ativar
+                      </button>
                     </form>
                   )}
                   {a.status === "active" && (
                     <form action={setAutomationStatus.bind(null, a.id, "paused")}>
-                      <button type="submit" style={actionButtonStyle}>Pausar</button>
+                      <button type="submit" className="btn btn-ghost" style={{ padding: "5px 12px", fontSize: 10 }}>
+                        Pausar
+                      </button>
                     </form>
                   )}
                   <form action={deleteAutomation.bind(null, a.id)}>
-                    <button type="submit" style={dangerButtonStyle}>Excluir</button>
+                    <button
+                      type="submit"
+                      style={{
+                        background: "none",
+                        border: "1px solid rgba(232,160,160,0.3)",
+                        borderRadius: 6,
+                        padding: "5px 10px",
+                        fontSize: 10,
+                        color: "#e8a0a0",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Excluir
+                    </button>
                   </form>
-                </span>
-              </li>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
+        ) : (
+          <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--cream-dim)" }}>
+            Nenhuma automação criada ainda.
+          </p>
         )}
 
-        <form action={createAutomation} style={{ ...formGridStyle, marginTop: 16, borderTop: "1px solid rgba(242, 236, 223, 0.08)", paddingTop: 16 }}>
-          <div style={sectionLabel}>Nova automação</div>
-          <div style={rowStyle}>
-            <div style={fieldGroup}>
-              <label style={labelStyle} htmlFor="auto-name">Nome</label>
-              <input id="auto-name" name="name" type="text" required placeholder="Felicitações de aniversário" style={inputStyle} />
+        <details style={{ borderTop: "1px solid rgba(242,236,223,0.08)", paddingTop: 16 }}>
+          <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13, userSelect: "none", marginBottom: 12 }}>
+            + Nova automação
+          </summary>
+          <form action={createAutomation} style={{ display: "grid", gap: 12, marginTop: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gap: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>Nome</label>
+                <input name="name" type="text" required placeholder="Felicitações de aniversário" className="input" />
+              </div>
+              <div style={{ display: "grid", gap: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>Gatilho</label>
+                <select name="trigger" className="input" defaultValue="manual">
+                  <option value="birthday">Aniversário do cliente</option>
+                  <option value="abandoned_cart">Carrinho abandonado</option>
+                  <option value="order_paid">Pedido pago</option>
+                  <option value="order_cancelled">Pedido cancelado</option>
+                  <option value="low_stock">Estoque baixo</option>
+                  <option value="manual">Disparo manual</option>
+                </select>
+              </div>
             </div>
-            <div style={fieldGroup}>
-              <label style={labelStyle} htmlFor="auto-trigger">Gatilho</label>
-              <select id="auto-trigger" name="trigger" style={inputStyle} defaultValue="manual">
-                <option value="birthday">Aniversário do cliente</option>
-                <option value="abandoned_cart">Carrinho abandonado</option>
-                <option value="order_paid">Pedido pago</option>
-                <option value="order_cancelled">Pedido cancelado</option>
-                <option value="low_stock">Estoque baixo</option>
-                <option value="manual">Disparo manual</option>
-              </select>
-            </div>
-          </div>
-          <div style={rowStyle}>
-            <div style={fieldGroup}>
-              <label style={labelStyle} htmlFor="auto-conditions">Condições (JSON, opcional)</label>
-              <input id="auto-conditions" name="conditions" type="text" placeholder='{"tag": "vip"}' style={inputStyle} />
-            </div>
-            <div style={fieldGroup}>
-              <label style={labelStyle} htmlFor="auto-actions">Ações (JSON, opcional)</label>
-              <input id="auto-actions" name="actions" type="text" placeholder='[{"channel": "whatsapp", "template": "aniversario-cliente"}]' style={inputStyle} />
-            </div>
-          </div>
-          <p style={{ fontSize: 12, color: "var(--cream-dim)", margin: 0 }}>
-            A automação é criada como rascunho. O disparo automático (worker que avalia gatilhos e
-            envia mensagens pelos canais conectados) é uma etapa futura — por enquanto, ative/pause
-            para registrar a intenção e organizar os templates por gatilho.
-          </p>
-          <div>
-            <button type="submit" style={buttonStyle}>Criar automação</button>
-          </div>
-        </form>
+            <button type="submit" className="btn btn-ghost" style={{ padding: "10px 20px", justifySelf: "start" }}>
+              Criar automação
+            </button>
+          </form>
+        </details>
       </section>
 
-      <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>Histórico de disparos</h2>
-        {runs.length === 0 ? (
-          <p style={emptyStyle}>Nenhum disparo registrado ainda.</p>
-        ) : (
+      {/* ── histórico ── */}
+      {runs.length > 0 && (
+        <section className="glass" style={{ padding: 20, borderRadius: 16 }}>
+          <h2 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>Histórico de disparos</h2>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ background: "rgba(242, 236, 223, 0.08)", textAlign: "left" }}>
-                  <th style={thStyle}>Automação</th>
-                  <th style={thStyle}>Cliente</th>
-                  <th style={thStyle}>Canal</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Quando</th>
+                <tr style={{ background: "rgba(242,236,223,0.06)", textAlign: "left" }}>
+                  {["Automação", "Cliente", "Canal", "Status", "Quando"].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "10px 16px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "var(--cream-dim)",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {runs.map((r) => (
-                  <tr key={r.id} style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)" }}>
-                    <td style={tdStyle}>{r.automations?.name ?? "—"}</td>
-                    <td style={tdStyle}>{r.customers?.full_name ?? r.customers?.email ?? "—"}</td>
-                    <td style={tdStyle}>{TEMPLATE_CHANNEL_LABELS[r.channel] ?? r.channel}</td>
-                    <td style={tdStyle}>
-                      <span style={runStatusBadge(r.status)}>{RUN_STATUS_LABELS[r.status] ?? r.status}</span>
-                      {r.error && <div style={{ fontSize: 12, color: "#9a3232", marginTop: 2 }}>{r.error}</div>}
+                  <tr key={r.id} style={{ borderTop: "1px solid rgba(242,236,223,0.06)" }}>
+                    <td style={{ padding: "10px 16px" }}>{r.automations?.name ?? "—"}</td>
+                    <td style={{ padding: "10px 16px" }}>
+                      {r.customers?.full_name ?? r.customers?.email ?? "—"}
                     </td>
-                    <td style={tdStyle}>{formatDateTime(r.sent_at ?? r.created_at)}</td>
+                    <td style={{ padding: "10px 16px", textTransform: "capitalize" }}>{r.channel}</td>
+                    <td style={{ padding: "10px 16px" }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: 6,
+                          background:
+                            r.status === "sent"
+                              ? "rgba(143,212,134,0.15)"
+                              : r.status === "failed"
+                              ? "rgba(232,160,160,0.15)"
+                              : "rgba(242,236,223,0.08)",
+                          color:
+                            r.status === "sent"
+                              ? "#8fd486"
+                              : r.status === "failed"
+                              ? "#e8a0a0"
+                              : "var(--cream-dim)",
+                        }}
+                      >
+                        {RUN_STATUS_LABELS[r.status] ?? r.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 16px", color: "var(--cream-dim)" }}>
+                      {formatDateTime(r.sent_at ?? r.created_at)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--glass-bg-strong)",
-  border: "1px solid var(--glass-border)",
-  borderRadius: 12,
-  padding: 20,
-  backdropFilter: "blur(18px) saturate(1.25)",
-  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
-  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
-};
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 15,
-  fontWeight: 700,
-  margin: "0 0 12px",
-};
-
-const sectionLabel: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 700,
-};
-
-const listStyle: React.CSSProperties = {
-  listStyle: "none",
-  margin: 0,
-  padding: 0,
-  display: "grid",
-  gap: 8,
-};
-
-const listItemStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  fontSize: 14,
-  borderBottom: "1px solid rgba(242, 236, 223, 0.08)",
-  paddingBottom: 8,
-};
-
-const emptyStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: 13,
-  color: "var(--cream-dim)",
-};
-
-const thStyle: React.CSSProperties = {
-  padding: "10px 16px",
-  fontSize: 12,
-  fontWeight: 700,
-  color: "var(--cream-dim)",
-  textTransform: "uppercase",
-  letterSpacing: 0.5,
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "10px 16px",
-  verticalAlign: "top",
-};
-
-const formGridStyle: React.CSSProperties = {
-  display: "grid",
-  gap: 12,
-};
-
-const rowStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 12,
-  flexWrap: "wrap",
-};
-
-const fieldGroup: React.CSSProperties = {
-  display: "grid",
-  gap: 4,
-  flex: 1,
-  minWidth: 160,
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: "var(--cream-dim)",
-  textTransform: "uppercase",
-  letterSpacing: 0.5,
-};
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid var(--glass-border)",
-  borderRadius: 8,
-  padding: "8px 12px",
-  fontSize: 14,
-  fontFamily: "inherit",
-  color: "var(--cream)",
-  background: "rgba(10, 22, 11, 0.45)",
-  width: "100%",
-};
-
-const buttonStyle: React.CSSProperties = {
-  background: "var(--cream)",
-  color: "var(--forest-950)",
-  border: "none",
-  borderRadius: 8,
-  padding: "10px 20px",
-  fontSize: 14,
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const actionButtonStyle: React.CSSProperties = {
-  background: "rgba(242, 236, 223, 0.08)",
-  border: "1px solid var(--glass-border)",
-  borderRadius: 6,
-  padding: "4px 10px",
-  fontSize: 12,
-  fontWeight: 700,
-  color: "var(--cream)",
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-};
-
-const dangerButtonStyle: React.CSSProperties = {
-  background: "#fbeaea",
-  border: "1px solid #f5dede",
-  borderRadius: 6,
-  padding: "4px 10px",
-  fontSize: 12,
-  fontWeight: 700,
-  color: "#9a3232",
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-};

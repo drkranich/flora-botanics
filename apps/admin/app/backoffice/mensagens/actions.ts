@@ -122,6 +122,51 @@ export async function deleteTemplate(templateId: string) {
   revalidatePath("/backoffice/mensagens");
 }
 
+export async function updateTemplateBody(
+  templateId: string,
+  data: { name?: string; subject?: string; body?: string }
+) {
+  const staff = await currentStaff();
+  if (!staff) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("message_templates")
+    .update({
+      ...(data.name ? { name: data.name } : {}),
+      ...(data.subject !== undefined ? { subject: data.subject || null } : {}),
+      ...(data.body ? { body: data.body } : {}),
+    })
+    .eq("id", templateId)
+    .eq("tenant_id", staff.tenantId);
+
+  revalidatePath("/backoffice/mensagens");
+}
+
+/**
+ * Envia HTML renderizado diretamente — usado pelo compositor visual,
+ * que já tem o HTML final em memória sem precisar recarregar do banco.
+ */
+export async function sendTestHtmlEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<SendTestResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  if (!to || !html) return { ok: false, error: "Informe destinatário e corpo do e-mail." };
+
+  const result = await sendEmail({
+    to,
+    subject: subject || "Teste — Flora Botanics",
+    html,
+    text: "Abra este e-mail em um cliente compatível com HTML para visualizá-lo.",
+  });
+
+  return result.ok ? { ok: true } : { ok: false, error: result.error };
+}
+
 export async function createAutomation(formData: FormData) {
   const staff = await currentStaff();
   if (!staff) return;

@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/backoffice", label: "Dashboard" },
-  { href: "/backoffice/clientes", label: "Clientes (CRM)" },
+  { href: "/backoffice/crm", label: "Pipeline CRM" },
+  { href: "/backoffice/clientes", label: "Clientes" },
   { href: "/backoffice/pedidos", label: "Pedidos" },
   { href: "/backoffice/notas-fiscais", label: "Notas Fiscais" },
   { href: "/backoffice/marketplaces", label: "Marketplaces" },
