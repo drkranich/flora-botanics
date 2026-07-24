@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition, useEffect, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import { ImageField } from "@/components/MediaPicker";
 import { sendTestHtmlEmail, createTemplate, updateTemplateBody } from "./actions";
 
