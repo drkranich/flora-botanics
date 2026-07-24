@@ -14,6 +14,15 @@ type TypographySettings = {
   lineHeight?: string;
   color?: string;
 };
+type SectionBackground = {
+  type: "none" | "color" | "gradient" | "image";
+  color?: string;
+  color2?: string;
+  angle?: number;
+  image?: string;
+  overlay?: number;
+  blend?: "normal" | "multiply" | "overlay" | "soft-light" | "luminosity";
+};
 type ImageFrameSettings = {
   imageFit?: "cover" | "contain";
   imageX?: number;
@@ -38,6 +47,31 @@ type ProductSummary = {
 };
 
 const asset = (p?: string) => (p ? (p.startsWith("/") || p.startsWith("http") ? p : `/${p}`) : "");
+
+/** Converte props.background em estilo CSS inline */
+function sectionBg(props: Props): CSSProperties {
+  const bg = props.background as SectionBackground | undefined;
+  if (!bg || bg.type === "none") return {};
+  const ovr = (bg.overlay ?? 0) > 0 ? `rgba(0,0,0,${(bg.overlay ?? 0) / 100})` : null;
+  const veil = ovr ? `linear-gradient(${ovr},${ovr}), ` : "";
+  if (bg.type === "color") {
+    return { background: `${veil}${bg.color ?? "#f2ecdf"}` };
+  }
+  if (bg.type === "gradient") {
+    return { background: `${veil}linear-gradient(${bg.angle ?? 135}deg, ${bg.color ?? "#0f2012"}, ${bg.color2 ?? "#b9924d"})` };
+  }
+  if (bg.type === "image" && bg.image) {
+    const url = asset(bg.image);
+    const blend = bg.blend && bg.blend !== "normal" ? bg.blend : undefined;
+    return {
+      backgroundImage: `${veil}url("${url}")`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      ...(blend ? { backgroundBlendMode: blend } : {}),
+    };
+  }
+  return {};
+}
 
 function typography(props: Props): CSSProperties {
   const t = (props.typography ?? {}) as TypographySettings;
@@ -98,12 +132,17 @@ function productCoverUrl(product: ProductSummary, storageBase: string) {
 /* ---------- HERO ---------- */
 function Hero({ props, header }: { props: Props; header?: ReactNode }) {
   const cta = props.cta as Cta | undefined;
+  const bg = props.background as SectionBackground | undefined;
+  const hasCustomBg = bg && bg.type !== "none";
   return (
     <section
       className="hero"
       style={{
         ...typography(props),
-        background: `linear-gradient(90deg, rgba(10,22,11,.90) 0%, rgba(10,22,11,.70) 36%, rgba(10,22,11,.32) 66%, rgba(10,22,11,.58) 100%), url("${asset(props.image as string)}") center / cover`,
+        background: hasCustomBg
+          ? undefined
+          : `linear-gradient(90deg, rgba(10,22,11,.90) 0%, rgba(10,22,11,.70) 36%, rgba(10,22,11,.32) 66%, rgba(10,22,11,.58) 100%), url("${asset(props.image as string)}") center / cover`,
+        ...sectionBg(props),
       }}
     >
       {header}
@@ -145,7 +184,7 @@ async function CategoryGrid({ props }: { props: Props }) {
   const bySlug = new Map((cats ?? []).map((c) => [c.slug, c]));
 
   return (
-    <section className="categories" id="produtos" style={typography(props)}>
+    <section className="categories" id="produtos" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container">
         <div className="section-heading">
           <h2>{props.heading as string}</h2>
@@ -156,14 +195,18 @@ async function CategoryGrid({ props }: { props: Props }) {
             if (!cat) return null;
             return (
               <article className="category-card" key={item.category_slug}>
-                {item.image ? (
-                  <div className="category-card-media">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img className="category-card-image" src={asset(item.image)} alt={cat.name} />
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img className="category-card-hover-image" src={asset(item.image)} alt="" aria-hidden />
-                  </div>
-                ) : null}
+                <div className="category-card-media-wrap">
+                  {item.image ? (
+                    <div className="category-card-media">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="category-card-image" src={asset(item.image)} alt={cat.name} />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="category-card-hover-image" src={asset(item.image)} alt="" aria-hidden />
+                    </div>
+                  ) : (
+                    <div className="category-card-media" />
+                  )}
+                </div>
                 <h3>{cat.name}</h3>
                 <p>{cat.description}</p>
                 <a href={`/categorias/${cat.slug}`} className="link">
@@ -182,9 +225,10 @@ async function CategoryGrid({ props }: { props: Props }) {
 function IngredientGrid({ props }: { props: Props }) {
   const cta = props.cta as Cta | undefined;
   const items = (props.items ?? []) as Array<{ title: string; text: string; image?: string }>;
-  const [l1, l2] = (props.heading as string).split(" para ");
+  const heading = String(props.heading ?? "");
+  const [l1, l2] = heading.split(" para ");
   return (
-    <section className="ingredients" id="ingredientes" style={typography(props)}>
+    <section className="ingredients" id="ingredientes" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container ingredients-layout">
         <div className="ingredients-text">
           <h2>
@@ -195,7 +239,7 @@ function IngredientGrid({ props }: { props: Props }) {
                 para {l2}
               </>
             ) : (
-              (props.heading as string)
+              heading
             )}
           </h2>
           {props.text ? <SmartText text={props.text as string} /> : null}
@@ -238,6 +282,7 @@ function Manifesto({ props }: { props: Props }) {
       id="sobre"
       style={{
         ...typography(props),
+        ...sectionBg(props),
         "--manifesto-height": imageHeight,
         "--manifesto-fit": imageFit,
         "--manifesto-position": `${imageX}% ${imageY}%`,
@@ -254,7 +299,7 @@ function Manifesto({ props }: { props: Props }) {
         <div className="manifesto-text">
           {props.eyebrow ? <span className="eyebrow">{props.eyebrow as string}</span> : null}
           <h2>{props.title as string}</h2>
-          <SmartText text={props.text as string} />
+          {props.text ? <SmartText text={props.text as string} /> : null}
           {cta ? (
             <a href={cta.href} className="link">
               {cta.label}
@@ -309,7 +354,7 @@ const BENEFIT_ICONS: Record<string, ReactNode> = {
 function Benefits({ props }: { props: Props }) {
   const items = (props.items ?? []) as Array<{ icon: string; title: string; text: string }>;
   return (
-    <section className="benefits" id="sustentabilidade" style={typography(props)}>
+    <section className="benefits" id="sustentabilidade" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container benefit-grid">
         {items.map((b) => (
           <article className="benefit-card" key={b.title}>
@@ -328,13 +373,18 @@ function Benefits({ props }: { props: Props }) {
 /* ---------- NEWSLETTER ---------- */
 function Newsletter({ props }: { props: Props }) {
   const perks = (props.perks ?? []) as string[];
+  const bg = props.background as SectionBackground | undefined;
+  const hasCustomBg = bg && bg.type !== "none";
   return (
     <section
       className="newsletter"
       id="newsletter"
       style={{
         ...typography(props),
-        background: `linear-gradient(90deg, rgba(12,29,13,.96) 0%, rgba(12,29,13,.88) 46%, rgba(12,29,13,.45) 75%, rgba(12,29,13,.25) 100%), url("/assets/newsletter-contagotas.jpg") center right / cover`,
+        background: hasCustomBg
+          ? undefined
+          : `linear-gradient(90deg, rgba(12,29,13,.96) 0%, rgba(12,29,13,.88) 46%, rgba(12,29,13,.45) 75%, rgba(12,29,13,.25) 100%), url("/assets/newsletter-contagotas.jpg") center right / cover`,
+        ...sectionBg(props),
       }}
     >
       <div className="container newsletter-layout">
@@ -358,7 +408,7 @@ function Newsletter({ props }: { props: Props }) {
 /* ---------- RICH TEXT ---------- */
 function RichText({ props }: { props: Props }) {
   return (
-    <section className="editorial-section" style={typography(props)}>
+    <section className="editorial-section" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container">
         <div
           className="editorial-rich-text"
@@ -385,7 +435,7 @@ function Banner({ props }: { props: Props }) {
   );
 
   return (
-    <section className="cms-banner-section" style={typography(props)}>
+    <section className="cms-banner-section" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className={fullWidth ? undefined : "container"}>
         {href ? <a href={href}>{body}</a> : body}
       </div>
@@ -396,14 +446,14 @@ function Banner({ props }: { props: Props }) {
 function Faq({ props }: { props: Props }) {
   const items = (props.items ?? []) as Array<{ q?: string; a?: string }>;
   return (
-    <section className="cms-faq-section" style={typography(props)}>
+    <section className="cms-faq-section" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container">
         <div className="section-heading">
           <h2>{(props.heading as string) || "Perguntas frequentes"}</h2>
         </div>
         <div className="cms-faq-list">
           {items.map((item, index) => (
-            <details key={`${item.q ?? "pergunta"}-${index}`} className="cms-faq-item">
+            <details key={`${item.q ?? "pergunta"}-${index}`} className="cms-faq-item" open={index === 0}>
               <summary>{item.q || "Pergunta"}</summary>
               <div>{item.a ? <SmartText text={item.a} /> : null}</div>
             </details>
@@ -463,7 +513,7 @@ async function ProductCarousel({ props }: { props: Props }) {
   const products = (data ?? []) as unknown as ProductSummary[];
 
   return (
-    <section className="cms-product-carousel" style={typography(props)}>
+    <section className="cms-product-carousel" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container">
         <div className="section-heading">
           <h2>{(props.heading as string) || "Produtos selecionados"}</h2>
@@ -478,16 +528,18 @@ async function ProductCarousel({ props }: { props: Props }) {
               const image = productCoverUrl(product, storageBase);
               return (
                 <article className="category-card" key={product.id}>
-                  {image ? (
-                    <div className="category-card-media">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img className="category-card-image" src={image} alt={product.name} />
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img className="category-card-hover-image" src={image} alt="" aria-hidden />
-                    </div>
-                  ) : (
-                    <div className="category-card-media" />
-                  )}
+                  <div className="category-card-media-wrap">
+                    {image ? (
+                      <div className="category-card-media">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img className="category-card-image" src={image} alt={product.name} />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img className="category-card-hover-image" src={image} alt="" aria-hidden />
+                      </div>
+                    ) : (
+                      <div className="category-card-media" />
+                    )}
+                  </div>
                   <h3>{product.name}</h3>
                   {product.type === "kit" ? <span className="category-card-badge">Kit</span> : null}
                   {product.subtitle ? <p>{product.subtitle}</p> : null}

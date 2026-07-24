@@ -11,6 +11,15 @@ type PreviewSection = {
 
 type Cta = { label?: string; href?: string };
 type MenuItem = { label: string; href: string };
+type SectionBackground = {
+  type: "none" | "color" | "gradient" | "image";
+  color?: string;
+  color2?: string;
+  angle?: number;
+  image?: string;
+  overlay?: number;
+  blend?: "normal" | "multiply" | "overlay" | "soft-light" | "luminosity";
+};
 type TypographySettings = {
   displayFont?: string;
   bodyFont?: string;
@@ -23,6 +32,30 @@ type TypographySettings = {
 };
 
 const asset = (path?: string) => (path ? (path.startsWith("/") || path.startsWith("http") ? path : `/${path}`) : "");
+
+function sectionBg(props: Record<string, unknown>): CSSProperties {
+  const bg = props.background as SectionBackground | undefined;
+  if (!bg || bg.type === "none") return {};
+  const ovr = (bg.overlay ?? 0) > 0 ? `rgba(0,0,0,${(bg.overlay ?? 0) / 100})` : null;
+  const veil = ovr ? `linear-gradient(${ovr},${ovr}), ` : "";
+  if (bg.type === "color") {
+    return { background: `${veil}${bg.color ?? "#f2ecdf"}` };
+  }
+  if (bg.type === "gradient") {
+    return { background: `${veil}linear-gradient(${bg.angle ?? 135}deg, ${bg.color ?? "#0f2012"}, ${bg.color2 ?? "#b9924d"})` };
+  }
+  if (bg.type === "image" && bg.image) {
+    const url = asset(bg.image);
+    const blend = bg.blend && bg.blend !== "normal" ? bg.blend : undefined;
+    return {
+      backgroundImage: `${veil}url("${url}")`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      ...(blend ? { backgroundBlendMode: blend } : {}),
+    };
+  }
+  return {};
+}
 
 function typography(props: Record<string, unknown>): CSSProperties {
   const t = (props.typography ?? {}) as TypographySettings;
@@ -67,12 +100,17 @@ function editorialHtml(value: unknown) {
 
 function Hero({ props, header }: { props: Record<string, unknown>; header?: ReactNode }) {
   const cta = props.cta as Cta | undefined;
+  const bg = props.background as SectionBackground | undefined;
+  const hasCustomBg = bg && bg.type !== "none";
   return (
     <section
       className="hero"
       style={{
         ...typography(props),
-        background: `linear-gradient(90deg, rgba(10,22,11,.90) 0%, rgba(10,22,11,.70) 36%, rgba(10,22,11,.32) 66%, rgba(10,22,11,.58) 100%), url("${asset(props.image as string)}") center / cover`,
+        background: hasCustomBg
+          ? undefined
+          : `linear-gradient(90deg, rgba(10,22,11,.90) 0%, rgba(10,22,11,.70) 36%, rgba(10,22,11,.32) 66%, rgba(10,22,11,.58) 100%), url("${asset(props.image as string)}") center / cover`,
+        ...sectionBg(props),
       }}
     >
       {header}
@@ -94,20 +132,24 @@ function Hero({ props, header }: { props: Record<string, unknown>; header?: Reac
 function CategoryGrid({ props }: { props: Record<string, unknown> }) {
   const items = (props.items ?? []) as Array<{ category_slug?: string; title?: string; image?: string }>;
   return (
-    <section className="categories" id="produtos" style={typography(props)}>
+    <section className="categories" id="produtos" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container">
         <div className="section-heading"><h2>{props.heading as string}</h2></div>
         <div className="category-grid">
           {items.map((item, index) => (
             <article className="category-card" key={`${item.category_slug ?? item.title ?? "categoria"}-${index}`}>
-              {item.image ? (
-                <div className="category-card-media">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className="category-card-image" src={asset(item.image)} alt={item.title ?? item.category_slug ?? "Categoria"} />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className="category-card-hover-image" src={asset(item.image)} alt="" aria-hidden />
-                </div>
-              ) : null}
+              <div className="category-card-media-wrap">
+                {item.image ? (
+                  <div className="category-card-media">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className="category-card-image" src={asset(item.image)} alt={item.title ?? item.category_slug ?? "Categoria"} />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className="category-card-hover-image" src={asset(item.image)} alt="" aria-hidden />
+                  </div>
+                ) : (
+                  <div className="category-card-media" />
+                )}
+              </div>
               <h3>{item.title ?? item.category_slug ?? "Categoria"}</h3>
               <p>Prévia do rascunho da categoria.</p>
               <a href="#" className="link">Ver produtos</a>
@@ -124,7 +166,7 @@ function IngredientGrid({ props }: { props: Record<string, unknown> }) {
   const items = (props.items ?? []) as Array<{ title?: string; text?: string; image?: string }>;
   const [l1, l2] = String(props.heading ?? "").split(" para ");
   return (
-    <section className="ingredients" id="ingredientes" style={typography(props)}>
+    <section className="ingredients" id="ingredientes" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container ingredients-layout">
         <div className="ingredients-text">
           <h2>{l2 ? <>{l1}<br />para {l2}</> : props.heading as string}</h2>
@@ -159,6 +201,7 @@ function Manifesto({ props }: { props: Record<string, unknown> }) {
       id="sobre"
       style={{
         ...typography(props),
+        ...sectionBg(props),
         "--manifesto-height": (props.imageHeight as string) ?? "380px",
         "--manifesto-fit": (props.imageFit as string) ?? "contain",
         "--manifesto-position": `${imageX}% ${imageY}%`,
@@ -186,7 +229,7 @@ function Manifesto({ props }: { props: Record<string, unknown> }) {
 function Benefits({ props }: { props: Record<string, unknown> }) {
   const items = (props.items ?? []) as Array<{ title?: string; text?: string }>;
   return (
-    <section className="benefits" id="sustentabilidade" style={typography(props)}>
+    <section className="benefits" id="sustentabilidade" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container benefit-grid">
         {items.map((item, index) => (
           <article className="benefit-card" key={`${item.title ?? "beneficio"}-${index}`}>
@@ -204,8 +247,18 @@ function Benefits({ props }: { props: Record<string, unknown> }) {
 
 function Newsletter({ props }: { props: Record<string, unknown> }) {
   const perks = (props.perks ?? []) as string[];
+  const bgPrev = props.background as SectionBackground | undefined;
+  const hasCustomBg = bgPrev && bgPrev.type !== "none";
   return (
-    <section className="newsletter" id="newsletter" style={typography(props)}>
+    <section
+      className="newsletter"
+      id="newsletter"
+      style={{
+        ...typography(props),
+        background: hasCustomBg ? undefined : "rgba(12,29,13,0.92)",
+        ...sectionBg(props),
+      }}
+    >
       <div className="container newsletter-layout">
         <div>
           <h2>{props.title as string}</h2>
@@ -225,7 +278,7 @@ function Newsletter({ props }: { props: Record<string, unknown> }) {
 
 function RichText({ props }: { props: Record<string, unknown> }) {
   return (
-    <section className="editorial-section" style={typography(props)}>
+    <section className="editorial-section" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container">
         <div className="editorial-rich-text" dangerouslySetInnerHTML={{ __html: editorialHtml(props.content) }} />
       </div>
@@ -249,7 +302,7 @@ function Banner({ props }: { props: Record<string, unknown> }) {
   );
 
   return (
-    <section className="cms-banner-section" style={typography(props)}>
+    <section className="cms-banner-section" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className={fullWidth ? undefined : "container"}>
         {href ? <a href={href}>{body}</a> : body}
       </div>
@@ -260,7 +313,7 @@ function Banner({ props }: { props: Record<string, unknown> }) {
 function Faq({ props }: { props: Record<string, unknown> }) {
   const items = (props.items ?? []) as Array<{ q?: string; a?: string }>;
   return (
-    <section className="cms-faq-section" style={typography(props)}>
+    <section className="cms-faq-section" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container">
         <div className="section-heading"><h2>{(props.heading as string) || "Perguntas frequentes"}</h2></div>
         <div className="cms-faq-list">
@@ -278,17 +331,19 @@ function Faq({ props }: { props: Record<string, unknown> }) {
 
 function ProductCarousel({ props }: { props: Record<string, unknown> }) {
   const slug = String(props.collection_slug ?? "").trim();
-  const labels = slug ? [`Colecao: ${slug}`, "Produto publicado", "Kit publicado"] : ["Produto publicado", "Kit publicado", "Novo destaque"];
+  const labels = slug ? [`Coleção: ${slug}`, "Produto publicado", "Kit publicado"] : ["Produto publicado", "Kit publicado", "Novo destaque"];
   return (
-    <section className="cms-product-carousel" style={typography(props)}>
+    <section className="cms-product-carousel" style={{ ...typography(props), ...sectionBg(props) }}>
       <div className="container">
         <div className="section-heading"><h2>{(props.heading as string) || "Produtos selecionados"}</h2></div>
         <div className="cms-product-row">
           {labels.map((label, index) => (
             <article className="category-card" key={`${label}-${index}`}>
-              <div className="category-card-media" />
+              <div className="category-card-media-wrap">
+                <div className="category-card-media" />
+              </div>
               <h3>{label}</h3>
-              <p>Preview do carrossel. Produtos reais aparecem no site publicado conforme colecao e estoque.</p>
+              <p style={{ fontSize: 11, color: "rgba(56,51,41,0.55)", marginBottom: 12 }}>Produtos reais aparecem no site publicado.</p>
               <a href="#" className="link">Ver produto</a>
             </article>
           ))}

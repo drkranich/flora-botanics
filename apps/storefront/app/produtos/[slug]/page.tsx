@@ -6,6 +6,7 @@ import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { AddToCartButton } from "./AddToCartButton";
+import { ShareButton } from "./ShareButton";
 import { ProductGallery, type GalleryImage } from "./ProductGallery";
 import { ProductReviews, type ApprovedReview } from "./ProductReviews";
 import { absoluteUrl, buildMetadata, currentSiteUrl, DEFAULT_DESCRIPTION } from "@/lib/seo";
@@ -507,7 +508,10 @@ export default async function ProductPage({
                   Avise-me
                 </a>
               )}
-              <FavoriteButton tenantId={tenant.tenantId} productId={row.id} label="Salvar favorito" />
+              <div className="product-icon-actions">
+                <FavoriteButton tenantId={tenant.tenantId} productId={row.id} compact />
+                <ShareButton title={row.name} url={productUrl} />
+              </div>
             </div>
           </section>
         </div>
