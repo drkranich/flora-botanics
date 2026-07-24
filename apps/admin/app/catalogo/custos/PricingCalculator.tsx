@@ -1,31 +1,195 @@
 "use client";
 
-import { useState, useId } from "react";
+import { useState, useId, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 
 /* ─── tipos ─────────────────────────────────────────────────── */
 interface Inputs {
   // Custo de produção
-  materiaprima: number;      // R$
-  embalagem_primaria: number; // R$ (pote, frasco, tampa)
-  caixa_envio: number;        // R$ (caixa/fita/papel seda)
-  outros_insumos: number;     // R$ (outros custos fixos do produto)
+  materiaprima: number;
+  embalagem_primaria: number;
+  caixa_envio: number;
+  outros_insumos: number;
 
   // Logística / operacional
-  frete_envio: number;        // R$ custo médio de envio ao cliente
-  taxa_gateway: number;       // % (ex: 2.5 Stripe, 3.99 Mercado Pago)
-  taxa_marketplace: number;   // % (0 loja própria, 12 ML, 14 Shopee)
+  frete_envio: number;
+  taxa_gateway: number;       // %
+  taxa_marketplace: number;   // %
 
   // Fiscal
-  regime: "mei" | "simples" | "lucro_presumido" | "isento";
-  aliquota_simples: number;   // % usado só se regime == simples
+  regime: string;             // chave do REGIME_OPTIONS
+  aliquota_custom: number;    // % — usado quando o regime é "variável"
 
-  // Preço atual do produto (para comparação)
-  preco_atual: number;        // R$
+  // Preço atual do produto
+  preco_atual: number;
 
   // Margem desejada
   margem_desejada: number;    // %
 }
+
+/* ─── regimes fiscais ─────────────────────────────────────────── */
+interface RegimeOption {
+  value: string;
+  label: string;
+  aliquota: number;           // 0 = customizável pelo usuário
+  group: string;
+  hint?: string;
+  customizable?: boolean;
+}
+
+const REGIME_OPTIONS: RegimeOption[] = [
+  // ── Brasil ──────────────────────────────────────────────────────
+  {
+    group: "🇧🇷 Brasil",
+    value: "br_mei",
+    label: "MEI — DAS 5%",
+    aliquota: 5,
+    hint: "Microempreendedor Individual. Simples e previsível.",
+  },
+  {
+    group: "🇧🇷 Brasil",
+    value: "br_simples",
+    label: "Simples Nacional (variável)",
+    aliquota: 0,
+    customizable: true,
+    hint: "Alíquota varia por anexo e faturamento. Insira a sua abaixo.",
+  },
+  {
+    group: "🇧🇷 Brasil",
+    value: "br_lucro_presumido",
+    label: "Lucro Presumido — ~11.33%",
+    aliquota: 11.33,
+    hint: "IRPJ + CSLL + PIS + COFINS sobre receita bruta.",
+  },
+  {
+    group: "🇧🇷 Brasil",
+    value: "br_lucro_real",
+    label: "Lucro Real (variável)",
+    aliquota: 0,
+    customizable: true,
+    hint: "Tributação sobre lucro efetivo. Insira a alíquota efetiva.",
+  },
+  {
+    group: "🇧🇷 Brasil",
+    value: "br_isento",
+    label: "Isento / Pessoa Física",
+    aliquota: 0,
+    hint: "Sem tributação sobre vendas (abaixo do limite MEI ou PF).",
+  },
+
+  // ── Europa ──────────────────────────────────────────────────────
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_iva_pt",
+    label: "🇵🇹 IVA Portugal — 23%",
+    aliquota: 23,
+    hint: "Taxa normal. Cosméticos são tributados a 23%.",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_iva_pt_red",
+    label: "🇵🇹 IVA Portugal reduzido — 6%",
+    aliquota: 6,
+    hint: "Taxa reduzida (ex: produtos farmacêuticos / alguns cosméticos certificados).",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_iva_es",
+    label: "🇪🇸 IVA Espanha — 21%",
+    aliquota: 21,
+    hint: "Taxa general. Perfumes e cosméticos: 21%.",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_tva_fr",
+    label: "🇫🇷 TVA França — 20%",
+    aliquota: 20,
+    hint: "Taux normal. Cosmétiques: 20%.",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_mwst_de",
+    label: "🇩🇪 MwSt Alemanha — 19%",
+    aliquota: 19,
+    hint: "Regelsteuersatz. Kosmetika: 19%.",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_iva_it",
+    label: "🇮🇹 IVA Itália — 22%",
+    aliquota: 22,
+    hint: "Aliquota ordinaria. Cosmetici: 22%.",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_vat_uk",
+    label: "🇬🇧 VAT Reino Unido — 20%",
+    aliquota: 20,
+    hint: "Standard rate. Cosmetics/beauty: 20%.",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_btw_nl",
+    label: "🇳🇱 BTW Países Baixos — 21%",
+    aliquota: 21,
+    hint: "Normaal tarief. Cosmetica: 21%.",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_moms_se",
+    label: "🇸🇪 MOMS Suécia — 25%",
+    aliquota: 25,
+    hint: "Normalskattesats. Kosmetika: 25%.",
+  },
+  {
+    group: "🇪🇺 Europa",
+    value: "eu_iva_outro",
+    label: "🇪🇺 IVA europeu personalizado",
+    aliquota: 0,
+    customizable: true,
+    hint: "Para qualquer outro país da UE. Insira a alíquota abaixo.",
+  },
+
+  // ── EUA ─────────────────────────────────────────────────────────
+  {
+    group: "🇺🇸 EUA",
+    value: "us_isento",
+    label: "Sem imposto federal sobre vendas",
+    aliquota: 0,
+    hint: "EUA não têm imposto federal sobre vendas (sales tax). Use Sales Tax estadual abaixo.",
+  },
+  {
+    group: "🇺🇸 EUA",
+    value: "us_sales_tax",
+    label: "Sales Tax estadual (variável)",
+    aliquota: 0,
+    customizable: true,
+    hint: "Varia por estado: ~4% (OR/MT) até ~10% (CA/WA). Insira a alíquota do seu estado.",
+  },
+  {
+    group: "🇺🇸 EUA",
+    value: "us_self_employ",
+    label: "Self-Employment Tax — 15.3%",
+    aliquota: 15.3,
+    hint: "Social Security + Medicare para autônomos/freelancers (Schedule C).",
+  },
+  {
+    group: "🇺🇸 EUA",
+    value: "us_llc",
+    label: "LLC / S-Corp (pass-through, variável)",
+    aliquota: 0,
+    customizable: true,
+    hint: "Imposto vai para a declaração pessoal do sócio. Insira sua alíquota efetiva.",
+  },
+  {
+    group: "🇺🇸 EUA",
+    value: "us_ccorp",
+    label: "C-Corp federal — 21%",
+    aliquota: 21,
+    hint: "Flat rate federal. Pode haver imposto estadual adicional.",
+  },
+];
 
 /* ─── helpers ───────────────────────────────────────────────── */
 function r(v: number) {
@@ -40,19 +204,10 @@ function pct(v: number) {
   return `${v.toFixed(1)}%`;
 }
 
-const REGIME_ALIQUOTA: Record<string, number> = {
-  mei: 5,
-  simples: 0,   // definido pelo usuário
-  lucro_presumido: 11.33,
-  isento: 0,
-};
-
-const REGIME_LABEL: Record<string, string> = {
-  mei: "MEI (DAS 5%)",
-  simples: "Simples Nacional (alíquota variável)",
-  lucro_presumido: "Lucro Presumido (~11.33%)",
-  isento: "Isento / Pessoa Física",
-};
+// Lookup rápido por value
+function getRegimeOption(value: string): RegimeOption | undefined {
+  return REGIME_OPTIONS.find((o) => o.value === value);
+}
 
 function calc(inp: Inputs) {
   // Custo fixo total (não depende do preço)
@@ -64,10 +219,10 @@ function calc(inp: Inputs) {
     r(inp.frete_envio);
 
   // Impostos sobre o preço
-  const aliq_fiscal =
-    inp.regime === "simples"
-      ? inp.aliquota_simples
-      : REGIME_ALIQUOTA[inp.regime] ?? 0;
+  const opt = getRegimeOption(inp.regime);
+  const aliq_fiscal = opt?.customizable
+    ? inp.aliquota_custom
+    : (opt?.aliquota ?? 0);
 
   // % totais sobre o preço de venda
   const pct_sobre_preco =
@@ -265,6 +420,178 @@ function ResultChip({
   );
 }
 
+/* ─── RegimeSelect glassmorfismo ─────────────────────────────── */
+function RegimeSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
+
+  useEffect(() => { setMounted(true); }, []);
+
+  // Fechar ao clicar fora
+  useEffect(() => {
+    if (!open) return;
+    function handle(e: MouseEvent) {
+      if (
+        !triggerRef.current?.contains(e.target as Node) &&
+        !menuRef.current?.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  function toggleOpen() {
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuStyle({
+        position: "fixed",
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: Math.max(rect.width, 340),
+        zIndex: 99999,
+      });
+    }
+    setOpen((v) => !v);
+  }
+
+  const selected = getRegimeOption(value);
+
+  // Agrupar opções
+  const groups = REGIME_OPTIONS.reduce<Record<string, RegimeOption[]>>((acc, opt) => {
+    if (!acc[opt.group]) acc[opt.group] = [];
+    acc[opt.group].push(opt);
+    return acc;
+  }, {});
+
+  const menu = (
+    <div
+      ref={menuRef}
+      style={{
+        ...menuStyle,
+        background: "rgba(12,24,13,0.88)",
+        backdropFilter: "blur(20px) saturate(1.4)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+        border: "1px solid rgba(185,146,77,0.25)",
+        borderRadius: 14,
+        boxShadow: "0 24px 60px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)",
+        maxHeight: 400,
+        overflowY: "auto",
+        padding: "8px 0",
+      }}
+    >
+      {Object.entries(groups).map(([group, opts]) => (
+        <div key={group}>
+          <div
+            style={{
+              padding: "8px 14px 4px",
+              fontSize: 9.5,
+              fontWeight: 800,
+              textTransform: "uppercase",
+              letterSpacing: 1.2,
+              color: "var(--gold-light)",
+              opacity: 0.8,
+            }}
+          >
+            {group}
+          </div>
+          {opts.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  background: isSelected
+                    ? "rgba(185,146,77,0.18)"
+                    : "transparent",
+                  border: "none",
+                  borderLeft: isSelected ? "2px solid var(--gold)" : "2px solid transparent",
+                  padding: "9px 14px 9px 16px",
+                  cursor: "pointer",
+                  color: isSelected ? "var(--gold-light)" : "var(--cream)",
+                  fontSize: 13,
+                  fontWeight: isSelected ? 700 : 400,
+                  transition: "background 0.12s",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "rgba(242,236,223,0.07)";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                }}
+              >
+                <span style={{ display: "block", lineHeight: 1.35 }}>{opt.label}</span>
+                {opt.hint && (
+                  <span style={{ display: "block", fontSize: 10.5, color: "var(--cream-dim)", marginTop: 2, lineHeight: 1.4, opacity: 0.7 }}>
+                    {opt.hint}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={toggleOpen}
+        style={{
+          ...inputS,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          gap: 8,
+          textAlign: "left",
+          border: open
+            ? "1px solid rgba(185,146,77,0.6)"
+            : "1px solid var(--glass-border)",
+          transition: "border-color 0.15s",
+        }}
+      >
+        <span style={{ fontSize: 13, color: "var(--cream)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {selected?.label ?? "Selecione um regime"}
+        </span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          style={{
+            flexShrink: 0,
+            transition: "transform 0.2s",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            color: "var(--gold-light)",
+          }}
+        >
+          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {mounted && open && createPortal(menu, document.body)}
+    </>
+  );
+}
+
 /* ─── componente principal ───────────────────────────────────── */
 const DEFAULT: Inputs = {
   materiaprima: 0,
@@ -274,8 +601,8 @@ const DEFAULT: Inputs = {
   frete_envio: 0,
   taxa_gateway: 2.5,
   taxa_marketplace: 0,
-  regime: "mei",
-  aliquota_simples: 6,
+  regime: "br_mei",
+  aliquota_custom: 6,
   preco_atual: 0,
   margem_desejada: 40,
 };
@@ -337,26 +664,25 @@ export function PricingCalculator() {
             <div style={{ display: "grid", gap: 12 }}>
               <div>
                 <label style={labelS}>Regime tributário</label>
-                <select
+                <RegimeSelect
                   value={inp.regime}
-                  onChange={(e) => set("regime", e.target.value as Inputs["regime"])}
-                  style={{ ...inputS }}
-                >
-                  {Object.entries(REGIME_LABEL).map(([v, l]) => (
-                    <option key={v} value={v}>{l}</option>
-                  ))}
-                </select>
+                  onChange={(v) => set("regime", v)}
+                />
               </div>
-              {inp.regime === "simples" && (
+
+              {/* Campo de alíquota personalizada para regimes variáveis */}
+              {getRegimeOption(inp.regime)?.customizable && (
                 <Field
-                  label="Alíquota Simples Nacional"
+                  label="Alíquota efetiva"
                   suffix="%"
-                  value={inp.aliquota_simples}
-                  onChange={(v) => set("aliquota_simples", v)}
+                  value={inp.aliquota_custom}
+                  onChange={(v) => set("aliquota_custom", v)}
                   step="0.1"
                 />
               )}
-              {inp.regime !== "isento" && (
+
+              {/* Resumo da alíquota aplicada */}
+              {res.aliq_fiscal > 0 && (
                 <div
                   style={{
                     padding: "10px 12px",
