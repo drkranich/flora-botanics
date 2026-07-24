@@ -698,6 +698,7 @@ export function PageEditor({
         gridTemplateColumns: preview ? "minmax(340px, 420px) 1fr" : "minmax(420px, 720px)",
         gap: 32,
         alignItems: "start",
+        paddingBottom: 96,
       }}
     >
       {/* ============ COLUNA DO EDITOR ============ */}
@@ -891,7 +892,7 @@ export function PageEditor({
           style={{
             position: "sticky",
             top: 8,
-            height: "calc(100vh - 72px)",
+            height: "calc(100vh - 72px - 88px)",
             display: "flex",
             flexDirection: "column",
             borderRadius: 22,
@@ -1002,13 +1003,15 @@ export function PageEditor({
               src={`${storefrontUrl}/preview`}
               onLoad={pushPreview}
               style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
                 border: 0,
                 width: 1280,
                 height: `${Math.round(100 / previewScale)}%`,
                 transformOrigin: "top left",
                 transform: `scale(${previewScale})`,
                 background: "#f2ecdf",
-                display: "block",
               }}
               title="Preview da página"
             />
