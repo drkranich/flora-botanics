@@ -217,12 +217,12 @@ export function PremiumHome({ products, reviews, storageBase, tenantId }: Premiu
             </div>
             <div>
               <NewsletterForm />
-              <ul className="newsletter-list" style={{ marginTop: 20 }}>
-                <li><span>Dicas semanais de skincare</span></li>
-                <li><span>Lançamentos em primeira mão</span></li>
-                <li><span>Desconto exclusivo na 1ª compra</span></li>
-                <li><span>Sem spam, só o que importa</span></li>
-              </ul>
+              <div className="newsletter-list" style={{ marginTop: 20 }}>
+                <span>Dicas semanais de skincare</span>
+                <span>Lançamentos em primeira mão</span>
+                <span>Desconto exclusivo na 1ª compra</span>
+                <span>Sem spam, só o que importa</span>
+              </div>
             </div>
           </div>
         </div>

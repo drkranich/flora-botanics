@@ -541,7 +541,7 @@ async function ProductCarousel({ props }: { props: Props }) {
                     )}
                   </div>
                   <h3>{product.name}</h3>
-                  {product.type === "kit" ? <span className="category-card-badge">Kit</span> : null}
+                  {product.type === "kit" ? <span className="category-card-badge-seal category-card-badge-seal--kit">Kit</span> : null}
                   {product.subtitle ? <p>{product.subtitle}</p> : null}
                   {variant ? (
                     <p style={{ marginBottom: 10, color: "var(--gold-dark)", fontWeight: 700 }}>

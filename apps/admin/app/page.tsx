@@ -222,36 +222,37 @@ export default async function AdminHome({
         </div>
       </header>
 
-      {/* ── filtro de período ── */}
-      <div className="rise rise-1" style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        {PERIODS.map((p) => (
-          <Link
-            key={p.key}
-            href={`?period=${p.key}`}
-            style={{
-              padding: "6px 14px",
-              border: "1px solid",
-              borderColor: period === p.key ? "var(--gold-light)" : "var(--glass-border)",
-              background: period === p.key ? "rgba(218,183,116,0.16)" : "rgba(242,236,223,0.05)",
-              color: period === p.key ? "var(--gold-light)" : "var(--cream-dim)",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              borderRadius: 6,
-              transition: "all 0.18s ease",
-            }}
-          >
-            {p.label}
-          </Link>
-        ))}
-        <span className="muted" style={{ fontSize: 11, display: "flex", alignItems: "center" }}>
-          — mostrando dados do período selecionado
-        </span>
-      </div>
-
       {/* ── métricas principais ── */}
-      <div className="rise rise-1" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 14, marginBottom: 18 }}>
+      <div className="rise rise-1" style={{ marginBottom: 18 }}>
+        {/* cabeçalho da seção: label + filtros de período */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+          <p className="eyebrow" style={{ fontSize: 10, letterSpacing: 2 }}>Análise de vendas</p>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {PERIODS.map((p) => (
+              <Link
+                key={p.key}
+                href={`?period=${p.key}`}
+                style={{
+                  padding: "5px 12px",
+                  border: "1px solid",
+                  borderColor: period === p.key ? "var(--gold-light)" : "var(--glass-border)",
+                  background: period === p.key ? "rgba(218,183,116,0.16)" : "rgba(242,236,223,0.04)",
+                  color: period === p.key ? "var(--gold-light)" : "var(--cream-dim)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  borderRadius: 5,
+                  transition: "all 0.18s ease",
+                }}
+              >
+                {p.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+        {/* cards de métricas */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 14 }}>
         <Link href="/vendas">
           <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
             <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{money(revenue)}</p>
@@ -288,7 +289,8 @@ export default async function AdminHome({
             <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Carrinhos abandonados</p>
           </div>
         </Link>
-      </div>
+        </div>{/* fim grid cards */}
+      </div>{/* fim seção métricas */}
 
       {/* ── pedidos por status + estoque crítico ── */}
       <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(240px, 0.85fr)", gap: 18, marginBottom: 22 }}>
