@@ -592,6 +592,8 @@ export function PageEditor({
   const [msg, setMsg] = useState<string | null>(null);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewWrapRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(0.5);
   const dragIdx = useRef<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
 
@@ -624,6 +626,18 @@ export function PageEditor({
     return () => window.removeEventListener("message", onReady);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections]);
+
+  /* ---- escala do preview: ajusta iframe 1280px ao container ---- */
+  useEffect(() => {
+    const el = previewWrapRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width;
+      if (w > 0) setPreviewScale(w / 1280);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [preview]);
 
   /* ---- drag and drop ---- */
   function onDrop(target: number) {
@@ -981,18 +995,20 @@ export function PageEditor({
             </div>
           </div>
 
-          {/* ── área do iframe — scrollbar escondida via overflow ── */}
-          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+          {/* ── área do iframe — renderiza a 1280px e escala para caber ── */}
+          <div ref={previewWrapRef} style={{ flex: 1, overflow: "hidden", position: "relative" }}>
             <iframe
               ref={iframeRef}
               src={`${storefrontUrl}/preview`}
               onLoad={pushPreview}
               style={{
                 border: 0,
-                /* +20px empurra a scrollbar para fora do container */
-                width: "calc(100% + 20px)",
-                height: "100%",
+                width: 1280,
+                height: `${Math.round(100 / previewScale)}%`,
+                transformOrigin: "top left",
+                transform: `scale(${previewScale})`,
                 background: "#f2ecdf",
+                display: "block",
               }}
               title="Preview da página"
             />
