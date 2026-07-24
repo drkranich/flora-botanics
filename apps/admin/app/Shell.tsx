@@ -154,14 +154,13 @@ export function Shell({
 }
 
 function LogoutItem() {
-  const router = useRouter();
   return (
     <button
       className="side-item"
       onClick={async () => {
         await supabaseBrowser().auth.signOut();
-        router.push("/login");
-        router.refresh();
+        // window.location evita bug basePath do opennextjs-cloudflare
+        window.location.href = "/admin/login";
       }}
     >
       <span className="side-icon">↩</span>
@@ -211,8 +210,8 @@ function CommandPalette({
     onClose();
     if (href === "__logout__") {
       await supabaseBrowser().auth.signOut();
-      router.push("/login");
-      router.refresh();
+      // window.location evita bug basePath do opennextjs-cloudflare
+      window.location.href = "/admin/login";
       return;
     }
     if (href === "__site__") {

@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { requestAdminPasswordReset } from "./reset-actions";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [mode, setMode] = useState<"login" | "first" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -54,8 +52,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      // window.location evita bug basePath do opennextjs-cloudflare
+      window.location.href = "/admin/";
       return;
     }
 
@@ -66,8 +64,8 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
-    router.refresh();
+    // window.location evita bug basePath do opennextjs-cloudflare
+    window.location.href = "/admin/";
   }
 
   return (
