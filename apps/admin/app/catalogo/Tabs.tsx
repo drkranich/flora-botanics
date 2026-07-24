@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/catalogo", label: "Produtos" },
-  { href: "/catalogo/kits", label: "Kits" },
+  { href: "/catalogo",            label: "Produtos" },
+  { href: "/catalogo/kits",       label: "Kits" },
   { href: "/catalogo/categorias", label: "Categorias" },
   { href: "/catalogo/avaliacoes", label: "Avaliações" },
+  { href: "/catalogo/custos",     label: "Custos & Margem" },
 ];
 
 export function CatalogTabs() {

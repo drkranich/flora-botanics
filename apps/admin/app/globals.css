@@ -296,11 +296,8 @@ select option:focus {
 }
 
 .glass-select-menu {
-  position: absolute;
-  z-index: 120;
-  top: calc(100% + 7px);
-  left: 0;
-  right: 0;
+  /* position/top/left/width/z-index vêm do inline style (position:fixed calculado no JS)
+     para escapar de stacking contexts criados por backdrop-filter e animações .rise */
   max-height: 260px;
   overflow: auto;
   padding: 6px;
