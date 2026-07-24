@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
+import { STATUS_EVENT_LABEL } from "./tracking-constants";
 
 export type ShippingEvent = {
   id: string;
@@ -18,23 +19,6 @@ export type ShippingEvent = {
   created_at: string;
 };
 
-export const STATUS_EVENT_LABEL: Record<string, string> = {
-  preparing: "Preparando pedido",
-  dispatched: "Enviado / Postado",
-  in_transit: "Em trânsito",
-  out_for_delivery: "Saiu para entrega",
-  delivered: "Entregue",
-  exception: "Ocorrência",
-};
-
-export const STATUS_EVENT_ICON: Record<string, string> = {
-  preparing: "📦",
-  dispatched: "🚚",
-  in_transit: "✈️",
-  out_for_delivery: "🛵",
-  delivered: "✅",
-  exception: "⚠️",
-};
 
 export async function getShippingEvents(orderId: string): Promise<ShippingEvent[]> {
   const staff = await currentStaff();

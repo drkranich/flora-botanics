@@ -5,10 +5,9 @@ import { GlassSelect } from "@/components/GlassSelect";
 import {
   addShippingEvent,
   deleteShippingEvent,
-  STATUS_EVENT_LABEL,
-  STATUS_EVENT_ICON,
   type ShippingEvent,
 } from "./tracking-actions";
+import { STATUS_EVENT_LABEL, STATUS_EVENT_ICON } from "./tracking-constants";
 
 const STATUS_OPTIONS = Object.entries(STATUS_EVENT_LABEL).map(([value, label]) => ({ value, label }));
 
