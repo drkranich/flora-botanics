@@ -124,6 +124,12 @@ export default async function OrderDetail({
         </div>
       ) : null}
 
+      <TrackingPanel
+        orderId={order.id}
+        customerPhone={customer?.phone ?? null}
+        initialEvents={shippingEvents}
+      />
+
       <TransitionBar orderId={order.id} status={order.status} statusLabel={STATUS_LABEL} />
     </main>
   );
