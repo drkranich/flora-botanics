@@ -37,6 +37,36 @@ interface OrderRow {
   created_at: string;
 }
 
+interface ShippingEvent {
+  id: string;
+  order_id: string;
+  status: string;
+  city: string | null;
+  state: string | null;
+  description: string | null;
+  carrier: string | null;
+  tracking_code: string | null;
+  created_at: string;
+}
+
+const SHIPPING_STATUS_LABEL: Record<string, string> = {
+  preparing: "Preparando pedido",
+  dispatched: "Enviado",
+  in_transit: "Em trânsito",
+  out_for_delivery: "Saiu para entrega",
+  delivered: "Entregue",
+  exception: "Ocorrência",
+};
+
+const SHIPPING_STATUS_ICON: Record<string, string> = {
+  preparing: "📦",
+  dispatched: "🚚",
+  in_transit: "📍",
+  out_for_delivery: "🛵",
+  delivered: "✅",
+  exception: "⚠️",
+};
+
 interface AddressRow {
   id: string;
   customer_id: string;
@@ -157,6 +187,8 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [addresses, setAddresses] = useState<AddressRow[]>([]);
   const [payInfo, setPayInfo] = useState<PaymentInfo>(emptyPaymentInfo());
+  const [shippingEvents, setShippingEvents] = useState<ShippingEvent[]>([]);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   // profile form
   const [profileName, setProfileName] = useState("");
@@ -255,6 +287,17 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
       ]);
       loadedOrders = (orderData ?? []) as OrderRow[];
       loadedAddresses = (addressData ?? []) as AddressRow[];
+
+      // Busca eventos de rastreamento para todos os pedidos
+      if (loadedOrders.length > 0) {
+        const orderIds = loadedOrders.map((o) => o.id);
+        const { data: eventsData } = await supabase
+          .from("shipping_events")
+          .select("id, order_id, status, city, state, description, carrier, tracking_code, created_at")
+          .in("order_id", orderIds)
+          .order("created_at", { ascending: true });
+        setShippingEvents((eventsData ?? []) as ShippingEvent[]);
+      }
     }
 
     setProfile(loadedProfile);
@@ -702,54 +745,104 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
             <p className="account-empty">Nenhum pedido ainda.</p>
           ) : (
             <div className="account-order-list-full">
-              {orders.map((order) => (
-                <article key={order.id} className="account-order-card">
-                  <div className="account-order-card-header">
-                    <div>
-                      <strong>Pedido #{order.number}</strong>
-                      <span>{formatDate(order.placed_at ?? order.created_at)}</span>
-                    </div>
-                    <div className="account-order-card-meta">
-                      <span
-                        className={`account-order-status account-order-status-${order.status}`}
-                      >
-                        {ORDER_STATUS[order.status] ?? order.status}
-                      </span>
-                      <b>{money(order.total_cents, order.currency)}</b>
-                    </div>
-                  </div>
+              {orders.map((order) => {
+                const events = shippingEvents.filter((e) => e.order_id === order.id);
+                const lastEvent = events[events.length - 1] ?? null;
+                const isExpanded = expandedOrder === order.id;
+                const hasTracking = events.length > 0;
 
-                  {CANCELLABLE.has(order.status) && (
-                    cancelConfirm === order.id ? (
-                      <div className="account-cancel-confirm">
-                        <span>Confirmar solicitação de cancelamento?</span>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button
-                            type="button"
-                            className="account-danger-button"
-                            onClick={() => requestCancellation(order.id)}
-                            disabled={pending}
-                          >
-                            Confirmar
-                          </button>
-                          <button type="button" className="account-secondary-button" onClick={() => setCancelConfirm(null)}>
-                            Voltar
-                          </button>
-                        </div>
+                return (
+                  <article key={order.id} className="account-order-card">
+                    <div className="account-order-card-header">
+                      <div>
+                        <strong>Pedido #{order.number}</strong>
+                        <span>{formatDate(order.placed_at ?? order.created_at)}</span>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="account-link-button"
-                        onClick={() => setCancelConfirm(order.id)}
-                        style={{ marginTop: 8, fontSize: 12, color: "var(--account-muted)" }}
-                      >
-                        Solicitar cancelamento
-                      </button>
-                    )
-                  )}
-                </article>
-              ))}
+                      <div className="account-order-card-meta">
+                        <span className={`account-order-status account-order-status-${order.status}`}>
+                          {ORDER_STATUS[order.status] ?? order.status}
+                        </span>
+                        <b>{money(order.total_cents, order.currency)}</b>
+                      </div>
+                    </div>
+
+                    {/* Rastreamento rápido */}
+                    {hasTracking && lastEvent && (
+                      <div className="account-tracking-last">
+                        <span>{SHIPPING_STATUS_ICON[lastEvent.status]}</span>
+                        <span>
+                          {SHIPPING_STATUS_LABEL[lastEvent.status] ?? lastEvent.status}
+                          {lastEvent.city ? ` — ${lastEvent.city}${lastEvent.state ? `/${lastEvent.state}` : ""}` : ""}
+                        </span>
+                        <button
+                          type="button"
+                          className="account-link-button"
+                          onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                          style={{ marginLeft: "auto", fontSize: 11 }}
+                        >
+                          {isExpanded ? "Ocultar rota ▲" : "Ver rota completa ▼"}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Timeline expandida */}
+                    {isExpanded && hasTracking && (
+                      <div className="account-tracking-timeline">
+                        {events.map((ev, i) => {
+                          const isLast = i === events.length - 1;
+                          return (
+                            <div key={ev.id} className={`account-tracking-step${isLast ? " is-current" : ""}`}>
+                              <div className="account-tracking-dot" />
+                              <div className="account-tracking-content">
+                                <div className="account-tracking-title">
+                                  <span>{SHIPPING_STATUS_ICON[ev.status]}</span>
+                                  <strong>
+                                    {SHIPPING_STATUS_LABEL[ev.status] ?? ev.status}
+                                    {ev.city ? ` — ${ev.city}${ev.state ? `/${ev.state}` : ""}` : ""}
+                                  </strong>
+                                </div>
+                                {ev.description && (
+                                  <p className="account-tracking-desc">{ev.description}</p>
+                                )}
+                                <div className="account-tracking-meta">
+                                  <span>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(ev.created_at))}</span>
+                                  {ev.carrier && <span>· {ev.carrier}</span>}
+                                  {ev.tracking_code && <span>· {ev.tracking_code}</span>}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {CANCELLABLE.has(order.status) && (
+                      cancelConfirm === order.id ? (
+                        <div className="account-cancel-confirm">
+                          <span>Confirmar solicitação de cancelamento?</span>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button type="button" className="account-danger-button" onClick={() => requestCancellation(order.id)} disabled={pending}>
+                              Confirmar
+                            </button>
+                            <button type="button" className="account-secondary-button" onClick={() => setCancelConfirm(null)}>
+                              Voltar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="account-link-button"
+                          onClick={() => setCancelConfirm(order.id)}
+                          style={{ marginTop: 8, fontSize: 12, color: "var(--account-muted)" }}
+                        >
+                          Solicitar cancelamento
+                        </button>
+                      )
+                    )}
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
