@@ -273,6 +273,7 @@ export function TemplateStudio({
   tenantId: string;
   resendOk: boolean;
 }) {
+  const router = useRouter();
   const [selected, setSelected] = useState<StudioTemplate | null>(templates[0] ?? null);
   const [tab, setTab] = useState<"editor" | "preview" | "send">("editor");
   const [name, setName] = useState(selected?.name ?? "");
@@ -373,6 +374,7 @@ export function TemplateStudio({
       await createTemplate(fd);
       setCreating(false);
       setNewName("");
+      router.refresh();
     });
   }
 
