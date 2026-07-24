@@ -61,9 +61,9 @@ export default async function CustosPage() {
           { label: "Margem média", value: pct(avgMargin) },
           { label: "Produtos sem custo", value: rows.filter((r) => !r.cost).length },
         ].map((kpi) => (
-          <div key={kpi.label} style={{ background: "var(--cream)", borderRadius: 10, padding: "18px 20px" }}>
-            <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>{kpi.label}</p>
-            <p style={{ fontSize: 24, fontWeight: 700, margin: "4px 0 0" }}>{kpi.value}</p>
+          <div key={kpi.label} style={{ background: "var(--cream)", borderRadius: 10, padding: "18px 20px", color: "#1a2e1b" }}>
+            <p style={{ fontSize: 12, color: "#4a6b4c", margin: 0, fontWeight: 600 }}>{kpi.label}</p>
+            <p style={{ fontSize: 24, fontWeight: 700, margin: "4px 0 0", color: "#0a160b" }}>{kpi.value}</p>
           </div>
         ))}
       </div>
@@ -89,7 +89,7 @@ export default async function CustosPage() {
               return (
                 <tr key={p.id} style={{ borderBottom: "1px solid var(--cream)" }}>
                   <td style={{ padding: "12px 12px" }}>
-                    <Link href={`/catalogo/${p.slug}`} style={{ fontWeight: 600 }}>{p.name}</Link>
+                    <Link href="/catalogo" style={{ fontWeight: 600 }}>{p.name}</Link>
                     <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase" }}>{p.type}</div>
                   </td>
                   <td style={{ padding: "12px 12px", fontWeight: 600 }}>{money(p.price)}</td>

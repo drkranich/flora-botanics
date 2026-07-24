@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { StatusChip, STATUS_LABEL, money } from "@/app/vendas/Tabs";
 import { OrderActions } from "./OrderActions";
+import { PedidosFilters } from "./PedidosFilters";
 
 const STATUSES = ["pending", "paid", "processing", "shipped", "delivered", "canceled", "refunded"] as const;
 
@@ -25,12 +26,12 @@ interface OrderRow {
 export default async function PedidosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; date?: string }>;
 }) {
   const staff = await currentStaff();
   if (!staff) return null;
 
-  const { status } = await searchParams;
+  const { status, date } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase
@@ -38,26 +39,40 @@ export default async function PedidosPage({
     .select("id, number, status, total_cents, currency, created_at, placed_at, customers(email, full_name)")
     .eq("tenant_id", staff.tenantId)
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
 
   if (status && (STATUSES as readonly string[]).includes(status)) {
     query = query.eq("status", status);
   }
 
-  const [ordersRes, allRes] = await Promise.all([
+  if (date) {
+    query = query
+      .gte("created_at", `${date}T00:00:00.000Z`)
+      .lte("created_at", `${date}T23:59:59.999Z`);
+  }
+
+  const [ordersRes, allRes, datesRes] = await Promise.all([
     query,
     supabase.from("orders").select("status").eq("tenant_id", staff.tenantId),
+    supabase.from("orders").select("created_at").eq("tenant_id", staff.tenantId),
   ]);
 
   const rows = (ordersRes.data ?? []) as unknown as OrderRow[];
+
   const counts: Record<string, number> = {};
   for (const o of allRes.data ?? []) {
     counts[o.status] = (counts[o.status] ?? 0) + 1;
   }
   const total = (allRes.data ?? []).length;
 
+  // Unique calendar dates (YYYY-MM-DD)
+  const orderDates = [...new Set(
+    (datesRes.data ?? []).map((o) => o.created_at.substring(0, 10))
+  )];
+
   return (
-    <div style={{ display: "grid", gap: 16, padding: "24px 28px 48px" }}>
+    <div style={{ display: "grid", gap: 20, padding: "24px 28px 48px" }}>
+      {/* Header */}
       <div>
         <h1 style={{ fontWeight: 900, letterSpacing: -1, marginBottom: 4 }}>Pedidos</h1>
         <p style={{ margin: 0, color: "var(--cream-dim)", fontSize: 14 }}>
@@ -65,6 +80,7 @@ export default async function PedidosPage({
         </p>
       </div>
 
+      {/* KPI cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 12 }}>
         {STATUSES.map((s) => (
           <div key={s} className="glass" style={{ padding: "14px 16px" }}>
@@ -76,93 +92,126 @@ export default async function PedidosPage({
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <Link href="/backoffice/pedidos" className={!status ? "btn btn-gold" : "btn btn-ghost"} style={{ padding: "8px 16px", fontSize: 10 }}>
-          Todos ({total})
-        </Link>
-        {STATUSES.map((s) => (
-          <Link
-            key={s}
-            href={`/backoffice/pedidos?status=${s}`}
-            className={status === s ? "btn btn-gold" : "btn btn-ghost"}
-            style={{ padding: "8px 16px", fontSize: 10 }}
-          >
-            {STATUS_LABEL[s]} ({counts[s] ?? 0})
-          </Link>
-        ))}
-      </div>
+      {/* Two-column layout: filters sidebar + table */}
+      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20, alignItems: "start" }}>
+        {/* Left: glass filters + calendar */}
+        <PedidosFilters
+          counts={counts}
+          orderDates={orderDates}
+          currentStatus={status ?? ""}
+          currentDate={date ?? ""}
+        />
 
-      <section style={cardStyle}>
-        {rows.length === 0 ? (
-          <p style={emptyStyle}>Nenhum pedido encontrado para este filtro.</p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ background: "rgba(242, 236, 223, 0.08)", textAlign: "left" }}>
-                  <th style={thStyle}>Pedido</th>
-                  <th style={thStyle}>Cliente</th>
-                  <th style={thStyle}>Data</th>
-                  <th style={thStyle}>Total</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((o) => {
-                  const customer = o.customers as unknown as { email: string; full_name: string | null } | null;
-                  return (
-                    <tr key={o.id} style={{ borderTop: "1px solid rgba(242, 236, 223, 0.08)" }}>
-                      <td style={tdStyle}>#{o.number}</td>
-                      <td style={tdStyle}>{customer?.full_name ?? customer?.email ?? "—"}</td>
-                      <td style={tdStyle}>{formatDate(o.placed_at ?? o.created_at)}</td>
-                      <td style={tdStyle}>{money(o.total_cents, o.currency)}</td>
-                      <td style={tdStyle}>
-                        <StatusChip status={o.status} />
-                      </td>
-                      <td style={tdStyle}>
-                        <OrderActions orderId={o.id} status={o.status} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {/* Right: orders table */}
+        <div style={{ display: "grid", gap: 16 }}>
+          {/* Results header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--cream-dim)" }}>
+              {rows.length === total
+                ? `${total} pedido(s)`
+                : `${rows.length} de ${total} pedido(s)`}
+              {date && " · filtrado por data"}
+            </p>
           </div>
-        )}
-      </section>
 
-      <div style={{ ...cardStyle, borderColor: "rgba(185, 146, 77, 0.22)", background: "rgba(185, 146, 77, 0.10)" }}>
-        <p style={{ margin: 0, fontSize: 13, color: "var(--cream-dim)" }}>
-          Pedidos vindos de marketplaces (Mercado Livre, Shopee, Amazon…) aparecerão aqui
-          automaticamente assim que os canais forem conectados em{" "}
-          <Link href="/canais" style={{ color: "var(--gold-light)" }}>Canais</Link>. Por enquanto, esta
-          lista reflete os pedidos do site próprio.
-        </p>
+          <section
+            style={{
+              background: "var(--glass-bg-strong)",
+              border: "1px solid var(--glass-border)",
+              borderRadius: 14,
+              padding: 0,
+              backdropFilter: "blur(18px) saturate(1.25)",
+              WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
+              overflow: "hidden",
+            }}
+          >
+            {rows.length === 0 ? (
+              <p style={{ margin: 0, padding: 20, fontSize: 13, color: "var(--cream-dim)" }}>
+                Nenhum pedido encontrado para este filtro.
+              </p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr
+                      style={{
+                        background: "rgba(242,236,223,0.06)",
+                        textAlign: "left",
+                        borderBottom: "1px solid rgba(242,236,223,0.08)",
+                      }}
+                    >
+                      {["Pedido", "Cliente", "Data", "Total", "Status", ""].map((h) => (
+                        <th key={h} style={thStyle}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((o) => {
+                      const customer = o.customers as unknown as {
+                        email: string;
+                        full_name: string | null;
+                      } | null;
+                      return (
+                        <tr
+                          key={o.id}
+                          style={{ borderTop: "1px solid rgba(242,236,223,0.06)" }}
+                        >
+                          <td style={tdStyle}>
+                            <span style={{ fontWeight: 700, color: "var(--gold-light)" }}>
+                              #{o.number}
+                            </span>
+                          </td>
+                          <td style={tdStyle}>
+                            {customer?.full_name ?? customer?.email ?? "—"}
+                          </td>
+                          <td style={{ ...tdStyle, color: "var(--cream-dim)", whiteSpace: "nowrap" }}>
+                            {formatDate(o.placed_at ?? o.created_at)}
+                          </td>
+                          <td style={{ ...tdStyle, fontWeight: 600 }}>
+                            {money(o.total_cents, o.currency)}
+                          </td>
+                          <td style={tdStyle}>
+                            <StatusChip status={o.status} />
+                          </td>
+                          <td style={tdStyle}>
+                            <OrderActions orderId={o.id} status={o.status} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* Marketplaces tip */}
+          <div
+            style={{
+              background: "rgba(185,146,77,0.08)",
+              border: "1px solid rgba(185,146,77,0.22)",
+              borderRadius: 12,
+              padding: "14px 18px",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: 12, color: "var(--cream-dim)" }}>
+              Pedidos vindos de marketplaces (Mercado Livre, Shopee, Amazon…) aparecerão aqui
+              automaticamente assim que os canais forem conectados em{" "}
+              <Link href="/canais" style={{ color: "var(--gold-light)" }}>Canais</Link>.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-const cardStyle: React.CSSProperties = {
-  background: "var(--glass-bg-strong)",
-  border: "1px solid var(--glass-border)",
-  borderRadius: 12,
-  padding: 20,
-  backdropFilter: "blur(18px) saturate(1.25)",
-  WebkitBackdropFilter: "blur(18px) saturate(1.25)",
-  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
-};
-
-const emptyStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: 13,
-  color: "var(--cream-dim)",
-};
-
 const thStyle: React.CSSProperties = {
   padding: "10px 16px",
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 700,
   color: "var(--cream-dim)",
   textTransform: "uppercase",
@@ -171,5 +220,5 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   padding: "10px 16px",
-  verticalAlign: "top",
+  verticalAlign: "middle",
 };
