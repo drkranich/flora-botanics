@@ -56,5 +56,29 @@
 		"NEXT_PUBLIC_STOREFRONT_URL": "https://florabotanics.com.br",
 		"NEXT_PUBLIC_SUPABASE_URL": "https://mbpvzhcrimdwcqkqvoqr.supabase.co",
 		"NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_zZbCUfG-1KifCBk1VJ_NTw_-RpL9A8g"
+	},
+
+	// ─── AMBIENTE DE STAGING ─────────────────────────────────────────
+	// Deploy: pnpm deploy:cf:admin:staging
+	// URL:    flora-admin-staging.<seu-subdominio>.workers.dev
+	// Usa o mesmo Supabase de produção (dados reais, mas Worker isolado)
+	"env": {
+		"staging": {
+			"name": "flora-admin-staging",
+			"workers_dev": true,
+			"routes": [],
+			"services": [
+				{
+					"binding": "WORKER_SELF_REFERENCE",
+					"service": "flora-admin-staging"
+				}
+			],
+			"vars": {
+				"NEXT_PRIVATE_MINIMAL_MODE": "1",
+				"NEXT_PUBLIC_STOREFRONT_URL": "https://florabotanics.com.br",
+				"NEXT_PUBLIC_SUPABASE_URL": "https://mbpvzhcrimdwcqkqvoqr.supabase.co",
+				"NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_zZbCUfG-1KifCBk1VJ_NTw_-RpL9A8g"
+			}
+		}
 	}
 }

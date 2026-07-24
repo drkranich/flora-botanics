@@ -1,7 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+
+/* ─── navega modificando só os query params da URL atual ────────
+   Usa window.location para evitar o bug basePath do opennextjs   */
+function navPeriod(period: string, from?: string, to?: string) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("period", period);
+  if (from) url.searchParams.set("from", from);
+  else       url.searchParams.delete("from");
+  if (to)    url.searchParams.set("to", to);
+  else       url.searchParams.delete("to");
+  window.location.href = url.toString();
+}
 
 /* ─── constantes ────────────────────────────────────────────── */
 export const PERIODS = [
@@ -89,9 +100,9 @@ function MiniCalendar({
 
   const cell = (d: Date | null, i: number) => {
     if (!d) return <div key={`e${i}`} />;
-    const isStart  = start && sameDay(d, start);
-    const isEnd    = rangeEnd && sameDay(d, rangeEnd);
-    const inRange  = start && rangeEnd && between(d, start < rangeEnd ? start : rangeEnd, start < rangeEnd ? rangeEnd : start);
+    const isStart  = !!(start && sameDay(d, start));
+    const isEnd    = !!(rangeEnd && sameDay(d, rangeEnd));
+    const inRange  = !!(start && rangeEnd && between(d, start < rangeEnd ? start : rangeEnd, start < rangeEnd ? rangeEnd : start));
     const isToday  = sameDay(d, today);
 
     return (
@@ -190,41 +201,53 @@ export function PeriodFilter({
   from?: string;
   to?: string;
 }) {
-  const router = useRouter();
   const [calOpen, setCalOpen] = useState(false);
-  const calRef = useRef<HTMLDivElement>(null);
+  // posição calculada no clique → usa position:fixed para escapar de qualquer stacking context
+  const [calPos, setCalPos] = useState({ top: 0, right: 0 });
+  const periodBtnRef = useRef<HTMLButtonElement>(null);
+  const calRef       = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function close(e: MouseEvent) {
-      if (!calRef.current?.contains(e.target as Node)) setCalOpen(false);
+      if (
+        !calRef.current?.contains(e.target as Node) &&
+        !periodBtnRef.current?.contains(e.target as Node)
+      ) setCalOpen(false);
     }
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  function go(period: string) {
-    router.push(`/?period=${period}`);
+  function toggleCal() {
+    if (!calOpen && periodBtnRef.current) {
+      const rect = periodBtnRef.current.getBoundingClientRect();
+      setCalPos({
+        top:   rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setCalOpen(v => !v);
   }
 
   function goCustom(f: string, t: string) {
     setCalOpen(false);
-    router.push(`/?period=custom&from=${f}&to=${t}`);
+    navPeriod("custom", f, t);
   }
 
   const isCustom = current === "custom";
   const fromD = from ? parseIso(from) : null;
-  const toD = to ? parseIso(to) : null;
+  const toD   = to   ? parseIso(to)   : null;
 
-  const btnStyle = (active: boolean) => ({
+  const btnStyle = (active: boolean): React.CSSProperties => ({
     padding: "5px 12px",
     border: "1px solid",
     borderColor: active ? "var(--gold-light)" : "var(--glass-border)",
-    background: active ? "rgba(218,183,116,0.16)" : "rgba(242,236,223,0.04)",
-    color: active ? "var(--gold-light)" : "var(--cream-dim)",
+    background:  active ? "rgba(218,183,116,0.16)" : "rgba(242,236,223,0.04)",
+    color:       active ? "var(--gold-light)" : "var(--cream-dim)",
     fontSize: 10,
-    fontWeight: 700 as const,
+    fontWeight: 700,
     letterSpacing: 1,
-    textTransform: "uppercase" as const,
+    textTransform: "uppercase",
     borderRadius: 5,
     cursor: "pointer",
     transition: "all 0.18s ease",
@@ -232,29 +255,25 @@ export function PeriodFilter({
   });
 
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", position: "relative" }}>
-      {PERIODS.map((p) => (
-        <button
-          key={p.key}
-          type="button"
-          onClick={() => go(p.key)}
-          style={btnStyle(current === p.key)}
-        >
-          {p.label}
-        </button>
-      ))}
+    <>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        {PERIODS.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => navPeriod(p.key)}
+            style={btnStyle(current === p.key)}
+          >
+            {p.label}
+          </button>
+        ))}
 
-      {/* botão personalizado */}
-      <div ref={calRef} style={{ position: "relative" }}>
+        {/* botão período personalizado */}
         <button
+          ref={periodBtnRef}
           type="button"
-          onClick={() => setCalOpen(v => !v)}
-          style={{
-            ...btnStyle(isCustom),
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-          }}
+          onClick={toggleCal}
+          style={{ ...btnStyle(isCustom), display: "flex", alignItems: "center", gap: 5 }}
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -266,20 +285,22 @@ export function PeriodFilter({
             ? `${fmtDisplay(fromD)} – ${fmtDisplay(toD)}`
             : "Período"}
         </button>
-
-        {calOpen && (
-          <div
-            style={{
-              position: "absolute",
-              top: "calc(100% + 8px)",
-              right: 0,
-              zIndex: 200,
-            }}
-          >
-            <MiniCalendar onSelect={goCustom} />
-          </div>
-        )}
       </div>
-    </div>
+
+      {/* calendário com position:fixed — flutua sobre tudo, sem stacking context */}
+      {calOpen && (
+        <div
+          ref={calRef}
+          style={{
+            position: "fixed",
+            top:   calPos.top,
+            right: calPos.right,
+            zIndex: 9999,
+          }}
+        >
+          <MiniCalendar onSelect={goCustom} />
+        </div>
+      )}
+    </>
   );
 }
