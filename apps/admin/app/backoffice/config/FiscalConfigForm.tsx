@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { upsertFiscalConfig } from "./actions";
+import { GlassSelect } from "@/components/GlassSelect";
 
 interface FiscalConfigFormProps {
   cnpj: string;
@@ -49,11 +50,17 @@ export function FiscalConfigForm(props: FiscalConfigFormProps) {
         </div>
         <div style={fieldGroup}>
           <label style={labelStyle} htmlFor="regime_tributario">Regime tributário</label>
-          <select id="regime_tributario" name="regime_tributario" defaultValue={props.regimeTributario} style={inputStyle}>
-            <option value="simples">Simples Nacional</option>
-            <option value="presumido">Lucro Presumido</option>
-            <option value="real">Lucro Real</option>
-          </select>
+          <GlassSelect
+            id="regime_tributario"
+            name="regime_tributario"
+            defaultValue={props.regimeTributario}
+            options={[
+              { value: "simples", label: "Simples Nacional" },
+              { value: "presumido", label: "Lucro Presumido" },
+              { value: "real", label: "Lucro Real" },
+            ]}
+            ariaLabel="Regime tributário"
+          />
         </div>
       </div>
 
@@ -109,10 +116,16 @@ export function FiscalConfigForm(props: FiscalConfigFormProps) {
         <div style={rowStyle}>
           <div style={fieldGroup}>
             <label style={labelStyle} htmlFor="ambiente">Ambiente</label>
-            <select id="ambiente" name="ambiente" defaultValue={props.ambiente} style={inputStyle}>
-              <option value="homologacao">Homologação (testes)</option>
-              <option value="producao">Produção</option>
-            </select>
+            <GlassSelect
+              id="ambiente"
+              name="ambiente"
+              defaultValue={props.ambiente}
+              options={[
+                { value: "homologacao", label: "Homologação (testes)" },
+                { value: "producao", label: "Produção" },
+              ]}
+              ariaLabel="Ambiente"
+            />
           </div>
           <div style={fieldGroup}>
             <label style={labelStyle} htmlFor="serie_nfe">Série</label>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createCoupon, toggleCoupon, deleteCoupon } from "@/lib/sales/actions";
+import { GlassSelect } from "@/components/GlassSelect";
 
 type Coupon = {
   id: string;
@@ -119,11 +120,12 @@ export function CouponManager({ initial }: { initial: Coupon[] }) {
             </div>
             <div className="field">
               <span className="field-label">Tipo</span>
-              <select className="input" value={type} onChange={(e) => setType(e.target.value as typeof type)}>
-                {Object.entries(TYPE_LABEL).map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
-                ))}
-              </select>
+              <GlassSelect
+                value={type}
+                onChange={(v) => setType(v as typeof type)}
+                options={Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }))}
+                ariaLabel="Tipo de cupom"
+              />
             </div>
             <div className="field">
               <span className="field-label">Valor</span>

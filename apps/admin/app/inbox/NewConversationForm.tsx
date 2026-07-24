@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createConversation } from "./actions";
 import { CHANNEL_LABEL } from "./constants";
+import { GlassSelect } from "@/components/GlassSelect";
 
 const inputStyle: React.CSSProperties = {
   border: "1px solid var(--glass-border)",
@@ -65,11 +66,14 @@ export function NewConversationForm() {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <div style={fieldGroup}>
           <label style={labelStyle} htmlFor="new-channel">Canal</label>
-          <select id="new-channel" name="channel" value={channel} onChange={(e) => setChannel(e.target.value)} style={inputStyle}>
-            {CHANNELS.map((c) => (
-              <option key={c} value={c}>{CHANNEL_LABEL[c] ?? c}</option>
-            ))}
-          </select>
+          <GlassSelect
+            id="new-channel"
+            name="channel"
+            value={channel}
+            onChange={(v) => setChannel(v)}
+            options={CHANNELS.map((c) => ({ value: c, label: CHANNEL_LABEL[c] ?? c }))}
+            ariaLabel="Canal"
+          />
         </div>
         <div style={fieldGroup}>
           <label style={labelStyle} htmlFor="new-contact-name">Nome do contato</label>

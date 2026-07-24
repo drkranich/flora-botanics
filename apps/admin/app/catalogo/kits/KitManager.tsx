@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { archiveKit, saveKit, type KitForm } from "@/lib/catalog/kit-actions";
 import { MediaLibraryModal } from "@/components/MediaPicker";
+import { GlassSelect } from "@/components/GlassSelect";
 
 export type ComponentVariantRow = {
   id: string;
@@ -366,17 +367,12 @@ function KitFormFields({
               >
                 <div className="field">
                   <span className="field-label">Produto componente</span>
-                  <select
-                    className="input"
+                  <GlassSelect
                     value={item.component_variant_id}
-                    onChange={(e) => updateItem(index, { component_variant_id: e.target.value })}
-                  >
-                    {components.map((componentOption) => (
-                      <option key={componentOption.id} value={componentOption.id}>
-                        {componentOption.product_name} · {componentOption.sku}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => updateItem(index, { component_variant_id: v })}
+                    options={components.map((c) => ({ value: c.id, label: `${c.product_name} · ${c.sku}` }))}
+                    ariaLabel="Produto componente"
+                  />
                 </div>
                 <div className="field">
                   <span className="field-label">Qtd.</span>

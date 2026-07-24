@@ -10,6 +10,7 @@ import {
   type TeamMember,
   type PendingInvite,
 } from "@/lib/config/team-actions";
+import { GlassSelect } from "@/components/GlassSelect";
 
 const ROLE_LABEL: Record<string, string> = {
   platform_admin: "Admin da Plataforma",
@@ -76,16 +77,17 @@ export function TeamEditor({
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {canManage && !locked ? (
                 <>
-                  <select
-                    className="input"
+                  <GlassSelect
                     value={m.role}
                     disabled={pending}
-                    onChange={(e) => run(() => setTeamRole(m.id, e.target.value as "tenant_admin" | "tenant_editor"))}
-                    style={{ width: "auto", padding: "8px 12px", fontSize: 12 }}
-                  >
-                    <option value="tenant_admin">Administrador</option>
-                    <option value="tenant_editor">Editor</option>
-                  </select>
+                    onChange={(v) => run(() => setTeamRole(m.id, v as "tenant_admin" | "tenant_editor"))}
+                    options={[
+                      { value: "tenant_admin", label: "Administrador" },
+                      { value: "tenant_editor", label: "Editor" },
+                    ]}
+                    ariaLabel="Papel"
+                    style={{ width: "auto" }}
+                  />
                   <button
                     className="btn btn-ghost"
                     disabled={pending}
@@ -165,15 +167,16 @@ export function TeamEditor({
           </div>
           <div>
             <label className="muted" style={{ fontSize: 11, display: "block", marginBottom: 6 }}>Papel</label>
-            <select
-              className="input"
+            <GlassSelect
               value={role}
-              onChange={(e) => setRole(e.target.value as "tenant_admin" | "tenant_editor")}
-              style={{ width: "auto", padding: "12px 14px" }}
-            >
-              <option value="tenant_editor">Editor</option>
-              <option value="tenant_admin">Administrador</option>
-            </select>
+              onChange={(v) => setRole(v as "tenant_admin" | "tenant_editor")}
+              options={[
+                { value: "tenant_editor", label: "Editor" },
+                { value: "tenant_admin", label: "Administrador" },
+              ]}
+              ariaLabel="Papel"
+              style={{ width: "auto" }}
+            />
           </div>
           <button type="submit" className="btn btn-gold" disabled={pending} style={{ padding: "12px 22px" }}>
             {pending ? "…" : "Convidar"}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { setActiveTenant, createTenant, updateTenant, deleteTenant } from "@/lib/platform/actions";
+import { GlassSelect } from "@/components/GlassSelect";
 
 export function OperateButton({ tenantId, active }: { tenantId: string; active: boolean }) {
   const router = useRouter();
@@ -148,10 +149,15 @@ export function TenantManage({ tenant, isRoot }: { tenant: TenantInfo; isRoot: b
                 <label className="muted" style={{ fontSize: 11 }}>Slug (endereço interno: slug.floraecosystem.app)</label>
                 <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} required />
                 <label className="muted" style={{ fontSize: 11 }}>Status</label>
-                <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
-                  <option value="active">Ativa</option>
-                  <option value="suspended">Suspensa</option>
-                </select>
+                <GlassSelect
+                  value={status}
+                  onChange={(v) => setStatus(v)}
+                  options={[
+                    { value: "active", label: "Ativa" },
+                    { value: "suspended", label: "Suspensa" },
+                  ]}
+                  ariaLabel="Status da marca"
+                />
                 {err ? <p style={{ color: "#e8a0a0", fontSize: 12 }}>{err}</p> : null}
                 <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                   <button type="submit" className="btn btn-gold" disabled={pending} style={{ padding: "11px 22px" }}>

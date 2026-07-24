@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { GlassSelect } from "@/components/GlassSelect";
 
 /**
  * Transferência de propriedade da marca.
@@ -249,14 +250,15 @@ export function TransferOwnership({
         <>
           <div className="field" style={{ marginBottom: 12 }}>
             <label className="field-label">Quem assume a marca</label>
-            <select className="input" value={target} onChange={(e) => { setTarget(e.target.value); setAgreed(false); }}>
-              <option value="">Escolha…</option>
-              {team.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.full_name || m.email} ({m.email})
-                </option>
-              ))}
-            </select>
+            <GlassSelect
+              value={target}
+              onChange={(v) => { setTarget(v); setAgreed(false); }}
+              options={[
+                { value: "", label: "Escolha…" },
+                ...team.map((m) => ({ value: m.id, label: `${m.full_name || m.email} (${m.email})` })),
+              ]}
+              ariaLabel="Quem assume a marca"
+            />
           </div>
 
           {successor ? (

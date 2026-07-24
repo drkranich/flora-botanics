@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { isResendConfigured } from "@/lib/email/resend";
+import { GlassSelect } from "@/components/GlassSelect";
 import {
   createTemplate,
   createTemplateFromPreset,
@@ -256,11 +257,16 @@ export default async function MensagensPage() {
             </div>
             <div style={{ display: "grid", gap: 4 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>Canal</label>
-              <select name="channel" className="input" defaultValue="whatsapp">
-                <option value="whatsapp">WhatsApp</option>
-                <option value="instagram">Instagram</option>
-                <option value="sms">SMS</option>
-              </select>
+              <GlassSelect
+                name="channel"
+                defaultValue="whatsapp"
+                options={[
+                  { value: "whatsapp", label: "WhatsApp" },
+                  { value: "instagram", label: "Instagram" },
+                  { value: "sms", label: "SMS" },
+                ]}
+                ariaLabel="Canal"
+              />
             </div>
           </div>
           <div style={{ display: "grid", gap: 4 }}>
@@ -399,14 +405,19 @@ export default async function MensagensPage() {
               </div>
               <div style={{ display: "grid", gap: 4 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>Gatilho</label>
-                <select name="trigger" className="input" defaultValue="manual">
-                  <option value="birthday">Aniversário do cliente</option>
-                  <option value="abandoned_cart">Carrinho abandonado</option>
-                  <option value="order_paid">Pedido pago</option>
-                  <option value="order_cancelled">Pedido cancelado</option>
-                  <option value="low_stock">Estoque baixo</option>
-                  <option value="manual">Disparo manual</option>
-                </select>
+                <GlassSelect
+                  name="trigger"
+                  defaultValue="manual"
+                  options={[
+                    { value: "birthday", label: "Aniversário do cliente" },
+                    { value: "abandoned_cart", label: "Carrinho abandonado" },
+                    { value: "order_paid", label: "Pedido pago" },
+                    { value: "order_cancelled", label: "Pedido cancelado" },
+                    { value: "low_stock", label: "Estoque baixo" },
+                    { value: "manual", label: "Disparo manual" },
+                  ]}
+                  ariaLabel="Gatilho"
+                />
               </div>
             </div>
             <button type="submit" className="btn btn-ghost" style={{ padding: "10px 20px", justifySelf: "start" }}>

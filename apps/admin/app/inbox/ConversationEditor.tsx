@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteConversation, updateConversation } from "./actions";
 import { CONVERSATION_STATUS_LABEL } from "./constants";
+import { GlassSelect } from "@/components/GlassSelect";
 
 const inputStyle: React.CSSProperties = {
   border: "1px solid var(--glass-border)",
@@ -113,11 +114,13 @@ export function ConversationEditor({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div style={fieldStyle}>
               <label style={labelStyle} htmlFor="conversation-status">Status</label>
-              <select id="conversation-status" name="status" defaultValue={conversation.status} style={inputStyle}>
-                {Object.entries(CONVERSATION_STATUS_LABEL).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
+              <GlassSelect
+                id="conversation-status"
+                name="status"
+                defaultValue={conversation.status}
+                options={Object.entries(CONVERSATION_STATUS_LABEL).map(([value, label]) => ({ value, label }))}
+                ariaLabel="Status"
+              />
             </div>
 
             <div style={fieldStyle}>
