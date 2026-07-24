@@ -254,39 +254,39 @@ export default async function AdminHome({
         {/* cards de métricas */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 14 }}>
         <Link href="/vendas">
-          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+          <div className="glass glass-hover" style={{ padding: "18px 20px", minHeight: 82 }}>
             <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{money(revenue)}</p>
             <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Receita</p>
           </div>
         </Link>
         <Link href="/vendas">
-          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+          <div className="glass glass-hover" style={{ padding: "18px 20px", minHeight: 82 }}>
             <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{orderCount}</p>
             <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Pedidos pagos</p>
           </div>
         </Link>
         <Link href="/vendas">
-          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+          <div className="glass glass-hover" style={{ padding: "18px 20px", minHeight: 82 }}>
             <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{money(ticketMedio)}</p>
             <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Ticket médio</p>
           </div>
         </Link>
         <Link href="/vendas/clientes">
-          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+          <div className="glass glass-hover" style={{ padding: "18px 20px", minHeight: 82 }}>
             <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{String(customers ?? 0)}</p>
             <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Clientes</p>
           </div>
         </Link>
         <Link href="/vendas/clientes">
-          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+          <div className="glass glass-hover" style={{ padding: "18px 20px", minHeight: 82 }}>
             <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{String(leads ?? 0)}</p>
             <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Leads</p>
           </div>
         </Link>
         <Link href="/vendas/carrinhos">
-          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+          <div className="glass glass-hover" style={{ padding: "18px 20px", minHeight: 82 }}>
             <p className="display" style={{ fontSize: 28, color: abandonedCarts ? "rgba(232,160,80,0.9)" : "var(--gold-light)" }}>{String(abandonedCarts ?? 0)}</p>
-            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Carrinhos abandonados</p>
+            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Abandonados</p>
           </div>
         </Link>
         </div>{/* fim grid cards */}

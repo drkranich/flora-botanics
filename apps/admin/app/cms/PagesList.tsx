@@ -68,7 +68,7 @@ export function PagesList({ rows, storefrontUrl }: { rows: PageRow[]; storefront
   return (
     <div>
       {/* toolbar */}
-      <div className="rise" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+      <div className="rise" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18, position: "relative", zIndex: 10 }}>
         <input
           className="input"
           placeholder="Buscar página…"

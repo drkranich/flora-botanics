@@ -1,3 +1,22 @@
+/** Bloco de e-mail — espelha o tipo Block de TemplateStudio.tsx */
+type Block =
+  | { type: "image"; url: string; alt: string; link: string; width: string }
+  | { type: "heading"; text: string }
+  | { type: "text"; html: string }
+  | { type: "cta"; label: string; url: string; color: string }
+  | { type: "divider" }
+  | { type: "spacer" };
+
+function b(...blocks: Block[]): string {
+  return JSON.stringify({ blocks });
+}
+
+const totalBox = (label: string, value: string) =>
+  `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e0d4;border-radius:8px;margin:4px 0;"><tr><td style="padding:14px 20px;font-weight:700;font-family:Montserrat,Arial,sans-serif;font-size:14px;color:#374937;">${label}</td><td style="padding:14px 20px;text-align:right;font-weight:700;font-family:Montserrat,Arial,sans-serif;font-size:14px;color:#374937;">${value}</td></tr></table>`;
+
+const couponBox = (code: string) =>
+  `<div style="text-align:center;margin:8px 0;padding:18px;background:#f7f3ed;border:2px dashed #d4cdc3;border-radius:8px;"><span style="font-family:Montserrat,Arial,sans-serif;font-size:22px;font-weight:900;letter-spacing:4px;color:#2a4a2c;">${code}</span></div>`;
+
 export type TemplatePreset = {
   id: string;
   title: string;
@@ -21,23 +40,47 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     template: {
       name: "Flora - Carrinho abandonado",
       channel: "email",
-      subject: "Voce esqueceu algo, {{nome}}",
-      body:
-        "Ola {{nome}},\n\nNotamos que alguns produtos ficaram no seu carrinho. Eles ainda estao disponiveis, mas o estoque pode mudar rapido.\n\nTotal do carrinho: {{total}}\n\nFinalize sua compra aqui: {{checkout_url}}\n\nCom cuidado,\nFlora Botanics",
+      subject: "Você esqueceu algo, {{nome}} 🌿",
+      body: b(
+        { type: "heading", text: "Você esqueceu algo, {{nome}} 🌿" },
+        {
+          type: "text",
+          html: "<p>Notamos que você deixou produtos incríveis no seu carrinho. Eles ainda estão disponíveis — mas o estoque é limitado!</p>",
+        },
+        { type: "text", html: totalBox("Total do carrinho", "{{total}}") },
+        {
+          type: "cta",
+          label: "Finalizar minha compra →",
+          url: "{{checkout_url}}",
+          color: "#1a2e1c",
+        }
+      ),
       variables: ["nome", "total", "checkout_url"],
     },
   },
   {
     id: "email-boas-vindas",
-    title: "Boas-vindas a conta Flora",
-    description: "Primeiro contato para clientes que criaram conta no site publico.",
+    title: "Boas-vindas à conta Flora",
+    description: "Primeiro contato para clientes que criaram conta no site público.",
     triggerLabel: "Conta",
     template: {
       name: "Flora - Boas-vindas",
       channel: "email",
-      subject: "Sua conta Flora foi criada",
-      body:
-        "Ola {{nome}},\n\nSua conta Flora Botanics esta pronta. Agora voce pode acompanhar pedidos, recuperar carrinhos e manter seus dados salvos para as proximas compras.\n\nAcesse sua conta: {{conta_url}}\n\nFlora Botanics",
+      subject: "Bem-vinda à Flora, {{nome}} ✨",
+      body: b(
+        { type: "heading", text: "Bem-vinda à Flora, {{nome}} ✨" },
+        {
+          type: "text",
+          html: "<p>Sua conta Flora Botanics está pronta. Agora você pode acompanhar pedidos, salvar endereços e ter acesso antecipado aos nossos lançamentos.</p>",
+        },
+        { type: "spacer" },
+        {
+          type: "cta",
+          label: "Acessar minha conta",
+          url: "{{conta_url}}",
+          color: "#2a4a2c",
+        }
+      ),
       variables: ["nome", "conta_url"],
     },
   },
@@ -49,93 +92,163 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     template: {
       name: "Flora - Pedido confirmado",
       channel: "email",
-      subject: "Pedido {{numero_pedido}} confirmado",
-      body:
-        "Ola {{nome}},\n\nRecebemos o pagamento do pedido {{numero_pedido}} no valor de {{total}}.\n\nVamos preparar tudo com cuidado e avisar quando o envio estiver a caminho.\n\nAcompanhe seu pedido: {{pedido_url}}\n\nFlora Botanics",
+      subject: "Pedido #{{numero_pedido}} confirmado ✓",
+      body: b(
+        { type: "heading", text: "Pedido confirmado! ✓" },
+        {
+          type: "text",
+          html: "<p>Recebemos o pagamento do pedido <strong>#{{numero_pedido}}</strong>. Vamos preparar tudo com cuidado e avisar quando o envio estiver a caminho.</p>",
+        },
+        { type: "text", html: totalBox("Total do pedido", "{{total}}") },
+        {
+          type: "cta",
+          label: "Acompanhar pedido",
+          url: "{{pedido_url}}",
+          color: "#2a4a2c",
+        }
+      ),
       variables: ["nome", "numero_pedido", "total", "pedido_url"],
     },
   },
   {
     id: "email-pedido-enviado",
     title: "Pedido enviado",
-    description: "Mensagem de expedicao com espaco para codigo de rastreio.",
-    triggerLabel: "Logistica",
+    description: "Mensagem de expedição com espaço para código de rastreio.",
+    triggerLabel: "Logística",
     template: {
       name: "Flora - Pedido enviado",
       channel: "email",
-      subject: "Seu pedido {{numero_pedido}} foi enviado",
-      body:
-        "Ola {{nome}},\n\nSeu pedido {{numero_pedido}} ja saiu para entrega.\n\nCodigo de rastreio: {{codigo_rastreio}}\nLink de acompanhamento: {{rastreamento_url}}\n\nFlora Botanics",
+      subject: "Seu pedido #{{numero_pedido}} foi enviado 📦",
+      body: b(
+        { type: "heading", text: "Seu pedido está a caminho! 📦" },
+        {
+          type: "text",
+          html: "<p>O pedido <strong>#{{numero_pedido}}</strong> saiu para entrega. Acompanhe em tempo real pelo link abaixo.</p>",
+        },
+        {
+          type: "text",
+          html: totalBox("Código de rastreio", "{{codigo_rastreio}}"),
+        },
+        {
+          type: "cta",
+          label: "Rastrear meu pedido",
+          url: "{{rastreamento_url}}",
+          color: "#2a4a2c",
+        }
+      ),
       variables: ["nome", "numero_pedido", "codigo_rastreio", "rastreamento_url"],
     },
   },
   {
     id: "email-aniversario",
-    title: "Aniversario do cliente",
+    title: "Aniversário do cliente",
     description: "Disparo afetivo para relacionamento e recompra.",
     triggerLabel: "CRM",
     template: {
-      name: "Flora - Aniversario",
+      name: "Flora - Aniversário",
       channel: "email",
-      subject: "Um cuidado especial para voce, {{nome}}",
-      body:
-        "Ola {{nome}},\n\nHoje a Flora Botanics separou um gesto especial para celebrar voce.\n\nUse o cupom {{cupom}} na sua proxima compra e escolha um cuidado que combine com este novo ciclo.\n\nCom carinho,\nFlora Botanics",
+      subject: "Um cuidado especial para você, {{nome}} 🎂",
+      body: b(
+        { type: "heading", text: "Feliz aniversário, {{nome}} 🎂" },
+        {
+          type: "text",
+          html: "<p>A Flora Botanics separou um gesto especial para celebrar você. Use o cupom abaixo na sua próxima compra e escolha um cuidado que combine com este novo ciclo.</p>",
+        },
+        { type: "text", html: couponBox("{{cupom}}") },
+        {
+          type: "cta",
+          label: "Ver presentes especiais",
+          url: "https://florabotanics.com.br",
+          color: "#2a4a2c",
+        }
+      ),
       variables: ["nome", "cupom"],
     },
   },
   {
     id: "email-pos-compra",
-    title: "Pos-compra",
-    description: "Acompanha a experiencia depois da entrega e abre conversa com suporte.",
+    title: "Pós-compra",
+    description: "Acompanha a experiência depois da entrega e abre conversa com suporte.",
     triggerLabel: "Atendimento",
     template: {
-      name: "Flora - Pos-compra",
+      name: "Flora - Pós-compra",
       channel: "email",
-      subject: "Como foi sua experiencia com a Flora?",
-      body:
-        "Ola {{nome}},\n\nQueremos saber como foi sua experiencia com o pedido {{numero_pedido}}.\n\nSe algo nao saiu como esperado, responda este e-mail e nossa equipe acompanha de perto.\n\nFlora Botanics",
+      subject: "Como foi sua experiência com a Flora?",
+      body: b(
+        { type: "heading", text: "Como foi sua experiência, {{nome}}?" },
+        {
+          type: "text",
+          html: "<p>Queremos saber como foi sua experiência com o pedido <strong>#{{numero_pedido}}</strong>. Se algo não saiu como esperado, responda este e-mail e nossa equipe acompanha de perto.</p>",
+        },
+        { type: "divider" },
+        {
+          type: "text",
+          html: "<p style='font-size:13px;color:#6b7c6b;'>Sua opinião nos ajuda a cuidar melhor de cada cliente. 🌿</p>",
+        }
+      ),
       variables: ["nome", "numero_pedido"],
     },
   },
   {
     id: "email-newsletter-editorial",
     title: "Newsletter editorial",
-    description: "Modelo para conteudos de marca, lancamentos e campanhas do CMS.",
-    triggerLabel: "Conteudo",
+    description: "Modelo para conteúdos de marca, lançamentos e campanhas do CMS.",
+    triggerLabel: "Conteúdo",
     template: {
       name: "Flora - Newsletter editorial",
       channel: "email",
       subject: "{{titulo}}",
-      body:
-        "Ola {{nome}},\n\n{{introducao}}\n\n{{conteudo}}\n\nVeja mais: {{cta_url}}\n\nFlora Botanics",
+      body: b(
+        { type: "heading", text: "{{titulo}}" },
+        {
+          type: "text",
+          html: "<p>{{introducao}}</p>",
+        },
+        {
+          type: "text",
+          html: "<p>{{conteudo}}</p>",
+        },
+        {
+          type: "cta",
+          label: "Saiba mais",
+          url: "{{cta_url}}",
+          color: "#2a4a2c",
+        }
+      ),
       variables: ["nome", "titulo", "introducao", "conteudo", "cta_url"],
     },
   },
   {
     id: "email-estoque-baixo",
     title: "Alerta interno de estoque",
-    description: "Aviso operacional para reposicao antes de ruptura.",
+    description: "Aviso operacional para reposição antes de ruptura.",
     triggerLabel: "Estoque",
     template: {
       name: "Flora - Estoque baixo",
       channel: "email",
-      subject: "Estoque baixo: {{produto}}",
-      body:
-        "Alerta interno Flora Botanics\n\nProduto: {{produto}}\nSKU: {{sku}}\nEstoque atual: {{estoque_atual}}\nEstoque minimo: {{estoque_minimo}}\n\nVerifique reposicao, compra ou producao.",
+      subject: "⚠️ Estoque baixo: {{produto}}",
+      body: b(
+        { type: "heading", text: "⚠️ Alerta de estoque" },
+        {
+          type: "text",
+          html: "<p>O produto <strong>{{produto}}</strong> (SKU: {{sku}}) está abaixo do nível mínimo e precisa de reposição.</p>",
+        },
+        { type: "text", html: totalBox("Estoque atual", "{{estoque_atual}} unidades") },
+        { type: "text", html: totalBox("Estoque mínimo", "{{estoque_minimo}} unidades") }
+      ),
       variables: ["produto", "sku", "estoque_atual", "estoque_minimo"],
     },
   },
   {
     id: "whatsapp-carrinho-abandonado",
-    title: "WhatsApp de recuperacao",
+    title: "WhatsApp de recuperação",
     description: "Texto curto para quando o canal WhatsApp for conectado.",
     triggerLabel: "WhatsApp",
     template: {
       name: "Flora - WhatsApp carrinho",
       channel: "whatsapp",
       subject: null,
-      body:
-        "Ola {{nome}}, vimos que seu carrinho ficou esperando por voce na Flora Botanics. Para continuar: {{checkout_url}}",
+      body: "Olá {{nome}}, vimos que seu carrinho ficou esperando por você na Flora Botanics. Para continuar: {{checkout_url}}",
       variables: ["nome", "checkout_url"],
     },
   },

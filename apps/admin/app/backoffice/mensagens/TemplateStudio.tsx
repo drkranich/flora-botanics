@@ -275,7 +275,7 @@ export function TemplateStudio({
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<StudioTemplate | null>(templates[0] ?? null);
-  const [tab, setTab] = useState<"editor" | "preview" | "send">("editor");
+  const [tab, setTab] = useState<"editor" | "preview" | "send">("preview");
   const [name, setName] = useState(selected?.name ?? "");
   const [subject, setSubject] = useState(selected?.subject ?? "");
   const [blocks, setBlocks] = useState<Block[]>(() => parseBlocks(selected?.body));
@@ -315,7 +315,7 @@ export function TemplateStudio({
     setSubject(t.subject ?? "");
     setBlocks(parseBlocks(t.body));
     setMsg(null);
-    setTab("editor");
+    setTab("preview");
   }
 
   function addBlock(type: Block["type"]) {
