@@ -50,56 +50,63 @@ export default async function CanaisPage() {
       icon: "✆",
       desc: "Mensagens, recuperação de carrinho e atendimento.",
       status: "soon" as const,
-      phase: "Fase 3 do roadmap",
+      phase: "Credenciais disponíveis",
       features: ["Mensagens", "Automações"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
     },
     {
       name: "Instagram Shop",
       icon: "◎",
       desc: "Vitrine no Instagram e DMs integradas à Inbox.",
       status: "soon" as const,
-      phase: "Fase de canais",
+      phase: "Credenciais disponíveis",
       features: ["Produtos", "Mensagens"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
     },
     {
       name: "Mercado Livre",
       icon: "◈",
       desc: "Sincronize produtos, estoque, pedidos e perguntas.",
       status: "soon" as const,
-      phase: "Fase de marketplaces",
+      phase: "Credenciais disponíveis",
       features: ["Produtos", "Estoque", "Pedidos", "Mensagens"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
     },
     {
       name: "Shopee",
       icon: "❖",
       desc: "Publicação de catálogo e importação de pedidos.",
       status: "soon" as const,
-      phase: "Fase de marketplaces",
+      phase: "Credenciais disponíveis",
       features: ["Produtos", "Pedidos"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
     },
     {
       name: "Amazon",
       icon: "▣",
       desc: "Catálogo e pedidos no maior marketplace global.",
       status: "soon" as const,
-      phase: "Fase de marketplaces",
+      phase: "Credenciais disponíveis",
       features: ["Produtos", "Pedidos"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
     },
     {
       name: "TikTok Shop",
       icon: "♪",
       desc: "Venda direto dos vídeos e lives.",
       status: "soon" as const,
-      phase: "Fase de marketplaces",
+      phase: "Credenciais disponíveis",
       features: ["Produtos", "Pedidos"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
     },
     {
       name: "Google Merchant",
       icon: "✦",
       desc: "Produtos no Google Shopping e na busca.",
       status: "soon" as const,
-      phase: "Fase de canais",
+      phase: "Credenciais disponíveis",
       features: ["Produtos", "Feed"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
     },
   ];
 
@@ -134,11 +141,18 @@ export default async function CanaisPage() {
                 </span>
               ))}
             </div>
-            <div style={{ marginTop: "auto", paddingTop: 8 }}>
-              {c.status === "connected" && c.cta ? (
+            <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              {c.cta && c.status === "connected" ? (
                 <Link href={c.cta.href} className="btn btn-gold" style={{ padding: "10px 20px", fontSize: 10 }}>
                   {c.cta.label}
                 </Link>
+              ) : c.cta && c.status === "soon" ? (
+                <>
+                  <Link href={c.cta.href} className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 10 }}>
+                    {c.cta.label}
+                  </Link>
+                  <span className="muted" style={{ fontSize: 10 }}>Sync em breve</span>
+                </>
               ) : (
                 <span className="muted" style={{ fontSize: 10.5 }}>⏳ {c.phase}</span>
               )}

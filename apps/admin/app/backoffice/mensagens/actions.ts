@@ -173,10 +173,16 @@ export async function createAutomation(formData: FormData) {
 
   const name = String(formData.get("name") ?? "").trim();
   const trigger = String(formData.get("trigger") ?? "manual");
+  const templateId = String(formData.get("template_id") ?? "").trim();
+  const delayHours = Number(formData.get("delay_hours") ?? 0) || 0;
   const conditionsRaw = String(formData.get("conditions") ?? "");
-  const actionsRaw = String(formData.get("actions") ?? "");
 
   if (!name) return;
+
+  // Monta a ação de e-mail se um template foi selecionado
+  const actions = templateId
+    ? [{ type: "send_email", template_id: templateId, delay_hours: delayHours }]
+    : [];
 
   const supabase = await createClient();
   await supabase.from("automations").insert({
@@ -184,9 +190,31 @@ export async function createAutomation(formData: FormData) {
     name,
     trigger,
     conditions: parseJson(conditionsRaw, {}),
-    actions: parseJson(actionsRaw, []),
+    actions,
     status: "draft",
   });
+
+  revalidatePath("/backoffice/mensagens");
+}
+
+export async function updateAutomationAction(
+  automationId: string,
+  templateId: string,
+  delayHours: number
+) {
+  const staff = await currentStaff();
+  if (!staff) return;
+
+  const actions = templateId
+    ? [{ type: "send_email", template_id: templateId, delay_hours: delayHours }]
+    : [];
+
+  const supabase = await createClient();
+  await supabase
+    .from("automations")
+    .update({ actions })
+    .eq("id", automationId)
+    .eq("tenant_id", staff.tenantId);
 
   revalidatePath("/backoffice/mensagens");
 }

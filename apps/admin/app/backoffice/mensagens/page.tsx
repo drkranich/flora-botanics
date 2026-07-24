@@ -9,6 +9,7 @@ import {
   createAutomation,
   setAutomationStatus,
   deleteAutomation,
+  updateAutomationAction,
 } from "./actions";
 import { TEMPLATE_PRESETS } from "./template-presets";
 import { TemplateStudio, type StudioTemplate } from "./TemplateStudio";
@@ -42,13 +43,19 @@ function formatDateTime(iso: string | null): string {
   );
 }
 
+interface AutomationAction {
+  type: string;
+  template_id?: string;
+  delay_hours?: number;
+}
+
 interface AutomationRow {
   id: string;
   name: string;
   trigger: string;
   status: string;
   conditions: unknown;
-  actions: unknown;
+  actions: AutomationAction[];
 }
 
 interface AutomationRunRow {
@@ -307,85 +314,166 @@ export default async function MensagensPage() {
         </div>
 
         {automations.length > 0 ? (
-          <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
-            {automations.map((a) => (
-              <div
-                key={a.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  background: "rgba(10,22,11,0.35)",
-                  border: "1px solid var(--glass-border)",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <strong style={{ fontSize: 13 }}>{a.name}</strong>
-                  <span style={{ fontSize: 12, color: "var(--cream-dim)", marginLeft: 8 }}>
-                    · {TRIGGER_LABELS[a.trigger] ?? a.trigger}
-                  </span>
+          <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
+            {automations.map((a) => {
+              const emailAction = (Array.isArray(a.actions) ? a.actions : []).find(
+                (x: AutomationAction) => x.type === "send_email"
+              );
+              const linkedTemplate = emailAction?.template_id
+                ? templates.find((t) => t.id === emailAction.template_id)
+                : null;
+
+              return (
+                <div
+                  key={a.id}
+                  style={{
+                    padding: "14px 18px",
+                    borderRadius: 12,
+                    background: "rgba(10,22,11,0.35)",
+                    border: "1px solid var(--glass-border)",
+                    display: "grid",
+                    gap: 10,
+                  }}
+                >
+                  {/* Row 1: name + status + actions */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <strong style={{ fontSize: 13 }}>{a.name}</strong>
+                      <span style={{ fontSize: 12, color: "var(--cream-dim)", marginLeft: 8 }}>
+                        · {TRIGGER_LABELS[a.trigger] ?? a.trigger}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "3px 10px",
+                          borderRadius: 6,
+                          background:
+                            a.status === "active"
+                              ? "rgba(143,212,134,0.15)"
+                              : a.status === "paused"
+                              ? "rgba(185,146,77,0.15)"
+                              : "rgba(242,236,223,0.08)",
+                          color:
+                            a.status === "active"
+                              ? "#8fd486"
+                              : a.status === "paused"
+                              ? "#d4aa5a"
+                              : "var(--cream-dim)",
+                        }}
+                      >
+                        {AUTOMATION_STATUS_LABELS[a.status] ?? a.status}
+                      </span>
+                      {a.status !== "active" && (
+                        <form action={setAutomationStatus.bind(null, a.id, "active")}>
+                          <button type="submit" className="btn btn-ghost" style={{ padding: "5px 12px", fontSize: 10 }}>
+                            Ativar
+                          </button>
+                        </form>
+                      )}
+                      {a.status === "active" && (
+                        <form action={setAutomationStatus.bind(null, a.id, "paused")}>
+                          <button type="submit" className="btn btn-ghost" style={{ padding: "5px 12px", fontSize: 10 }}>
+                            Pausar
+                          </button>
+                        </form>
+                      )}
+                      <form action={deleteAutomation.bind(null, a.id)}>
+                        <button
+                          type="submit"
+                          style={{
+                            background: "none",
+                            border: "1px solid rgba(232,160,160,0.3)",
+                            borderRadius: 6,
+                            padding: "5px 10px",
+                            fontSize: 10,
+                            color: "#e8a0a0",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Excluir
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
+                  {/* Row 2: template config */}
+                  <div style={{ borderTop: "1px solid rgba(242,236,223,0.07)", paddingTop: 10 }}>
+                    {linkedTemplate ? (
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 11, color: "var(--cream-dim)" }}>
+                          ✉ Template:
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{linkedTemplate.name}</span>
+                        {emailAction?.delay_hours ? (
+                          <span style={{ fontSize: 11, color: "var(--cream-dim)" }}>
+                            · delay: {emailAction.delay_hours}h
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <details style={{ margin: 0 }}>
+                        <summary style={{ cursor: "pointer", fontSize: 12, color: "#d4aa5a", userSelect: "none" }}>
+                          ⚠ Sem template vinculado — clique para configurar
+                        </summary>
+                        <form
+                          action={async (fd: FormData) => {
+                            "use server";
+                            await updateAutomationAction(
+                              a.id,
+                              String(fd.get("template_id") ?? ""),
+                              Number(fd.get("delay_hours") ?? 0)
+                            );
+                          }}
+                          style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, marginTop: 10 }}
+                        >
+                          <select
+                            name="template_id"
+                            style={{
+                              background: "rgba(10,22,11,0.5)",
+                              border: "1px solid var(--glass-border)",
+                              borderRadius: 6,
+                              padding: "7px 10px",
+                              color: "var(--cream)",
+                              fontSize: 12,
+                            }}
+                          >
+                            <option value="">Selecione um template de e-mail</option>
+                            {emailTemplates.map((t) => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                          </select>
+                          <input
+                            name="delay_hours"
+                            type="number"
+                            min="0"
+                            max="168"
+                            defaultValue={0}
+                            placeholder="Delay (h)"
+                            style={{
+                              width: 90,
+                              background: "rgba(10,22,11,0.5)",
+                              border: "1px solid var(--glass-border)",
+                              borderRadius: 6,
+                              padding: "7px 10px",
+                              color: "var(--cream)",
+                              fontSize: 12,
+                              textAlign: "center",
+                            }}
+                          />
+                          <button type="submit" className="btn btn-ghost" style={{ padding: "7px 14px", fontSize: 11 }}>
+                            Salvar
+                          </button>
+                        </form>
+                      </details>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "3px 10px",
-                      borderRadius: 6,
-                      background:
-                        a.status === "active"
-                          ? "rgba(143,212,134,0.15)"
-                          : a.status === "paused"
-                          ? "rgba(185,146,77,0.15)"
-                          : "rgba(242,236,223,0.08)",
-                      color:
-                        a.status === "active"
-                          ? "#8fd486"
-                          : a.status === "paused"
-                          ? "#d4aa5a"
-                          : "var(--cream-dim)",
-                    }}
-                  >
-                    {AUTOMATION_STATUS_LABELS[a.status] ?? a.status}
-                  </span>
-                  {a.status !== "active" && (
-                    <form action={setAutomationStatus.bind(null, a.id, "active")}>
-                      <button type="submit" className="btn btn-ghost" style={{ padding: "5px 12px", fontSize: 10 }}>
-                        Ativar
-                      </button>
-                    </form>
-                  )}
-                  {a.status === "active" && (
-                    <form action={setAutomationStatus.bind(null, a.id, "paused")}>
-                      <button type="submit" className="btn btn-ghost" style={{ padding: "5px 12px", fontSize: 10 }}>
-                        Pausar
-                      </button>
-                    </form>
-                  )}
-                  <form action={deleteAutomation.bind(null, a.id)}>
-                    <button
-                      type="submit"
-                      style={{
-                        background: "none",
-                        border: "1px solid rgba(232,160,160,0.3)",
-                        borderRadius: 6,
-                        padding: "5px 10px",
-                        fontSize: 10,
-                        color: "#e8a0a0",
-                        cursor: "pointer",
-                        fontWeight: 700,
-                      }}
-                    >
-                      Excluir
-                    </button>
-                  </form>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--cream-dim)" }}>
@@ -420,6 +508,52 @@ export default async function MensagensPage() {
                 />
               </div>
             </div>
+
+            {/* Template + delay */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12 }}>
+              <div style={{ display: "grid", gap: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Template de e-mail
+                </label>
+                {emailTemplates.length > 0 ? (
+                  <GlassSelect
+                    name="template_id"
+                    defaultValue=""
+                    options={[
+                      { value: "", label: "Nenhum (configurar depois)" },
+                      ...emailTemplates.map((t) => ({ value: t.id, label: t.name })),
+                    ]}
+                    ariaLabel="Template"
+                  />
+                ) : (
+                  <div style={{ padding: "10px 14px", background: "rgba(10,22,11,0.3)", borderRadius: 8, border: "1px solid var(--glass-border)", fontSize: 12, color: "var(--cream-dim)" }}>
+                    Crie primeiro um template de e-mail acima ↑
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "grid", gap: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Delay (horas)
+                </label>
+                <input
+                  name="delay_hours"
+                  type="number"
+                  min="0"
+                  max="168"
+                  defaultValue={0}
+                  className="input"
+                  style={{ width: 90 }}
+                  title="0 = enviar imediatamente após o gatilho"
+                />
+              </div>
+            </div>
+
+            <p style={{ margin: 0, fontSize: 11, color: "var(--cream-dim)" }}>
+              💡 <strong>abandoned_cart</strong>: cron a cada 30min ·
+              <strong> order_paid / birthday</strong>: cron a cada 15min ·
+              Delay de horas aplica-se ao carrinho abandonado.
+            </p>
+
             <button type="submit" className="btn btn-ghost" style={{ padding: "10px 20px", justifySelf: "start" }}>
               Criar automação
             </button>
