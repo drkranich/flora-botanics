@@ -79,6 +79,7 @@ export function CheckoutPanel() {
   const [state, setState] = useState("SP");
   const [recipient, setRecipient] = useState("");
   const [cepLoading, setCepLoading] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   // Shipping
   const [quotes, setQuotes] = useState<ShippingQuote[]>([]);
@@ -128,6 +129,32 @@ export function CheckoutPanel() {
     } catch { /* silent */ }
     finally { setCepLoading(false); }
   }, []);
+
+  // ── CEP via GPS ───────────────────────────────────────────────────────────
+
+  const detectGps = useCallback(async () => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&addressdetails=1`,
+            { headers: { "Accept-Language": "pt-BR" } }
+          );
+          const data = await res.json() as { address?: { postcode?: string } };
+          const postcode = data.address?.postcode?.replace(/\D/g, "");
+          if (postcode && postcode.length === 8) {
+            setZip(postcode.replace(/^(\d{5})(\d)/, "$1-$2"));
+            await lookupCep(postcode);
+          }
+        } catch { /* silent */ }
+        finally { setGpsLoading(false); }
+      },
+      () => setGpsLoading(false),
+      { timeout: 8000, maximumAge: 60000 }
+    );
+  }, [lookupCep]);
 
   // ── Shipping quotes ───────────────────────────────────────────────────────
 
@@ -357,7 +384,27 @@ export function CheckoutPanel() {
                     onBlur={(e) => lookupCep(e.target.value)}
                     placeholder="00000-000"
                   />
-                  {cepLoading && <span className="checkout-cep-loader" aria-live="polite">buscando…</span>}
+                  <button
+                    type="button"
+                    className="checkout-cep-gps"
+                    onClick={detectGps}
+                    disabled={gpsLoading || cepLoading}
+                    title="Detectar CEP pela localização"
+                    aria-label="Usar localização GPS"
+                  >
+                    {gpsLoading ? (
+                      <span className="checkout-cep-loader" style={{ position: "static" }}>…</span>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3" />
+                        <line x1="12" y1="2" x2="12" y2="5" />
+                        <line x1="12" y1="19" x2="12" y2="22" />
+                        <line x1="2" y1="12" x2="5" y2="12" />
+                        <line x1="19" y1="12" x2="22" y2="12" />
+                      </svg>
+                    )}
+                  </button>
+                  {cepLoading && !gpsLoading && <span className="checkout-cep-loader" aria-live="polite">buscando…</span>}
                 </div>
                 <a className="checkout-cep-link"
                   href="https://buscacepinter.correios.com.br/app/endereco/"

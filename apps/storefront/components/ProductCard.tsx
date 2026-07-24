@@ -80,21 +80,34 @@ export function ProductCard({
 
   return (
     <article className="category-card">
-      {tenantId ? (
-        <div className="category-card-favorite">
-          <FavoriteButton tenantId={tenantId} productId={product.id} compact />
-        </div>
-      ) : null}
-      {mainImage ? (
-        <Link href={`/produtos/${product.slug}`} className="category-card-media" aria-label={product.name}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="category-card-image" src={mainImage.url} alt={mainImage.alt} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="category-card-hover-image" src={hoverImage?.url ?? mainImage.url} alt="" aria-hidden />
-        </Link>
-      ) : (
-        <Link href={`/produtos/${product.slug}`} className="category-card-media" aria-label={product.name} />
-      )}
+        <div className="category-card-media-wrap">
+        {tenantId ? (
+          <div className="category-card-favorite">
+            <FavoriteButton tenantId={tenantId} productId={product.id} compact />
+          </div>
+        ) : null}
+        {mainImage ? (
+          <Link href={`/produtos/${product.slug}`} className="category-card-media" aria-label={product.name}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="category-card-image" src={mainImage.url} alt={mainImage.alt} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="category-card-hover-image" src={hoverImage?.url ?? mainImage.url} alt="" aria-hidden />
+          </Link>
+        ) : (
+          <Link href={`/produtos/${product.slug}`} className="category-card-media" aria-label={product.name} />
+        )}
+        {variant ? (
+          <div className="category-card-quick-add">
+            <QuickAddToCartButton
+              productId={product.id}
+              variantId={variant.id}
+              name={product.name}
+              priceCents={variant.price_cents}
+              image={mainImage?.url}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <div className="category-card-meta">
         {product.brand_line ? <span>{product.brand_line}</span> : null}
@@ -117,17 +130,6 @@ export function ProductCard({
       <Link href={`/produtos/${product.slug}`} className="link category-card-link">
         Ver produto
       </Link>
-      {variant ? (
-        <div className="category-card-quick-add">
-          <QuickAddToCartButton
-            productId={product.id}
-            variantId={variant.id}
-            name={product.name}
-            priceCents={variant.price_cents}
-            image={mainImage?.url}
-          />
-        </div>
-      ) : null}
     </article>
   );
 }

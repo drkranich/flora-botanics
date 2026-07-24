@@ -1563,6 +1563,47 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 0 0 3px rgba(185, 146, 77, 0.14);
 }
 
+.checkout-cep-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checkout-cep-wrap input {
+  flex: 1;
+}
+.checkout-cep-gps {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(185, 146, 77, 0.32);
+  border-radius: 10px;
+  background: rgba(185, 146, 77, 0.08);
+  color: var(--gold-dark);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.checkout-cep-gps:hover:not(:disabled) {
+  background: rgba(185, 146, 77, 0.16);
+  border-color: rgba(185, 146, 77, 0.55);
+  transform: scale(1.06);
+}
+.checkout-cep-gps:disabled { opacity: 0.5; cursor: wait; }
+.checkout-cep-loader {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.checkout-cep-link {
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: underline;
+  margin-top: 4px;
+  display: inline-block;
+}
+
 .checkout-checkbox {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -1986,13 +2027,18 @@ a { color: inherit; text-decoration: none; }
   opacity: 0.56;
   transform: none;
 }
+.category-card-media-wrap {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 18px;
+  border-radius: inherit;
+}
 .category-card-media {
   position: relative;
   display: grid;
   place-items: center;
   width: 100%;
   height: clamp(290px, 27vw, 390px);
-  margin-bottom: 18px;
   overflow: hidden;
   border: 1px solid rgba(104, 75, 44, 0.10);
   background:
@@ -2113,8 +2159,7 @@ a { color: inherit; text-decoration: none; }
 .quick-add-btn:hover { background: var(--gold-dark); transform: translateY(-1px); }
 .quick-add-btn:disabled { opacity: 0.65; cursor: wait; transform: none; }
 
-/* Overflow visible no card para overlay funcionar */
-.category-card { overflow: hidden; }
+/* overflow no wrapper da mídia, não no card */
 
 /* FAVORITOS */
 .wishlist-page {

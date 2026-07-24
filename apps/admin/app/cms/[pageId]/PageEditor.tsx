@@ -681,7 +681,7 @@ export function PageEditor({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: preview ? "minmax(380px, 540px) 1fr" : "minmax(420px, 720px)",
+        gridTemplateColumns: preview ? "minmax(340px, 420px) 1fr" : "minmax(420px, 720px)",
         gap: 32,
         alignItems: "start",
       }}
@@ -871,74 +871,132 @@ export function PageEditor({
         </div>
       </div>
 
-      {/* ============ COLUNA DO PREVIEW (sem moldura) ============ */}
+      {/* ============ COLUNA DO PREVIEW — glass browser chrome ============ */}
       {preview ? (
         <div
-          className="rise"
           style={{
             position: "sticky",
-            top: 16,
-            height: "calc(100vh - 110px)",
+            top: 8,
+            height: "calc(100vh - 72px)",
+            display: "flex",
+            flexDirection: "column",
+            borderRadius: 22,
+            overflow: "hidden",
+            border: "1px solid rgba(255, 248, 234, 0.13)",
+            boxShadow:
+              "0 40px 100px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255,255,255,0.05) inset",
+            background: "rgba(10, 22, 11, 0.28)",
+            backdropFilter: "blur(28px) saturate(1.22)",
+            WebkitBackdropFilter: "blur(28px) saturate(1.22)",
           }}
         >
-          {/* controles flutuando sobre a página, sem barra */}
+          {/* ── chrome do navegador ── */}
           <div
             style={{
-              position: "absolute",
-              top: 14,
-              right: 14,
-              zIndex: 5,
               display: "flex",
               alignItems: "center",
               gap: 10,
-              padding: "8px 14px",
-              borderRadius: 999,
-              background: "rgba(15, 32, 18, 0.55)",
-              backdropFilter: "blur(14px) saturate(1.2)",
-              WebkitBackdropFilter: "blur(14px) saturate(1.2)",
-              boxShadow: "0 4px 18px rgba(0,0,0,0.25)",
+              padding: "10px 14px",
+              borderBottom: "1px solid rgba(255, 248, 234, 0.09)",
+              background: "rgba(8, 18, 9, 0.42)",
+              flexShrink: 0,
             }}
           >
-            <span
+            {/* traffic lights */}
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <button
+                onClick={() => setPreview(false)}
+                title="Fechar preview"
+                style={{
+                  width: 12, height: 12, borderRadius: "50%",
+                  background: "#ff5f57", border: "none",
+                  cursor: "pointer", padding: 0,
+                }}
+              />
+              <span style={{ width: 12, height: 12, borderRadius: "50%", background: "rgba(255,248,234,0.14)", display: "inline-block" }} />
+              <a
+                href={storefrontUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Abrir no site"
+                style={{
+                  width: 12, height: 12, borderRadius: "50%",
+                  background: "#28c840", display: "inline-block",
+                }}
+              />
+            </div>
+
+            {/* barra de URL */}
+            <div
               style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: "#8fd486",
-                boxShadow: "0 0 8px #8fd486",
-              }}
-            />
-            <span className="eyebrow" style={{ fontSize: 9 }}>Ao vivo</span>
-            <button
-              onClick={() => setPreview(false)}
-              title="Ocultar preview"
-              style={{
-                background: "none",
-                border: 0,
-                color: "var(--cream-soft)",
-                cursor: "pointer",
-                fontSize: 13,
-                lineHeight: 1,
-                padding: 2,
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                background: "rgba(255, 248, 234, 0.07)",
+                border: "1px solid rgba(255, 248, 234, 0.10)",
+                borderRadius: 999,
+                padding: "5px 12px",
+                overflow: "hidden",
               }}
             >
-              ✕
-            </button>
+              <span style={{ fontSize: 9, color: "#8fd486", lineHeight: 1 }}>●</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,248,234,0.52)",
+                  fontFamily: "monospace",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  letterSpacing: 0.1,
+                }}
+              >
+                {storefrontUrl.replace(/^https?:\/\//, "")}
+              </span>
+            </div>
+
+            {/* live badge */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 10px",
+                borderRadius: 999,
+                background: "rgba(143, 212, 134, 0.10)",
+                border: "1px solid rgba(143, 212, 134, 0.22)",
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{
+                  width: 6, height: 6, borderRadius: "50%",
+                  background: "#8fd486",
+                  boxShadow: "0 0 7px #8fd486",
+                  flexShrink: 0,
+                }}
+              />
+              <span className="eyebrow" style={{ fontSize: 8 }}>Ao vivo</span>
+            </div>
           </div>
-          <iframe
-            ref={iframeRef}
-            src={`${storefrontUrl}/preview`}
-            onLoad={pushPreview}
-            style={{
-              border: 0,
-              width: "100%",
-              height: "100%",
-              background: "#f2ecdf",
-              borderRadius: 26,
-              boxShadow: "0 24px 70px rgba(0, 0, 0, 0.45)",
-            }}
-            title="Preview da página"
-          />
+
+          {/* ── área do iframe — scrollbar escondida via overflow ── */}
+          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+            <iframe
+              ref={iframeRef}
+              src={`${storefrontUrl}/preview`}
+              onLoad={pushPreview}
+              style={{
+                border: 0,
+                /* +20px empurra a scrollbar para fora do container */
+                width: "calc(100% + 20px)",
+                height: "100%",
+                background: "#f2ecdf",
+              }}
+              title="Preview da página"
+            />
+          </div>
         </div>
       ) : null}
 
