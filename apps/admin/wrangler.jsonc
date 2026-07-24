@@ -11,19 +11,14 @@
 	],
 	"routes": [
 		{
-			"pattern": "florabotanics.com.br/admin",
+			// admin* captura /admin, /admin?query=X e /admin/sub-rota em um único padrão
+			// sem o asterisco, o Cloudflare trata /admin como casamento exato (sem query string)
+			// e requests com ?period=X caem no storefront via wildcard /*
+			"pattern": "florabotanics.com.br/admin*",
 			"zone_name": "florabotanics.com.br"
 		},
 		{
-			"pattern": "florabotanics.com.br/admin/*",
-			"zone_name": "florabotanics.com.br"
-		},
-		{
-			"pattern": "www.florabotanics.com.br/admin",
-			"zone_name": "florabotanics.com.br"
-		},
-		{
-			"pattern": "www.florabotanics.com.br/admin/*",
+			"pattern": "www.florabotanics.com.br/admin*",
 			"zone_name": "florabotanics.com.br"
 		}
 	],
