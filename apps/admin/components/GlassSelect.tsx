@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 
 export type GlassSelectOption = {
   value: string;
@@ -28,18 +29,25 @@ export function GlassSelect({
   ariaLabel?: string;
   style?: CSSProperties;
 }) {
-  const ref      = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef    = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const [internalValue, setInternalValue] = useState(defaultValue ?? options[0]?.value ?? "");
+  const [mounted, setMounted] = useState(false);
   const controlled   = value !== undefined;
   const currentValue = controlled ? value : internalValue;
   const selected     = options.find((o) => o.value === currentValue) ?? options[0];
 
+  // Portal só existe no cliente
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     function close(event: MouseEvent) {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+      if (
+        !triggerRef.current?.contains(event.target as Node) &&
+        !menuRef.current?.contains(event.target as Node)
+      ) setOpen(false);
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
@@ -78,45 +86,51 @@ export function GlassSelect({
     setOpen(false);
   }
 
-  return (
-    <div ref={ref} className="glass-select" style={style}>
-      {name ? <input type="hidden" name={name} value={currentValue ?? ""} /> : null}
-      <button
-        ref={triggerRef}
-        id={id}
-        type="button"
-        className="glass-select-trigger"
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        onClick={toggle}
-      >
-        <span>{selected?.label ?? "Selecione"}</span>
-        <span className="glass-select-arrow" aria-hidden="true" />
-      </button>
-      {open ? (
-        <div
-          className="glass-select-menu"
-          role="listbox"
-          aria-label={ariaLabel}
-          style={menuStyle}
+  const menu = open && mounted ? createPortal(
+    <div
+      ref={menuRef}
+      className="glass-select-menu"
+      role="listbox"
+      aria-label={ariaLabel}
+      style={menuStyle}
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="option"
+          aria-selected={option.value === currentValue}
+          data-active={option.value === currentValue ? "true" : "false"}
+          className="glass-select-option"
+          onClick={() => choose(option.value)}
         >
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="option"
-              aria-selected={option.value === currentValue}
-              data-active={option.value === currentValue ? "true" : "false"}
-              className="glass-select-option"
-              onClick={() => choose(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+          {option.label}
+        </button>
+      ))}
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <>
+      <div className="glass-select" style={style}>
+        {name ? <input type="hidden" name={name} value={currentValue ?? ""} /> : null}
+        <button
+          ref={triggerRef}
+          id={id}
+          type="button"
+          className="glass-select-trigger"
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={ariaLabel}
+          onClick={toggle}
+        >
+          <span>{selected?.label ?? "Selecione"}</span>
+          <span className="glass-select-arrow" aria-hidden="true" />
+        </button>
+      </div>
+      {menu}
+    </>
   );
 }

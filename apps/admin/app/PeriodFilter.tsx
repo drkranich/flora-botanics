@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 /* ─── navega modificando só os query params da URL atual ────────
    Usa window.location para evitar o bug basePath do opennextjs   */
@@ -202,10 +203,13 @@ export function PeriodFilter({
   to?: string;
 }) {
   const [calOpen, setCalOpen] = useState(false);
-  // posição calculada no clique → usa position:fixed para escapar de qualquer stacking context
   const [calPos, setCalPos] = useState({ top: 0, right: 0 });
+  const [mounted, setMounted] = useState(false);
   const periodBtnRef = useRef<HTMLButtonElement>(null);
   const calRef       = useRef<HTMLDivElement>(null);
+
+  // Portal só existe no cliente
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     function close(e: MouseEvent) {
@@ -287,19 +291,20 @@ export function PeriodFilter({
         </button>
       </div>
 
-      {/* calendário com position:fixed — flutua sobre tudo, sem stacking context */}
-      {calOpen && (
+      {/* calendário via React Portal — sai do DOM pai, escapa qualquer transform/stacking context */}
+      {calOpen && mounted && createPortal(
         <div
           ref={calRef}
           style={{
             position: "fixed",
             top:   calPos.top,
             right: calPos.right,
-            zIndex: 9999,
+            zIndex: 99999,
           }}
         >
           <MiniCalendar onSelect={goCustom} />
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
