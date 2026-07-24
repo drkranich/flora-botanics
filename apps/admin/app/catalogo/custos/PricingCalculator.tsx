@@ -487,17 +487,19 @@ export function PricingCalculator() {
                   <p style={{ margin: 0, fontWeight: 700, color: "#8fd486", marginBottom: 6, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
                     Composição ao preço sugerido
                   </p>
-                  {[
-                    ["Custo de produção", money(res.custo_fixo - inp.frete_envio)],
-                    ["Frete", money(inp.frete_envio)],
-                    ["Gateway (" + pct(inp.taxa_gateway) + ")", money(r(res.price_sugerido * inp.taxa_gateway / 100))],
-                    inp.taxa_marketplace > 0 ? ["Marketplace (" + pct(inp.taxa_marketplace) + ")", money(r(res.price_sugerido * inp.taxa_marketplace / 100))] : null,
-                    res.aliq_fiscal > 0 ? ["Imposto (" + pct(res.aliq_fiscal) + ")", money(r(res.price_sugerido * res.aliq_fiscal / 100))] : null,
-                    ["Lucro líquido (" + pct(inp.margem_desejada) + ")", money(r(res.price_sugerido * inp.margem_desejada / 100))],
-                  ]
-                    .filter(Boolean)
+                  {(
+                    [
+                      ["Custo de produção", money(res.custo_fixo - inp.frete_envio)],
+                      ["Frete", money(inp.frete_envio)],
+                      ["Gateway (" + pct(inp.taxa_gateway) + ")", money(r(res.price_sugerido * inp.taxa_gateway / 100))],
+                      inp.taxa_marketplace > 0 ? ["Marketplace (" + pct(inp.taxa_marketplace) + ")", money(r(res.price_sugerido * inp.taxa_marketplace / 100))] : null,
+                      res.aliq_fiscal > 0 ? ["Imposto (" + pct(res.aliq_fiscal) + ")", money(r(res.price_sugerido * res.aliq_fiscal / 100))] : null,
+                      ["Lucro líquido (" + pct(inp.margem_desejada) + ")", money(r(res.price_sugerido * inp.margem_desejada / 100))],
+                    ] as (string[] | null)[]
+                  )
+                    .filter((item): item is string[] => item !== null)
                     .map(([k, v]) => (
-                      <div key={k as string} style={{ display: "flex", justifyContent: "space-between" }}>
+                      <div key={k} style={{ display: "flex", justifyContent: "space-between" }}>
                         <span style={{ color: "var(--cream-dim)" }}>{k}</span>
                         <span>{v}</span>
                       </div>
