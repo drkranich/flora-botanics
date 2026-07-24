@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { TransferOwnership } from "./TransferOwnership";
 
@@ -11,7 +10,6 @@ import { TransferOwnership } from "./TransferOwnership";
  * Avatar, nome e exclusão da própria conta.
  */
 export default function PerfilPage() {
-  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -26,7 +24,7 @@ export default function PerfilPage() {
     const supabase = supabaseBrowser();
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) {
-        router.push("/login");
+        window.location.href = "/admin/login";
         return;
       }
       setUserId(data.user.id);
@@ -40,7 +38,7 @@ export default function PerfilPage() {
       setAvatarUrl(p?.avatar_url ?? "");
       setRole(p?.role ?? "");
     });
-  }, [router]);
+  }, []);
 
   async function uploadAvatar(file: File) {
     if (!userId) return;
