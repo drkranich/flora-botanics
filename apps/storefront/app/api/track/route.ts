@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentTenant, db } from "@/lib/tenant";
 
-export const runtime = "edge";
-
 export async function POST(req: NextRequest) {
   try {
     const { orderNumber, email } = await req.json() as { orderNumber: string; email: string };
