@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { captureEmail } from "@/lib/cart";
 import { storefrontSupabase } from "@/lib/supabase-browser";
+import { GlassSelect } from "@/components/GlassSelect";
 
 type Mode = "entrar" | "cadastro";
 type AddrMode = "list" | "edit" | "new";
@@ -641,13 +642,12 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
               <div className="account-form-row">
                 <label style={{ flex: 1 }}>
                   Rótulo
-                  <select
+                  <GlassSelect
                     value={editAddr.label ?? "Principal"}
-                    onChange={(e) => setEditAddr({ ...editAddr, label: e.target.value })}
-                    className="account-select"
-                  >
-                    {ADDRESS_LABELS.map((l) => <option key={l} value={l}>{l}</option>)}
-                  </select>
+                    onChange={(v) => setEditAddr({ ...editAddr, label: v })}
+                    options={ADDRESS_LABELS.map((l) => ({ value: l, label: l }))}
+                    ariaLabel="Rótulo do endereço"
+                  />
                 </label>
                 <label style={{ flex: 2 }}>
                   Destinatário
@@ -767,13 +767,12 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
             <div className="account-form compact">
               <label>
                 Tipo de chave
-                <select
+                <GlassSelect
                   value={payInfo.pix_key_type ?? "cpf"}
-                  onChange={(e) => setPayInfo({ ...payInfo, pix_key_type: e.target.value })}
-                  className="account-select"
-                >
-                  {PIX_KEY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                  onChange={(v) => setPayInfo({ ...payInfo, pix_key_type: v })}
+                  options={PIX_KEY_TYPES}
+                  ariaLabel="Tipo de chave PIX"
+                />
               </label>
               <label>
                 Chave PIX
@@ -837,14 +836,15 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
               </div>
               <label>
                 Tipo de conta
-                <select
+                <GlassSelect
                   value={payInfo.bank_account_type ?? "corrente"}
-                  onChange={(e) => setPayInfo({ ...payInfo, bank_account_type: e.target.value })}
-                  className="account-select"
-                >
-                  <option value="corrente">Conta corrente</option>
-                  <option value="poupanca">Conta poupança</option>
-                </select>
+                  onChange={(v) => setPayInfo({ ...payInfo, bank_account_type: v })}
+                  options={[
+                    { value: "corrente", label: "Conta corrente" },
+                    { value: "poupanca", label: "Conta poupança" },
+                  ]}
+                  ariaLabel="Tipo de conta bancária"
+                />
               </label>
               <button type="button" className="account-primary-button" onClick={savePaymentInfo} disabled={pending}>
                 Salvar dados bancários
