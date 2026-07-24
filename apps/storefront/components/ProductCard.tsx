@@ -63,29 +63,43 @@ export function productImages(product: ProductCardProduct, storageBase: string) 
     });
 }
 
+function starsDisplay(avg: number) {
+  const full = Math.round(avg);
+  return "★".repeat(full) + "☆".repeat(5 - full);
+}
+
 export function ProductCard({
   product,
   storageBase,
   tenantId,
+  rating,
 }: {
   product: ProductCardProduct;
   storageBase: string;
   tenantId?: string;
+  rating?: { avg: number; count: number } | null;
 }) {
   const variant = defaultVariant(product);
   const images = productImages(product, storageBase);
   const mainImage = images[0] ?? null;
   const hoverImage = images[1] ?? mainImage;
   const tags = (product.tags ?? []).filter(Boolean).slice(0, 2);
+  const isKit = product.type === "kit";
+  const isNew = (product.tags ?? []).some((t) => /novo|lançamento|new/i.test(t));
 
   return (
     <article className="category-card">
-        <div className="category-card-media-wrap">
+      <div className="category-card-media-wrap">
         {tenantId ? (
           <div className="category-card-favorite">
             <FavoriteButton tenantId={tenantId} productId={product.id} compact />
           </div>
         ) : null}
+        {/* Selos */}
+        <div className="category-card-badges">
+          {isKit ? <span className="category-card-badge-seal category-card-badge-seal--kit">Kit</span> : null}
+          {isNew ? <span className="category-card-badge-seal category-card-badge-seal--new">Novo</span> : null}
+        </div>
         {mainImage ? (
           <Link href={`/produtos/${product.slug}`} className="category-card-media" aria-label={product.name}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -111,9 +125,15 @@ export function ProductCard({
 
       <div className="category-card-meta">
         {product.brand_line ? <span>{product.brand_line}</span> : null}
-        {product.type === "kit" ? <span>Kit</span> : null}
+        {isKit ? <span>Kit</span> : null}
       </div>
       <h3>{product.name}</h3>
+      {rating && rating.count > 0 ? (
+        <div className="category-card-rating" aria-label={`${rating.avg.toFixed(1)} de 5 estrelas`}>
+          <span className="category-card-stars">{starsDisplay(rating.avg)}</span>
+          <span className="category-card-rating-count">({rating.count})</span>
+        </div>
+      ) : null}
       {tags.length > 0 ? (
         <div className="category-card-tags" aria-label="Caracteristicas do produto">
           {tags.map((tag) => (

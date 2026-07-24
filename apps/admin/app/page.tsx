@@ -14,7 +14,58 @@ const ROLE_LABEL: Record<string, string> = {
 const money = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default async function AdminHome() {
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Pendente",
+  paid: "Pago",
+  processing: "Processando",
+  shipped: "Enviado",
+  delivered: "Entregue",
+  cancelled: "Cancelado",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  pending: "rgba(185,146,77,0.22)",
+  paid: "rgba(100,180,100,0.22)",
+  processing: "rgba(100,140,220,0.22)",
+  shipped: "rgba(140,100,220,0.22)",
+  delivered: "rgba(60,180,120,0.22)",
+  cancelled: "rgba(200,80,80,0.18)",
+};
+
+function computeSince(period: string): Date | null {
+  const now = new Date();
+  switch (period) {
+    case "today": {
+      const d = new Date(now);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    case "7d":
+      return new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+    case "30d":
+      return new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+    case "month": {
+      const d = new Date(now);
+      d.setDate(1);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    case "year": {
+      const d = new Date(now);
+      d.setMonth(0, 1);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    default:
+      return new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+  }
+}
+
+export default async function AdminHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
   const session = await getStaffSession();
   if (!session) {
     const supabase = await supabaseServer();
@@ -22,8 +73,19 @@ export default async function AdminHome() {
     redirect("/login");
   }
 
+  const params = await searchParams;
+  const period = params.period ?? "30d";
+  const since = computeSince(period);
+
   const supabase = await supabaseServer();
   const t = session.tenantId;
+
+  // Base order query builder
+  let ordersQuery = supabase
+    .from("orders")
+    .select("total_cents, status, created_at")
+    .eq("tenant_id", t);
+  if (since) ordersQuery = ordersQuery.gte("created_at", since.toISOString());
 
   const [
     { data: tenant },
@@ -38,6 +100,8 @@ export default async function AdminHome() {
     { data: socialSetting },
     { data: activity },
     { data: lastVersion },
+    { count: abandonedCarts },
+    { data: lowStockVariants },
   ] = await Promise.all([
     supabase.from("tenants").select("name, slug").eq("id", t).maybeSingle(),
     supabase.from("profiles").select("full_name").eq("id", session.userId).maybeSingle(),
@@ -46,13 +110,53 @@ export default async function AdminHome() {
     supabase.from("categories").select("*", { count: "exact", head: true }).eq("tenant_id", t).eq("status", "published"),
     supabase.from("customers").select("*", { count: "exact", head: true }).eq("tenant_id", t),
     supabase.from("leads").select("*", { count: "exact", head: true }).eq("tenant_id", t),
-    supabase.from("orders").select("total_cents, status").eq("tenant_id", t).in("status", ["paid", "processing", "shipped", "delivered"]),
+    ordersQuery,
     supabase.from("site_settings").select("value").eq("tenant_id", t).eq("key", "logo").maybeSingle(),
     supabase.from("site_settings").select("value").eq("tenant_id", t).eq("key", "social").maybeSingle(),
     supabase.from("audit_logs").select("action, entity_type, entity_id, created_at").eq("tenant_id", t).order("created_at", { ascending: false }).limit(5),
     supabase.from("page_versions").select("created_at, pages!inner(title)").eq("tenant_id", t).order("created_at", { ascending: false }).limit(3),
+    supabase
+      .from("carts")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", t)
+      .eq("status", "abandoned"),
+    supabase
+      .from("product_variants")
+      .select("id, sku, name, inventory(quantity, reserved), products!inner(name, slug)")
+      .eq("tenant_id", t)
+      .limit(200),
   ]);
 
+  // Process orders
+  const allOrders = orders ?? [];
+  const paidOrders = allOrders.filter((o) => ["paid", "processing", "shipped", "delivered"].includes(o.status));
+  const revenue = paidOrders.reduce((s, o) => s + (o.total_cents ?? 0), 0);
+  const orderCount = paidOrders.length;
+  const ticketMedio = orderCount > 0 ? Math.round(revenue / orderCount) : 0;
+
+  // Orders by status
+  const ordersByStatus: Record<string, number> = {};
+  for (const o of allOrders) {
+    ordersByStatus[o.status] = (ordersByStatus[o.status] ?? 0) + 1;
+  }
+  const statusOrder = ["paid", "processing", "shipped", "delivered", "pending", "cancelled"];
+
+  // Critical stock (quantity - reserved <= 3)
+  type LowVariant = {
+    id: string;
+    sku: string;
+    name: string | null;
+    inventory: { quantity: number; reserved: number | null } | { quantity: number; reserved: number | null }[] | null;
+    products: { name: string; slug: string } | { name: string; slug: string }[] | null;
+  };
+  const criticalStock = ((lowStockVariants ?? []) as unknown as LowVariant[]).filter((v) => {
+    const inv = Array.isArray(v.inventory) ? v.inventory[0] : v.inventory;
+    if (!inv) return false;
+    const available = (inv.quantity ?? 0) - (inv.reserved ?? 0);
+    return available <= 3 && available >= 0;
+  }).slice(0, 8);
+
+  // Misc
   const hour = Number(
     new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date())
   );
@@ -61,8 +165,6 @@ export default async function AdminHome() {
     profile?.full_name?.trim().split(/\s+/)[0] ??
     session.email.split("@")[0].replace(/^./, (c) => c.toUpperCase());
 
-  const revenue = (orders ?? []).reduce((s, o) => s + (o.total_cents ?? 0), 0);
-  const orderCount = (orders ?? []).length;
   const logoOk = Boolean((logoSetting?.value as { image?: string } | null)?.image);
   const socialOk = (((socialSetting?.value as { items?: Array<{ href?: string }> } | null)?.items) ?? []).some(
     (s) => s.href && s.href !== "#"
@@ -70,12 +172,12 @@ export default async function AdminHome() {
 
   const storefrontUrl = getStorefrontUrl();
 
-  const metrics = [
-    { label: "Páginas no ar", value: String(pagesLive ?? 0), href: "/cms" },
-    { label: "Produtos à venda", value: String(products ?? 0), href: "/catalogo" },
-    { label: "Pedidos", value: String(orderCount), href: "/vendas" },
-    { label: "Receita", value: money(revenue), href: "/vendas" },
-    { label: "Leads", value: String(leads ?? 0), href: "/vendas/clientes" },
+  const PERIODS = [
+    { key: "today", label: "Hoje" },
+    { key: "7d", label: "7 dias" },
+    { key: "30d", label: "30 dias" },
+    { key: "month", label: "Mês" },
+    { key: "year", label: "Ano" },
   ];
 
   const checklist = [
@@ -89,8 +191,6 @@ export default async function AdminHome() {
   ];
   const doneCount = checklist.filter((c) => c.done).length;
 
-  const ACTION_LABEL: Record<string, string> = { "order.transition": "Pedido atualizado" };
-
   const modules = [
     { title: "CMS", desc: `${pagesLive ?? 0} páginas no ar`, href: "/cms", icon: "✺" },
     { title: "Catálogo", desc: `${products ?? 0} produtos · ${categories ?? 0} categorias`, href: "/catalogo", icon: "❖" },
@@ -100,7 +200,7 @@ export default async function AdminHome() {
 
   return (
     <main style={{ maxWidth: 1080, margin: "0 auto", padding: "44px 28px 80px" }}>
-      {/* ---------- header + ações rápidas ---------- */}
+      {/* ── header ── */}
       <header className="rise" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 18, marginBottom: 30 }}>
         <div>
           <p className="eyebrow">{tenant?.name ?? "Flora Ecosystem"}</p>
@@ -122,21 +222,160 @@ export default async function AdminHome() {
         </div>
       </header>
 
-      {/* ---------- métricas ---------- */}
-      <div className="rise rise-1" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 26 }}>
-        {metrics.map((m) => (
-          <Link key={m.label} href={m.href}>
-            <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
-              <p className="display" style={{ fontSize: 30, color: "var(--gold-light)" }}>{m.value}</p>
-              <p className="muted" style={{ fontSize: 10.5, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>{m.label}</p>
-            </div>
+      {/* ── filtro de período ── */}
+      <div className="rise rise-1" style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        {PERIODS.map((p) => (
+          <Link
+            key={p.key}
+            href={`?period=${p.key}`}
+            style={{
+              padding: "6px 14px",
+              border: "1px solid",
+              borderColor: period === p.key ? "var(--gold-light)" : "var(--glass-border)",
+              background: period === p.key ? "rgba(218,183,116,0.16)" : "rgba(242,236,223,0.05)",
+              color: period === p.key ? "var(--gold-light)" : "var(--cream-dim)",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              borderRadius: 6,
+              transition: "all 0.18s ease",
+            }}
+          >
+            {p.label}
           </Link>
         ))}
+        <span className="muted" style={{ fontSize: 11, display: "flex", alignItems: "center" }}>
+          — mostrando dados do período selecionado
+        </span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 1.2fr) minmax(260px, 1fr)", gap: 18, marginBottom: 26 }}>
-        {/* ---------- checklist ---------- */}
+      {/* ── métricas principais ── */}
+      <div className="rise rise-1" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 14, marginBottom: 18 }}>
+        <Link href="/vendas">
+          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+            <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{money(revenue)}</p>
+            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Receita</p>
+          </div>
+        </Link>
+        <Link href="/vendas">
+          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+            <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{orderCount}</p>
+            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Pedidos pagos</p>
+          </div>
+        </Link>
+        <Link href="/vendas">
+          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+            <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{money(ticketMedio)}</p>
+            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Ticket médio</p>
+          </div>
+        </Link>
+        <Link href="/vendas/clientes">
+          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+            <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{String(customers ?? 0)}</p>
+            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Clientes</p>
+          </div>
+        </Link>
+        <Link href="/vendas/clientes">
+          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+            <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{String(leads ?? 0)}</p>
+            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Leads</p>
+          </div>
+        </Link>
+        <Link href="/vendas/carrinhos">
+          <div className="glass glass-hover" style={{ padding: "18px 20px" }}>
+            <p className="display" style={{ fontSize: 28, color: abandonedCarts ? "rgba(232,160,80,0.9)" : "var(--gold-light)" }}>{String(abandonedCarts ?? 0)}</p>
+            <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>Carrinhos abandonados</p>
+          </div>
+        </Link>
+      </div>
+
+      {/* ── pedidos por status + estoque crítico ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(240px, 0.85fr)", gap: 18, marginBottom: 22 }}>
+        {/* pedidos por status */}
         <section className="glass rise rise-2" style={{ padding: 24 }}>
+          <p className="eyebrow" style={{ marginBottom: 16 }}>Pedidos por status</p>
+          {allOrders.length === 0 ? (
+            <p className="muted" style={{ fontSize: 12 }}>Nenhum pedido no período.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {statusOrder.filter((s) => ordersByStatus[s]).map((status) => {
+                const count = ordersByStatus[status] ?? 0;
+                const pct = Math.round((count / allOrders.length) * 100);
+                return (
+                  <div key={status}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-soft)", letterSpacing: 0.6 }}>
+                        {STATUS_LABEL[status] ?? status}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--gold-light)", fontWeight: 800 }}>
+                        {count}
+                        <span className="muted" style={{ fontWeight: 500, marginLeft: 4 }}>({pct}%)</span>
+                      </span>
+                    </div>
+                    <div style={{ height: 4, background: "rgba(242,236,223,0.08)", borderRadius: 99 }}>
+                      <div style={{
+                        height: 4, borderRadius: 99, width: `${pct}%`,
+                        background: STATUS_COLOR[status] ?? "rgba(185,146,77,0.3)",
+                        transition: "width 0.5s ease",
+                        border: "1px solid rgba(242,236,223,0.15)",
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* estoque crítico */}
+        <section className="glass rise rise-2" style={{ padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <p className="eyebrow">Estoque crítico</p>
+            {criticalStock.length > 0 ? (
+              <span style={{ padding: "3px 8px", border: "1px solid rgba(232,120,80,0.4)", background: "rgba(232,120,80,0.12)", borderRadius: 4, color: "#e87850", fontSize: 10, fontWeight: 900, letterSpacing: 1 }}>
+                {criticalStock.length} itens
+              </span>
+            ) : null}
+          </div>
+          {criticalStock.length === 0 ? (
+            <p className="muted" style={{ fontSize: 12 }}>✓ Nenhum produto em estoque crítico.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {criticalStock.map((v) => {
+                const inv = Array.isArray(v.inventory) ? v.inventory[0] : v.inventory;
+                const available = (inv?.quantity ?? 0) - (inv?.reserved ?? 0);
+                const prod = Array.isArray(v.products) ? v.products[0] : v.products;
+                return (
+                  <div key={v.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--glass-border)" }}>
+                    <div>
+                      <p style={{ fontSize: 12, color: "var(--cream-soft)" }}>{prod?.name ?? v.name ?? v.sku}</p>
+                      <p className="muted" style={{ fontSize: 10 }}>{v.sku}</p>
+                    </div>
+                    <span style={{
+                      flexShrink: 0,
+                      padding: "2px 8px",
+                      border: `1px solid ${available === 0 ? "rgba(200,80,80,0.4)" : "rgba(232,180,80,0.4)"}`,
+                      background: available === 0 ? "rgba(200,80,80,0.12)" : "rgba(232,180,80,0.10)",
+                      color: available === 0 ? "#e88080" : "#e8c050",
+                      fontSize: 11,
+                      fontWeight: 900,
+                      borderRadius: 4,
+                      alignSelf: "center",
+                    }}>
+                      {available === 0 ? "Esgotado" : `${available} un.`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* ── checklist + atividade ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 1.2fr) minmax(260px, 1fr)", gap: 18, marginBottom: 26 }}>
+        <section className="glass rise rise-3" style={{ padding: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <p className="eyebrow">Preparando a loja</p>
             <span className="chip chip-draft">{doneCount}/{checklist.length}</span>
@@ -161,7 +400,6 @@ export default async function AdminHome() {
           ))}
         </section>
 
-        {/* ---------- atividade recente ---------- */}
         <section className="glass rise rise-3" style={{ padding: 24 }}>
           <p className="eyebrow" style={{ marginBottom: 14 }}>Atividade recente</p>
           {(activity ?? []).length === 0 && (lastVersion ?? []).length === 0 ? (
@@ -173,7 +411,7 @@ export default async function AdminHome() {
               <div key={`v${i}`} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--glass-border)" }}>
                 <span style={{ color: "var(--gold-light)", fontSize: 13 }}>✎</span>
                 <div>
-                  <p style={{ fontSize: 12.5 }}>Página “{page?.title}” editada</p>
+                  <p style={{ fontSize: 12.5 }}>Página "{page?.title}" editada</p>
                   <p className="muted" style={{ fontSize: 10.5, marginTop: 2 }}>
                     {new Date(v.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                   </p>
@@ -186,7 +424,7 @@ export default async function AdminHome() {
               <span style={{ color: "var(--gold-light)", fontSize: 13 }}>◈</span>
               <div>
                 <p style={{ fontSize: 12.5 }}>
-                  {ACTION_LABEL[a.action] ?? a.action} {a.entity_id ? `#${a.entity_id}` : ""}
+                  {a.action} {a.entity_id ? `#${a.entity_id}` : ""}
                 </p>
                 <p className="muted" style={{ fontSize: 10.5, marginTop: 2 }}>
                   {new Date(a.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
@@ -197,7 +435,7 @@ export default async function AdminHome() {
         </section>
       </div>
 
-      {/* ---------- módulos ---------- */}
+      {/* ── módulos ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
         {modules.map((m, i) => (
           <Link key={m.title} href={m.href}>

@@ -75,20 +75,37 @@ export default async function CategoryPage({
     : { data: [] };
   const productIds = (links ?? []).map((item) => item.product_id).filter(Boolean);
 
-  const { data: products } = productIds.length
-    ? await client
-        .from("products")
-        .select(
-          `id, slug, name, subtitle, type, brand_line, tags,
-           product_variants(id, price_cents, currency, is_default),
-           product_media(role, sort_order, media(storage_path, alt))`
-        )
-        .eq("tenant_id", tenant.tenantId)
-        .eq("status", "published")
-        .is("deleted_at", null)
-        .in("id", productIds)
-        .order("created_at", { ascending: false })
-    : { data: [] };
+  const [{ data: products }, { data: reviewAggs }] = await Promise.all([
+    productIds.length
+      ? client
+          .from("products")
+          .select(
+            `id, slug, name, subtitle, type, brand_line, tags,
+             product_variants(id, price_cents, currency, is_default),
+             product_media(role, sort_order, media(storage_path, alt))`
+          )
+          .eq("tenant_id", tenant.tenantId)
+          .eq("status", "published")
+          .is("deleted_at", null)
+          .in("id", productIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    productIds.length
+      ? client
+          .from("product_reviews")
+          .select("product_id, rating")
+          .eq("tenant_id", tenant.tenantId)
+          .eq("status", "approved")
+          .in("product_id", productIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  // Aggregate ratings per product
+  const ratingsMap = new Map<string, { sum: number; count: number }>();
+  for (const r of (reviewAggs ?? []) as Array<{ product_id: string; rating: number }>) {
+    const prev = ratingsMap.get(r.product_id) ?? { sum: 0, count: 0 };
+    ratingsMap.set(r.product_id, { sum: prev.sum + r.rating, count: prev.count + 1 });
+  }
 
   const logoUrl = logoSetting?.image ?? "";
   const logoWidth = logoSetting?.width ?? 160;
@@ -130,9 +147,13 @@ export default async function CategoryPage({
             </p>
           ) : (
             <div className="category-grid">
-              {rows.map((product) => (
-                <ProductCard key={product.id} product={product} storageBase={storageBase} tenantId={tenant.tenantId} />
-              ))}
+              {rows.map((product) => {
+                const agg = ratingsMap.get(product.id);
+                const rating = agg && agg.count > 0 ? { avg: agg.sum / agg.count, count: agg.count } : null;
+                return (
+                  <ProductCard key={product.id} product={product} storageBase={storageBase} tenantId={tenant.tenantId} rating={rating} />
+                );
+              })}
             </div>
           )}
         </div>

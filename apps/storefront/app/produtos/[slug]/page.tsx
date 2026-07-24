@@ -407,6 +407,20 @@ export default async function ProductPage({
           }}
         />
       ) : null}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Início", item: productUrl.replace(/\/produtos\/.*$/, "/") },
+              { "@type": "ListItem", position: 2, name: "Catálogo", item: productUrl.replace(/\/produtos\/.*$/, "/produtos") },
+              { "@type": "ListItem", position: 3, name: row.name, item: productUrl },
+            ],
+          }),
+        }}
+      />
       <div className="hero subpage-hero product-hero-compact">
         <SiteHeader menu={menu} logoUrl={logoUrl} logoWidth={logoWidth} logoHeight={logoHeight} logoColor={logoColor} />
         <div className="container hero-inner" style={{ paddingTop: 48 }}>
@@ -429,9 +443,26 @@ export default async function ProductPage({
             <h2>{row.name}</h2>
             {row.type === "kit" ? <span className="product-kind-badge">Kit botânico</span> : null}
             {variant ? (
-              <p className="product-price">
-                {money(variant.price_cents, variant.currency)}
-              </p>
+              <div className="product-price-block">
+                <div className="product-price-row">
+                  <p className="product-price">
+                    {money(variant.price_cents, variant.currency)}
+                  </p>
+                  {variant.compare_at_cents && variant.compare_at_cents > variant.price_cents ? (
+                    <p className="product-price-compare">
+                      {money(variant.compare_at_cents, variant.currency)}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="product-payment-options">
+                  <span className="product-pix-price">
+                    <strong>{money(Math.round(variant.price_cents * 0.95), variant.currency)}</strong> no PIX (5% off)
+                  </span>
+                  <span className="product-installments">
+                    ou 10x de <strong>{money(Math.round(variant.price_cents / 10), variant.currency)}</strong> sem juros
+                  </span>
+                </div>
+              </div>
             ) : null}
             {description ? (
               <p className="product-description">
@@ -455,6 +486,18 @@ export default async function ProductPage({
                 </article>
               ) : null}
             </div>
+
+            {reviews.length > 0 ? (
+              <div className="product-review-summary">
+                <span className="product-review-stars" aria-label={`${(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)} de 5`}>
+                  {"★".repeat(Math.round(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length))}
+                  {"☆".repeat(5 - Math.round(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length))}
+                </span>
+                <a href="#avaliacoes" className="product-review-count">
+                  {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1).replace(".", ",")} ({reviews.length} {reviews.length === 1 ? "avaliação" : "avaliações"})
+                </a>
+              </div>
+            ) : null}
 
             {row.tags?.length ? (
               <div className="product-tag-row" aria-label="Características do produto">
@@ -550,7 +593,7 @@ export default async function ProductPage({
           </section>
         </div>
 
-        <div className="container product-reviews-container">
+        <div id="avaliacoes" className="container product-reviews-container">
           <ProductReviews tenantId={tenant.tenantId} productId={row.id} reviews={reviews} />
         </div>
 
