@@ -6,6 +6,8 @@ import { captureEmail } from "@/lib/cart";
 import { storefrontSupabase } from "@/lib/supabase-browser";
 
 type Mode = "entrar" | "cadastro";
+type AddrMode = "list" | "edit" | "new";
+type AccountTab = "dados" | "enderecos" | "pedidos" | "pagamentos";
 
 interface ProfileRow {
   full_name: string | null;
@@ -21,6 +23,7 @@ interface CustomerRow {
   phone: string | null;
   accepts_marketing: boolean;
   created_at: string;
+  payment_info: PaymentInfo | null;
 }
 
 interface OrderRow {
@@ -48,6 +51,16 @@ interface AddressRow {
   country: string;
 }
 
+interface PaymentInfo {
+  pix_key_type?: string;
+  pix_key?: string;
+  bank_name?: string;
+  bank_agency?: string;
+  bank_account?: string;
+  bank_account_type?: string;
+  bank_account_holder?: string;
+}
+
 interface AccountUser {
   id: string;
   email?: string;
@@ -66,8 +79,22 @@ const ORDER_STATUS: Record<string, string> = {
   shipped: "Enviado",
   delivered: "Entregue",
   canceled: "Cancelado",
+  cancelled: "Cancelado",
+  cancellation_requested: "Cancelamento solicitado",
   refunded: "Reembolsado",
 };
+
+const CANCELLABLE = new Set(["pending", "paid"]);
+
+const PIX_KEY_TYPES = [
+  { value: "cpf", label: "CPF" },
+  { value: "cnpj", label: "CNPJ" },
+  { value: "email", label: "E-mail" },
+  { value: "phone", label: "Celular" },
+  { value: "random", label: "Chave aleatória" },
+];
+
+const ADDRESS_LABELS = ["Principal", "Casa", "Trabalho", "Outro"];
 
 function displayName(user: AccountUser, profile: ProfileRow | null) {
   return (
@@ -105,34 +132,61 @@ function emptyAddress(customerId: string): AddressRow {
   };
 }
 
+function emptyPaymentInfo(): PaymentInfo {
+  return {
+    pix_key_type: "cpf",
+    pix_key: "",
+    bank_name: "",
+    bank_agency: "",
+    bank_account: "",
+    bank_account_type: "corrente",
+    bank_account_holder: "",
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+
 export function AccountPanel({ tenantId }: { tenantId: string }) {
   const supabase = useMemo(() => storefrontSupabase(), []);
+
   const [mode, setMode] = useState<Mode>("entrar");
   const [session, setSession] = useState<AccountSession | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [addresses, setAddresses] = useState<AddressRow[]>([]);
+  const [payInfo, setPayInfo] = useState<PaymentInfo>(emptyPaymentInfo());
+
+  // profile form
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
-  const [address, setAddress] = useState<AddressRow | null>(null);
+
+  // address management
+  const [addrMode, setAddrMode] = useState<AddrMode>("list");
+  const [editAddr, setEditAddr] = useState<AddressRow | null>(null);
+
+  // auth form
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // UI state
+  const [tab, setTab] = useState<AccountTab>("dados");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const primaryCustomer = customers[0] ?? null;
 
+  /* ── load ── */
   async function loadAccount(current: AccountSession | null) {
     setSession(current);
     setProfile(null);
     setCustomers([]);
     setOrders([]);
     setAddresses([]);
-    setAddress(null);
 
     if (!current?.user) {
       setLoading(false);
@@ -141,9 +195,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
 
     try {
       await supabase.rpc("claim_my_customer_for_tenant", { p_tenant_id: tenantId });
-    } catch {
-      // A conta continua funcionando mesmo se ainda nao houver cliente para reivindicar.
-    }
+    } catch { /* continua */ }
 
     const [{ data: profileData }, { data: customerData }] = await Promise.all([
       supabase
@@ -153,7 +205,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
         .maybeSingle(),
       supabase
         .from("customers")
-        .select("id, email, full_name, phone, accepts_marketing, created_at")
+        .select("id, email, full_name, phone, accepts_marketing, created_at, payment_info")
         .eq("tenant_id", tenantId)
         .eq("profile_id", current.user.id)
         .order("created_at", { ascending: false })
@@ -165,7 +217,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
 
     if (loadedCustomers.length === 0 && current.user.email) {
       const customerName = displayName(current.user, loadedProfile);
-      const { data: createdCustomer, error: customerCreateError } = await supabase
+      const { data: created } = await supabase
         .from("customers")
         .insert({
           tenant_id: tenantId,
@@ -175,19 +227,12 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
           phone: loadedProfile?.phone ?? null,
           accepts_marketing: false,
         })
-        .select("id, email, full_name, phone, accepts_marketing, created_at")
+        .select("id, email, full_name, phone, accepts_marketing, created_at, payment_info")
         .maybeSingle();
-
-      if (customerCreateError) {
-        setError(customerCreateError.message);
-      }
-
-      if (createdCustomer) {
-        loadedCustomers = [createdCustomer as CustomerRow];
-      }
+      if (created) loadedCustomers = [created as CustomerRow];
     }
-    const customerIds = loadedCustomers.map((customer) => customer.id);
 
+    const customerIds = loadedCustomers.map((c) => c.id);
     let loadedOrders: OrderRow[] = [];
     let loadedAddresses: AddressRow[] = [];
 
@@ -199,15 +244,14 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
           .eq("tenant_id", tenantId)
           .in("customer_id", customerIds)
           .order("created_at", { ascending: false })
-          .limit(6),
+          .limit(20),
         supabase
           .from("addresses")
           .select("id, customer_id, label, recipient, street, number, complement, district, city, state, zip, country")
           .eq("tenant_id", tenantId)
           .in("customer_id", customerIds)
-          .limit(8),
+          .limit(20),
       ]);
-
       loadedOrders = (orderData ?? []) as OrderRow[];
       loadedAddresses = (addressData ?? []) as AddressRow[];
     }
@@ -218,7 +262,11 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
     setAddresses(loadedAddresses);
     setProfileName(displayName(current.user, loadedProfile));
     setProfilePhone(loadedProfile?.phone ?? loadedCustomers[0]?.phone ?? "");
-    setAddress(loadedAddresses[0] ?? (loadedCustomers[0] ? emptyAddress(loadedCustomers[0].id) : null));
+    setPayInfo({
+      ...emptyPaymentInfo(),
+      ...(loadedCustomers[0]?.payment_info ?? {}),
+    });
+    setAddrMode("list");
 
     if (current.user.email) {
       await captureEmail(current.user.email, displayName(current.user, loadedProfile));
@@ -228,47 +276,37 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
 
   useEffect(() => {
     let active = true;
-
     async function init() {
       setLoading(true);
       setError(null);
-
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
       if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        const { error: ex } = await supabase.auth.exchangeCodeForSession(code);
         window.history.replaceState({}, "", "/conta");
-        if (exchangeError && active) setError(exchangeError.message);
+        if (ex && active) setError(ex.message);
       }
-
       const { data } = await supabase.auth.getSession();
       if (active) await loadAccount(data.session as AccountSession | null);
     }
-
     init();
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (active) loadAccount(nextSession as AccountSession | null);
+    const { data } = supabase.auth.onAuthStateChange((_e, next) => {
+      if (active) loadAccount(next as AccountSession | null);
     });
-
-    return () => {
-      active = false;
-      data.subscription.unsubscribe();
-    };
+    return () => { active = false; data.subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
+  /* ── auth ── */
   function loginWithGoogle() {
     setError(null);
     setMessage(null);
     startTransition(async () => {
-      const { error: googleError } = await supabase.auth.signInWithOAuth({
+      const { error: e } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/conta`,
-          queryParams: { access_type: "offline", prompt: "select_account" },
-        },
+        options: { redirectTo: `${window.location.origin}/conta`, queryParams: { access_type: "offline", prompt: "select_account" } },
       });
-      if (googleError) setError(googleError.message);
+      if (e) setError(e.message);
     });
   }
 
@@ -276,29 +314,18 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
     event.preventDefault();
     setError(null);
     setMessage(null);
-
     startTransition(async () => {
       if (mode === "cadastro") {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/conta`,
-            data: { full_name: name },
-          },
+        const { error: e } = await supabase.auth.signUp({
+          email, password,
+          options: { emailRedirectTo: `${window.location.origin}/conta`, data: { full_name: name } },
         });
-
-        if (signUpError) {
-          setError(signUpError.message);
-          return;
-        }
-
-        setMessage("Cadastro criado. Se o Supabase pedir confirmacao, verifique seu e-mail.");
+        if (e) { setError(e.message); return; }
+        setMessage("Cadastro criado. Verifique seu e-mail se necessário.");
         return;
       }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) setError(signInError.message);
+      const { error: e } = await supabase.auth.signInWithPassword({ email, password });
+      if (e) setError(e.message);
     });
   }
 
@@ -306,48 +333,37 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
     setError(null);
     setMessage(null);
     startTransition(async () => {
-      if (!email) {
-        setError("Informe seu e-mail para receber o link de recuperacao.");
-        return;
-      }
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      if (!email) { setError("Informe seu e-mail."); return; }
+      const { error: e } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/conta`,
       });
-      if (resetError) {
-        setError(resetError.message);
-        return;
-      }
-      setMessage("Se este e-mail existir, o link de recuperacao sera enviado para ele.");
+      if (e) { setError(e.message); return; }
+      setMessage("Link de recuperação enviado.");
     });
   }
 
+  function logout() {
+    startTransition(async () => {
+      await supabase.auth.signOut();
+      setMessage("Você saiu da conta.");
+    });
+  }
+
+  /* ── profile ── */
   function saveProfile() {
     if (!session?.user) return;
-    setError(null);
-    setMessage(null);
-
+    setError(null); setMessage(null);
     startTransition(async () => {
-      const { error: profileError } = await supabase
+      const { error: e } = await supabase
         .from("profiles")
         .update({ full_name: profileName, phone: profilePhone })
         .eq("id", session.user.id);
-
-      if (profileError) {
-        setError(profileError.message);
-        return;
-      }
-
+      if (e) { setError(e.message); return; }
       if (primaryCustomer) {
-        await supabase
-          .from("customers")
-          .update({
-            full_name: profileName,
-            phone: profilePhone,
-          })
-          .eq("tenant_id", tenantId)
-          .eq("id", primaryCustomer.id);
+        await supabase.from("customers")
+          .update({ full_name: profileName, phone: profilePhone })
+          .eq("tenant_id", tenantId).eq("id", primaryCustomer.id);
       }
-
       setMessage("Dados atualizados.");
       const { data } = await supabase.auth.getSession();
       await loadAccount(data.session as AccountSession | null);
@@ -356,71 +372,108 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
 
   function toggleMarketing(next: boolean) {
     if (!primaryCustomer) return;
-    setError(null);
-    setMessage(null);
-
+    setError(null); setMessage(null);
     startTransition(async () => {
-      const { error: customerError } = await supabase
-        .from("customers")
+      const { error: e } = await supabase.from("customers")
         .update({ accepts_marketing: next })
-        .eq("tenant_id", tenantId)
-        .eq("id", primaryCustomer.id);
-
-      if (customerError) {
-        setError(customerError.message);
-        return;
-      }
-
-      setMessage(next ? "Preferencia ativada." : "Preferencia removida.");
+        .eq("tenant_id", tenantId).eq("id", primaryCustomer.id);
+      if (e) { setError(e.message); return; }
+      setMessage(next ? "Preferência ativada." : "Preferência removida.");
       const { data } = await supabase.auth.getSession();
       await loadAccount(data.session as AccountSession | null);
     });
+  }
+
+  /* ── addresses ── */
+  function startNewAddress() {
+    if (!primaryCustomer) return;
+    setEditAddr(emptyAddress(primaryCustomer.id));
+    setAddrMode("new");
+  }
+
+  function startEditAddress(addr: AddressRow) {
+    setEditAddr({ ...addr });
+    setAddrMode("edit");
+  }
+
+  function cancelAddrEdit() {
+    setAddrMode("list");
+    setEditAddr(null);
   }
 
   function saveAddress(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!address || !primaryCustomer) return;
-    setError(null);
-    setMessage(null);
-
+    if (!editAddr || !primaryCustomer) return;
+    setError(null); setMessage(null);
     startTransition(async () => {
       const payload = {
         tenant_id: tenantId,
         customer_id: primaryCustomer.id,
-        label: address.label || "Principal",
-        recipient: address.recipient || profileName,
-        street: address.street,
-        number: address.number || null,
-        complement: address.complement || null,
-        district: address.district || null,
-        city: address.city,
-        state: address.state,
-        zip: address.zip,
-        country: address.country || "BR",
+        label: editAddr.label || "Principal",
+        recipient: editAddr.recipient || profileName,
+        street: editAddr.street,
+        number: editAddr.number || null,
+        complement: editAddr.complement || null,
+        district: editAddr.district || null,
+        city: editAddr.city,
+        state: editAddr.state,
+        zip: editAddr.zip,
+        country: editAddr.country || "BR",
       };
-
-      const query = address.id
-        ? supabase.from("addresses").update(payload).eq("tenant_id", tenantId).eq("id", address.id)
+      const query = editAddr.id
+        ? supabase.from("addresses").update(payload).eq("tenant_id", tenantId).eq("id", editAddr.id)
         : supabase.from("addresses").insert(payload);
-
-      const { error: addressError } = await query;
-      if (addressError) {
-        setError(addressError.message);
-        return;
-      }
-
-      setMessage("Endereco salvo.");
+      const { error: e } = await query;
+      if (e) { setError(e.message); return; }
+      setMessage(editAddr.id ? "Endereço atualizado." : "Endereço adicionado.");
+      setAddrMode("list");
+      setEditAddr(null);
       const { data } = await supabase.auth.getSession();
       await loadAccount(data.session as AccountSession | null);
     });
   }
 
-  function logout() {
+  function deleteAddress(id: string) {
+    setError(null); setMessage(null);
     startTransition(async () => {
-      await supabase.auth.signOut();
-      setMessage("Voce saiu da sua conta.");
+      const { error: e } = await supabase.from("addresses")
+        .delete().eq("tenant_id", tenantId).eq("id", id);
+      if (e) { setError(e.message); return; }
+      setMessage("Endereço removido.");
+      const { data } = await supabase.auth.getSession();
+      await loadAccount(data.session as AccountSession | null);
     });
   }
+
+  /* ── orders ── */
+  function requestCancellation(orderId: string) {
+    setError(null); setMessage(null);
+    setCancelConfirm(null);
+    startTransition(async () => {
+      const { error: e } = await supabase.from("orders")
+        .update({ status: "cancellation_requested" })
+        .eq("tenant_id", tenantId).eq("id", orderId);
+      if (e) { setError(e.message); return; }
+      setMessage("Cancelamento solicitado. Nossa equipe entrará em contato.");
+      const { data } = await supabase.auth.getSession();
+      await loadAccount(data.session as AccountSession | null);
+    });
+  }
+
+  /* ── payment info ── */
+  function savePaymentInfo() {
+    if (!primaryCustomer) return;
+    setError(null); setMessage(null);
+    startTransition(async () => {
+      const { error: e } = await supabase.from("customers")
+        .update({ payment_info: payInfo })
+        .eq("tenant_id", tenantId).eq("id", primaryCustomer.id);
+      if (e) { setError(e.message); return; }
+      setMessage("Dados bancários salvos.");
+    });
+  }
+
+  /* ─── render helpers ───────────────────────────────────────── */
 
   if (loading) {
     return (
@@ -431,206 +484,379 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
     );
   }
 
-  if (session?.user) {
-    const user = session.user;
-    const nameLabel = displayName(user, profile);
-
+  if (!session?.user) {
     return (
-      <section className="account-card account-profile-card">
-        <div className="account-profile-heading">
-          <span className="account-kicker">Minha conta</span>
-          <h1>Ola, {nameLabel}</h1>
-          <p>Acompanhe dados, pedidos, enderecos e preferencias da Flora Botanics.</p>
+      <section className="account-auth-layout single">
+        <div className="account-card account-form-card">
+          <div className="account-mode-switch" role="tablist">
+            <button type="button" onClick={() => setMode("entrar")} className={mode === "entrar" ? "is-active" : ""}>Entrar</button>
+            <button type="button" onClick={() => setMode("cadastro")} className={mode === "cadastro" ? "is-active" : ""}>Criar conta</button>
+          </div>
+          <button type="button" onClick={loginWithGoogle} disabled={pending} className="account-google-button">
+            <span>G</span>Continuar com Google
+          </button>
+          <div className="account-divider"><span>ou acesse com e-mail</span></div>
+          <form onSubmit={submitEmailAuth} className="account-form">
+            {mode === "cadastro" && (
+              <label>Nome completo<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" /></label>
+            )}
+            <label>E-mail<input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" /></label>
+            <label>Senha<input required minLength={6} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" /></label>
+            <button type="submit" className="account-primary-button" disabled={pending}>
+              {pending ? "Aguarde..." : mode === "cadastro" ? "Criar conta" : "Entrar"}
+            </button>
+          </form>
+          {mode === "entrar" && (
+            <button type="button" className="account-link-button" onClick={sendPasswordReset} disabled={pending}>Esqueci minha senha</button>
+          )}
+          {error ? <p className="account-error">{error}</p> : null}
+          {message ? <p className="account-success">{message}</p> : null}
         </div>
+      </section>
+    );
+  }
 
+  const user = session.user;
+  const nameLabel = displayName(user, profile);
+
+  /* ── tabs ── */
+  const TABS: { id: AccountTab; label: string; icon: string }[] = [
+    { id: "dados", label: "Dados", icon: "👤" },
+    { id: "enderecos", label: "Endereços", icon: "📍" },
+    { id: "pedidos", label: "Pedidos", icon: "📦" },
+    { id: "pagamentos", label: "Pagamentos", icon: "🏦" },
+  ];
+
+  return (
+    <section className="account-card account-profile-card">
+      <div className="account-profile-heading">
+        <span className="account-kicker">Minha conta</span>
+        <h1>Olá, {nameLabel}</h1>
+        <p>Gerencie seus dados, endereços, pedidos e preferências de pagamento.</p>
+      </div>
+
+      {/* ── tabs nav ── */}
+      <nav className="account-tabs-nav">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`account-tab-btn${tab === t.id ? " is-active" : ""}`}
+            onClick={() => { setTab(t.id); setMessage(null); setError(null); }}
+          >
+            <span>{t.icon}</span> {t.label}
+            {t.id === "enderecos" && addresses.length > 0 && (
+              <span className="account-tab-count">{addresses.length}</span>
+            )}
+            {t.id === "pedidos" && orders.length > 0 && (
+              <span className="account-tab-count">{orders.length}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {/* ── tab: dados ── */}
+      {tab === "dados" && (
         <div className="account-dashboard-grid">
           <section className="account-panel-block">
-            <div className="account-block-heading">
-              <span>Perfil</span>
-              <strong>Dados de acesso</strong>
-            </div>
+            <div className="account-block-heading"><span>Perfil</span><strong>Dados de acesso</strong></div>
             <div className="account-form compact">
-              <label>
-                Nome
-                <input value={profileName} onChange={(event) => setProfileName(event.target.value)} />
-              </label>
-              <label>
-                WhatsApp
-                <input value={profilePhone} onChange={(event) => setProfilePhone(event.target.value)} />
-              </label>
-              <button type="button" className="account-primary-button" onClick={saveProfile} disabled={pending}>
-                Salvar dados
-              </button>
+              <label>Nome<input value={profileName} onChange={(e) => setProfileName(e.target.value)} /></label>
+              <label>WhatsApp<input value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} placeholder="+55 11 99999-9999" /></label>
+              <button type="button" className="account-primary-button" onClick={saveProfile} disabled={pending}>Salvar dados</button>
             </div>
             <p className="account-fineprint">
-              Login ativo via {user.app_metadata?.provider === "google" ? "Google" : "e-mail"}: {user.email}
+              Login via {user.app_metadata?.provider === "google" ? "Google" : "e-mail"}: {user.email}
             </p>
           </section>
 
           <section className="account-panel-block">
-            <div className="account-block-heading">
-              <span>Pedidos</span>
-              <strong>Historico recente</strong>
-            </div>
-            {orders.length === 0 ? (
-              <p className="account-empty">Nenhum pedido vinculado a esta conta ainda.</p>
-            ) : (
-              <div className="account-order-list">
-                {orders.map((order) => (
-                  <article key={order.id}>
-                    <div>
-                      <strong>Pedido #{order.number}</strong>
-                      <span>{formatDate(order.placed_at ?? order.created_at)}</span>
-                    </div>
-                    <div>
-                      <em>{ORDER_STATUS[order.status] ?? order.status}</em>
-                      <b>{money(order.total_cents, order.currency)}</b>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="account-panel-block">
-            <div className="account-block-heading">
-              <span>Entrega</span>
-              <strong>Endereco principal</strong>
-            </div>
-            {primaryCustomer && address ? (
-              <form className="account-address-form" onSubmit={saveAddress}>
-                <input placeholder="Nome do destinatario" value={address.recipient} onChange={(event) => setAddress({ ...address, recipient: event.target.value })} required />
-                <input placeholder="CEP" value={address.zip} onChange={(event) => setAddress({ ...address, zip: event.target.value })} required />
-                <input placeholder="Rua" value={address.street} onChange={(event) => setAddress({ ...address, street: event.target.value })} required />
-                <div className="account-address-row">
-                  <input placeholder="Numero" value={address.number ?? ""} onChange={(event) => setAddress({ ...address, number: event.target.value })} />
-                  <input placeholder="Complemento" value={address.complement ?? ""} onChange={(event) => setAddress({ ...address, complement: event.target.value })} />
-                </div>
-                <input placeholder="Bairro" value={address.district ?? ""} onChange={(event) => setAddress({ ...address, district: event.target.value })} />
-                <div className="account-address-row">
-                  <input placeholder="Cidade" value={address.city} onChange={(event) => setAddress({ ...address, city: event.target.value })} required />
-                  <input placeholder="UF" value={address.state} onChange={(event) => setAddress({ ...address, state: event.target.value.toUpperCase().slice(0, 2) })} required />
-                </div>
-                <button type="submit" className="account-primary-button" disabled={pending}>
-                  Salvar endereco
-                </button>
-              </form>
-            ) : (
-              <p className="account-empty">Seu endereco aparece aqui apos o primeiro cadastro de cliente.</p>
-            )}
-          </section>
-
-          <section className="account-panel-block">
-            <div className="account-block-heading">
-              <span>Preferencias</span>
-              <strong>Privacidade e comunicacao</strong>
-            </div>
+            <div className="account-block-heading"><span>Preferências</span><strong>Privacidade e comunicação</strong></div>
             <label className="account-toggle">
               <input
                 type="checkbox"
                 checked={Boolean(primaryCustomer?.accepts_marketing)}
                 disabled={!primaryCustomer || pending}
-                onChange={(event) => toggleMarketing(event.target.checked)}
+                onChange={(e) => toggleMarketing(e.target.checked)}
               />
-              Receber avisos, lancamentos e recuperacao de carrinho por e-mail.
+              Receber avisos, lançamentos e recuperação de carrinho por e-mail.
             </label>
-            <p className="account-fineprint">
-              Cartoes e pagamentos serao gerenciados pelo provedor de pagamento; dados sensiveis nao ficam salvos na Flora.
+            <p className="account-fineprint" style={{ marginTop: 16 }}>
+              Dados sensíveis de cartão nunca são armazenados pela Flora — são gerenciados diretamente pelo provedor de pagamento.
             </p>
+            <div className="account-actions-row" style={{ marginTop: 20 }}>
+              <Link href="/favoritos" className="account-secondary-button">Meus favoritos</Link>
+              <button type="button" className="account-secondary-button" onClick={logout} disabled={pending}>Sair</button>
+            </div>
           </section>
         </div>
+      )}
 
-        <div className="account-actions-row">
-          <Link href="/favoritos" className="account-secondary-button">
-            Ver favoritos
-          </Link>
-          <Link href="/produtos" className="account-secondary-button">
-            Continuar comprando
-          </Link>
-          <button type="button" className="account-secondary-button" onClick={logout} disabled={pending}>
-            Sair da conta
-          </button>
+      {/* ── tab: endereços ── */}
+      {tab === "enderecos" && (
+        <div className="account-panel-block" style={{ maxWidth: 680 }}>
+          <div className="account-block-heading">
+            <span>Entrega</span>
+            <strong>Meus endereços ({addresses.length})</strong>
+          </div>
+
+          {addrMode === "list" && (
+            <>
+              {addresses.length === 0 ? (
+                <p className="account-empty">Nenhum endereço cadastrado ainda.</p>
+              ) : (
+                <div className="account-address-cards">
+                  {addresses.map((addr) => (
+                    <div key={addr.id} className="account-address-card">
+                      <div className="account-address-card-label">{addr.label || "Endereço"}</div>
+                      <div className="account-address-card-body">
+                        <strong>{addr.recipient}</strong>
+                        <span>{addr.street}{addr.number ? `, ${addr.number}` : ""}{addr.complement ? ` — ${addr.complement}` : ""}</span>
+                        <span>{addr.district ? `${addr.district}, ` : ""}{addr.city} — {addr.state}</span>
+                        <span>CEP {addr.zip}</span>
+                      </div>
+                      <div className="account-address-card-actions">
+                        <button type="button" className="account-secondary-button" onClick={() => startEditAddress(addr)}>Editar</button>
+                        <button
+                          type="button"
+                          className="account-danger-button"
+                          onClick={() => { if (confirm("Remover este endereço?")) deleteAddress(addr.id); }}
+                          disabled={pending}
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button type="button" className="account-primary-button" onClick={startNewAddress} style={{ marginTop: 16 }}>
+                + Adicionar endereço
+              </button>
+            </>
+          )}
+
+          {(addrMode === "edit" || addrMode === "new") && editAddr && (
+            <form className="account-address-form" onSubmit={saveAddress}>
+              <div className="account-form-row">
+                <label style={{ flex: 1 }}>
+                  Rótulo
+                  <select
+                    value={editAddr.label ?? "Principal"}
+                    onChange={(e) => setEditAddr({ ...editAddr, label: e.target.value })}
+                    className="account-select"
+                  >
+                    {ADDRESS_LABELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </label>
+                <label style={{ flex: 2 }}>
+                  Destinatário
+                  <input
+                    placeholder="Nome do destinatário"
+                    value={editAddr.recipient}
+                    onChange={(e) => setEditAddr({ ...editAddr, recipient: e.target.value })}
+                    required
+                  />
+                </label>
+              </div>
+              <label>
+                CEP
+                <input placeholder="00000-000" value={editAddr.zip} onChange={(e) => setEditAddr({ ...editAddr, zip: e.target.value })} required />
+              </label>
+              <label>
+                Rua / Avenida
+                <input placeholder="Rua das Flores" value={editAddr.street} onChange={(e) => setEditAddr({ ...editAddr, street: e.target.value })} required />
+              </label>
+              <div className="account-address-row">
+                <input placeholder="Número" value={editAddr.number ?? ""} onChange={(e) => setEditAddr({ ...editAddr, number: e.target.value })} />
+                <input placeholder="Complemento" value={editAddr.complement ?? ""} onChange={(e) => setEditAddr({ ...editAddr, complement: e.target.value })} />
+              </div>
+              <input placeholder="Bairro" value={editAddr.district ?? ""} onChange={(e) => setEditAddr({ ...editAddr, district: e.target.value })} />
+              <div className="account-address-row">
+                <input placeholder="Cidade" value={editAddr.city} onChange={(e) => setEditAddr({ ...editAddr, city: e.target.value })} required />
+                <input
+                  placeholder="UF"
+                  value={editAddr.state}
+                  onChange={(e) => setEditAddr({ ...editAddr, state: e.target.value.toUpperCase().slice(0, 2) })}
+                  required
+                  maxLength={2}
+                  style={{ maxWidth: 80 }}
+                />
+              </div>
+              <div className="account-form-actions">
+                <button type="submit" className="account-primary-button" disabled={pending}>
+                  {addrMode === "new" ? "Adicionar endereço" : "Salvar alterações"}
+                </button>
+                <button type="button" className="account-secondary-button" onClick={cancelAddrEdit}>Cancelar</button>
+              </div>
+            </form>
+          )}
         </div>
+      )}
 
-        {error ? <p className="account-error">{error}</p> : null}
-        {message ? <p className="account-success">{message}</p> : null}
-      </section>
-    );
-  }
+      {/* ── tab: pedidos ── */}
+      {tab === "pedidos" && (
+        <div className="account-panel-block" style={{ maxWidth: 720 }}>
+          <div className="account-block-heading"><span>Compras</span><strong>Histórico de pedidos</strong></div>
+          {orders.length === 0 ? (
+            <p className="account-empty">Nenhum pedido ainda.</p>
+          ) : (
+            <div className="account-order-list-full">
+              {orders.map((order) => (
+                <article key={order.id} className="account-order-card">
+                  <div className="account-order-card-header">
+                    <div>
+                      <strong>Pedido #{order.number}</strong>
+                      <span>{formatDate(order.placed_at ?? order.created_at)}</span>
+                    </div>
+                    <div className="account-order-card-meta">
+                      <span
+                        className={`account-order-status account-order-status-${order.status}`}
+                      >
+                        {ORDER_STATUS[order.status] ?? order.status}
+                      </span>
+                      <b>{money(order.total_cents, order.currency)}</b>
+                    </div>
+                  </div>
 
-  return (
-    <section className="account-auth-layout single">
-      <div className="account-card account-form-card">
-        <div className="account-mode-switch" role="tablist" aria-label="Escolha o modo de acesso">
-          <button
-            type="button"
-            onClick={() => setMode("entrar")}
-            className={mode === "entrar" ? "is-active" : ""}
-            aria-pressed={mode === "entrar"}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("cadastro")}
-            className={mode === "cadastro" ? "is-active" : ""}
-            aria-pressed={mode === "cadastro"}
-          >
-            Criar conta
-          </button>
+                  {CANCELLABLE.has(order.status) && (
+                    cancelConfirm === order.id ? (
+                      <div className="account-cancel-confirm">
+                        <span>Confirmar solicitação de cancelamento?</span>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            type="button"
+                            className="account-danger-button"
+                            onClick={() => requestCancellation(order.id)}
+                            disabled={pending}
+                          >
+                            Confirmar
+                          </button>
+                          <button type="button" className="account-secondary-button" onClick={() => setCancelConfirm(null)}>
+                            Voltar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="account-link-button"
+                        onClick={() => setCancelConfirm(order.id)}
+                        style={{ marginTop: 8, fontSize: 12, color: "var(--account-muted)" }}
+                      >
+                        Solicitar cancelamento
+                      </button>
+                    )
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
         </div>
+      )}
 
-        <button type="button" onClick={loginWithGoogle} disabled={pending} className="account-google-button">
-          <span>G</span>
-          Continuar com Google
-        </button>
+      {/* ── tab: pagamentos ── */}
+      {tab === "pagamentos" && (
+        <div className="account-dashboard-grid">
+          {/* PIX */}
+          <section className="account-panel-block">
+            <div className="account-block-heading"><span>PIX</span><strong>Chave PIX para reembolso</strong></div>
+            <p className="account-fineprint" style={{ marginBottom: 12 }}>
+              Informe sua chave PIX para facilitar reembolsos. Nunca pediremos senha ou dados sensíveis.
+            </p>
+            <div className="account-form compact">
+              <label>
+                Tipo de chave
+                <select
+                  value={payInfo.pix_key_type ?? "cpf"}
+                  onChange={(e) => setPayInfo({ ...payInfo, pix_key_type: e.target.value })}
+                  className="account-select"
+                >
+                  {PIX_KEY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </label>
+              <label>
+                Chave PIX
+                <input
+                  value={payInfo.pix_key ?? ""}
+                  onChange={(e) => setPayInfo({ ...payInfo, pix_key: e.target.value })}
+                  placeholder={
+                    payInfo.pix_key_type === "cpf" ? "000.000.000-00"
+                    : payInfo.pix_key_type === "phone" ? "+55 11 99999-9999"
+                    : payInfo.pix_key_type === "email" ? "voce@email.com"
+                    : "Sua chave"
+                  }
+                />
+              </label>
+              <button type="button" className="account-primary-button" onClick={savePaymentInfo} disabled={pending}>
+                Salvar chave PIX
+              </button>
+            </div>
+          </section>
 
-        <div className="account-divider">
-          <span>ou acesse com e-mail</span>
+          {/* Dados bancários */}
+          <section className="account-panel-block">
+            <div className="account-block-heading"><span>Banco</span><strong>Dados para transferência</strong></div>
+            <p className="account-fineprint" style={{ marginBottom: 12 }}>
+              Dados opcionais para receber reembolsos via TED/DOC, caso o PIX não seja possível.
+            </p>
+            <div className="account-form compact">
+              <label>
+                Titular da conta
+                <input
+                  value={payInfo.bank_account_holder ?? ""}
+                  onChange={(e) => setPayInfo({ ...payInfo, bank_account_holder: e.target.value })}
+                  placeholder="Nome completo ou razão social"
+                />
+              </label>
+              <label>
+                Banco
+                <input
+                  value={payInfo.bank_name ?? ""}
+                  onChange={(e) => setPayInfo({ ...payInfo, bank_name: e.target.value })}
+                  placeholder="Ex: Nubank, Itaú, Bradesco"
+                />
+              </label>
+              <div className="account-address-row">
+                <label style={{ flex: 1 }}>
+                  Agência
+                  <input
+                    value={payInfo.bank_agency ?? ""}
+                    onChange={(e) => setPayInfo({ ...payInfo, bank_agency: e.target.value })}
+                    placeholder="0000"
+                  />
+                </label>
+                <label style={{ flex: 2 }}>
+                  Conta
+                  <input
+                    value={payInfo.bank_account ?? ""}
+                    onChange={(e) => setPayInfo({ ...payInfo, bank_account: e.target.value })}
+                    placeholder="00000-0"
+                  />
+                </label>
+              </div>
+              <label>
+                Tipo de conta
+                <select
+                  value={payInfo.bank_account_type ?? "corrente"}
+                  onChange={(e) => setPayInfo({ ...payInfo, bank_account_type: e.target.value })}
+                  className="account-select"
+                >
+                  <option value="corrente">Conta corrente</option>
+                  <option value="poupanca">Conta poupança</option>
+                </select>
+              </label>
+              <button type="button" className="account-primary-button" onClick={savePaymentInfo} disabled={pending}>
+                Salvar dados bancários
+              </button>
+            </div>
+          </section>
         </div>
+      )}
 
-        <form onSubmit={submitEmailAuth} className="account-form">
-          {mode === "cadastro" ? (
-            <label>
-              Nome completo
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome" />
-            </label>
-          ) : null}
-          <label>
-            E-mail
-            <input
-              required
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="voce@email.com"
-            />
-          </label>
-          <label>
-            Senha
-            <input
-              required
-              minLength={6}
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Minimo de 6 caracteres"
-            />
-          </label>
-          <button type="submit" className="account-primary-button" disabled={pending}>
-            {pending ? "Aguarde..." : mode === "cadastro" ? "Criar conta" : "Entrar"}
-          </button>
-        </form>
-
-        {mode === "entrar" ? (
-          <button type="button" className="account-link-button" onClick={sendPasswordReset} disabled={pending}>
-            Esqueci minha senha
-          </button>
-        ) : null}
-
-        {error ? <p className="account-error">{error}</p> : null}
-        {message ? <p className="account-success">{message}</p> : null}
-      </div>
+      {/* ── feedback global ── */}
+      {error ? <p className="account-error" style={{ marginTop: 16 }}>{error}</p> : null}
+      {message ? <p className="account-success" style={{ marginTop: 16 }}>{message}</p> : null}
     </section>
   );
 }
