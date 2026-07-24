@@ -4,6 +4,8 @@ import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { StatusChip, STATUS_LABEL } from "../Tabs";
 import { money } from "@/lib/format";
 import { TransitionBar } from "./TransitionBar";
+import { TrackingPanel } from "./TrackingPanel";
+import { getShippingEvents } from "./tracking-actions";
 
 export default async function OrderDetail({
   params,
@@ -26,10 +28,13 @@ export default async function OrderDetail({
     .maybeSingle();
   if (!order) notFound();
 
-  const { data: items } = await supabase
-    .from("order_items")
-    .select("id, product_snapshot, quantity, unit_price_cents, total_cents")
-    .eq("order_id", orderId);
+  const [{ data: items }, shippingEvents] = await Promise.all([
+    supabase
+      .from("order_items")
+      .select("id, product_snapshot, quantity, unit_price_cents, total_cents")
+      .eq("order_id", orderId),
+    getShippingEvents(orderId),
+  ]);
 
   const customer = order.customers as unknown as {
     email: string;
