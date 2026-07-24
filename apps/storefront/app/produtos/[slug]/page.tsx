@@ -6,6 +6,7 @@ import { getMenu, getSiteSetting } from "@flora/db";
 import { SiteHeader, SiteFooter } from "@/blocks/chrome";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { AddToCartButton } from "./AddToCartButton";
+import { KitActions } from "./KitActions";
 import { ShareButton } from "./ShareButton";
 import { ProductGallery, type GalleryImage } from "./ProductGallery";
 import { ProductReviews, type ApprovedReview } from "./ProductReviews";
@@ -48,6 +49,8 @@ interface KitComponentRow {
   id: string;
   sku: string;
   name: string | null;
+  price_cents: number | null;
+  currency: string | null;
   inventory?: { quantity: number; reserved: number | null } | Array<{ quantity: number; reserved: number | null }> | null;
   products?: { name: string; slug: string } | Array<{ name: string; slug: string }> | null;
 }
@@ -329,7 +332,7 @@ export default async function ProductPage({
     if (componentIds.length > 0) {
       const { data: rawComponents } = await client
         .from("product_variants")
-        .select("id, sku, name, inventory(quantity, reserved), products(name, slug)")
+        .select("id, sku, name, price_cents, currency, inventory(quantity, reserved), products(name, slug)")
         .eq("tenant_id", tenant.tenantId)
         .in("id", componentIds);
 
@@ -348,6 +351,29 @@ export default async function ProductPage({
         ...kitItems.map((item) => Math.floor(item.stock / Math.max(item.quantity, 1)))
       );
     }
+  }
+
+  // Cálculo de economia do kit
+  const totalIndividualCents = kitItems.reduce((sum, item) => {
+    return sum + (item.component?.price_cents ?? 0) * item.quantity;
+  }, 0);
+  const savingsCents =
+    variant && totalIndividualCents > variant.price_cents
+      ? totalIndividualCents - variant.price_cents
+      : 0;
+
+  function inferRoutineStep(productName: string, index: number): string {
+    const lower = productName.toLowerCase();
+    if (/limp|sabonete|espuma|gel de limp|demaqui/.test(lower)) return "Limpeza";
+    if (/tônico|tonico|tonic|água micelar|agua micelar/.test(lower)) return "Tônico";
+    if (/sérum|serum|soro/.test(lower)) return "Sérum";
+    if (/hidratant|creme|loção|locao|moistur/.test(lower)) return "Hidratação";
+    if (/protetor|fps|solar|spf/.test(lower)) return "Proteção";
+    if (/máscara|mascara|mask/.test(lower)) return "Máscara";
+    if (/óleo|oleo|oil/.test(lower)) return "Óleo facial";
+    if (/esfoliante|esfoliant/.test(lower)) return "Esfoliação";
+    if (/contorno|olhos|eye/.test(lower)) return "Contorno";
+    return `Passo ${String(index + 1).padStart(2, "0")}`;
   }
 
   return (
@@ -508,44 +534,95 @@ export default async function ProductPage({
             ) : null}
 
             {row.type === "kit" ? (
-              <div className="kit-composition">
-                <strong>Este kit inclui</strong>
-                {kitItems.length === 0 ? (
-                  <p>Componentes ainda não cadastrados para este kit.</p>
+              <div className="kit-premium-section">
+                {/* Economia */}
+                {savingsCents > 0 ? (
+                  <div className="kit-savings-banner">
+                    <span className="kit-savings-icon">✦</span>
+                    <div>
+                      <strong>Economize {money(savingsCents, variant?.currency ?? "BRL")}</strong>
+                      <span>em relação a comprar cada item separado</span>
+                    </div>
+                    <span className="kit-savings-pct">
+                      -{Math.round((savingsCents / totalIndividualCents) * 100)}%
+                    </span>
+                  </div>
+                ) : null}
+
+                {/* Rotina em sequência */}
+                {kitItems.length > 0 ? (
+                  <div className="kit-routine-block">
+                    <p className="kit-routine-label">Sequência de rotina</p>
+                    <ol className="kit-routine-steps">
+                      {kitItems.map((item, index) => {
+                        const prod = first(item.component?.products);
+                        const stepLabel = inferRoutineStep(
+                          prod?.name ?? item.component?.name ?? "",
+                          index
+                        );
+                        return (
+                          <li key={item.component_variant_id} className="kit-routine-step">
+                            <span className="kit-step-number">{String(index + 1).padStart(2, "0")}</span>
+                            <div className="kit-step-info">
+                              <strong className="kit-step-name">{stepLabel}</strong>
+                              <span className="kit-step-product">
+                                {prod?.name ?? item.component?.sku ?? "Componente"}
+                                {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                              </span>
+                            </div>
+                            {item.component?.price_cents ? (
+                              <span className="kit-step-price">
+                                {money(item.component.price_cents * item.quantity, item.component.currency ?? "BRL")}
+                              </span>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                    {totalIndividualCents > 0 ? (
+                      <div className="kit-price-compare-row">
+                        <span>Valor avulso</span>
+                        <span className="kit-price-compare-total">{money(totalIndividualCents, variant?.currency ?? "BRL")}</span>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
-                  <ul>
-                    {kitItems.map((item) => {
-                      const product = first(item.component?.products);
-                      return (
-                        <li key={item.component_variant_id}>
-                          <span>{product?.name ?? item.component?.sku ?? "Componente"}</span>
-                          <em>{item.quantity} un.</em>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <p className="kit-empty-note">Componentes ainda não cadastrados para este kit.</p>
                 )}
-                <small>
-                  Disponibilidade calculada pelo estoque dos componentes: {kitAvailable} kits.
-                </small>
               </div>
             ) : null}
 
             <div className="product-info-actions">
               {variant ? (
-                <AddToCartButton
-                  item={{
-                    product_id: row.id,
-                    variant_id: variant.id,
-                    name: row.name,
-                    slug: row.slug,
-                    image: image ?? undefined,
-                    price_cents: variant.price_cents,
-                    quantity: 1,
-                  }}
-                  disabled={row.type === "kit" && kitAvailable <= 0}
-                  disabledLabel="Kit indisponível"
-                />
+                row.type === "kit" ? (
+                  <KitActions
+                    item={{
+                      product_id: row.id,
+                      variant_id: variant.id,
+                      name: row.name,
+                      slug: row.slug,
+                      image: image ?? undefined,
+                      price_cents: variant.price_cents,
+                      quantity: 1,
+                    }}
+                    disabled={kitAvailable <= 0}
+                    disabledLabel="Kit indisponível"
+                    kitAvailable={kitAvailable}
+                  />
+                ) : (
+                  <AddToCartButton
+                    item={{
+                      product_id: row.id,
+                      variant_id: variant.id,
+                      name: row.name,
+                      slug: row.slug,
+                      image: image ?? undefined,
+                      price_cents: variant.price_cents,
+                      quantity: 1,
+                    }}
+                    disabled={false}
+                  />
+                )
               ) : (
                 <a href="#newsletter" className="btn">
                   Avise-me

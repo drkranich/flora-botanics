@@ -14,6 +14,8 @@ export interface CartItem {
   image?: string;
   price_cents: number;
   quantity: number;
+  gift_wrap?: boolean;
+  note?: string;
 }
 
 const SESSION_KEY = "flora_cart_session";
