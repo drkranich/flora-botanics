@@ -63,7 +63,8 @@ export async function addShippingEvent(
 
   if (!order) return { ok: false, error: "Pedido não encontrado." };
 
-  const customer = order.customers as { full_name: string | null; phone: string | null } | null;
+  const customerRaw = Array.isArray(order.customers) ? order.customers[0] : order.customers;
+  const customer = customerRaw as { full_name: string | null; phone: string | null } | null;
   const phone = payload.phone || customer?.phone || null;
 
   // Monta mensagem WhatsApp
