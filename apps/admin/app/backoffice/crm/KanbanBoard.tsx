@@ -494,7 +494,7 @@ export function KanbanBoard({ customers: initial }: { customers: KanbanCustomer[
           </div>
         );
       })}
-    </div>{/* fim grid kanban */}
-    </div>{/* fim flex column wrapper */}
+    </div>
+    </div>
   );
 }
