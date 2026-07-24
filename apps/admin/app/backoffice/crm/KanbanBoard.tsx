@@ -2,7 +2,8 @@
 
 import { useState, useRef, useTransition } from "react";
 import Link from "next/link";
-import { updateCrmStage, type CrmStage } from "./actions";
+import { updateCrmStage } from "./actions";
+import { type CrmStage } from "./crm-constants";
 
 export interface KanbanCustomer {
   id: string;

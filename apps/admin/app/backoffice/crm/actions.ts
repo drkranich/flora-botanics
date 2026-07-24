@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 
-export const CRM_STAGES = ["lead", "contato", "proposta", "cliente", "fidelizado"] as const;
-export type CrmStage = (typeof CRM_STAGES)[number];
+import { type CrmStage } from "./crm-constants";
+export type { CrmStage };
 
 export async function updateCrmStage(customerId: string, stage: CrmStage) {
   const staff = await currentStaff();
