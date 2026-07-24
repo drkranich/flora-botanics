@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { getStorefrontUrl } from "@/lib/storefront-url";
 import { LogoutButton } from "./LogoutButton";
+import { PeriodFilter } from "./PeriodFilter";
 
 const ROLE_LABEL: Record<string, string> = {
   platform_admin: "Admin da Plataforma",
@@ -32,39 +33,51 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled: "rgba(200,80,80,0.18)",
 };
 
-function computeSince(period: string): Date | null {
+function computeSince(
+  period: string,
+  from?: string,
+  to?: string,
+): { since: Date | null; until: Date | null } {
   const now = new Date();
+
+  if (period === "custom" && from) {
+    const f = new Date(from + "T00:00:00");
+    const t = to ? new Date(to + "T23:59:59") : now;
+    return { since: isNaN(f.getTime()) ? null : f, until: isNaN(t.getTime()) ? now : t };
+  }
+
+  const until = null; // null = "até agora"
   switch (period) {
     case "today": {
       const d = new Date(now);
       d.setHours(0, 0, 0, 0);
-      return d;
+      return { since: d, until };
     }
     case "7d":
-      return new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      return { since: new Date(now.getTime() - 7 * 24 * 3600 * 1000), until };
     case "30d":
-      return new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+      return { since: new Date(now.getTime() - 30 * 24 * 3600 * 1000), until };
     case "month": {
       const d = new Date(now);
       d.setDate(1);
       d.setHours(0, 0, 0, 0);
-      return d;
+      return { since: d, until };
     }
     case "year": {
       const d = new Date(now);
       d.setMonth(0, 1);
       d.setHours(0, 0, 0, 0);
-      return d;
+      return { since: d, until };
     }
     default:
-      return new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+      return { since: new Date(now.getTime() - 30 * 24 * 3600 * 1000), until };
   }
 }
 
 export default async function AdminHome({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
 }) {
   const session = await getStaffSession();
   if (!session) {
@@ -75,7 +88,7 @@ export default async function AdminHome({
 
   const params = await searchParams;
   const period = params.period ?? "30d";
-  const since = computeSince(period);
+  const { since, until } = computeSince(period, params.from, params.to);
 
   const supabase = await supabaseServer();
   const t = session.tenantId;
@@ -86,6 +99,7 @@ export default async function AdminHome({
     .select("total_cents, status, created_at")
     .eq("tenant_id", t);
   if (since) ordersQuery = ordersQuery.gte("created_at", since.toISOString());
+  if (until) ordersQuery = ordersQuery.lte("created_at", until.toISOString());
 
   const [
     { data: tenant },
@@ -172,14 +186,6 @@ export default async function AdminHome({
 
   const storefrontUrl = getStorefrontUrl();
 
-  const PERIODS = [
-    { key: "today", label: "Hoje" },
-    { key: "7d", label: "7 dias" },
-    { key: "30d", label: "30 dias" },
-    { key: "month", label: "Mês" },
-    { key: "year", label: "Ano" },
-  ];
-
   const checklist = [
     { done: (pagesLive ?? 0) > 0, label: "Publicar a primeira página", href: "/cms" },
     { done: (categories ?? 0) > 0, label: "Criar categorias", href: "/catalogo/categorias" },
@@ -227,29 +233,7 @@ export default async function AdminHome({
         {/* cabeçalho da seção: label + filtros de período */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
           <p className="eyebrow" style={{ fontSize: 10, letterSpacing: 2 }}>Análise de vendas</p>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {PERIODS.map((p) => (
-              <Link
-                key={p.key}
-                href={`?period=${p.key}`}
-                style={{
-                  padding: "5px 12px",
-                  border: "1px solid",
-                  borderColor: period === p.key ? "var(--gold-light)" : "var(--glass-border)",
-                  background: period === p.key ? "rgba(218,183,116,0.16)" : "rgba(242,236,223,0.04)",
-                  color: period === p.key ? "var(--gold-light)" : "var(--cream-dim)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  borderRadius: 5,
-                  transition: "all 0.18s ease",
-                }}
-              >
-                {p.label}
-              </Link>
-            ))}
-          </div>
+          <PeriodFilter current={period} from={params.from} to={params.to} />
         </div>
         {/* cards de métricas */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 14 }}>

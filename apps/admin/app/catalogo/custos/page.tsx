@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { PricingCalculator } from "./PricingCalculator";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -67,7 +68,11 @@ export default async function CustosPage() {
         ))}
       </div>
 
-      <div style={{ overflowX: "auto" }}>
+      {/* Calculadora de Precificação */}
+      <PricingCalculator />
+
+      <div style={{ overflowX: "auto", marginTop: 48 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 18 }}>Produtos cadastrados</h2>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
             <tr style={{ borderBottom: "2px solid var(--cream-dark)" }}>
