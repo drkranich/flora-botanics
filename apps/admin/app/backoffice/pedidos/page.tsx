@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { StatusChip, STATUS_LABEL, money } from "@/app/vendas/Tabs";
@@ -76,18 +77,18 @@ export default async function PedidosPage({
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <a href="/backoffice/pedidos" className={!status ? "btn btn-gold" : "btn btn-ghost"} style={{ padding: "8px 16px", fontSize: 10 }}>
+        <Link href="/backoffice/pedidos" className={!status ? "btn btn-gold" : "btn btn-ghost"} style={{ padding: "8px 16px", fontSize: 10 }}>
           Todos ({total})
-        </a>
+        </Link>
         {STATUSES.map((s) => (
-          <a
+          <Link
             key={s}
             href={`/backoffice/pedidos?status=${s}`}
             className={status === s ? "btn btn-gold" : "btn btn-ghost"}
             style={{ padding: "8px 16px", fontSize: 10 }}
           >
             {STATUS_LABEL[s]} ({counts[s] ?? 0})
-          </a>
+          </Link>
         ))}
       </div>
 
@@ -135,7 +136,7 @@ export default async function PedidosPage({
         <p style={{ margin: 0, fontSize: 13, color: "var(--cream-dim)" }}>
           Pedidos vindos de marketplaces (Mercado Livre, Shopee, Amazon…) aparecerão aqui
           automaticamente assim que os canais forem conectados em{" "}
-          <a href="/canais" style={{ color: "var(--gold-light)" }}>Canais</a>. Por enquanto, esta
+          <Link href="/canais" style={{ color: "var(--gold-light)" }}>Canais</Link>. Por enquanto, esta
           lista reflete os pedidos do site próprio.
         </p>
       </div>

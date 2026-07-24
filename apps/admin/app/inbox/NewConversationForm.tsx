@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createConversation } from "./actions";
@@ -110,7 +111,7 @@ export function NewConversationForm() {
         <p className="muted" style={{ fontSize: 11, margin: 0 }}>
           Este canal ainda não está conectado — a conversa fica registrada na Inbox, mas o envio
           real será habilitado quando o canal for integrado (ver{" "}
-          <a href="/canais" style={{ color: "var(--gold-light)" }}>Canais</a>).
+          <Link href="/canais" style={{ color: "var(--gold-light)" }}>Canais</Link>).
         </p>
       ) : null}
 
