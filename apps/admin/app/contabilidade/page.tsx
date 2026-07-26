@@ -1,201 +1,66 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
+import { getStaffSession } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { buildAccountingReport, customerName, percent, average, type AccountingSearch, type AccountingLedgerRow } from "@/lib/accounting/report";
 import { money } from "@/lib/format";
+import { AccountingEntryForm } from "./AccountingEntryForm";
+import { DeleteAccountingEntryButton } from "./DeleteAccountingEntryButton";
 
-const REVENUE_STATUSES = ["paid", "processing", "shipped", "delivered"] as const;
-const PRODUCT_COST_RATE = 0.35;
-const TAX_RESERVE_RATE = 0.08;
-const PAYMENT_FEE_RATE = 0.0399;
-const PAYMENT_FIXED_FEE_CENTS = 39;
-const OPERATIONAL_RESERVE_RATE = 0.05;
-
-type Search = { period?: string; from?: string; to?: string };
-
-type OrderRow = {
-  id: string;
-  number: number;
-  status: string;
-  subtotal_cents: number;
-  discount_cents: number;
-  shipping_cents: number;
-  total_cents: number;
-  currency: string;
-  created_at: string;
-  customers: { email: string; full_name: string | null } | { email: string; full_name: string | null }[] | null;
+const ENTRY_TYPE_LABEL: Record<string, string> = {
+  income: "Receita manual",
+  expense: "Despesa geral",
+  tax: "Imposto",
+  fee: "Taxa",
+  product_cost: "Custo de produto",
+  shipping_cost: "Frete / logistica",
+  packaging_cost: "Embalagem",
+  operational_cost: "Operacional",
+  adjustment: "Ajuste",
 };
 
-type PaymentRow = { id: string; provider: string; status: string; amount_cents: number; created_at: string };
-type CampaignRow = { id: string; title: string; status: string; channel: string | null; revenue_cents: number | null; budget_cents: number | null; orders: number | null };
-type SubscriptionRow = { id: string; status: string; total_cents: number | null };
-
-function startOfDay(date: Date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
+function exportHref(base: string, format: "csv" | "pdf") {
+  return `${base}&format=${format}`;
 }
 
-function endOfDay(date: Date) {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-function parseDate(value?: string) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const d = new Date(`${value}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function dateRange(search: Search) {
-  const now = new Date();
-  const customFrom = parseDate(search.from);
-  const customTo = parseDate(search.to);
-
-  if (search.period === "custom" && customFrom) {
-    return {
-      label: customTo
-        ? `${customFrom.toLocaleDateString("pt-BR")} a ${customTo.toLocaleDateString("pt-BR")}`
-        : customFrom.toLocaleDateString("pt-BR"),
-      from: startOfDay(customFrom),
-      to: endOfDay(customTo ?? customFrom),
-      period: "custom",
-    };
-  }
-
-  if (search.period === "today") return { label: "Hoje", from: startOfDay(now), to: endOfDay(now), period: "today" };
-
-  if (search.period === "7d") {
-    const from = new Date(now);
-    from.setDate(from.getDate() - 6);
-    return { label: "Últimos 7 dias", from: startOfDay(from), to: endOfDay(now), period: "7d" };
-  }
-
-  if (search.period === "month") {
-    return { label: "Mês atual", from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now), period: "month" };
-  }
-
-  if (search.period === "year") {
-    return { label: "Ano atual", from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now), period: "year" };
-  }
-
-  const from = new Date(now);
-  from.setDate(from.getDate() - 29);
-  return { label: "Últimos 30 dias", from: startOfDay(from), to: endOfDay(now), period: "30d" };
-}
-
-function percent(value: number, base: number) {
-  if (!base) return "0%";
-  return `${Math.round((value / base) * 100)}%`;
-}
-
-function average(value: number, count: number) {
-  return count > 0 ? Math.round(value / count) : 0;
-}
-
-function customerName(order: OrderRow) {
-  const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers;
-  return customer?.full_name ?? customer?.email ?? "Cliente não identificado";
-}
-
-export default async function ContabilidadePage({ searchParams }: { searchParams: Promise<Search> }) {
+export default async function ContabilidadePage({ searchParams }: { searchParams: Promise<AccountingSearch> }) {
   const session = await getStaffSession();
   if (!session) redirect("/login");
   if (session.role === "tenant_editor") redirect("/");
 
   const params = await searchParams;
-  const range = dateRange(params);
   const tenantId = await effectiveTenantId();
-  const supabase = await supabaseServer();
-
-  const ordersQuery = supabase
-    .from("orders")
-    .select("id, number, status, subtotal_cents, discount_cents, shipping_cents, total_cents, currency, created_at, customers(email, full_name)")
-    .eq("tenant_id", tenantId)
-    .gte("created_at", range.from.toISOString())
-    .lte("created_at", range.to.toISOString())
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  const paymentsQuery = supabase
-    .from("payments")
-    .select("id, provider, status, amount_cents, created_at")
-    .eq("tenant_id", tenantId)
-    .gte("created_at", range.from.toISOString())
-    .lte("created_at", range.to.toISOString())
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  const campaignsQuery = supabase
-    .from("campaigns")
-    .select("id, title, status, channel, revenue_cents, budget_cents, orders")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-    .limit(80);
-
-  const subscriptionsQuery = supabase
-    .from("subscriptions")
-    .select("id, status, total_cents")
-    .eq("tenant_id", tenantId)
-    .limit(200);
-
-  const [ordersRes, paymentsRes, campaignsRes, subscriptionsRes] = await Promise.all([
-    ordersQuery,
-    paymentsQuery,
-    campaignsQuery,
-    subscriptionsQuery,
-  ]);
-
-  const orders = (ordersRes.data ?? []) as unknown as OrderRow[];
-  const payments = (paymentsRes.data ?? []) as PaymentRow[];
-  const campaigns = (campaignsRes.data ?? []) as CampaignRow[];
-  const subscriptions = (subscriptionsRes.data ?? []) as SubscriptionRow[];
-
-  const realizedOrders = orders.filter((order) => REVENUE_STATUSES.includes(order.status as (typeof REVENUE_STATUSES)[number]));
-  const paidPayments = payments.filter((payment) => payment.status === "succeeded");
-  const activeSubscriptions = subscriptions.filter((subscription) => subscription.status === "active");
-
-  const grossRevenue = realizedOrders.reduce((sum, order) => sum + (order.total_cents ?? 0), 0);
-  const subtotal = realizedOrders.reduce((sum, order) => sum + (order.subtotal_cents ?? 0), 0);
-  const discounts = realizedOrders.reduce((sum, order) => sum + (order.discount_cents ?? 0), 0);
-  const shippingCollected = realizedOrders.reduce((sum, order) => sum + (order.shipping_cents ?? 0), 0);
-  const paymentRevenue = paidPayments.reduce((sum, payment) => sum + (payment.amount_cents ?? 0), 0);
-  const mrr = activeSubscriptions.reduce((sum, subscription) => sum + (subscription.total_cents ?? 0), 0);
-
-  const productCost = Math.round(subtotal * PRODUCT_COST_RATE);
-  const taxReserve = Math.round(grossRevenue * TAX_RESERVE_RATE);
-  const paymentFees = Math.round(grossRevenue * PAYMENT_FEE_RATE + realizedOrders.length * PAYMENT_FIXED_FEE_CENTS);
-  const operationalReserve = Math.round(grossRevenue * OPERATIONAL_RESERVE_RATE);
-  const estimatedCosts = productCost + shippingCollected + taxReserve + paymentFees + operationalReserve;
-  const estimatedProfit = grossRevenue - estimatedCosts;
-  const campaignRevenue = campaigns.reduce((sum, campaign) => sum + (campaign.revenue_cents ?? 0), 0);
-  const campaignBudget = campaigns.reduce((sum, campaign) => sum + (campaign.budget_cents ?? 0), 0);
+  const report = await buildAccountingReport(tenantId, params);
+  const { totals, range } = report;
 
   const exportBase = `/contabilidade/exportar?period=${range.period}${params.from ? `&from=${params.from}` : ""}${params.to ? `&to=${params.to}` : ""}`;
 
   const kpis = [
-    { label: "Receita realizada", value: money(grossRevenue), detail: `${realizedOrders.length} pedidos pagos/processados` },
-    { label: "Lucro estimado", value: money(estimatedProfit), detail: `${percent(estimatedProfit, grossRevenue)} de margem provisória` },
-    { label: "Ticket médio", value: money(average(grossRevenue, realizedOrders.length)), detail: "Somente pedidos com receita" },
-    { label: "MRR ativo", value: money(mrr), detail: `${activeSubscriptions.length} assinaturas ativas` },
+    { label: "Receita ajustada", value: money(totals.adjustedRevenue), detail: `${money(totals.grossRevenue)} em pedidos + ${money(totals.manualIncome)} manual` },
+    { label: "Lucro ajustado", value: money(totals.adjustedProfit), detail: `${percent(totals.adjustedProfit, totals.adjustedRevenue)} de margem apos custos manuais` },
+    { label: "Custos totais", value: money(totals.adjustedCosts), detail: `${money(totals.estimatedCosts)} estimado + ${money(totals.manualExpenses)} manual` },
+    { label: "Ticket medio", value: money(average(totals.grossRevenue, report.realizedOrders.length)), detail: `${report.realizedOrders.length} pedidos com receita` },
   ];
 
   const costRows = [
-    { label: "Custo dos produtos", value: productCost, note: `Estimado em ${Math.round(PRODUCT_COST_RATE * 100)}% do subtotal` },
-    { label: "Frete operacional", value: shippingCollected, note: "Usa o frete cobrado como provisão de custo" },
-    { label: "Taxas de pagamento", value: paymentFees, note: "Provisão até Stripe enviar taxas reais" },
-    { label: "Impostos", value: taxReserve, note: `Reserva estimada de ${Math.round(TAX_RESERVE_RATE * 100)}%` },
-    { label: "Custo operacional", value: operationalReserve, note: `Reserva estimada de ${Math.round(OPERATIONAL_RESERVE_RATE * 100)}%` },
+    { label: "Custo estimado dos produtos", value: totals.productCost, note: "Provisao automatica sobre subtotal" },
+    { label: "Custo manual de produto", value: totals.manualProductCosts, note: "Lancamentos reais adicionados pela equipe" },
+    { label: "Frete operacional estimado", value: totals.shippingCollected, note: "Usa o frete cobrado como provisao" },
+    { label: "Taxas estimadas de pagamento", value: totals.paymentFees, note: "Provisao ate Stripe enviar taxas reais" },
+    { label: "Taxas manuais", value: totals.manualFees, note: "Taxas bancarias, gateways, chargebacks e similares" },
+    { label: "Impostos estimados", value: totals.taxReserve, note: "Reserva fiscal automatica" },
+    { label: "Impostos manuais", value: totals.manualTaxes, note: "ICMS, DAS, nota, contador, ajustes fiscais" },
+    { label: "Operacional manual", value: totals.manualOperationalCosts, note: "Embalagem, operacao, logistica e ajustes" },
   ];
 
   const cashRows = [
-    { label: "Entradas por pedidos", value: grossRevenue },
-    { label: "Pagamentos confirmados", value: paymentRevenue },
-    { label: "Descontos concedidos", value: -discounts },
-    { label: "Saídas estimadas", value: -estimatedCosts },
-    { label: "Saldo projetado", value: estimatedProfit, strong: true },
+    { label: "Entradas por pedidos", value: totals.grossRevenue },
+    { label: "Receitas manuais", value: totals.manualIncome },
+    { label: "Descontos concedidos", value: -totals.discounts },
+    { label: "Saidas estimadas", value: -totals.estimatedCosts },
+    { label: "Saidas manuais", value: -totals.manualExpenses },
+    { label: "Saldo ajustado", value: totals.adjustedProfit, strong: true },
   ];
 
   return (
@@ -206,15 +71,15 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
           <div>
             <h1 className="display" style={{ fontSize: 44 }}>Contabilidade</h1>
             <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
-              Receitas, custos, provisões e fluxo de caixa da operação Flora.
+              Receitas, custos, impostos, taxas, provisoes e fluxo de caixa operacional.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <PeriodLinks current={range.period} />
-            <Link href={`${exportBase}&format=csv`} className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 10 }}>
+            <Link href={exportHref(exportBase, "csv")} className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 10 }}>
               CSV
             </Link>
-            <Link href={`${exportBase}&format=pdf`} className="btn btn-gold" style={{ padding: "8px 16px", fontSize: 10 }}>
+            <Link href={exportHref(exportBase, "pdf")} className="btn btn-gold" style={{ padding: "8px 16px", fontSize: 10 }}>
               PDF
             </Link>
           </div>
@@ -232,16 +97,18 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
       </section>
 
       <section className="glass rise rise-1" style={noticeStyle}>
-        <span className="chip chip-draft">Período: {range.label}</span>
+        <span className="chip chip-draft">Periodo: {range.label}</span>
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--cream-dim)", lineHeight: 1.7 }}>
-          Receita vem dos pedidos reais. Custos, impostos e taxas são provisões até conectarmos custo por produto,
-          fiscal e taxas reais do Stripe.
+          Os numeros combinam pedidos reais, provisoes automaticas e lancamentos manuais. Conforme Stripe, SEFAZ,
+          logistica e compras forem conectados, este modulo passa a trocar estimativas por dados reais.
         </p>
       </section>
 
+      <AccountingEntryForm />
+
       <div style={twoColumnStyle}>
         <section className="glass rise rise-2" style={panelStyle}>
-          <SectionTitle eyebrow="Custos" title="Saídas e provisões" />
+          <SectionTitle eyebrow="Custos" title="Saidas e provisoes" />
           <div style={{ display: "grid", gap: 12 }}>
             {costRows.map((row) => (
               <MetricLine key={row.label} label={row.label} value={money(row.value)} note={row.note} />
@@ -250,7 +117,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
         </section>
 
         <section className="glass rise rise-2" style={panelStyle}>
-          <SectionTitle eyebrow="Fluxo de caixa" title="Entradas, saídas e saldo" />
+          <SectionTitle eyebrow="Fluxo de caixa" title="Entradas, saidas e saldo" />
           <div style={{ display: "grid", gap: 12 }}>
             {cashRows.map((row) => (
               <MetricLine
@@ -265,17 +132,46 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
         </section>
       </div>
 
+      <section className="glass rise rise-3" style={panelStyle}>
+        <SectionTitle eyebrow="Lancamentos" title="Custos, impostos e ajustes manuais" />
+        {report.ledgerRows.length ? (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ textAlign: "left", color: "var(--cream-dim)", borderBottom: "1px solid var(--glass-border)" }}>
+                  <th style={thStyle}>Data</th>
+                  <th style={thStyle}>Origem</th>
+                  <th style={thStyle}>Canal</th>
+                  <th style={thStyle}>Tipo</th>
+                  <th style={thStyle}>Descricao</th>
+                  <th style={thStyle}>Centro</th>
+                  <th style={thStyle}>Valor</th>
+                  <th style={thStyle}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.ledgerRows.map((entry) => (
+                  <AccountingEntryRowView key={entry.id} entry={entry} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyText text="Nenhum lancamento manual neste periodo." />
+        )}
+      </section>
+
       <div style={twoColumnStyle}>
-        <section className="glass rise rise-3" style={panelStyle}>
+        <section className="glass rise rise-4" style={panelStyle}>
           <SectionTitle eyebrow="Campanhas" title="Receita por campanha" />
-          {campaigns.length ? (
+          {report.campaigns.length ? (
             <div style={{ display: "grid", gap: 10 }}>
-              {campaigns.slice(0, 6).map((campaign) => (
+              {report.campaigns.slice(0, 6).map((campaign) => (
                 <MetricLine
                   key={campaign.id}
                   label={campaign.title}
                   value={money(campaign.revenue_cents ?? 0)}
-                  note={`${campaign.channel ?? "sem canal"} · ${campaign.orders ?? 0} pedidos · orçamento ${money(campaign.budget_cents ?? 0)}`}
+                  note={`${campaign.channel ?? "sem canal"} · ${campaign.orders ?? 0} pedidos · orcamento ${money(campaign.budget_cents ?? 0)}`}
                 />
               ))}
             </div>
@@ -283,15 +179,15 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
             <EmptyText text="Nenhuma campanha com dados financeiros ainda." />
           )}
           <div style={{ marginTop: 16, borderTop: "1px solid var(--glass-border)", paddingTop: 14 }}>
-            <MetricLine label="Total atribuído" value={money(campaignRevenue)} note={`Orçamento informado: ${money(campaignBudget)}`} strong />
+            <MetricLine label="Total atribuido" value={money(totals.campaignRevenue)} note={`Orcamento informado: ${money(totals.campaignBudget)}`} strong />
           </div>
         </section>
 
-        <section className="glass rise rise-3" style={panelStyle}>
-          <SectionTitle eyebrow="Pedidos" title="Últimas receitas" />
-          {realizedOrders.length ? (
+        <section className="glass rise rise-4" style={panelStyle}>
+          <SectionTitle eyebrow="Pedidos" title="Ultimas receitas" />
+          {report.realizedOrders.length ? (
             <div style={{ display: "grid", gap: 10 }}>
-              {realizedOrders.slice(0, 6).map((order) => (
+              {report.realizedOrders.slice(0, 6).map((order) => (
                 <Link key={order.id} href={`/vendas/${order.id}`} style={orderLinkStyle}>
                   <span>
                     <strong>Pedido #{order.number}</strong>
@@ -304,11 +200,51 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
               ))}
             </div>
           ) : (
-            <EmptyText text="Nenhum pedido com receita neste período." />
+            <EmptyText text="Nenhum pedido com receita neste periodo." />
           )}
         </section>
       </div>
     </main>
+  );
+}
+
+function AccountingEntryRowView({ entry }: { entry: AccountingLedgerRow }) {
+  return (
+    <tr style={{ borderBottom: "1px solid rgba(242, 236, 223, 0.08)" }}>
+      <td style={tdStyle}>{new Date(entry.occurred_at).toLocaleDateString("pt-BR")}</td>
+      <td style={tdStyle}>
+        <span className={entry.source === "automatic" ? "chip chip-live" : "chip chip-draft"}>
+          {entry.source === "automatic" ? "Automatico" : "Manual"}
+        </span>
+      </td>
+      <td style={tdStyle}>{entry.channel ?? "—"}</td>
+      <td style={tdStyle}>
+        <span className={entry.type === "income" ? "chip chip-live" : "chip chip-draft"}>
+          {ENTRY_TYPE_LABEL[entry.type] ?? entry.type}
+        </span>
+      </td>
+      <td style={tdStyle}>
+        <strong>{entry.description}</strong>
+        <span className="muted" style={{ display: "block", fontSize: 11, marginTop: 3 }}>
+          {entry.category}
+          {entry.vendor_name ? ` · ${entry.vendor_name}` : ""}
+          {entry.document_number ? ` · doc ${entry.document_number}` : ""}
+        </span>
+      </td>
+      <td style={tdStyle}>{entry.cost_center ?? "—"}</td>
+      <td style={tdStyle}>
+        <strong style={{ color: entry.type === "income" ? "var(--gold-light)" : "#e8a0a0" }}>
+          {entry.type === "income" ? "+" : "-"} {money(entry.amount_cents, entry.currency)}
+        </strong>
+      </td>
+      <td style={{ ...tdStyle, textAlign: "right" }}>
+        {entry.accounting_entry_id ? (
+          <DeleteAccountingEntryButton id={entry.accounting_entry_id} label={entry.description} />
+        ) : (
+          <span className="muted" style={{ fontSize: 10 }}>sincronizado</span>
+        )}
+      </td>
+    </tr>
   );
 }
 
@@ -317,7 +253,7 @@ function PeriodLinks({ current }: { current: string }) {
     { key: "today", label: "Hoje" },
     { key: "7d", label: "7 dias" },
     { key: "30d", label: "30 dias" },
-    { key: "month", label: "Mês" },
+    { key: "month", label: "Mes" },
     { key: "year", label: "Ano" },
   ];
 
@@ -407,10 +343,13 @@ const twoColumnStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
   gap: 18,
+  marginTop: 18,
   marginBottom: 18,
 };
 
 const panelStyle: CSSProperties = { padding: 22 };
+const thStyle: CSSProperties = { padding: "10px 12px", fontSize: 10, textTransform: "uppercase", letterSpacing: 1 };
+const tdStyle: CSSProperties = { padding: "12px", verticalAlign: "top" };
 
 const metricLineStyle: CSSProperties = {
   display: "flex",

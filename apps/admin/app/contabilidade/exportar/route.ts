@@ -15,15 +15,35 @@ function csvLine(values: (string | number | null | undefined)[]) {
 
 function buildCsv(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
   const rows = [
-    csvLine(["Relatório de contabilidade", report.range.label]),
+    csvLine(["Relatorio de contabilidade", report.range.label]),
     csvLine([]),
     csvLine(["Indicador", "Valor"]),
-    csvLine(["Receita realizada", money(report.totals.grossRevenue)]),
-    csvLine(["Lucro estimado", money(report.totals.estimatedProfit)]),
+    csvLine(["Receita por pedidos", money(report.totals.grossRevenue)]),
+    csvLine(["Receita manual", money(report.totals.manualIncome)]),
+    csvLine(["Receita ajustada", money(report.totals.adjustedRevenue)]),
     csvLine(["Custos estimados", money(report.totals.estimatedCosts)]),
+    csvLine(["Custos manuais", money(report.totals.manualExpenses)]),
+    csvLine(["Custos ajustados", money(report.totals.adjustedCosts)]),
+    csvLine(["Lucro ajustado", money(report.totals.adjustedProfit)]),
     csvLine(["MRR ativo", money(report.totals.mrr)]),
     csvLine(["Descontos concedidos", money(report.totals.discounts)]),
     csvLine([]),
+    csvLine(["Razao contabil"]),
+    csvLine(["Origem", "Canal", "Tipo", "Categoria", "Descricao", "Centro de custo", "Valor", "Data"]),
+    ...report.ledgerRows.map((entry) =>
+      csvLine([
+        entry.source === "automatic" ? "automatico" : "manual",
+        entry.channel ?? "",
+        entry.type,
+        entry.category,
+        entry.description,
+        entry.cost_center ?? "",
+        `${entry.type === "income" ? "+" : "-"} ${money(entry.amount_cents, entry.currency)}`,
+        new Date(entry.occurred_at).toLocaleString("pt-BR"),
+      ])
+    ),
+    csvLine([]),
+    csvLine(["Pedidos de venda"]),
     csvLine(["Pedido", "Cliente", "Status", "Subtotal", "Desconto", "Frete", "Total", "Criado em"]),
     ...report.realizedOrders.map((order) =>
       csvLine([
@@ -57,14 +77,23 @@ function buildPdf(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
     "Flora Botanics - Contabilidade",
     `Periodo: ${report.range.label}`,
     "",
-    `Receita realizada: ${money(report.totals.grossRevenue)}`,
-    `Lucro estimado: ${money(report.totals.estimatedProfit)}`,
+    `Receita por pedidos: ${money(report.totals.grossRevenue)}`,
+    `Receita manual: ${money(report.totals.manualIncome)}`,
+    `Receita ajustada: ${money(report.totals.adjustedRevenue)}`,
     `Custos estimados: ${money(report.totals.estimatedCosts)}`,
+    `Custos manuais: ${money(report.totals.manualExpenses)}`,
+    `Lucro ajustado: ${money(report.totals.adjustedProfit)}`,
     `MRR ativo: ${money(report.totals.mrr)}`,
     `Descontos concedidos: ${money(report.totals.discounts)}`,
     "",
+    "Razao contabil:",
+    ...report.ledgerRows.slice(0, 24).map((entry) => {
+      const signal = entry.type === "income" ? "+" : "-";
+      return `${entry.source} - ${entry.channel ?? "sem canal"} - ${entry.description} - ${signal} ${money(entry.amount_cents, entry.currency)}`;
+    }),
+    "",
     "Ultimas receitas:",
-    ...report.realizedOrders.slice(0, 20).map((order) => {
+    ...report.realizedOrders.slice(0, 12).map((order) => {
       return `Pedido #${order.number} - ${customerName(order)} - ${money(order.total_cents, order.currency)}`;
     }),
   ];
@@ -105,7 +134,7 @@ function buildPdf(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
 export async function GET(request: NextRequest) {
   const session = await getStaffSession();
   if (!session || session.role === "tenant_editor") {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
   }
 
   const url = new URL(request.url);

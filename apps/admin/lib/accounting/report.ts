@@ -18,6 +18,7 @@ export type OrderRow = {
   shipping_cents: number;
   total_cents: number;
   currency: string;
+  source_channel?: string | null;
   created_at: string;
   customers: { email: string; full_name: string | null } | { email: string; full_name: string | null }[] | null;
 };
@@ -25,6 +26,43 @@ export type OrderRow = {
 export type PaymentRow = { id: string; provider: string; status: string; amount_cents: number; created_at: string };
 export type CampaignRow = { id: string; title: string; status: string; channel: string | null; revenue_cents: number | null; budget_cents: number | null; orders: number | null };
 export type SubscriptionRow = { id: string; status: string; total_cents: number | null };
+export type AccountingEntryRow = {
+  id: string;
+  type: string;
+  category: string;
+  description: string;
+  amount_cents: number;
+  currency: string;
+  occurred_at: string;
+  vendor_name: string | null;
+  document_number: string | null;
+  payment_method: string | null;
+  cost_center: string | null;
+  source_channel: string | null;
+  source_kind: string;
+  notes: string | null;
+  tags: string[] | null;
+  is_recurring: boolean;
+  recurrence_interval: string | null;
+};
+
+export type AccountingLedgerRow = {
+  id: string;
+  source: "manual" | "automatic";
+  type: string;
+  category: string;
+  description: string;
+  amount_cents: number;
+  currency: string;
+  occurred_at: string;
+  channel: string | null;
+  cost_center: string | null;
+  vendor_name?: string | null;
+  document_number?: string | null;
+  accounting_entry_id?: string;
+  order_id?: string;
+  order_number?: number;
+};
 
 function startOfDay(date: Date) {
   const d = new Date(date);
@@ -99,10 +137,10 @@ export async function buildAccountingReport(tenantId: string, search: Accounting
   const range = dateRange(search);
   const supabase = await supabaseServer();
 
-  const [ordersRes, paymentsRes, campaignsRes, subscriptionsRes] = await Promise.all([
+  const [ordersRes, paymentsRes, campaignsRes, subscriptionsRes, entriesRes] = await Promise.all([
     supabase
       .from("orders")
-      .select("id, number, status, subtotal_cents, discount_cents, shipping_cents, total_cents, currency, created_at, customers(email, full_name)")
+      .select("id, number, status, subtotal_cents, discount_cents, shipping_cents, total_cents, currency, source_channel, created_at, customers(email, full_name)")
       .eq("tenant_id", tenantId)
       .gte("created_at", range.from.toISOString())
       .lte("created_at", range.to.toISOString())
@@ -127,12 +165,21 @@ export async function buildAccountingReport(tenantId: string, search: Accounting
       .select("id, status, total_cents")
       .eq("tenant_id", tenantId)
       .limit(200),
+    supabase
+      .from("accounting_entries")
+      .select("id, type, category, description, amount_cents, currency, occurred_at, vendor_name, document_number, payment_method, cost_center, source_channel, source_kind, notes, tags, is_recurring, recurrence_interval")
+      .eq("tenant_id", tenantId)
+      .gte("occurred_at", range.from.toISOString())
+      .lte("occurred_at", range.to.toISOString())
+      .order("occurred_at", { ascending: false })
+      .limit(300),
   ]);
 
   const orders = (ordersRes.data ?? []) as unknown as OrderRow[];
   const payments = (paymentsRes.data ?? []) as PaymentRow[];
   const campaigns = (campaignsRes.data ?? []) as CampaignRow[];
   const subscriptions = (subscriptionsRes.data ?? []) as SubscriptionRow[];
+  const entries = (entriesRes.data ?? []) as AccountingEntryRow[];
 
   const realizedOrders = orders.filter((order) => REVENUE_STATUSES.includes(order.status as (typeof REVENUE_STATUSES)[number]));
   const paidPayments = payments.filter((payment) => payment.status === "succeeded");
@@ -148,8 +195,74 @@ export async function buildAccountingReport(tenantId: string, search: Accounting
   const taxReserve = Math.round(grossRevenue * TAX_RESERVE_RATE);
   const paymentFees = Math.round(grossRevenue * PAYMENT_FEE_RATE + realizedOrders.length * PAYMENT_FIXED_FEE_CENTS);
   const operationalReserve = Math.round(grossRevenue * OPERATIONAL_RESERVE_RATE);
+  const manualIncome = entries.filter((entry) => entry.type === "income").reduce((sum, entry) => sum + (entry.amount_cents ?? 0), 0);
+  const manualExpenses = entries.filter((entry) => entry.type !== "income").reduce((sum, entry) => sum + (entry.amount_cents ?? 0), 0);
+  const manualTaxes = entries.filter((entry) => entry.type === "tax").reduce((sum, entry) => sum + (entry.amount_cents ?? 0), 0);
+  const manualFees = entries.filter((entry) => entry.type === "fee").reduce((sum, entry) => sum + (entry.amount_cents ?? 0), 0);
+  const manualProductCosts = entries.filter((entry) => entry.type === "product_cost").reduce((sum, entry) => sum + (entry.amount_cents ?? 0), 0);
+  const manualOperationalCosts = entries
+    .filter((entry) => ["expense", "shipping_cost", "packaging_cost", "operational_cost", "adjustment"].includes(entry.type))
+    .reduce((sum, entry) => sum + (entry.amount_cents ?? 0), 0);
+  const automaticLedgerRows: AccountingLedgerRow[] = realizedOrders.flatMap((order) => {
+    const rows: AccountingLedgerRow[] = [
+      {
+        id: `order-income-${order.id}`,
+        source: "automatic",
+        type: "income",
+        category: "Venda",
+        description: `Pedido #${order.number}`,
+        amount_cents: order.total_cents ?? 0,
+        currency: order.currency,
+        occurred_at: order.created_at,
+        channel: order.source_channel ?? "site",
+        cost_center: "Vendas",
+        order_id: order.id,
+        order_number: order.number,
+      },
+    ];
+
+    if (order.discount_cents > 0) {
+      rows.push({
+        id: `order-discount-${order.id}`,
+        source: "automatic",
+        type: "adjustment",
+        category: "Desconto",
+        description: `Desconto do pedido #${order.number}`,
+        amount_cents: order.discount_cents,
+        currency: order.currency,
+        occurred_at: order.created_at,
+        channel: order.source_channel ?? "site",
+        cost_center: "Vendas",
+        order_id: order.id,
+        order_number: order.number,
+      });
+    }
+
+    return rows;
+  });
+  const manualLedgerRows: AccountingLedgerRow[] = entries.map((entry) => ({
+    id: `manual-${entry.id}`,
+    source: "manual",
+    type: entry.type,
+    category: entry.category,
+    description: entry.description,
+    amount_cents: entry.amount_cents,
+    currency: entry.currency,
+    occurred_at: entry.occurred_at,
+    channel: entry.source_channel,
+    cost_center: entry.cost_center,
+    vendor_name: entry.vendor_name,
+    document_number: entry.document_number,
+    accounting_entry_id: entry.id,
+  }));
+  const ledgerRows = [...automaticLedgerRows, ...manualLedgerRows].sort(
+    (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
+  );
   const estimatedCosts = productCost + shippingCollected + taxReserve + paymentFees + operationalReserve;
+  const adjustedRevenue = grossRevenue + manualIncome;
+  const adjustedCosts = estimatedCosts + manualExpenses;
   const estimatedProfit = grossRevenue - estimatedCosts;
+  const adjustedProfit = adjustedRevenue - adjustedCosts;
   const campaignRevenue = campaigns.reduce((sum, campaign) => sum + (campaign.revenue_cents ?? 0), 0);
   const campaignBudget = campaigns.reduce((sum, campaign) => sum + (campaign.budget_cents ?? 0), 0);
 
@@ -162,8 +275,11 @@ export async function buildAccountingReport(tenantId: string, search: Accounting
     campaigns,
     subscriptions,
     activeSubscriptions,
+    entries,
+    ledgerRows,
     totals: {
       grossRevenue,
+      adjustedRevenue,
       subtotal,
       discounts,
       shippingCollected,
@@ -175,6 +291,14 @@ export async function buildAccountingReport(tenantId: string, search: Accounting
       operationalReserve,
       estimatedCosts,
       estimatedProfit,
+      adjustedCosts,
+      adjustedProfit,
+      manualIncome,
+      manualExpenses,
+      manualTaxes,
+      manualFees,
+      manualProductCosts,
+      manualOperationalCosts,
       campaignRevenue,
       campaignBudget,
     },
