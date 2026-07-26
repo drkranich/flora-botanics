@@ -570,6 +570,8 @@ function ItemJob({
       <input type="hidden" name="entity_name" value={row.name} />
       <input type="hidden" name="sku" value={row.sku} />
       <input type="hidden" name="lookup_key" value={row.stripeLookupKey ?? fallbackLookupKey(row)} />
+      <input type="hidden" name="stripe_product_id" value={row.stripeProductId ?? ""} />
+      <input type="hidden" name="stripe_price_id" value={row.stripePriceId ?? ""} />
       <button className={danger ? "btn btn-ghost" : "btn btn-ghost"} style={{ ...smallButtonStyle, ...(danger ? dangerButtonStyle : {}) }}>
         {label}
       </button>

@@ -4,9 +4,11 @@ import {
   createStripePrice,
   createStripePromotionCode,
   createStripeProduct,
+  listStripePrices,
   retrieveStripePrice,
   retrieveStripeProduct,
   type StripeEnvironment,
+  type StripePrice,
 } from "@flora/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripeSecret } from "./env";
@@ -112,6 +114,8 @@ async function processOneJob({
       if (!result.ok && result.status === 401) throw new Error(result.error);
       message = "Chave Stripe respondeu; conexão backend operacional.";
       await markConnection(supabase, job.tenant_id, job.environment, "online", "stored", null);
+    } else if (job.action === "search_stripe") {
+      message = await searchStripeCatalog({ supabase, apiKey, job, actorId });
     } else if (job.action === "create_product") {
       const candidate = await loadCandidate(supabase, job);
       const productId = await ensureStripeProduct({ supabase, apiKey, job, candidate, actorId });
@@ -207,6 +211,116 @@ async function loadCandidate(supabase: SupabaseClient, job: JobRow): Promise<Can
     stripeProductId: data.stripe_product_id as string | null,
     stripePriceId: data.stripe_price_id as string | null,
     lookupKey: (data.stripe_lookup_key as string | null) ?? `flora_${slug.replace(/[^a-z0-9]+/g, "_")}_brl`,
+  };
+}
+
+async function searchStripeCatalog({
+  supabase,
+  apiKey,
+  job,
+  actorId,
+}: {
+  supabase: SupabaseClient;
+  apiKey: string;
+  job: JobRow;
+  actorId?: string;
+}) {
+  const payload = job.payload ?? {};
+  const lookupKey = typeof payload.lookup_key === "string" ? payload.lookup_key.trim() : "";
+  const priceId = typeof payload.stripe_price_id === "string" ? payload.stripe_price_id.trim() : "";
+  const productId = typeof payload.stripe_product_id === "string" ? payload.stripe_product_id.trim() : "";
+  const findings: Array<Record<string, unknown>> = [];
+
+  if (priceId) {
+    const price = await retrieveStripePrice(apiKey, priceId);
+    if (!price.ok) throw new Error(`Price ID não encontrado no Stripe: ${price.error}`);
+    findings.push({ kind: "price", ...stripePriceSummary(price.data) });
+  }
+
+  if (lookupKey) {
+    const prices = await listStripePrices(apiKey, { lookupKeys: [lookupKey], active: true, limit: 10 });
+    if (!prices.ok) throw new Error(`Lookup Key não consultada no Stripe: ${prices.error}`);
+    for (const price of prices.data.data) {
+      findings.push({ kind: "lookup_price", ...stripePriceSummary(price) });
+    }
+  }
+
+  if (productId) {
+    const product = await retrieveStripeProduct(apiKey, productId);
+    if (!product.ok) throw new Error(`Product ID não encontrado no Stripe: ${product.error}`);
+    findings.push({
+      kind: "product",
+      id: product.data.id,
+      active: product.data.active,
+      name: product.data.name,
+      default_price: product.data.default_price ?? null,
+      metadata: product.data.metadata ?? {},
+    });
+  }
+
+  if (!priceId && !lookupKey && !productId) {
+    throw new Error("Busca Stripe sem Product ID, Price ID ou Lookup Key.");
+  }
+
+  await supabase.from("stripe_catalog_conflicts").insert({
+    tenant_id: job.tenant_id,
+    environment: job.environment,
+    entity_type: job.entity_type ?? "product_variant",
+    entity_id: job.entity_id,
+    conflict_type: "metadata_mismatch",
+    field_name: "stripe_search",
+    flora_value: {
+      entity_type: job.entity_type,
+      entity_id: job.entity_id,
+      lookup_key: lookupKey || null,
+      stripe_price_id: priceId || null,
+      stripe_product_id: productId || null,
+    },
+    stripe_value: { findings },
+    severity: findings.length ? "info" : "warning",
+    suggested_action: findings.length
+      ? "Revise os candidatos encontrados e salve o vínculo manual validado no card do item."
+      : "Nenhum objeto encontrado. Crie Product/Price pelo CMS ou confira ambiente e Lookup Key.",
+  });
+
+  await supabase.from("stripe_sync_logs").insert({
+    tenant_id: job.tenant_id,
+    job_id: job.id,
+    environment: job.environment,
+    action: job.action,
+    level: findings.length ? "info" : "warning",
+    message: findings.length
+      ? `Busca Stripe encontrou ${findings.length} candidato(s).`
+      : "Busca Stripe concluída sem candidatos.",
+    entity_type: job.entity_type,
+    entity_id: job.entity_id,
+    request_payload: payload,
+    response_payload: { findings },
+    created_by: actorId ?? job.created_by,
+  });
+
+  return findings.length
+    ? `Busca Stripe encontrou ${findings.length} candidato(s).`
+    : "Busca Stripe concluída sem candidatos.";
+}
+
+function stripePriceSummary(price: StripePrice) {
+  const product = typeof price.product === "string" ? { id: price.product } : {
+    id: price.product.id,
+    active: price.product.active,
+    name: price.product.name,
+    metadata: price.product.metadata ?? {},
+  };
+  return {
+    id: price.id,
+    active: price.active,
+    currency: price.currency,
+    unit_amount: price.unit_amount,
+    lookup_key: price.lookup_key ?? null,
+    billing_type: price.recurring ? "recurring" : "one_time",
+    recurring: price.recurring ?? null,
+    metadata: price.metadata ?? {},
+    product,
   };
 }
 

@@ -71,6 +71,13 @@ export type StripeEvent = {
   data: { object: Record<string, unknown> };
 };
 
+export type StripeList<T> = {
+  object: "list";
+  data: T[];
+  has_more: boolean;
+  url: string;
+};
+
 type Primitive = string | number | boolean | null | undefined;
 type StripeParamValue = Primitive | StripeParams | StripeParamValue[];
 interface StripeParams {
@@ -228,6 +235,25 @@ export function retrieveStripePrice(apiKey: string, priceId: string) {
     apiKey,
     path: `/v1/prices/${encodeURIComponent(priceId)}`,
     params: { expand: ["product"] },
+  });
+}
+
+export function listStripePrices(apiKey: string, input: {
+  lookupKeys?: string[];
+  productId?: string | null;
+  active?: boolean;
+  limit?: number;
+}) {
+  return stripeRequest<StripeList<StripePrice>>({
+    apiKey,
+    path: "/v1/prices",
+    params: {
+      limit: Math.min(Math.max(input.limit ?? 10, 1), 100),
+      ...(input.lookupKeys?.length ? { lookup_keys: input.lookupKeys.slice(0, 10) } : {}),
+      ...(input.productId ? { product: input.productId } : {}),
+      ...(typeof input.active === "boolean" ? { active: input.active } : {}),
+      expand: ["data.product"],
+    },
   });
 }
 

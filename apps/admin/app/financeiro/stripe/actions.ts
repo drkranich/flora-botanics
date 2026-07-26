@@ -2,8 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { StripeEnvironment } from "@flora/core";
+import {
+  listStripePrices,
+  retrieveStripePrice,
+  retrieveStripeProduct,
+  type StripeEnvironment,
+  type StripePrice,
+} from "@flora/core";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { getStripeSecret } from "@/lib/stripe/env";
 import { processStripeJobs } from "@/lib/stripe/queue";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 
@@ -82,6 +89,10 @@ function parseIntValue(formData: FormData, key: string, fallback: number) {
   return Math.max(1, Math.round(number));
 }
 
+function productIdFromPrice(price: StripePrice) {
+  return typeof price.product === "string" ? price.product : price.product.id;
+}
+
 function validateStripeId(value: string | null, prefix: "prod" | "price", label: string) {
   if (!value) return null;
   const pattern = prefix === "prod" ? /^prod_[A-Za-z0-9_]+$/ : /^price_[A-Za-z0-9_]+$/;
@@ -141,6 +152,8 @@ export async function enqueueStripeCatalogJob(formData: FormData) {
     entity_name: optionalText(formData, "entity_name"),
     sku: optionalText(formData, "sku"),
     lookup_key: optionalText(formData, "lookup_key"),
+    stripe_product_id: optionalText(formData, "stripe_product_id"),
+    stripe_price_id: optionalText(formData, "stripe_price_id"),
     requested_from: "cms",
   };
 
@@ -245,16 +258,16 @@ export async function saveManualStripeLink(formData: FormData) {
   const name = getText(formData, "name") || "Item comercial Flora";
   const sku = optionalText(formData, "sku");
   const slug = optionalText(formData, "slug");
-  const stripeProductId = validateStripeId(optionalText(formData, "stripe_product_id"), "prod", "Product ID");
-  const stripePriceId = validateStripeId(optionalText(formData, "stripe_price_id"), "price", "Price ID");
+  let stripeProductId = validateStripeId(optionalText(formData, "stripe_product_id"), "prod", "Product ID");
+  let stripePriceId = validateStripeId(optionalText(formData, "stripe_price_id"), "price", "Price ID");
   const lookupKey = validateLookupKey(optionalText(formData, "lookup_key"));
   const currency = (getText(formData, "currency") || "BRL").toUpperCase();
   const unitAmountCents = parseCents(formData, "unit_amount_cents");
   const billingTypeRaw = getText(formData, "billing_type") || "one_time";
-  const billingType = BILLING_TYPES.has(billingTypeRaw) ? billingTypeRaw : "one_time";
+  let billingType = BILLING_TYPES.has(billingTypeRaw) ? billingTypeRaw : "one_time";
   const intervalRaw = optionalText(formData, "recurring_interval");
-  const recurringInterval = intervalRaw && INTERVALS.has(intervalRaw) ? intervalRaw : null;
-  const recurringIntervalCount = parseIntValue(formData, "recurring_interval_count", 1);
+  let recurringInterval = intervalRaw && INTERVALS.has(intervalRaw) ? intervalRaw : null;
+  let recurringIntervalCount = parseIntValue(formData, "recurring_interval_count", 1);
   const channel = optionalText(formData, "channel");
 
   if (!stripeProductId && !stripePriceId && !lookupKey) {
@@ -263,6 +276,57 @@ export async function saveManualStripeLink(formData: FormData) {
 
   if (billingType === "recurring" && !recurringInterval) {
     throw new Error("Preço recorrente precisa de intervalo de cobrança.");
+  }
+
+  const apiKey = await getStripeSecret(environment);
+  if (!apiKey) {
+    throw new Error(`Stripe ${environment === "test" ? "teste" : "produção"} não está configurado no Worker do admin.`);
+  }
+
+  let remotePrice: StripePrice | null = null;
+  if (stripePriceId) {
+    const price = await retrieveStripePrice(apiKey, stripePriceId);
+    if (!price.ok) throw new Error(`Price ID não validado no Stripe: ${price.error}`);
+    remotePrice = price.data;
+  } else if (lookupKey) {
+    const prices = await listStripePrices(apiKey, { lookupKeys: [lookupKey], active: true, limit: 2 });
+    if (!prices.ok) throw new Error(`Lookup Key não validada no Stripe: ${prices.error}`);
+    if (prices.data.data.length > 1) {
+      throw new Error("Lookup Key retornou mais de um Price ativo no Stripe. Resolva a duplicidade antes de vincular.");
+    }
+    remotePrice = prices.data.data[0] ?? null;
+    if (!remotePrice) throw new Error("Lookup Key não encontrada no Stripe. Use Criar Price ou informe um Price ID existente.");
+    stripePriceId = remotePrice.id;
+  }
+
+  if (remotePrice) {
+    if (!remotePrice.active) throw new Error("O Price informado está arquivado/inativo no Stripe.");
+    const remoteProductId = productIdFromPrice(remotePrice);
+    if (stripeProductId && stripeProductId !== remoteProductId) {
+      throw new Error("O Price informado pertence a outro Product no Stripe.");
+    }
+    stripeProductId = stripeProductId ?? remoteProductId;
+
+    if (remotePrice.currency.toUpperCase() !== currency) {
+      throw new Error(`Moeda incompatível: Flora usa ${currency}, Stripe usa ${remotePrice.currency.toUpperCase()}.`);
+    }
+    if (unitAmountCents > 0 && remotePrice.unit_amount !== unitAmountCents) {
+      throw new Error(`Valor incompatível: Flora usa ${unitAmountCents} centavos, Stripe usa ${remotePrice.unit_amount ?? 0}.`);
+    }
+
+    if (remotePrice.recurring) {
+      billingType = "recurring";
+      recurringInterval = remotePrice.recurring.interval;
+      recurringIntervalCount = remotePrice.recurring.interval_count;
+    } else if (billingType === "recurring") {
+      throw new Error("O Price informado não é recorrente no Stripe.");
+    }
+  }
+
+  if (stripeProductId) {
+    const product = await retrieveStripeProduct(apiKey, stripeProductId);
+    if (!product.ok) throw new Error(`Product ID não validado no Stripe: ${product.error}`);
+    if (!product.data.active) throw new Error("O Product informado está inativo no Stripe.");
   }
 
   const supabase = await supabaseServer();
