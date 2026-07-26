@@ -25,6 +25,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile=false
 
+      - name: UI glass guard
+        run: pnpm lint:ui
+
       - name: Build (storefront + admin + packages)
         run: pnpm build
         env:

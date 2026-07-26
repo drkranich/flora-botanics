@@ -1,18 +1,33 @@
 #!/bin/sh
+
 echo ""
-echo "🌿 Flora — verificando tipos TypeScript antes do commit..."
+echo "Flora - verificando UI glass antes do commit..."
+echo ""
+
+pnpm lint:ui
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "Erro: controles nativos de formulario encontrados."
+  echo "Corrija para componentes glass antes de commitar."
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "Flora - verificando tipos TypeScript antes do commit..."
 echo ""
 
 pnpm --filter @flora/admin exec tsc --noEmit
 
 if [ $? -ne 0 ]; then
   echo ""
-  echo "❌  Erros de TypeScript encontrados no apps/admin."
-  echo "    Corrija os erros acima antes de commitar."
+  echo "Erro: TypeScript falhou em apps/admin."
+  echo "Corrija os erros acima antes de commitar."
   echo ""
   exit 1
 fi
 
 echo ""
-echo "✅  TypeScript OK — commit liberado."
+echo "OK: UI glass e TypeScript aprovados."
 echo ""
