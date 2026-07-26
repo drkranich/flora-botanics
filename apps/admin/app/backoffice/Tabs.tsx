@@ -8,6 +8,7 @@ const TABS = [
   { href: "/backoffice/crm", label: "Pipeline CRM" },
   { href: "/backoffice/clientes", label: "Clientes" },
   { href: "/backoffice/pedidos", label: "Pedidos" },
+  { href: "/backoffice/logistica", label: "Logística" },
   { href: "/backoffice/notas-fiscais", label: "Notas Fiscais" },
   { href: "/backoffice/marketplaces", label: "Marketplaces" },
   { href: "/backoffice/mensagens", label: "Mensagens" },

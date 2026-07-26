@@ -1,0 +1,103 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { useState, useTransition } from "react";
+import { cancelShipment, queueLabelPrint, requestShipmentLabel } from "./actions";
+
+export function RequestLabelButton({ orderId }: { orderId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+
+  return (
+    <ActionWrap message={message}>
+      <button
+        type="button"
+        className="btn btn-gold"
+        disabled={pending}
+        style={{ padding: "8px 14px", fontSize: 10 }}
+        onClick={() => {
+          setMessage(null);
+          startTransition(async () => {
+            const result = await requestShipmentLabel(orderId);
+            setMessage(result.ok ? "Etiqueta enfileirada." : result.error);
+          });
+        }}
+      >
+        {pending ? "Enfileirando…" : "Gerar etiqueta"}
+      </button>
+    </ActionWrap>
+  );
+}
+
+export function ShipmentButtons({ shipmentId, canPrint }: { shipmentId: string; canPrint: boolean }) {
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+
+  function run(action: "print_a4" | "print_thermal" | "cancel") {
+    setMessage(null);
+    startTransition(async () => {
+      const result =
+        action === "cancel"
+          ? await cancelShipment(shipmentId)
+          : await queueLabelPrint(shipmentId, action === "print_a4" ? "a4" : "thermal");
+      setMessage(result.ok ? "Ação registrada." : result.error);
+    });
+  }
+
+  return (
+    <ActionWrap message={message}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          className="btn btn-gold"
+          disabled={pending || !canPrint}
+          style={{ padding: "7px 12px", fontSize: 10 }}
+          onClick={() => run("print_a4")}
+        >
+          A4
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={pending || !canPrint}
+          style={{ padding: "7px 12px", fontSize: 10 }}
+          onClick={() => run("print_thermal")}
+        >
+          Térmica
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          style={{
+            border: "1px solid rgba(232,160,160,0.38)",
+            background: "rgba(232,160,160,0.08)",
+            color: "#e8a0a0",
+            borderRadius: 999,
+            padding: "7px 12px",
+            fontSize: 10,
+            fontWeight: 800,
+            cursor: pending ? "not-allowed" : "pointer",
+          }}
+          onClick={() => {
+            if (confirm("Cancelar esta remessa/etiqueta?")) run("cancel");
+          }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </ActionWrap>
+  );
+}
+
+function ActionWrap({ children, message }: { children: ReactNode; message: string | null }) {
+  return (
+    <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
+      {children}
+      {message ? (
+        <span style={{ color: message.includes("erro") || message.includes("não") ? "#e8a0a0" : "#8fd486", fontSize: 10.5 }}>
+          {message}
+        </span>
+      ) : null}
+    </div>
+  );
+}

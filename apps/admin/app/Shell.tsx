@@ -50,6 +50,7 @@ const COMMANDS = [
   { label: "Ir para Backoffice", href: "/backoffice" },
   { label: "Ir para Backoffice — Clientes (CRM)", href: "/backoffice/clientes" },
   { label: "Ir para Backoffice — Pedidos", href: "/backoffice/pedidos" },
+  { label: "Ir para Backoffice — Logística", href: "/backoffice/logistica" },
   { label: "Ir para Backoffice — Notas Fiscais", href: "/backoffice/notas-fiscais" },
   { label: "Ir para Backoffice — Marketplaces", href: "/backoffice/marketplaces" },
   { label: "Ir para Backoffice — Mensagens", href: "/backoffice/mensagens" },
