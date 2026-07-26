@@ -55,15 +55,46 @@ export default async function CustosPage() {
       </header>
 
       {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 28 }}>
         {[
           { label: "Produtos analisados", value: rows.length },
           { label: "Margem média", value: pct(avgMargin) },
           { label: "Produtos sem custo", value: rows.filter((r) => !r.cost).length },
         ].map((kpi) => (
-          <div key={kpi.label} style={{ background: "var(--cream)", borderRadius: 10, padding: "18px 20px", color: "#1a2e1b" }}>
-            <p style={{ fontSize: 12, color: "#4a6b4c", margin: 0, fontWeight: 600 }}>{kpi.label}</p>
-            <p style={{ fontSize: 24, fontWeight: 700, margin: "4px 0 0", color: "#0a160b" }}>{kpi.value}</p>
+          <div
+            key={kpi.label}
+            className="glass"
+            style={{
+              borderRadius: 16,
+              padding: "18px 20px",
+              background: "rgba(255,248,234,0.055)",
+              boxShadow: "0 10px 34px rgba(0,0,0,0.32)",
+            }}
+          >
+            <p
+              className="display"
+              style={{
+                fontSize: 30,
+                lineHeight: 1,
+                margin: 0,
+                color: "#e07b72",
+                fontWeight: 800,
+              }}
+            >
+              {kpi.value}
+            </p>
+            <p
+              style={{
+                fontSize: 10,
+                color: "var(--cream-dim)",
+                margin: "10px 0 0",
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+              }}
+            >
+              {kpi.label}
+            </p>
           </div>
         ))}
       </div>
