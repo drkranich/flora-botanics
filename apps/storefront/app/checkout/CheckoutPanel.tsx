@@ -271,11 +271,16 @@ export function CheckoutPanel() {
       });
 
       const data = await res.json().catch(() => null) as {
-        ok?: boolean; error?: string; order_number?: number; total_cents?: number
+        ok?: boolean; error?: string; order_number?: number; total_cents?: number; checkout_url?: string
       } | null;
 
       if (!res.ok || !data?.ok) {
         setError(data?.error ?? "Não foi possível finalizar o pedido.");
+        return;
+      }
+
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
         return;
       }
 

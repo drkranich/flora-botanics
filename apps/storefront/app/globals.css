@@ -1871,6 +1871,16 @@ a { color: inherit; text-decoration: none; }
   padding: 44px 0 70px;
 }
 
+.checkout-success-shell {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(28px, 6vw, 72px) 24px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(185, 146, 77, 0.16), transparent 30%),
+    linear-gradient(180deg, var(--cream), #eee4d2);
+}
+
 .checkout-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);

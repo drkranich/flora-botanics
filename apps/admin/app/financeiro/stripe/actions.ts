@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { StripeEnvironment } from "@flora/core";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { processStripeJobs } from "@/lib/stripe/queue";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 
 const ACTIONS = new Set([
@@ -57,9 +59,9 @@ function optionalText(formData: FormData, key: string) {
   return value || null;
 }
 
-function getEnvironment(formData: FormData) {
+function getEnvironment(formData: FormData): StripeEnvironment {
   const value = getText(formData, "environment") || "test";
-  return ENVIRONMENTS.has(value) ? value : "test";
+  return ENVIRONMENTS.has(value) ? (value as StripeEnvironment) : "test";
 }
 
 function getEntityType(formData: FormData) {
@@ -206,6 +208,31 @@ export async function enqueueStripeCatalogJob(formData: FormData) {
       created_by: session.userId,
     }),
   ]);
+
+  revalidatePath("/financeiro/stripe");
+}
+
+export async function processStripeQueue(formData: FormData) {
+  const { session, tenantId } = await ensureAdmin();
+  const environment = getEnvironment(formData);
+  const limit = Math.min(parseIntValue(formData, "limit", 5), 20);
+  const supabase = await supabaseServer();
+
+  const results = await processStripeJobs({
+    supabase,
+    tenantId,
+    environment,
+    limit,
+    actorId: session.userId,
+  });
+
+  await supabase.from("finance_audit_events").insert({
+    tenant_id: tenantId,
+    entity_type: "stripe_sync_queue",
+    action: "stripe_queue_processed",
+    after_data: { environment, limit, results },
+    created_by: session.userId,
+  });
 
   revalidatePath("/financeiro/stripe");
 }

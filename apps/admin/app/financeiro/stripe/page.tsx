@@ -5,7 +5,7 @@ import { GlassSelect } from "@/components/GlassSelect";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { money } from "@/lib/format";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
-import { enqueueStripeCatalogJob, saveManualStripeLink } from "./actions";
+import { enqueueStripeCatalogJob, processStripeQueue, saveManualStripeLink } from "./actions";
 
 type StripeProductRow = {
   id: string;
@@ -321,6 +321,8 @@ export default async function StripeCatalogPage() {
             <QuickJob action="test_connection" label="Testar conexão" />
             <QuickJob action="reconcile_catalog" label="Reconciliar" />
             <QuickJob action="publish_catalog" label="Publicar catálogo" tone="gold" />
+            <ProcessQueue environment="test" label="Processar fila teste" />
+            <ProcessQueue environment="production" label="Processar fila produção" />
           </div>
         </div>
       </header>
@@ -527,6 +529,18 @@ function QuickJob({ action, label, tone }: { action: string; label: string; tone
       <input type="hidden" name="action" value={action} />
       <input type="hidden" name="environment" value="test" />
       <button className={tone === "gold" ? "btn btn-gold" : "btn btn-ghost"} style={smallButtonStyle}>
+        {label}
+      </button>
+    </form>
+  );
+}
+
+function ProcessQueue({ environment, label }: { environment: "test" | "production"; label: string }) {
+  return (
+    <form action={processStripeQueue}>
+      <input type="hidden" name="environment" value={environment} />
+      <input type="hidden" name="limit" value="10" />
+      <button className={environment === "production" ? "btn btn-gold" : "btn btn-ghost"} style={smallButtonStyle}>
         {label}
       </button>
     </form>

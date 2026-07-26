@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createStripeCheckoutSession, createStripeCoupon } from "@flora/core";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  getServerSupabase,
+  getStripeCheckoutEnvironment,
+  getStripeSecret,
+} from "@/lib/server-runtime";
 import { currentTenant, db } from "@/lib/tenant";
 
 interface CheckoutPayload {
@@ -22,6 +29,123 @@ interface CheckoutPayload {
     zip?: string;
     country?: string;
   };
+}
+
+type CheckoutResult = {
+  ok?: boolean;
+  error?: string;
+  order_id?: string;
+  order_number?: number;
+  subtotal_cents?: number;
+  discount_cents?: number;
+  shipping_cents?: number;
+  total_cents?: number;
+  currency?: string;
+};
+
+type OrderItemRow = {
+  id: string;
+  variant_id: string | null;
+  quantity: number;
+  unit_price_cents: number;
+  total_cents: number;
+  product_snapshot: Record<string, unknown>;
+};
+
+type StripePriceRow = {
+  entity_id: string | null;
+  stripe_price_id: string | null;
+  unit_amount_cents: number;
+  currency: string;
+  billing_type: string;
+};
+
+function requestOrigin(req: NextRequest) {
+  const proto = req.headers.get("x-forwarded-proto") ?? "https";
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (!host) return req.nextUrl.origin;
+  return `${proto}://${host}`;
+}
+
+async function createDiscountCoupon({
+  apiKey,
+  result,
+  tenantId,
+}: {
+  apiKey: string;
+  result: CheckoutResult;
+  tenantId: string;
+}) {
+  const discount = result.discount_cents ?? 0;
+  if (discount <= 0) return null;
+  const coupon = await createStripeCoupon(apiKey, {
+    amountOffCents: discount,
+    currency: result.currency ?? "BRL",
+    name: `Desconto Flora pedido ${result.order_number ?? result.order_id}`,
+    idempotencyKey: `flora:coupon:${tenantId}:${result.order_id}:${discount}`,
+    metadata: {
+      tenant_id: tenantId,
+      order_id: result.order_id,
+      order_number: result.order_number ? String(result.order_number) : null,
+    },
+  });
+  if (!coupon.ok) throw new Error(coupon.error);
+  return coupon.data.id;
+}
+
+async function buildStripeLineItems({
+  service,
+  tenantId,
+  orderId,
+  environment,
+}: {
+  service: SupabaseClient;
+  tenantId: string;
+  orderId: string;
+  environment: "test" | "production";
+}) {
+  const { data: items, error: itemsError } = await service
+    .from("order_items")
+    .select("id, variant_id, quantity, unit_price_cents, total_cents, product_snapshot")
+    .eq("order_id", orderId);
+
+  if (itemsError) throw new Error(itemsError.message);
+  const rows = (items ?? []) as OrderItemRow[];
+  if (!rows.length) throw new Error("Pedido sem itens para checkout.");
+
+  const variantIds = rows.map((item) => item.variant_id).filter(Boolean) as string[];
+  if (variantIds.length !== rows.length) {
+    throw new Error("Todos os itens do pedido precisam estar vinculados a uma variante interna.");
+  }
+
+  const { data: prices, error: pricesError } = await service
+    .from("stripe_prices")
+    .select("entity_id, stripe_price_id, unit_amount_cents, currency, billing_type")
+    .eq("tenant_id", tenantId)
+    .eq("environment", environment)
+    .eq("entity_type", "product_variant")
+    .eq("active", true)
+    .eq("is_default", true)
+    .eq("status", "active")
+    .in("entity_id", variantIds);
+
+  if (pricesError) throw new Error(pricesError.message);
+  const priceByVariant = new Map((prices ?? []).map((price) => [price.entity_id, price as StripePriceRow]));
+  const missing = variantIds.filter((variantId) => !priceByVariant.get(variantId)?.stripe_price_id);
+  if (missing.length) {
+    throw new Error("Há produtos no carrinho sem Price Stripe ativo. Publique o catálogo Stripe no CMS antes de vender.");
+  }
+
+  const lineItems = rows.map((item) => {
+    const price = priceByVariant.get(item.variant_id!);
+    if (!price?.stripe_price_id) throw new Error("Price Stripe ausente.");
+    if (price.unit_amount_cents !== item.unit_price_cents) {
+      throw new Error("Preço do carrinho diverge do Price ativo no Stripe. Atualize o catálogo antes de finalizar.");
+    }
+    return { price: price.stripe_price_id, quantity: item.quantity };
+  });
+  const mode = (prices ?? []).some((price) => price.billing_type === "recurring") ? "subscription" : "payment";
+  return { lineItems, mode: mode as "payment" | "subscription" };
 }
 
 export async function POST(req: NextRequest) {
@@ -50,19 +174,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
 
-    const result = data as
-      | {
-          ok?: boolean;
-          error?: string;
-          order_id?: string;
-          order_number?: number;
-          subtotal_cents?: number;
-          discount_cents?: number;
-          shipping_cents?: number;
-          total_cents?: number;
-          currency?: string;
-        }
-      | null;
+    const result = data as CheckoutResult | null;
 
     if (!result?.ok) {
       return NextResponse.json(
@@ -71,8 +183,81 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(result);
+    const orderId = result.order_id;
+    if (!orderId) {
+      return NextResponse.json({ ok: false, error: "Pedido criado sem identificador interno." }, { status: 500 });
+    }
+
+    const environment = await getStripeCheckoutEnvironment();
+    const apiKey = await getStripeSecret(environment);
+    if (!apiKey) {
+      return NextResponse.json(
+        { ok: false, error: "Stripe não está configurado no Worker do storefront." },
+        { status: 500 }
+      );
+    }
+
+    const service = await getServerSupabase();
+    const { lineItems, mode } = await buildStripeLineItems({
+      service,
+      tenantId: tenant.tenantId,
+      orderId,
+      environment,
+    });
+    const couponId = await createDiscountCoupon({ apiKey, result, tenantId: tenant.tenantId });
+    const origin = requestOrigin(req);
+    const checkout = await createStripeCheckoutSession(apiKey, {
+      mode,
+      lineItems,
+      successUrl: `${origin}/checkout/sucesso?pedido=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${origin}/checkout?cancelado=1&pedido=${orderId}`,
+      customerEmail: body.customer?.email ?? null,
+      clientReferenceId: orderId,
+      discounts: couponId ? [{ coupon: couponId }] : undefined,
+      shippingAmountCents: result.shipping_cents ?? 0,
+      shippingCurrency: result.currency ?? "BRL",
+      shippingLabel: "Frete Flora Botanics",
+      idempotencyKey: `flora:checkout:${tenant.tenantId}:${orderId}`,
+      metadata: {
+        tenant_id: tenant.tenantId,
+        tenant_slug: tenant.slug,
+        order_id: orderId,
+        order_number: result.order_number ? String(result.order_number) : null,
+        customer_email: body.customer?.email ?? null,
+        source: "storefront",
+      },
+    });
+
+    if (!checkout.ok || !checkout.data.url) {
+      return NextResponse.json(
+        { ok: false, error: checkout.ok ? "Stripe não retornou URL de checkout." : checkout.error },
+        { status: 500 }
+      );
+    }
+
+    await service.from("payments").upsert({
+      tenant_id: tenant.tenantId,
+      order_id: orderId,
+      provider: "stripe",
+      provider_payment_id: checkout.data.id,
+      status: "pending",
+      amount_cents: result.total_cents ?? 0,
+      raw: {
+        checkout_session_id: checkout.data.id,
+        checkout_url: checkout.data.url,
+        environment,
+        mode,
+      },
+    }, { onConflict: "provider,provider_payment_id" });
+
+    return NextResponse.json({
+      ...result,
+      stripe_environment: environment,
+      checkout_session_id: checkout.data.id,
+      checkout_url: checkout.data.url,
+    });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
