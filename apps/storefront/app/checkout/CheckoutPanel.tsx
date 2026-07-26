@@ -337,7 +337,7 @@ export function CheckoutPanel() {
               <label className="checkout-field checkout-field-wide">
                 <span>E-mail *</span>
                 <input type="email" required autoComplete="email" value={email}
-                  onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" />
+                  onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
               </label>
               <label className="checkout-field">
                 <span>Nome completo *</span>

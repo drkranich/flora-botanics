@@ -41,7 +41,7 @@ export function CampaignForm({
 
         <label className="field">
           <span>Slug</span>
-          <input className="input" name="slug" defaultValue={values?.slug ?? ""} placeholder="gerado pelo titulo" />
+          <input className="input" name="slug" defaultValue={values?.slug ?? ""} placeholder="gerado pelo título" />
         </label>
 
         <label className="field">
@@ -65,8 +65,8 @@ export function CampaignForm({
         </label>
 
         <label className="field">
-          <span>Inicio</span>
-          <GlassDateInput name="starts_at" defaultValue={toLocalDateTime(values?.starts_at)} withTime placeholder="Selecionar inicio" />
+          <span>Início</span>
+          <GlassDateInput name="starts_at" defaultValue={toLocalDateTime(values?.starts_at)} withTime placeholder="Selecionar início" />
         </label>
 
         <label className="field">
@@ -85,7 +85,7 @@ export function CampaignForm({
         </label>
 
         <label className="field">
-          <span>Orcamento</span>
+          <span>Orçamento</span>
           <input className="input" name="budget" defaultValue={moneyInput(values?.budget_cents)} placeholder="0,00" />
         </label>
 
@@ -115,7 +115,7 @@ export function CampaignForm({
         </label>
 
         <label className="field" style={{ gridColumn: "1 / -1" }}>
-          <span>Descricao</span>
+          <span>Descrição</span>
           <textarea className="input" name="body" defaultValue={values?.body ?? ""} rows={7} />
         </label>
       </div>

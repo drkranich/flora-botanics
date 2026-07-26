@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id");
     if (!sessionId) {
-      return NextResponse.json({ error: "session_id obrigatorio" }, { status: 400 });
+      return NextResponse.json({ error: "session_id é obrigatório" }, { status: 400 });
     }
 
     const tenant = await currentTenant();
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (!session_id) {
-      return NextResponse.json({ error: "session_id obrigatorio" }, { status: 400 });
+      return NextResponse.json({ error: "session_id é obrigatório" }, { status: 400 });
     }
 
     const tenant = await currentTenant();

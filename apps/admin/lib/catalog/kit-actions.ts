@@ -15,7 +15,7 @@ function slugify(s: string) {
 
 async function requireStaff() {
   const session = await getStaffSession();
-  if (!session) throw new Error("Nao autorizado");
+  if (!session) throw new Error("Não autorizado");
   return session;
 }
 

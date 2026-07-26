@@ -24,8 +24,8 @@ function normalizeDomain(input: string) {
 
 async function requireConfigAdmin() {
   const session = await getStaffSession();
-  if (!session) throw new Error("Nao autorizado");
-  if (session.role === "tenant_editor") throw new Error("Editores nao podem alterar configuracoes.");
+  if (!session) throw new Error("Não autorizado");
+  if (session.role === "tenant_editor") throw new Error("Editores não podem alterar configurações.");
   return session;
 }
 

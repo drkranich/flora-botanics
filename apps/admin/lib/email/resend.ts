@@ -43,7 +43,7 @@ function formatResendError(message: string | undefined, status: number): string 
   const error = message ?? fallback;
 
   if (/domain is not verified|add and verify your domain/i.test(error)) {
-    return `O remetente RESEND_FROM_EMAIL usa um dominio nao verificado no Resend. Use "Flora Botanics <contato@${VERIFIED_FROM_DOMAIN}>" ou outro e-mail do dominio ${VERIFIED_FROM_DOMAIN} ja verificado.`;
+    return `O remetente RESEND_FROM_EMAIL usa um domínio não verificado no Resend. Use "Flora Botanics <contato@${VERIFIED_FROM_DOMAIN}>" ou outro e-mail do dominio ${VERIFIED_FROM_DOMAIN} ja verificado.`;
   }
 
   return error;

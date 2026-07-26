@@ -62,7 +62,7 @@ a { color: inherit; text-decoration: none; }
 .hero p { max-width: var(--section-width, 390px); font-family: var(--section-body-font, var(--font-body)); font-size: var(--section-body-size, 18px); line-height: var(--section-line-height, 1.45); font-weight: 500; margin-bottom: 18px; text-align: var(--section-align, left); color: var(--section-text-color, inherit); }
 .hero-products { position: absolute; right: 5%; bottom: 38px; width: min(670px, 56vw); z-index: 2; filter: drop-shadow(0 28px 42px rgba(0, 0, 0, 0.42)); }
 
-/* PÃGINAS INTERNAS */
+/* PÁGINAS INTERNAS */
 .subpage-hero {
   min-height: 360px;
   color: var(--white);

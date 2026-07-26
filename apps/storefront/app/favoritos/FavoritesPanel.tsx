@@ -111,7 +111,7 @@ export function FavoritesPanel({
     return (
       <section className="wishlist-empty-card">
         <span className="eyebrow">Favoritos</span>
-        <h1>Nao foi possivel carregar</h1>
+        <h1>Não foi possível carregar</h1>
         <p>{error}</p>
         <Link href="/produtos" className="btn">
           Ver catalogo

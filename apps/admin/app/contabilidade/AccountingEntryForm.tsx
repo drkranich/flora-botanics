@@ -10,15 +10,15 @@ const TYPE_OPTIONS = [
   { value: "product_cost", label: "Custo de produto" },
   { value: "tax", label: "Imposto" },
   { value: "fee", label: "Taxa financeira" },
-  { value: "shipping_cost", label: "Frete / logistica" },
+  { value: "shipping_cost", label: "Frete / logística" },
   { value: "packaging_cost", label: "Embalagem" },
   { value: "operational_cost", label: "Custo operacional" },
   { value: "income", label: "Receita manual" },
-  { value: "adjustment", label: "Ajuste contabil" },
+  { value: "adjustment", label: "Ajuste contábil" },
 ];
 
 const RECURRENCE_OPTIONS = [
-  { value: "", label: "Sem recorrencia" },
+  { value: "", label: "Sem recorrência" },
   { value: "monthly", label: "Mensal" },
   { value: "quarterly", label: "Trimestral" },
   { value: "yearly", label: "Anual" },
@@ -80,10 +80,10 @@ export function AccountingEntryForm() {
         setPeriodStart("");
         setPeriodEnd("");
         setRecurrence("");
-        setOk("Lancamento registrado.");
+        setOk("Lançamento registrado.");
         setOpen(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao registrar lancamento.");
+        setError(err instanceof Error ? err.message : "Erro ao registrar lançamento.");
       }
     });
   }
@@ -92,14 +92,14 @@ export function AccountingEntryForm() {
     <section className="glass rise" style={{ padding: 22, display: "grid", gap: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
         <div>
-          <p className="eyebrow" style={{ marginBottom: 6 }}>Lancamentos manuais</p>
+          <p className="eyebrow" style={{ marginBottom: 6 }}>Lançamentos manuais</p>
           <h2 className="display" style={{ fontSize: 28 }}>Calculadora de custos</h2>
           <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>
             Registre impostos, fretes reais, embalagens, taxas, custos de produto, ajustes e despesas avulsas.
           </p>
         </div>
         <button type="button" className={open ? "btn btn-ghost" : "btn btn-gold"} onClick={() => setOpen((v) => !v)}>
-          {open ? "Fechar" : "+ Novo lancamento"}
+          {open ? "Fechar" : "+ Novo lançamento"}
         </button>
       </div>
 
@@ -111,18 +111,18 @@ export function AccountingEntryForm() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
             <label className="field">
               <span>Tipo</span>
-              <GlassSelect name="type" defaultValue="expense" options={TYPE_OPTIONS} ariaLabel="Tipo de lancamento" inlineMenu />
+              <GlassSelect name="type" defaultValue="expense" options={TYPE_OPTIONS} ariaLabel="Tipo de lançamento" inlineMenu />
             </label>
             <label className="field">
               <span>Categoria</span>
-              <input className="input" name="category" placeholder="Impostos, embalagem, materia-prima..." required />
+              <input className="input" name="category" placeholder="Impostos, embalagem, matéria-prima..." required />
             </label>
             <label className="field">
-              <span>Descricao</span>
-              <input className="input" name="description" placeholder="Ex: ICMS estimado do mes" required />
+              <span>Descrição</span>
+              <input className="input" name="description" placeholder="Ex: ICMS estimado do mês" required />
             </label>
             <label className="field">
-              <span>Data do lancamento</span>
+              <span>Data do lançamento</span>
               <GlassDateInput
                 name="occurred_at"
                 value={occurredAt}
@@ -136,7 +136,7 @@ export function AccountingEntryForm() {
           <div className="glass" style={{ padding: 16, display: "grid", gap: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <div>
-                <p className="eyebrow" style={{ marginBottom: 5 }}>Composicao do valor</p>
+                <p className="eyebrow" style={{ marginBottom: 5 }}>Composição do valor</p>
                 <p className="muted" style={{ margin: 0, fontSize: 11.5 }}>
                   Use a calculadora ou informe o valor final manualmente.
                 </p>
@@ -146,7 +146,7 @@ export function AccountingEntryForm() {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
               <label className="field">
-                <span>Valor unitario</span>
+                <span>Valor unitário</span>
                 <input className="input" value={unit} onChange={(event) => setUnit(event.target.value)} placeholder="0,00" />
               </label>
               <label className="field">
@@ -167,7 +167,7 @@ export function AccountingEntryForm() {
               </label>
               <div className="field" style={{ justifyContent: "end" }}>
                 <button type="button" className="btn btn-ghost" onClick={useCalculatedValue} style={{ minHeight: 44 }}>
-                  Usar calculo
+                  Usar cálculo
                 </button>
               </div>
             </div>
@@ -184,55 +184,55 @@ export function AccountingEntryForm() {
             </label>
             <label className="field">
               <span>Forma de pagamento</span>
-              <input className="input" name="payment_method" placeholder="PIX, cartao, boleto..." />
+              <input className="input" name="payment_method" placeholder="PIX, cartão, boleto..." />
             </label>
             <label className="field">
               <span>Centro de custo</span>
-              <input className="input" name="cost_center" placeholder="Marketing, fiscal, operacao..." />
+              <input className="input" name="cost_center" placeholder="Marketing, fiscal, operação..." />
             </label>
             <label className="field">
               <span>Canal de origem</span>
               <input className="input" name="source_channel" placeholder="site, mercado_livre, shopee..." />
             </label>
             <label className="field">
-              <span>Periodo inicial</span>
+              <span>Período inicial</span>
               <GlassDateInput name="period_start" value={periodStart} onChange={setPeriodStart} placeholder="Opcional" inlinePopover />
             </label>
             <label className="field">
-              <span>Periodo final</span>
+              <span>Período final</span>
               <GlassDateInput name="period_end" value={periodEnd} onChange={setPeriodEnd} placeholder="Opcional" inlinePopover />
             </label>
             <label className="field">
-              <span>Recorrencia</span>
+              <span>Recorrência</span>
               <GlassSelect
                 name="recurrence_interval"
                 value={recurrence}
                 onChange={setRecurrence}
                 options={RECURRENCE_OPTIONS}
-                ariaLabel="Recorrencia"
+                ariaLabel="Recorrência"
                 inlineMenu
               />
             </label>
             <label className="field">
               <span>Tags</span>
-              <input className="input" name="tags" placeholder="fiscal, imposto, materia-prima" />
+              <input className="input" name="tags" placeholder="fiscal, imposto, matéria-prima" />
             </label>
           </div>
 
           <label className="field">
-            <span>Observacoes</span>
+            <span>Observações</span>
             <textarea className="input" name="notes" rows={4} placeholder="Detalhes para auditoria interna." />
           </label>
 
           <label style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--cream-soft)", fontSize: 12 }}>
             <input type="checkbox" name="is_recurring" style={{ width: 16, height: 16 }} />
-            Repetir este lancamento conforme a recorrencia selecionada
+            Repetir este lançamento conforme a recorrência selecionada
           </label>
 
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
             <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Cancelar</button>
             <button type="submit" disabled={pending} className="btn btn-gold">
-              {pending ? "Salvando..." : "Salvar lancamento"}
+              {pending ? "Salvando..." : "Salvar lançamento"}
             </button>
           </div>
         </form>

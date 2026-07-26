@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
     XLSX.utils.book_append_sheet(
       workbook,
       XLSX.utils.json_to_sheet(quoteRows.map((row) => ({
-        Numero: row.number,
+        Número: row.number,
         Tipo: row.kind,
         Status: row.status,
         Cliente: row.customer_name,
@@ -237,7 +237,7 @@ export async function GET(request: NextRequest) {
     }),
     csvLine([]),
     csvLine(["Documentos comerciais"]),
-    csvLine(["Numero", "Tipo", "Status", "Cliente", "Empresa", "Canal", "Valor", "Criado em"]),
+    csvLine(["Número", "Tipo", "Status", "Cliente", "Empresa", "Canal", "Valor", "Criado em"]),
     ...quoteRows.map((row) => csvLine([
       row.number,
       row.kind,

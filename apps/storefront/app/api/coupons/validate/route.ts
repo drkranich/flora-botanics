@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     if (!result?.ok) {
       return NextResponse.json(
-        { ok: false, error: result?.error ?? "Cupom invalido." },
+        { ok: false, error: result?.error ?? "Cupom inválido." },
         { status: 409 }
       );
     }

@@ -27,7 +27,7 @@ export function CommercialQuoteForm({ calculations }: { calculations: GlassSelec
   return (
     <form action={createCommercialQuote} className="glass rise rise-1" style={{ padding: 22, display: "grid", gap: 14 }}>
       <div>
-        <p className="eyebrow" style={{ marginBottom: 7 }}>Orçamentos, cotacoes e propostas</p>
+        <p className="eyebrow" style={{ marginBottom: 7 }}>Orçamentos, cotações e propostas</p>
         <h2 className="display" style={{ fontSize: 28 }}>Documento comercial</h2>
       </div>
 

@@ -144,7 +144,7 @@ const ALIGN_OPTIONS = [
 const TEXT_WIDTH_OPTIONS = [
   { label: "Coluna estreita", value: "620px" },
   { label: "Editorial", value: "760px" },
-  { label: "Pagina larga", value: "920px" },
+  { label: "Página larga", value: "920px" },
   { label: "Cheio na secao", value: "1120px" },
 ];
 

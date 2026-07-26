@@ -9,22 +9,22 @@ export type PublicFallbackPage = {
 const PAGES: Record<string, PublicFallbackPage> = {
   "sobre-nos": {
     eyebrow: "Flora Botanics",
-    title: "Sobre Nos",
+    title: "Sobre Nós",
     intro:
-      "A Flora Botanics nasce da aproximacao entre botanica, ciencia cosmetica e cuidado cotidiano.",
+      "A Flora Botanics nasce da aproximação entre botânica, ciência cosmética e cuidado cotidiano.",
     paragraphs: [
-      "Criamos formulas inspiradas pela biodiversidade brasileira, com uma linguagem visual silenciosa, precisa e sensorial.",
-      "Cada pagina institucional podera ser substituida por conteudo editorial completo no CMS. Ate la, o site publico apresenta uma base limpa, coerente e segura para navegacao.",
+      "Criamos fórmulas inspiradas pela biodiversidade brasileira, com uma linguagem visual silenciosa, precisa e sensorial.",
+      "Cada página institucional poderá ser substituida por conteúdo editorial completo no CMS. Até lá, o site público apresenta uma base limpa, coerente e segura para navegação.",
     ],
   },
   ingredientes: {
-    eyebrow: "Ciencia Botanica",
+    eyebrow: "Ciência Botânica",
     title: "Ingredientes",
     intro:
-      "Ativos botanicos, texturas inteligentes e escolhas de formulacao com proposito.",
+      "Ativos botânicos, texturas inteligentes e escolhas de formulação com propósito.",
     paragraphs: [
-      "Esta area sera dedicada aos ingredientes principais da marca, com beneficios, origem, modo de uso e relacao com cada rotina.",
-      "O CMS deve evoluir para permitir fichas editoriais de ingredientes, produtos relacionados e conteudo tecnico sem aparencia de texto solto.",
+      "Esta área será dedicada aos ingredientes principais da marca, com benefícios, origem, modo de uso e relação com cada rotina.",
+      "O CMS deve evoluir para permitir fichas editoriais de ingredientes, produtos relacionados e conteúdo técnico sem aparência de texto solto.",
     ],
   },
   sustentabilidade: {
@@ -33,17 +33,17 @@ const PAGES: Record<string, PublicFallbackPage> = {
     intro:
       "Compromissos ambientais devem ser comunicados com clareza, sem exagero e sem promessas vazias.",
     paragraphs: [
-      "A pagina definitiva deve publicar apenas praticas verificaveis: embalagem, cadeia de fornecimento, descarte, logistica e escolhas de producao.",
-      "Enquanto o conteudo final e estruturado no CMS, esta rota permanece viva e coerente com a identidade publica da Flora.",
+      "A página definitiva deve publicar apenas práticas verificáveis: embalagem, cadeia de fornecimento, descarte, logística e escolhas de produção.",
+      "Enquanto o conteúdo final é estruturado no CMS, esta rota permanece viva e coerente com a identidade publica da Flora.",
     ],
   },
   blog: {
     eyebrow: "Editorial",
     title: "Blog",
     intro:
-      "Guias, rituais e conteudos de skincare devem funcionar como extensao da experiencia da marca.",
+      "Guias, rituais e conteúdos de skincare devem funcionar como extensão da experiência da marca.",
     paragraphs: [
-      "O modulo editorial definitivo deve suportar artigos, ingredientes, rotinas, perguntas frequentes, SEO e produtos relacionados.",
+      "O módulo editorial definitivo deve suportar artigos, ingredientes, rotinas, perguntas frequentes, SEO e produtos relacionados.",
     ],
   },
   "perguntas-frequentes": {
@@ -51,54 +51,54 @@ const PAGES: Record<string, PublicFallbackPage> = {
     title: "Perguntas Frequentes",
     intro: "Respostas claras para compra, envio, pagamento, produtos e atendimento.",
     paragraphs: [
-      "A estrutura final deve ser editavel no CMS, com blocos de FAQ, dados estruturados e busca por assunto.",
+      "A estrutura final deve ser editável no CMS, com blocos de FAQ, dados estruturados e busca por assunto.",
     ],
   },
   "trocas-e-devolucoes": {
     eyebrow: "Ajuda",
-    title: "Trocas e Devolucoes",
+    title: "Trocas e Devoluções",
     intro:
-      "Uma politica de troca precisa ser facil de entender antes e depois da compra.",
+      "Uma política de troca precisa ser fácil de entender antes e depois da compra.",
     paragraphs: [
-      "Esta pagina deve receber a politica oficial da marca no CMS, incluindo prazos, condicoes, atendimento e excecoes.",
+      "Esta página deve receber a política oficial da marca no CMS, incluindo prazos, condições, atendimento e exceções.",
     ],
   },
-  "politica-de-privacidade": {
+  "política-de-privacidade": {
     eyebrow: "Privacidade",
-    title: "Politica de Privacidade",
+    title: "Política de Privacidade",
     intro:
-      "Dados de clientes, consentimento e comunicacoes devem seguir uma politica clara e versionada.",
+      "Dados de clientes, consentimento e comunicações devem seguir uma política clara e versionada.",
     paragraphs: [
-      "A versao juridica final deve ser publicada no CMS. O fluxo publico e o super admin devem permanecer separados por permissao e por contexto de autenticacao.",
+      "A versão jurídica final deve ser publicada no CMS. O fluxo público e o super admin devem permanecer separados por permissão e por contexto de autenticação.",
     ],
   },
   "fale-conosco": {
     eyebrow: "Atendimento",
     title: "Fale Conosco",
     intro:
-      "Atendimento da Flora para duvidas sobre produtos, pedidos, envio e parcerias.",
+      "Atendimento da Flora para dúvidas sobre produtos, pedidos, envio e parcerias.",
     paragraphs: [
-      "A etapa seguinte e ligar esta pagina ao Inbox, para que mensagens publicas criem conversas reais no painel.",
+      "A etapa seguinte é ligar esta página ao Inbox, para que mensagens públicas criem conversas reais no painel.",
     ],
     cta: { label: "Ir para a conta", href: "/conta" },
   },
   instagram: {
     eyebrow: "Rede social",
     title: "Instagram",
-    intro: "O link oficial do Instagram sera configurado no CMS.",
-    paragraphs: ["Enquanto isso, esta rota evita erro publico e mantem a navegacao consistente."],
+    intro: "O link oficial do Instagram será configurado no CMS.",
+    paragraphs: ["Enquanto isso, esta rota evita erro público e mantém a navegação consistente."],
   },
   facebook: {
     eyebrow: "Rede social",
     title: "Facebook",
-    intro: "O link oficial do Facebook sera configurado no CMS.",
-    paragraphs: ["Enquanto isso, esta rota evita erro publico e mantem a navegacao consistente."],
+    intro: "O link oficial do Facebook será configurado no CMS.",
+    paragraphs: ["Enquanto isso, esta rota evita erro público e mantém a navegação consistente."],
   },
   pinterest: {
     eyebrow: "Rede social",
     title: "Pinterest",
-    intro: "O link oficial do Pinterest sera configurado no CMS.",
-    paragraphs: ["Enquanto isso, esta rota evita erro publico e mantem a navegacao consistente."],
+    intro: "O link oficial do Pinterest será configurado no CMS.",
+    paragraphs: ["Enquanto isso, esta rota evita erro público e mantém a navegação consistente."],
   },
 };
 
@@ -115,9 +115,9 @@ export function publicFallbackPage(slug: string): PublicFallbackPage {
     PAGES[slug] ?? {
       eyebrow: "Flora Botanics",
       title: titleFromSlug(slug),
-      intro: "Esta pagina esta reservada para conteudo editorial da Flora Botanics.",
+      intro: "Esta página está reservada para conteúdo editorial da Flora Botanics.",
       paragraphs: [
-        "O conteudo definitivo deve ser publicado pelo CMS. A rota ja esta viva para evitar links quebrados no site publico.",
+        "O conteúdo definitivo deve ser publicado pelo CMS. A rota já está viva para evitar links quebrados no site público.",
       ],
     }
   );

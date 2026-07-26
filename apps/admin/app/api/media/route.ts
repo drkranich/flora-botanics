@@ -35,12 +35,12 @@ function cleanFileName(name: string) {
 export async function GET(req: NextRequest) {
   try {
     const session = await getStaffSession();
-    if (!session) return jsonError("Nao autorizado", 401);
+    if (!session) return jsonError("Não autorizado", 401);
 
     const tenantId = req.nextUrl.searchParams.get("tenantId") ?? session.tenantId;
-    if (!tenantId) return jsonError("Tenant nao informado", 400);
+    if (!tenantId) return jsonError("Tenant não informado", 400);
     if (!canUseTenant(session.tenantId, session.role, tenantId)) {
-      return jsonError("Tenant invalido", 403);
+      return jsonError("Tenant inválido", 403);
     }
 
     const supabase = await supabaseServer();
@@ -67,18 +67,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getStaffSession();
-    if (!session) return jsonError("Nao autorizado", 401);
+    if (!session) return jsonError("Não autorizado", 401);
 
     const formData = await req.formData();
     const tenantId = String(formData.get("tenantId") ?? session.tenantId).trim();
     const file = formData.get("file");
 
-    if (!tenantId) return jsonError("Tenant nao informado", 400);
+    if (!tenantId) return jsonError("Tenant não informado", 400);
     if (!canUseTenant(session.tenantId, session.role, tenantId)) {
-      return jsonError("Tenant invalido", 403);
+      return jsonError("Tenant inválido", 403);
     }
 
-    if (!isUploadFile(file)) return jsonError("Arquivo obrigatorio", 400);
+    if (!isUploadFile(file)) return jsonError("Arquivo obrigatório", 400);
     if (!file.type.startsWith("image/")) return jsonError("Envie apenas arquivos de imagem.", 400);
     if (file.size > 10 * 1024 * 1024) return jsonError("Imagem acima do limite de 10 MB.", 413);
 
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     if (!admin) {
       return jsonError(
-        "Upload indisponivel: configure SUPABASE_SERVICE_ROLE_KEY nos secrets do Worker flora-admin.",
+        "Upload indisponível: configure SUPABASE_SERVICE_ROLE_KEY nos secrets do Worker flora-admin.",
         500
       );
     }

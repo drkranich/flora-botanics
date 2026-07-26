@@ -89,7 +89,7 @@ export function NewConversationForm() {
             name="contact_handle"
             type={channel === "email" ? "email" : "text"}
             required
-            placeholder={channel === "email" ? "cliente@email.com" : "@usuario ou telefone"}
+            placeholder={channel === "email" ? "cliente@email.com" : "@cliente ou telefone"}
             style={inputStyle}
           />
         </div>

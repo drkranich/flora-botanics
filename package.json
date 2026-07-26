@@ -16,7 +16,7 @@
     "typecheck": "turbo run typecheck",
     "typecheck:admin": "pnpm --filter @flora/admin exec tsc --noEmit",
     "lint": "turbo run lint",
-    "lint:ui": "node scripts/check-no-select.mjs",
+    "lint:ui": "node scripts/check-no-select.mjs && node scripts/check-ui-portuguese.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

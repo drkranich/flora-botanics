@@ -47,14 +47,14 @@ export async function createAccountingEntry(formData: FormData) {
 
   const tenantId = await effectiveTenantId();
   const type = String(formData.get("type") ?? "expense");
-  if (!ENTRY_TYPES.has(type)) throw new Error("Tipo de lancamento invalido.");
+  if (!ENTRY_TYPES.has(type)) throw new Error("Tipo de lançamento inválido.");
 
   const amountCents = centsFromCurrency(formData.get("amount"));
   if (amountCents <= 0) throw new Error("Informe um valor maior que zero.");
 
   const category = text(formData.get("category"));
   const description = text(formData.get("description"));
-  if (!category || !description) throw new Error("Categoria e descricao sao obrigatorias.");
+  if (!category || !description) throw new Error("Categoria e descrição são obrigatórias.");
 
   const occurredAt = text(formData.get("occurred_at"));
   const recurring = String(formData.get("is_recurring") ?? "") === "on";

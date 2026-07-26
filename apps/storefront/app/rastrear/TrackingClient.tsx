@@ -117,7 +117,7 @@ export function TrackingClient() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="voce@email.com"
+              placeholder="seu@email.com"
               required
               autoComplete="email"
             />

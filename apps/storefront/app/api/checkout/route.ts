@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     if (!result?.ok) {
       return NextResponse.json(
-        { ok: false, error: result?.error ?? "Nao foi possivel criar o pedido." },
+        { ok: false, error: result?.error ?? "Não foi possível criar o pedido." },
         { status: 400 }
       );
     }

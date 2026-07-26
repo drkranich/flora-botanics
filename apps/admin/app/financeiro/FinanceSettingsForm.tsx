@@ -50,7 +50,7 @@ export function FinanceSettingsForm({ settings }: { settings?: FinanceSettingsDa
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
             <Field name="target_margin_percent" label="Margem desejada %" defaultValue={numberInput(settings?.target_margin_percent, 55)} />
             <Field name="minimum_margin_percent" label="Margem mínima %" defaultValue={numberInput(settings?.minimum_margin_percent, 35)} />
-            <Field name="approval_minimum_margin_percent" label="Aprovacao abaixo de %" defaultValue={numberInput(rules.approval_minimum_margin_percent, 25)} />
+            <Field name="approval_minimum_margin_percent" label="Aprovação abaixo de %" defaultValue={numberInput(rules.approval_minimum_margin_percent, 25)} />
             <Field name="max_discount_without_approval_percent" label="Desconto sem aprovação %" defaultValue={numberInput(rules.max_discount_without_approval_percent, 12)} />
             <Field name="default_tax_percent" label="Imposto estimado %" defaultValue={numberInput(settings?.default_tax_percent, 8)} />
             <Field name="default_payment_fee_percent" label="Gateway %" defaultValue={numberInput(settings?.default_payment_fee_percent, 3.99)} />

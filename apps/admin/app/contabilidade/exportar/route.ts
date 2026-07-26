@@ -15,7 +15,7 @@ function csvLine(values: (string | number | null | undefined)[]) {
 
 function buildCsv(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
   const rows = [
-    csvLine(["Relatorio de contabilidade", report.range.label]),
+    csvLine(["Relatório de contabilidade", report.range.label]),
     csvLine([]),
     csvLine(["Indicador", "Valor"]),
     csvLine(["Receita por pedidos", money(report.totals.grossRevenue)]),
@@ -28,11 +28,11 @@ function buildCsv(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
     csvLine(["MRR ativo", money(report.totals.mrr)]),
     csvLine(["Descontos concedidos", money(report.totals.discounts)]),
     csvLine([]),
-    csvLine(["Razao contabil"]),
-    csvLine(["Origem", "Canal", "Tipo", "Categoria", "Descricao", "Centro de custo", "Valor", "Data"]),
+    csvLine(["Razão contábil"]),
+    csvLine(["Origem", "Canal", "Tipo", "Categoria", "Descrição", "Centro de custo", "Valor", "Data"]),
     ...report.ledgerRows.map((entry) =>
       csvLine([
-        entry.source === "automatic" ? "automatico" : "manual",
+        entry.source === "automatic" ? "automático" : "manual",
         entry.channel ?? "",
         entry.type,
         entry.category,
@@ -75,7 +75,7 @@ function pdfText(value: string) {
 function buildPdf(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
   const lines = [
     "Flora Botanics - Contabilidade",
-    `Periodo: ${report.range.label}`,
+    `Período: ${report.range.label}`,
     "",
     `Receita por pedidos: ${money(report.totals.grossRevenue)}`,
     `Receita manual: ${money(report.totals.manualIncome)}`,
@@ -86,13 +86,13 @@ function buildPdf(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
     `MRR ativo: ${money(report.totals.mrr)}`,
     `Descontos concedidos: ${money(report.totals.discounts)}`,
     "",
-    "Razao contabil:",
+    "Razão contábil:",
     ...report.ledgerRows.slice(0, 24).map((entry) => {
       const signal = entry.type === "income" ? "+" : "-";
       return `${entry.source} - ${entry.channel ?? "sem canal"} - ${entry.description} - ${signal} ${money(entry.amount_cents, entry.currency)}`;
     }),
     "",
-    "Ultimas receitas:",
+    "Últimas receitas:",
     ...report.realizedOrders.slice(0, 12).map((order) => {
       return `Pedido #${order.number} - ${customerName(order)} - ${money(order.total_cents, order.currency)}`;
     }),
@@ -134,7 +134,7 @@ function buildPdf(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
 export async function GET(request: NextRequest) {
   const session = await getStaffSession();
   if (!session || session.role === "tenant_editor") {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const url = new URL(request.url);

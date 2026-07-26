@@ -42,7 +42,7 @@ const COMMANDS = [
   { label: "Ir para Vendas — Cupons", href: "/vendas/cupons" },
   { label: "Ir para Vendas — Carrinhos abandonados", href: "/vendas/carrinhos" },
   { label: "Ir para Contabilidade", href: "/contabilidade" },
-  { label: "Ir para Financeiro, Precificacao e Orcamentos", href: "/financeiro" },
+  { label: "Ir para Financeiro, Precificação e Orçamentos", href: "/financeiro" },
   { label: "Ir para Inbox", href: "/inbox" },
   { label: "Ir para Canais de venda", href: "/canais" },
   { label: "Ir para Operações — Estoque", href: "/operacoes" },

@@ -41,7 +41,7 @@ export default function LoginPage() {
         setError(
           signUpError.message.includes("already registered")
             ? "Este e-mail ja tem conta - use Entrar."
-            : "Nao foi possivel criar a conta. Verifique os dados."
+            : "Não foi possível criar a conta. Verifique os dados."
         );
         return;
       }
@@ -122,7 +122,7 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="voce@florabotanics.com"
+            placeholder="admin@florabotanics.com"
             required
             autoComplete="email"
           />

@@ -13,10 +13,10 @@ export function DeleteAccountingEntryButton({ id, label }: { id: string; label: 
         type="button"
         className="btn-icon"
         disabled={pending}
-        title="Excluir lancamento"
+        title="Excluir lançamento"
         style={{ color: "#e8a0a0" }}
         onClick={() => {
-          if (!confirm(`Excluir o lancamento "${label}"?`)) return;
+          if (!confirm(`Excluir o lançamento "${label}"?`)) return;
           setError(null);
           startTransition(async () => {
             try {

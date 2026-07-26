@@ -132,7 +132,7 @@ export default async function FinanceiroPage() {
         <section className="glass rise" style={{ padding: 22, borderColor: "rgba(232,160,160,0.45)" }}>
           <p className="eyebrow" style={{ color: "#e8a0a0", marginBottom: 8 }}>Migration pendente</p>
           <p className="muted" style={{ margin: 0, lineHeight: 1.7 }}>
-            Aplique a migration `20260726114536_commercial_finance_engine.sql` para liberar o modulo financeiro completo.
+            Aplique a migration `20260726114536_commercial_finance_engine.sql` para liberar o módulo financeiro completo.
           </p>
         </section>
       </main>

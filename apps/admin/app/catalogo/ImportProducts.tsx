@@ -188,7 +188,7 @@ export function ImportProducts() {
                 <p className="eyebrow">Importar produtos via planilha</p>
                 <p className="muted" style={{ fontSize: 11.5, marginTop: 6, maxWidth: 420, lineHeight: 1.6 }}>
                   Aceita .xlsx, .xls e .csv (até 500 linhas). Colunas: <b>nome</b> e{" "}
-                  <b>preco</b> obrigatórias; subtitulo, preco_de, estoque, categoria
+                  <b>preço</b> obrigatórias; subtítulo, preço_de, estoque, categoria
                   (nome ou slug), sku e publicado (sim/não) opcionais. Produtos com
                   nome repetido são pulados, nunca sobrescritos.
                 </p>

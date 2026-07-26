@@ -88,7 +88,7 @@ export function KitManager({
       <section className="glass rise" style={{ padding: 22, borderColor: "rgba(185, 146, 77, 0.28)" }}>
         <p className="eyebrow" style={{ color: "var(--gold-light)", marginBottom: 10 }}>Migration pendente</p>
         <p className="muted" style={{ margin: 0, lineHeight: 1.6 }}>
-          A tabela <code>product_kit_items</code> ainda nao existe no banco publicado. Aplique a migration
+          A tabela <code>product_kit_items</code> ainda não existe no banco publicado. Aplique a migration
           <code> supabase/migrations/20260723122212_product_kits_foundation.sql</code> no Supabase para liberar o
           construtor de kits.
         </p>
@@ -309,7 +309,7 @@ function KitFormFields({
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="field">
-            <span className="field-label">Subtitulo</span>
+            <span className="field-label">Subtítulo</span>
             <input className="input" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
           </div>
         </div>
@@ -317,11 +317,11 @@ function KitFormFields({
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
         <div className="field">
-          <span className="field-label">Preco do kit (R$)</span>
+          <span className="field-label">Preço do kit (R$)</span>
           <input className="input" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} required />
         </div>
         <div className="field">
-          <span className="field-label">Preco de referencia</span>
+          <span className="field-label">Preço de referência</span>
           <input className="input" inputMode="decimal" value={compareAt} onChange={(e) => setCompareAt(e.target.value)} />
         </div>
         <div className="field">

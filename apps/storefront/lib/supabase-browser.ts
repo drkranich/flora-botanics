@@ -9,7 +9,7 @@ export function storefrontSupabase() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    throw new Error("Supabase publico nao configurado no storefront.");
+    throw new Error("Supabase público não configurado no storefront.");
   }
 
   if (!browserClient) {

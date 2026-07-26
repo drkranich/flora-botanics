@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const STAFF_ROLES = ["platform_admin", "tenant_owner", "tenant_admin", "tenant_editor"];
 
 const RESET_NOTICE =
-  "Se este e-mail estiver cadastrado como equipe do painel, voce recebera um link para redefinir a senha.";
+  "Se este e-mail estiver cadastrado como equipe do painel, você receberá um link para redefinir a senha.";
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -22,13 +22,13 @@ async function resetRedirectUrl(): Promise<string> {
 }
 
 /**
- * Recuperacao de senha do painel administrativo.
+ * Recuperação de senha do painel administrativo.
  *
- * Regra de seguranca:
+ * Regra de segurança:
  * - nunca chama o reset do Supabase direto do navegador;
  * - primeiro valida, no servidor, que o e-mail pertence a um perfil staff;
- * - clientes comuns (`role = customer`) nao recebem link de reset do admin;
- * - a resposta da UI e sempre generica para nao enumerar e-mails validos.
+ * - clientes comuns (`role = customer`) não recebem link de reset do admin;
+ * - a resposta da UI é sempre genérica para não enumerar e-mails válidos.
  */
 export async function requestAdminPasswordReset(email: string): Promise<{ notice: string }> {
   const normalizedEmail = normalizeEmail(email);
@@ -38,7 +38,7 @@ export async function requestAdminPasswordReset(email: string): Promise<{ notice
 
   const supabase = await createAdminClient();
   if (!supabase) {
-    console.error("SUPABASE_SERVICE_ROLE_KEY ausente: recuperacao de senha do admin indisponivel.");
+    console.error("SUPABASE_SERVICE_ROLE_KEY ausente: recuperação de senha do admin indisponível.");
     return { notice: RESET_NOTICE };
   }
 

@@ -544,7 +544,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
             {mode === "cadastro" && (
               <label>Nome completo<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" /></label>
             )}
-            <label>E-mail<input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" /></label>
+            <label>E-mail<input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" /></label>
             <label>Senha<input required minLength={6} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" /></label>
             <button type="submit" className="account-primary-button" disabled={pending}>
               {pending ? "Aguarde..." : mode === "cadastro" ? "Criar conta" : "Entrar"}
@@ -875,7 +875,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
                   placeholder={
                     payInfo.pix_key_type === "cpf" ? "000.000.000-00"
                     : payInfo.pix_key_type === "phone" ? "+55 11 99999-9999"
-                    : payInfo.pix_key_type === "email" ? "voce@email.com"
+                    : payInfo.pix_key_type === "email" ? "seu@email.com"
                     : "Sua chave"
                   }
                 />

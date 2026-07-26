@@ -14,7 +14,7 @@ const ENTRY_TYPE_LABEL: Record<string, string> = {
   tax: "Imposto",
   fee: "Taxa",
   product_cost: "Custo de produto",
-  shipping_cost: "Frete / logistica",
+  shipping_cost: "Frete / logística",
   packaging_cost: "Embalagem",
   operational_cost: "Operacional",
   adjustment: "Ajuste",
@@ -38,28 +38,28 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
 
   const kpis = [
     { label: "Receita ajustada", value: money(totals.adjustedRevenue), detail: `${money(totals.grossRevenue)} em pedidos + ${money(totals.manualIncome)} manual` },
-    { label: "Lucro ajustado", value: money(totals.adjustedProfit), detail: `${percent(totals.adjustedProfit, totals.adjustedRevenue)} de margem apos custos manuais` },
+    { label: "Lucro ajustado", value: money(totals.adjustedProfit), detail: `${percent(totals.adjustedProfit, totals.adjustedRevenue)} de margem após custos manuais` },
     { label: "Custos totais", value: money(totals.adjustedCosts), detail: `${money(totals.estimatedCosts)} estimado + ${money(totals.manualExpenses)} manual` },
     { label: "Ticket medio", value: money(average(totals.grossRevenue, report.realizedOrders.length)), detail: `${report.realizedOrders.length} pedidos com receita` },
   ];
 
   const costRows = [
-    { label: "Custo estimado dos produtos", value: totals.productCost, note: "Provisao automatica sobre subtotal" },
-    { label: "Custo manual de produto", value: totals.manualProductCosts, note: "Lancamentos reais adicionados pela equipe" },
-    { label: "Frete operacional estimado", value: totals.shippingCollected, note: "Usa o frete cobrado como provisao" },
-    { label: "Taxas estimadas de pagamento", value: totals.paymentFees, note: "Provisao ate Stripe enviar taxas reais" },
-    { label: "Taxas manuais", value: totals.manualFees, note: "Taxas bancarias, gateways, chargebacks e similares" },
-    { label: "Impostos estimados", value: totals.taxReserve, note: "Reserva fiscal automatica" },
+    { label: "Custo estimado dos produtos", value: totals.productCost, note: "Provisão automática sobre subtotal" },
+    { label: "Custo manual de produto", value: totals.manualProductCosts, note: "Lançamentos reais adicionados pela equipe" },
+    { label: "Frete operacional estimado", value: totals.shippingCollected, note: "Usa o frete cobrado como provisão" },
+    { label: "Taxas estimadas de pagamento", value: totals.paymentFees, note: "Provisão até Stripe enviar taxas reais" },
+    { label: "Taxas manuais", value: totals.manualFees, note: "Taxas bancárias, gateways, chargebacks e similares" },
+    { label: "Impostos estimados", value: totals.taxReserve, note: "Reserva fiscal automática" },
     { label: "Impostos manuais", value: totals.manualTaxes, note: "ICMS, DAS, nota, contador, ajustes fiscais" },
-    { label: "Operacional manual", value: totals.manualOperationalCosts, note: "Embalagem, operacao, logistica e ajustes" },
+    { label: "Operacional manual", value: totals.manualOperationalCosts, note: "Embalagem, operação, logística e ajustes" },
   ];
 
   const cashRows = [
     { label: "Entradas por pedidos", value: totals.grossRevenue },
     { label: "Receitas manuais", value: totals.manualIncome },
     { label: "Descontos concedidos", value: -totals.discounts },
-    { label: "Saidas estimadas", value: -totals.estimatedCosts },
-    { label: "Saidas manuais", value: -totals.manualExpenses },
+    { label: "Saídas estimadas", value: -totals.estimatedCosts },
+    { label: "Saídas manuais", value: -totals.manualExpenses },
     { label: "Saldo ajustado", value: totals.adjustedProfit, strong: true },
   ];
 
@@ -71,7 +71,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
           <div>
             <h1 className="display" style={{ fontSize: 44 }}>Contabilidade</h1>
             <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
-              Receitas, custos, impostos, taxas, provisoes e fluxo de caixa operacional.
+              Receitas, custos, impostos, taxas, provisões e fluxo de caixa operacional.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -97,10 +97,10 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
       </section>
 
       <section className="glass rise rise-1" style={noticeStyle}>
-        <span className="chip chip-draft">Periodo: {range.label}</span>
+        <span className="chip chip-draft">Período: {range.label}</span>
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--cream-dim)", lineHeight: 1.7 }}>
-          Os numeros combinam pedidos reais, provisoes automaticas e lancamentos manuais. Conforme Stripe, SEFAZ,
-          logistica e compras forem conectados, este modulo passa a trocar estimativas por dados reais.
+          Os números combinam pedidos reais, provisões automáticas e lançamentos manuais. Conforme Stripe, SEFAZ,
+          logística e compras forem conectados, este módulo passa a trocar estimativas por dados reais.
         </p>
       </section>
 
@@ -108,7 +108,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
 
       <div style={twoColumnStyle}>
         <section className="glass rise rise-2" style={panelStyle}>
-          <SectionTitle eyebrow="Custos" title="Saidas e provisoes" />
+          <SectionTitle eyebrow="Custos" title="Saídas e provisões" />
           <div style={{ display: "grid", gap: 12 }}>
             {costRows.map((row) => (
               <MetricLine key={row.label} label={row.label} value={money(row.value)} note={row.note} />
@@ -117,7 +117,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
         </section>
 
         <section className="glass rise rise-2" style={panelStyle}>
-          <SectionTitle eyebrow="Fluxo de caixa" title="Entradas, saidas e saldo" />
+          <SectionTitle eyebrow="Fluxo de caixa" title="Entradas, saídas e saldo" />
           <div style={{ display: "grid", gap: 12 }}>
             {cashRows.map((row) => (
               <MetricLine
@@ -133,7 +133,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
       </div>
 
       <section className="glass rise rise-3" style={panelStyle}>
-        <SectionTitle eyebrow="Lancamentos" title="Custos, impostos e ajustes manuais" />
+        <SectionTitle eyebrow="Lançamentos" title="Custos, impostos e ajustes manuais" />
         {report.ledgerRows.length ? (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -143,7 +143,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
                   <th style={thStyle}>Origem</th>
                   <th style={thStyle}>Canal</th>
                   <th style={thStyle}>Tipo</th>
-                  <th style={thStyle}>Descricao</th>
+                  <th style={thStyle}>Descrição</th>
                   <th style={thStyle}>Centro</th>
                   <th style={thStyle}>Valor</th>
                   <th style={thStyle}></th>
@@ -157,7 +157,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
             </table>
           </div>
         ) : (
-          <EmptyText text="Nenhum lancamento manual neste periodo." />
+          <EmptyText text="Nenhum lançamento manual neste período." />
         )}
       </section>
 
@@ -171,7 +171,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
                   key={campaign.id}
                   label={campaign.title}
                   value={money(campaign.revenue_cents ?? 0)}
-                  note={`${campaign.channel ?? "sem canal"} · ${campaign.orders ?? 0} pedidos · orcamento ${money(campaign.budget_cents ?? 0)}`}
+                  note={`${campaign.channel ?? "sem canal"} · ${campaign.orders ?? 0} pedidos · orçamento ${money(campaign.budget_cents ?? 0)}`}
                 />
               ))}
             </div>
@@ -179,12 +179,12 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
             <EmptyText text="Nenhuma campanha com dados financeiros ainda." />
           )}
           <div style={{ marginTop: 16, borderTop: "1px solid var(--glass-border)", paddingTop: 14 }}>
-            <MetricLine label="Total atribuido" value={money(totals.campaignRevenue)} note={`Orcamento informado: ${money(totals.campaignBudget)}`} strong />
+            <MetricLine label="Total atribuído" value={money(totals.campaignRevenue)} note={`Orçamento informado: ${money(totals.campaignBudget)}`} strong />
           </div>
         </section>
 
         <section className="glass rise rise-4" style={panelStyle}>
-          <SectionTitle eyebrow="Pedidos" title="Ultimas receitas" />
+          <SectionTitle eyebrow="Pedidos" title="Últimas receitas" />
           {report.realizedOrders.length ? (
             <div style={{ display: "grid", gap: 10 }}>
               {report.realizedOrders.slice(0, 6).map((order) => (
@@ -200,7 +200,7 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
               ))}
             </div>
           ) : (
-            <EmptyText text="Nenhum pedido com receita neste periodo." />
+            <EmptyText text="Nenhum pedido com receita neste período." />
           )}
         </section>
       </div>
@@ -214,7 +214,7 @@ function AccountingEntryRowView({ entry }: { entry: AccountingLedgerRow }) {
       <td style={tdStyle}>{new Date(entry.occurred_at).toLocaleDateString("pt-BR")}</td>
       <td style={tdStyle}>
         <span className={entry.source === "automatic" ? "chip chip-live" : "chip chip-draft"}>
-          {entry.source === "automatic" ? "Automatico" : "Manual"}
+          {entry.source === "automatic" ? "Automático" : "Manual"}
         </span>
       </td>
       <td style={tdStyle}>{entry.channel ?? "—"}</td>
@@ -253,7 +253,7 @@ function PeriodLinks({ current }: { current: string }) {
     { key: "today", label: "Hoje" },
     { key: "7d", label: "7 dias" },
     { key: "30d", label: "30 dias" },
-    { key: "month", label: "Mes" },
+    { key: "month", label: "Mês" },
     { key: "year", label: "Ano" },
   ];
 

@@ -86,7 +86,7 @@ export function PagesList({ rows, storefrontUrl }: { rows: PageRow[]; storefront
         <GlassSelect
           value={type}
           options={TYPE_OPTIONS}
-          ariaLabel="Filtrar tipo de pagina"
+          ariaLabel="Filtrar tipo de página"
           onChange={setType}
           style={{ width: 160 }}
         />
@@ -123,7 +123,7 @@ export function PagesList({ rows, storefrontUrl }: { rows: PageRow[]; storefront
           <GlassSelect
             value={newType}
             options={NEW_TYPE_OPTIONS}
-            ariaLabel="Tipo da nova pagina"
+            ariaLabel="Tipo da nova página"
             onChange={setNewType}
             style={{ width: 160 }}
           />
