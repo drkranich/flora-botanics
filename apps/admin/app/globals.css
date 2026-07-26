@@ -309,6 +309,14 @@ select option:focus {
   -webkit-backdrop-filter: blur(18px) saturate(1.22);
 }
 
+.glass-select-menu-inline {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+}
+
 .glass-select-option {
   width: 100%;
   border: 0;
@@ -328,6 +336,12 @@ select option:focus {
   color: var(--forest-950);
   background: linear-gradient(135deg, var(--gold-light), var(--gold));
   outline: none;
+}
+
+.glass-date-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
 }
 
 .glass-date-trigger {
@@ -373,6 +387,14 @@ select option:focus {
   box-shadow: 0 22px 55px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(22px) saturate(1.2);
   -webkit-backdrop-filter: blur(22px) saturate(1.2);
+}
+
+.glass-date-popover-inline {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(max(100%, 286px), calc(100vw - 32px));
 }
 
 .glass-date-head {

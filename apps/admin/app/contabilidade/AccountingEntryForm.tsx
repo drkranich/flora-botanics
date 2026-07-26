@@ -111,7 +111,7 @@ export function AccountingEntryForm() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
             <label className="field">
               <span>Tipo</span>
-              <GlassSelect name="type" defaultValue="expense" options={TYPE_OPTIONS} ariaLabel="Tipo de lancamento" />
+              <GlassSelect name="type" defaultValue="expense" options={TYPE_OPTIONS} ariaLabel="Tipo de lancamento" inlineMenu />
             </label>
             <label className="field">
               <span>Categoria</span>
@@ -190,15 +190,22 @@ export function AccountingEntryForm() {
             </label>
             <label className="field">
               <span>Periodo inicial</span>
-              <GlassDateInput name="period_start" value={periodStart} onChange={setPeriodStart} placeholder="Opcional" />
+              <GlassDateInput name="period_start" value={periodStart} onChange={setPeriodStart} placeholder="Opcional" inlinePopover />
             </label>
             <label className="field">
               <span>Periodo final</span>
-              <GlassDateInput name="period_end" value={periodEnd} onChange={setPeriodEnd} placeholder="Opcional" />
+              <GlassDateInput name="period_end" value={periodEnd} onChange={setPeriodEnd} placeholder="Opcional" inlinePopover />
             </label>
             <label className="field">
               <span>Recorrencia</span>
-              <GlassSelect name="recurrence_interval" value={recurrence} onChange={setRecurrence} options={RECURRENCE_OPTIONS} ariaLabel="Recorrencia" />
+              <GlassSelect
+                name="recurrence_interval"
+                value={recurrence}
+                onChange={setRecurrence}
+                options={RECURRENCE_OPTIONS}
+                ariaLabel="Recorrencia"
+                inlineMenu
+              />
             </label>
             <label className="field">
               <span>Tags</span>

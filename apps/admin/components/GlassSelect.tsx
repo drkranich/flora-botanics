@@ -18,6 +18,7 @@ export function GlassSelect({
   disabled,
   ariaLabel,
   style,
+  inlineMenu = false,
 }: {
   id?: string;
   name?: string;
@@ -28,6 +29,7 @@ export function GlassSelect({
   disabled?: boolean;
   ariaLabel?: string;
   style?: CSSProperties;
+  inlineMenu?: boolean;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef    = useRef<HTMLDivElement>(null);
@@ -61,7 +63,7 @@ export function GlassSelect({
   }, []);
 
   function toggle() {
-    if (!open && triggerRef.current) {
+    if (!inlineMenu && !open && triggerRef.current) {
       const r = triggerRef.current.getBoundingClientRect();
       // abre abaixo do trigger; se não couber na tela, abre acima
       const spaceBelow = window.innerHeight - r.bottom;
@@ -86,13 +88,13 @@ export function GlassSelect({
     setOpen(false);
   }
 
-  const menu = open && mounted ? createPortal(
+  const menuContent = open ? (
     <div
       ref={menuRef}
-      className="glass-select-menu"
+      className={inlineMenu ? "glass-select-menu glass-select-menu-inline" : "glass-select-menu"}
       role="listbox"
       aria-label={ariaLabel}
-      style={menuStyle}
+      style={inlineMenu ? undefined : menuStyle}
     >
       {options.map((option) => (
         <button
@@ -107,9 +109,10 @@ export function GlassSelect({
           {option.label}
         </button>
       ))}
-    </div>,
-    document.body
+    </div>
   ) : null;
+
+  const menu = inlineMenu ? menuContent : open && mounted && menuContent ? createPortal(menuContent, document.body) : null;
 
   return (
     <>
@@ -129,8 +132,9 @@ export function GlassSelect({
           <span>{selected?.label ?? "Selecione"}</span>
           <span className="glass-select-arrow" aria-hidden="true" />
         </button>
+        {inlineMenu ? menu : null}
       </div>
-      {menu}
+      {inlineMenu ? null : menu}
     </>
   );
 }

@@ -48,6 +48,7 @@ export function GlassDateInput({
   defaultValue,
   placeholder = "Selecionar data",
   withTime = false,
+  inlinePopover = false,
 }: {
   name?: string;
   value?: string;
@@ -55,6 +56,7 @@ export function GlassDateInput({
   defaultValue?: string;
   placeholder?: string;
   withTime?: boolean;
+  inlinePopover?: boolean;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -99,7 +101,7 @@ export function GlassDateInput({
   }
 
   function openPicker() {
-    if (triggerRef.current) {
+    if (!inlinePopover && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({
         position: "fixed",
@@ -132,101 +134,104 @@ export function GlassDateInput({
     setTime(`${hour}:${nextMinute}`);
   }
 
+  const calendar = open ? (
+    <div
+      ref={popoverRef}
+      className={inlinePopover ? "glass-date-popover glass-date-popover-inline" : "glass-date-popover"}
+      style={inlinePopover ? undefined : position}
+    >
+      <div className="glass-date-head">
+        <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}>
+          {"<"}
+        </button>
+        <strong>
+          {MONTHS[view.getMonth()]} {view.getFullYear()}
+        </strong>
+        <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() + 1, 1))}>
+          {">"}
+        </button>
+      </div>
+
+      <div className="glass-date-grid glass-date-weekdays">
+        {WEEKDAYS.map((day, index) => (
+          <span key={`${day}-${index}`}>{day}</span>
+        ))}
+      </div>
+
+      <div className="glass-date-grid">
+        {days.map((day, index) => {
+          const active = !!day && selected?.toDateString() === day.toDateString();
+          return day ? (
+            <button
+              key={day.toISOString()}
+              type="button"
+              className={active ? "glass-date-day is-active" : "glass-date-day"}
+              onClick={() => pick(day)}
+            >
+              {day.getDate()}
+            </button>
+          ) : (
+            <span key={`empty-${index}`} />
+          );
+        })}
+      </div>
+
+      {withTime ? (
+        <div className="glass-date-time">
+          <div className="glass-time-picker" aria-label="Selecionar horario">
+            <div className="glass-time-column" aria-label="Hora">
+              {HOURS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={option === hour ? "glass-time-option is-active" : "glass-time-option"}
+                  onClick={() => chooseHour(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+            <div className="glass-time-separator">:</div>
+            <div className="glass-time-column" aria-label="Minuto">
+              {MINUTES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={option === minute ? "glass-time-option is-active" : "glass-time-option"}
+                  onClick={() => chooseMinute(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button type="button" className="btn btn-gold" onClick={applyTime}>
+            Aplicar
+          </button>
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        className="glass-date-clear"
+        onClick={() => {
+          setNext("");
+          setOpen(false);
+        }}
+      >
+        Limpar
+      </button>
+    </div>
+  ) : null;
+
   return (
-    <>
+    <span className="glass-date-wrap">
       {name ? <input type="hidden" name={name} value={currentValue} /> : null}
       <button ref={triggerRef} type="button" className="glass-date-trigger" onClick={openPicker}>
         <span>{displayValue(currentValue, withTime) || placeholder}</span>
         <span className="glass-date-icon">▦</span>
       </button>
-      {open && mounted
-        ? createPortal(
-            <div ref={popoverRef} className="glass-date-popover" style={position}>
-              <div className="glass-date-head">
-                <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}>
-                  {"<"}
-                </button>
-                <strong>
-                  {MONTHS[view.getMonth()]} {view.getFullYear()}
-                </strong>
-                <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() + 1, 1))}>
-                  {">"}
-                </button>
-              </div>
-
-              <div className="glass-date-grid glass-date-weekdays">
-                {WEEKDAYS.map((day, index) => (
-                  <span key={`${day}-${index}`}>{day}</span>
-                ))}
-              </div>
-
-              <div className="glass-date-grid">
-                {days.map((day, index) => {
-                  const active = !!day && selected?.toDateString() === day.toDateString();
-                  return day ? (
-                    <button
-                      key={day.toISOString()}
-                      type="button"
-                      className={active ? "glass-date-day is-active" : "glass-date-day"}
-                      onClick={() => pick(day)}
-                    >
-                      {day.getDate()}
-                    </button>
-                  ) : (
-                    <span key={`empty-${index}`} />
-                  );
-                })}
-              </div>
-
-              {withTime ? (
-                <div className="glass-date-time">
-                  <div className="glass-time-picker" aria-label="Selecionar horario">
-                    <div className="glass-time-column" aria-label="Hora">
-                      {HOURS.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          className={option === hour ? "glass-time-option is-active" : "glass-time-option"}
-                          onClick={() => chooseHour(option)}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="glass-time-separator">:</div>
-                    <div className="glass-time-column" aria-label="Minuto">
-                      {MINUTES.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          className={option === minute ? "glass-time-option is-active" : "glass-time-option"}
-                          onClick={() => chooseMinute(option)}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <button type="button" className="btn btn-gold" onClick={applyTime}>
-                    Aplicar
-                  </button>
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                className="glass-date-clear"
-                onClick={() => {
-                  setNext("");
-                  setOpen(false);
-                }}
-              >
-                Limpar
-              </button>
-            </div>,
-            document.body
-          )
-        : null}
-    </>
+      {inlinePopover ? calendar : mounted && calendar ? createPortal(calendar, document.body) : null}
+    </span>
   );
 }
