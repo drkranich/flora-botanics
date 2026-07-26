@@ -430,22 +430,14 @@ export default async function MensagensPage() {
                           }}
                           style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, marginTop: 10 }}
                         >
-                          <select
+                          <GlassSelect
                             name="template_id"
-                            style={{
-                              background: "rgba(10,22,11,0.5)",
-                              border: "1px solid var(--glass-border)",
-                              borderRadius: 6,
-                              padding: "7px 10px",
-                              color: "var(--cream)",
-                              fontSize: 12,
-                            }}
-                          >
-                            <option value="">Selecione um template de e-mail</option>
-                            {emailTemplates.map((t) => (
-                              <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                          </select>
+                            ariaLabel="Template de e-mail"
+                            options={[
+                              { value: "", label: "Selecione um template de e-mail" },
+                              ...emailTemplates.map((t) => ({ value: t.id, label: t.name })),
+                            ]}
+                          />
                           <input
                             name="delay_hours"
                             type="number"

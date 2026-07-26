@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { createCoupon, toggleCoupon, deleteCoupon } from "@/lib/sales/actions";
 import { GlassSelect } from "@/components/GlassSelect";
+import { GlassDateInput } from "@/components/GlassDateInput";
 
 type Coupon = {
   id: string;
@@ -133,7 +134,7 @@ export function CouponManager({ initial }: { initial: Coupon[] }) {
             </div>
             <div className="field">
               <span className="field-label">Expira em (opcional)</span>
-              <input className="input" type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+              <GlassDateInput value={endsAt} onChange={setEndsAt} placeholder="Selecionar data" />
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>

@@ -330,6 +330,130 @@ select option:focus {
   outline: none;
 }
 
+.glass-date-trigger {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  color: var(--cream);
+  background:
+    linear-gradient(145deg, rgba(255, 248, 234, 0.10), rgba(255, 248, 234, 0.035)),
+    rgba(10, 22, 11, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  text-align: left;
+  backdrop-filter: blur(16px) saturate(1.16);
+  -webkit-backdrop-filter: blur(16px) saturate(1.16);
+}
+
+.glass-date-trigger:hover,
+.glass-date-trigger:focus-visible {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
+.glass-date-icon {
+  color: var(--gold-light);
+  font-size: 12px;
+}
+
+.glass-date-popover {
+  padding: 14px;
+  border: 1px solid var(--glass-border-hover);
+  border-radius: 16px;
+  background: rgba(9, 20, 10, 0.96);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(22px) saturate(1.2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+}
+
+.glass-date-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.glass-date-head strong {
+  color: var(--cream);
+  font-size: 13px;
+}
+
+.glass-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.glass-date-weekdays {
+  margin-bottom: 5px;
+}
+
+.glass-date-weekdays span {
+  color: var(--cream-dim);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.glass-date-day {
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--cream-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.glass-date-day:hover,
+.glass-date-day:focus-visible {
+  border-color: var(--glass-border-hover);
+  color: var(--gold-light);
+  background: rgba(255, 248, 234, 0.07);
+  outline: none;
+}
+
+.glass-date-day.is-active {
+  color: var(--forest-950);
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  font-weight: 900;
+}
+
+.glass-date-time {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.glass-date-time .btn {
+  padding: 0 14px;
+  min-height: 38px;
+  font-size: 10px;
+}
+
+.glass-date-clear {
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--gold-light);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .cms-color-control {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);

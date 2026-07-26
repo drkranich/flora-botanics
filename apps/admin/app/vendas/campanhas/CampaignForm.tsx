@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import { GlassSelect } from "@/components/GlassSelect";
+import { GlassDateInput } from "@/components/GlassDateInput";
 
 export interface CampaignFormValues {
   id?: string;
@@ -42,12 +44,17 @@ export function CampaignForm({
         </label>
         <label className="field">
           <span>Status</span>
-          <select className="input" name="status" defaultValue={values?.status ?? "draft"}>
-            <option value="draft">Rascunho</option>
-            <option value="active">Ativa</option>
-            <option value="paused">Pausada</option>
-            <option value="ended">Encerrada</option>
-          </select>
+          <GlassSelect
+            name="status"
+            defaultValue={values?.status ?? "draft"}
+            ariaLabel="Status da campanha"
+            options={[
+              { value: "draft", label: "Rascunho" },
+              { value: "active", label: "Ativa" },
+              { value: "paused", label: "Pausada" },
+              { value: "ended", label: "Encerrada" },
+            ]}
+          />
         </label>
         <label className="field">
           <span>Canal</span>
@@ -55,11 +62,11 @@ export function CampaignForm({
         </label>
         <label className="field">
           <span>In√≠cio</span>
-          <input className="input" type="datetime-local" name="starts_at" defaultValue={toLocalDateTime(values?.starts_at)} />
+          <GlassDateInput name="starts_at" defaultValue={toLocalDateTime(values?.starts_at)} withTime placeholder="Selecionar inÌcio" />
         </label>
         <label className="field">
           <span>Fim</span>
-          <input className="input" type="datetime-local" name="ends_at" defaultValue={toLocalDateTime(values?.ends_at)} />
+          <GlassDateInput name="ends_at" defaultValue={toLocalDateTime(values?.ends_at)} withTime placeholder="Selecionar fim" />
         </label>
         <label className="field">
           <span>Cidades-alvo</span>
