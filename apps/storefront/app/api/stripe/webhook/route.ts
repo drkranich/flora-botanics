@@ -23,6 +23,9 @@ type StripeObject = {
   amount_refunded?: number | null;
   payment_intent?: string | null;
   status?: string;
+  current_period_end?: number | null;
+  canceled_at?: number | null;
+  pause_collection?: unknown;
 };
 
 async function verifyEvent(payload: string, signature: string | null) {
@@ -166,6 +169,52 @@ async function markRefund(event: StripeEvent) {
   return `Pedido ${orderId} marcado com reembolso no pagamento.`;
 }
 
+async function syncSubscriptionLifecycle(event: StripeEvent) {
+  const service = await getServerSupabase();
+  const subscription = event.data.object as StripeObject;
+  if (!subscription.id) return "Evento de assinatura sem ID; ignorado.";
+
+  const stripeStatus = subscription.status === "canceled" ? "cancelled" : subscription.status;
+  const status = event.type === "customer.subscription.deleted"
+    ? "cancelled"
+    : subscription.pause_collection
+      ? "paused"
+      : stripeStatus ?? "active";
+
+  const updatePayload = {
+    status,
+    current_period_end: subscription.current_period_end
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : null,
+    next_billing_at: subscription.current_period_end
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : null,
+    cancelled_at: subscription.canceled_at
+      ? new Date(subscription.canceled_at * 1000).toISOString()
+      : event.type === "customer.subscription.deleted"
+        ? new Date().toISOString()
+        : null,
+    paused_at: subscription.pause_collection ? new Date().toISOString() : null,
+  };
+
+  const { data: existing } = await service
+    .from("subscriptions")
+    .select("id")
+    .eq("stripe_subscription_id", subscription.id)
+    .maybeSingle();
+
+  if (!existing) {
+    return `Assinatura ${subscription.id} recebida antes do checkout local; evento registrado para reconciliação.`;
+  }
+
+  await service
+    .from("subscriptions")
+    .update(updatePayload)
+    .eq("stripe_subscription_id", subscription.id);
+
+  return `Assinatura ${subscription.id} atualizada para ${status}.`;
+}
+
 async function processEvent(event: StripeEvent, environment: StripeEnvironment) {
   switch (event.type) {
     case "checkout.session.completed":
@@ -177,6 +226,10 @@ async function processEvent(event: StripeEvent, environment: StripeEnvironment) 
     case "charge.refunded":
     case "refund.updated":
       return markRefund(event);
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted":
+      return syncSubscriptionLifecycle(event);
     default:
       return `Evento ${event.type} registrado sem ação operacional.`;
   }

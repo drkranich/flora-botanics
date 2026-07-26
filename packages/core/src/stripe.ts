@@ -245,6 +245,7 @@ export function createStripeCheckoutSession(apiKey: string, input: {
   metadata?: Record<string, string | null | undefined>;
   idempotencyKey: string;
 }) {
+  const metadata = cleanMetadata(input.metadata);
   return stripeRequest<StripeCheckoutSession>({
     apiKey,
     method: "POST",
@@ -258,6 +259,8 @@ export function createStripeCheckoutSession(apiKey: string, input: {
       ...(input.customerEmail ? { customer_email: input.customerEmail } : {}),
       ...(input.clientReferenceId ? { client_reference_id: input.clientReferenceId } : {}),
       ...(input.discounts?.length ? { discounts: input.discounts } : {}),
+      ...(input.mode === "payment" ? { payment_intent_data: { metadata } } : {}),
+      ...(input.mode === "subscription" ? { subscription_data: { metadata } } : {}),
       ...(input.shippingAmountCents && input.shippingAmountCents > 0
         ? {
             shipping_options: [
@@ -275,7 +278,7 @@ export function createStripeCheckoutSession(apiKey: string, input: {
           }
         : {}),
       integration_identifier: `flora_checkout_${randomIdentifier()}`,
-      metadata: cleanMetadata(input.metadata),
+      metadata,
     },
   });
 }
