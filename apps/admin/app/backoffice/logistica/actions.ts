@@ -7,6 +7,7 @@ import { enqueueIntegrationEvent, enqueueIntegrationSync } from "@/lib/integrati
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 type MaybeArray<T> = T | T[];
+type PrintJobKind = "shipping" | "product";
 
 interface OrderForShipment {
   id: string;
@@ -382,6 +383,53 @@ export async function cancelShipment(shipmentId: string): Promise<ActionResult> 
     order_id: shipment.order_id,
     event_type: "shipment_cancelled",
     new_value: { cancelled_at: now },
+    actor_id: staff.id,
+  }).then(() => undefined, () => undefined);
+
+  revalidatePath("/backoffice/logistica");
+  return { ok: true };
+}
+
+export async function markPrintJobsPrinted(jobs: Array<{ id: string; kind: PrintJobKind }>): Promise<ActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin" && staff.role !== "platform_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const shippingIds = jobs.filter((job) => job.kind === "shipping").map((job) => job.id);
+  const productIds = jobs.filter((job) => job.kind === "product").map((job) => job.id);
+  const now = new Date().toISOString();
+  const supabase = await createClient();
+
+  if (shippingIds.length) {
+    const { error } = await supabase
+      .from("shipping_label_print_jobs")
+      .update({ status: "printed", printed_at: now })
+      .eq("tenant_id", staff.tenantId)
+      .in("id", shippingIds);
+
+    if (error) return { ok: false, error: error.message };
+  }
+
+  if (productIds.length) {
+    const { error } = await supabase
+      .from("product_label_print_jobs")
+      .update({ status: "printed", printed_at: now })
+      .eq("tenant_id", staff.tenantId)
+      .in("id", productIds);
+
+    if (error) return { ok: false, error: error.message };
+  }
+
+  await supabase.from("shipping_audit_events").insert({
+    tenant_id: staff.tenantId,
+    event_type: "print_jobs_marked_printed",
+    new_value: {
+      shipping_label_print_jobs: shippingIds,
+      product_label_print_jobs: productIds,
+      printed_at: now,
+    },
     actor_id: staff.id,
   }).then(() => undefined, () => undefined);
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
+import { PrintQueue, type PrintQueueItem } from "./PrintQueue";
 import { ProductLabelButtons, RequestLabelButton, ShipmentButtons } from "./ShippingActions";
 
 interface OrderRow {
@@ -68,7 +69,28 @@ interface ProductLabelJobRow {
   format: string;
   copies: number;
   barcode_value: string | null;
+  label_payload: Record<string, unknown> | null;
   created_at: string;
+  product_variants: { sku: string; name: string | null; products: { name: string } | null } | null;
+}
+
+interface ShippingPrintJobRow {
+  id: string;
+  shipment_id: string | null;
+  status: string;
+  format: string;
+  copies: number;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+  shipments: {
+    tracking_code: string | null;
+    barcode: string | null;
+    recipient_snapshot: Record<string, unknown> | null;
+    service: string | null;
+    carrier: string | null;
+    provider_key: string | null;
+    orders: { number: string; customers: { email: string; full_name: string | null } | null } | null;
+  } | null;
 }
 
 const orderStatusLabel: Record<string, string> = {
@@ -124,6 +146,10 @@ function first<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
+function text(value: unknown, fallback = "—") {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
 export default async function LogisticaPage() {
   const staff = await currentStaff();
   if (!staff) return null;
@@ -136,6 +162,7 @@ export default async function LogisticaPage() {
     { data: rulesData, error: rulesError },
     { data: variantData, error: variantError },
     { data: productLabelData, error: productLabelError },
+    { data: shippingPrintData, error: shippingPrintError },
   ] = await Promise.all([
       supabase
         .from("orders")
@@ -165,7 +192,13 @@ export default async function LogisticaPage() {
         .limit(30),
       supabase
         .from("product_label_print_jobs")
-        .select("id, variant_id, status, format, copies, barcode_value, created_at")
+        .select("id, variant_id, status, format, copies, barcode_value, label_payload, created_at, product_variants(sku, name, products(name))")
+        .eq("tenant_id", staff.tenantId)
+        .order("created_at", { ascending: false })
+        .limit(40),
+      supabase
+        .from("shipping_label_print_jobs")
+        .select("id, shipment_id, status, format, copies, payload, created_at, shipments(tracking_code, barcode, recipient_snapshot, service, carrier, provider_key, orders(number, customers(email, full_name)))")
         .eq("tenant_id", staff.tenantId)
         .order("created_at", { ascending: false })
         .limit(40),
@@ -174,6 +207,7 @@ export default async function LogisticaPage() {
   const shipments = shipmentError ? [] : ((shipmentData ?? []) as unknown as ShipmentRow[]);
   const variants = variantError ? [] : ((variantData ?? []) as unknown as ProductVariantRow[]);
   const productLabelJobs = productLabelError ? [] : ((productLabelData ?? []) as unknown as ProductLabelJobRow[]);
+  const shippingPrintJobs = shippingPrintError ? [] : ((shippingPrintData ?? []) as unknown as ShippingPrintJobRow[]);
   const latestProductLabelByVariant = new Map<string, ProductLabelJobRow>();
   for (const job of productLabelJobs) {
     if (job.variant_id && !latestProductLabelByVariant.has(job.variant_id)) {
@@ -187,6 +221,63 @@ export default async function LogisticaPage() {
   const created = shipments.filter((shipment) => ["created", "printed"].includes(shipment.label_status)).length;
   const failed = shipments.filter((shipment) => shipment.label_status === "failed" || shipment.last_error).length;
   const productLabelsQueued = productLabelJobs.filter((job) => ["queued", "printing"].includes(job.status)).length;
+  const printQueueItems: PrintQueueItem[] = [
+    ...shippingPrintJobs.map((job) => {
+      const shipment = job.shipments;
+      const recipient = shipment?.recipient_snapshot ?? {};
+      const orderNumber = shipment?.orders?.number;
+      const customer = shipment?.orders?.customers as { email: string; full_name: string | null } | null;
+      const recipientName = text(recipient.name, customer?.full_name ?? customer?.email ?? "Cliente");
+      const address = [
+        text(recipient.street, ""),
+        text(recipient.number, ""),
+        text(recipient.district, ""),
+        text(recipient.city, ""),
+        text(recipient.state, ""),
+        text(recipient.zip, ""),
+      ].filter(Boolean).join(" · ");
+
+      return {
+        id: job.id,
+        kind: "shipping" as const,
+        status: job.status,
+        format: job.format,
+        copies: job.copies,
+        title: `Pedido #${orderNumber ?? "—"} · ${recipientName}`,
+        subtitle: `${providerLabel(shipment?.provider_key ?? shipment?.carrier ?? null)} · ${shipment?.service ?? "serviço automático"}`,
+        barcode: shipment?.barcode ?? shipment?.tracking_code ?? `SHIP-${job.id.slice(0, 8).toUpperCase()}`,
+        notes: [
+          address ? `Endereço: ${address}` : "Endereço não informado",
+          recipient.phone ? `Telefone: ${recipient.phone}` : "",
+          recipient.observation ? `Observação: ${recipient.observation}` : "",
+        ].filter(Boolean) as string[],
+        createdAt: job.created_at,
+      };
+    }),
+    ...productLabelJobs.map((job) => {
+      const variant = job.product_variants;
+      const payload = job.label_payload ?? {};
+      const productName = text(payload.product_name, variant?.products?.name ?? variant?.name ?? "Produto Flora");
+      const sku = text(payload.sku, variant?.sku ?? job.barcode_value ?? "SKU");
+
+      return {
+        id: job.id,
+        kind: "product" as const,
+        status: job.status,
+        format: job.format,
+        copies: job.copies,
+        title: productName,
+        subtitle: `SKU ${sku}`,
+        barcode: job.barcode_value ?? sku,
+        notes: [
+          payload.variant_name ? `Variação: ${payload.variant_name}` : "",
+          payload.weight_g ? `Peso: ${payload.weight_g} g` : "",
+          "Etiqueta interna de produto/estoque",
+        ].filter(Boolean) as string[],
+        createdAt: job.created_at,
+      };
+    }),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
     <div style={{ display: "grid", gap: 18, padding: "24px 28px 48px" }}>
@@ -205,6 +296,18 @@ export default async function LogisticaPage() {
         <Metric label="Etiquetas internas" value={String(productLabelsQueued)} tone="warn" />
         <Metric label="Regras ativas" value={String(rules.filter((rule) => rule.status === "active").length)} />
       </div>
+
+      <section style={cardStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <p className="eyebrow">Fila de impressão</p>
+            <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+              Etiquetas de envio e etiquetas internas enfileiradas para impressão individual, lote e reimpressão.
+            </p>
+          </div>
+        </div>
+        <PrintQueue items={printQueueItems} />
+      </section>
 
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
