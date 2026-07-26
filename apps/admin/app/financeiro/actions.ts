@@ -16,6 +16,7 @@ import {
 const MODES = new Set<FinanceMode>(["unit", "batch", "kit", "combo", "order", "customer", "channel", "b2b", "b2c", "campaign", "subscription"]);
 const SALE_MODELS = new Set<SaleModel>(["retail", "wholesale", "b2b", "b2c", "consignment", "marketplace", "physical_store", "representative", "subscription", "corporate"]);
 const GROUPS = new Set<FinanceComponentGroup>(["production", "packaging", "logistics", "tax", "commission", "channel_fee", "fixed_expense", "variable_expense", "labor", "investment", "custom"]);
+const PRICE_TABLE_TYPES = new Set(["retail", "wholesale", "distributor", "representative", "physical_store", "marketplace", "b2b", "special_customer", "campaign", "subscription", "region", "export"]);
 
 function text(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
@@ -37,6 +38,11 @@ function decimal(formData: FormData, key: string, fallback = 0) {
 
 function cents(formData: FormData, key: string) {
   return Math.round(decimal(formData, key, 0) * 100);
+}
+
+function dateValue(formData: FormData, key: string) {
+  const value = text(formData, key);
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
 
 function parseComponents(formData: FormData): FinanceComponentInput[] {
@@ -256,6 +262,90 @@ export async function deleteFinanceCalculation(id: string) {
   const { tenantId } = await ensureCanEdit();
   const supabase = await supabaseServer();
   const { error } = await supabase.from("finance_calculations").delete().eq("id", id).eq("tenant_id", tenantId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/financeiro");
+}
+
+export async function updateFinanceSettings(formData: FormData) {
+  const { tenantId } = await ensureCanEdit();
+  const supabase = await supabaseServer();
+  const payload = {
+    tenant_id: tenantId,
+    default_currency: "BRL",
+    target_margin_percent: Math.max(0, decimal(formData, "target_margin_percent", 55)),
+    minimum_margin_percent: Math.max(0, decimal(formData, "minimum_margin_percent", 35)),
+    default_tax_percent: Math.max(0, decimal(formData, "default_tax_percent", 8)),
+    default_payment_fee_percent: Math.max(0, decimal(formData, "default_payment_fee_percent", 3.99)),
+    default_payment_fixed_cents: cents(formData, "default_payment_fixed"),
+    default_logistics_percent: Math.max(0, decimal(formData, "default_logistics_percent", 6)),
+    default_overhead_percent: Math.max(0, decimal(formData, "default_overhead_percent", 5)),
+    rules: {
+      approval_minimum_margin_percent: Math.max(0, decimal(formData, "approval_minimum_margin_percent", 25)),
+      max_discount_without_approval_percent: Math.max(0, decimal(formData, "max_discount_without_approval_percent", 12)),
+      logistics_warning_percent: Math.max(0, decimal(formData, "logistics_warning_percent", 18)),
+    },
+  };
+
+  const { error } = await supabase.from("finance_settings").upsert(payload, { onConflict: "tenant_id" });
+  if (error) throw new Error(error.message);
+
+  await supabase.from("finance_audit_events").insert({
+    tenant_id: tenantId,
+    entity_type: "finance_settings",
+    action: "updated",
+    after_data: payload,
+  });
+
+  revalidatePath("/financeiro");
+}
+
+export async function createPriceTable(formData: FormData) {
+  const { session, tenantId } = await ensureCanEdit();
+  const tableTypeRaw = String(formData.get("table_type") ?? "retail");
+  const tableType = PRICE_TABLE_TYPES.has(tableTypeRaw) ? tableTypeRaw : "retail";
+  const name = requiredText(formData, "name", "Nome da tabela");
+  const supabase = await supabaseServer();
+
+  const payload = {
+    tenant_id: tenantId,
+    name,
+    table_type: tableType,
+    channel: text(formData, "channel"),
+    customer_name: text(formData, "customer_name"),
+    min_quantity: Math.max(1, decimal(formData, "min_quantity", 1)),
+    discount_percent: Math.max(0, decimal(formData, "discount_percent", 0)),
+    commission_percent: Math.max(0, decimal(formData, "commission_percent", 0)),
+    minimum_margin_percent: Math.max(0, decimal(formData, "minimum_margin_percent", 30)),
+    valid_from: dateValue(formData, "valid_from"),
+    valid_until: dateValue(formData, "valid_until"),
+    approval_required: String(formData.get("approval_required") ?? "") === "on",
+    rules: {
+      payment_terms: text(formData, "payment_terms"),
+      logistics_terms: text(formData, "logistics_terms"),
+      notes: text(formData, "notes"),
+    },
+    created_by: session.userId,
+  };
+
+  const { data, error } = await supabase.from("finance_price_tables").insert(payload).select("id").single();
+  if (error || !data) throw new Error(error?.message ?? "Nao foi possivel criar a tabela de preco.");
+
+  await supabase.from("finance_audit_events").insert({
+    tenant_id: tenantId,
+    entity_type: "finance_price_table",
+    entity_id: data.id,
+    action: "created",
+    after_data: payload,
+    created_by: session.userId,
+  });
+
+  revalidatePath("/financeiro");
+}
+
+export async function deletePriceTable(id: string) {
+  const { tenantId } = await ensureCanEdit();
+  const supabase = await supabaseServer();
+  const { error } = await supabase.from("finance_price_tables").delete().eq("id", id).eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);
   revalidatePath("/financeiro");
 }

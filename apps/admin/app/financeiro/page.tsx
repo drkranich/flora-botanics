@@ -6,6 +6,9 @@ import { money } from "@/lib/format";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { CommercialQuoteForm } from "./CommercialQuoteForm";
 import { FinanceCalculatorForm } from "./FinanceCalculatorForm";
+import { FinanceSettingsForm, type FinanceSettingsData } from "./FinanceSettingsForm";
+import { PriceTableForm } from "./PriceTableForm";
+import { deletePriceTable } from "./actions";
 
 type CalculationRow = {
   id: string;
@@ -28,6 +31,22 @@ type QuoteRow = {
   company_name: string | null;
   channel: string | null;
   totals: Record<string, number>;
+  created_at: string;
+};
+
+type PriceTableRow = {
+  id: string;
+  name: string;
+  table_type: string;
+  channel: string | null;
+  customer_name: string | null;
+  min_quantity: number;
+  discount_percent: number;
+  commission_percent: number;
+  minimum_margin_percent: number;
+  approval_required: boolean;
+  valid_from: string | null;
+  valid_until: string | null;
   created_at: string;
 };
 
@@ -80,7 +99,7 @@ export default async function FinanceiroPage() {
 
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
-  const [{ data: calculations, error: calculationsError }, { data: quotes }] = await Promise.all([
+  const [{ data: calculations, error: calculationsError }, { data: quotes }, { data: settings }, { data: priceTables }] = await Promise.all([
     supabase
       .from("finance_calculations")
       .select("id, title, calculation_mode, sale_model, channel, quantity, totals, alerts, created_at")
@@ -93,6 +112,17 @@ export default async function FinanceiroPage() {
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(40),
+    supabase
+      .from("finance_settings")
+      .select("target_margin_percent, minimum_margin_percent, default_tax_percent, default_payment_fee_percent, default_payment_fixed_cents, default_logistics_percent, default_overhead_percent, rules")
+      .eq("tenant_id", tenantId)
+      .maybeSingle(),
+    supabase
+      .from("finance_price_tables")
+      .select("id, name, table_type, channel, customer_name, min_quantity, discount_percent, commission_percent, minimum_margin_percent, approval_required, valid_from, valid_until, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(60),
   ]);
 
   if (calculationsError) {
@@ -111,6 +141,7 @@ export default async function FinanceiroPage() {
 
   const rows = (calculations ?? []) as unknown as CalculationRow[];
   const quoteRows = (quotes ?? []) as unknown as QuoteRow[];
+  const priceRows = (priceTables ?? []) as unknown as PriceTableRow[];
   const totalRevenue = rows.reduce((sum, row) => sum + (row.totals?.netRevenueCents ?? 0), 0);
   const totalCost = rows.reduce((sum, row) => sum + (row.totals?.totalCostCents ?? 0), 0);
   const totalProfit = rows.reduce((sum, row) => sum + (row.totals?.netProfitCents ?? 0), 0);
@@ -142,6 +173,44 @@ export default async function FinanceiroPage() {
       <FinanceCalculatorForm />
 
       <div style={twoColumnStyle}>
+        <FinanceSettingsForm settings={settings as FinanceSettingsData | null} />
+        <PriceTableForm />
+      </div>
+
+      <section className="glass rise rise-2" style={{ padding: 22, marginTop: 18 }}>
+        <SectionTitle eyebrow="Tabelas comerciais" title="Precos, descontos e aprovacoes" />
+        {priceRows.length ? (
+          <div style={{ display: "grid", gap: 10 }}>
+            {priceRows.map((table) => (
+              <div key={table.id} style={priceTableRowStyle}>
+                <span>
+                  <strong>{table.name}</strong>
+                  <span className="muted" style={{ display: "block", fontSize: 11, marginTop: 3 }}>
+                    {table.table_type} - {table.channel ?? "sem canal"} - minimo {table.min_quantity}
+                    {table.customer_name ? ` - ${table.customer_name}` : ""}
+                  </span>
+                </span>
+                <span className="chip chip-draft">{Number(table.discount_percent).toFixed(1)}% desc.</span>
+                <span className="chip chip-draft">{Number(table.commission_percent).toFixed(1)}% comissao</span>
+                <span className={table.approval_required ? "chip" : "chip chip-live"}>
+                  {table.approval_required ? "Aprovacao" : "Liberada"}
+                </span>
+                <form action={deletePriceTable.bind(null, table.id)}>
+                  <button className="btn btn-ghost" style={{ padding: "7px 12px", fontSize: 9 }}>
+                    Excluir
+                  </button>
+                </form>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+            Nenhuma tabela criada ainda. Crie regras para atacado, B2B, representantes, marketplaces, campanhas e assinaturas.
+          </p>
+        )}
+      </section>
+
+      <div style={twoColumnStyle}>
         <CommercialQuoteForm calculations={calculationOptions} />
 
         <section className="glass rise rise-2" style={{ padding: 22 }}>
@@ -153,10 +222,11 @@ export default async function FinanceiroPage() {
             <div style={{ display: "flex", gap: 8 }}>
               <Link href="/financeiro/exportar?format=csv" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>CSV</Link>
               <Link href="/financeiro/exportar?format=pdf" className="btn btn-gold" style={{ padding: "8px 14px", fontSize: 10 }}>PDF</Link>
+              <Link href="/financeiro/exportar?format=xlsx" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>XLSX</Link>
             </div>
           </div>
           <p className="muted" style={{ fontSize: 12, lineHeight: 1.7 }}>
-            Exporta cenarios, margens, lucros, custos totais e documentos comerciais. A etapa XLSX entra no proximo bloco junto com relatorios detalhados.
+            Exporta cenarios, margens, lucros, custos totais, tabelas de preco e documentos comerciais.
           </p>
         </section>
       </div>
@@ -274,6 +344,17 @@ const quoteRowStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "minmax(180px, 1fr) auto auto",
   gap: 14,
+  alignItems: "center",
+  padding: "12px 14px",
+  border: "1px solid var(--glass-border)",
+  borderRadius: 12,
+  background: "rgba(255,248,234,0.035)",
+};
+
+const priceTableRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(220px, 1fr) auto auto auto auto",
+  gap: 10,
   alignItems: "center",
   padding: "12px 14px",
   border: "1px solid var(--glass-border)",

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import * as XLSX from "xlsx";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { money } from "@/lib/format";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
@@ -21,6 +22,21 @@ type QuoteRow = {
   company_name: string | null;
   channel: string | null;
   totals: Record<string, number>;
+  created_at: string;
+};
+
+type PriceTableRow = {
+  name: string;
+  table_type: string;
+  channel: string | null;
+  customer_name: string | null;
+  min_quantity: number;
+  discount_percent: number;
+  commission_percent: number;
+  minimum_margin_percent: number;
+  approval_required: boolean;
+  valid_from: string | null;
+  valid_until: string | null;
   created_at: string;
 };
 
@@ -85,7 +101,7 @@ export async function GET(request: NextRequest) {
 
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
-  const [{ data: calculations }, { data: quotes }] = await Promise.all([
+  const [{ data: calculations }, { data: quotes }, { data: priceTables }] = await Promise.all([
     supabase
       .from("finance_calculations")
       .select("title, calculation_mode, sale_model, channel, quantity, totals, created_at")
@@ -98,11 +114,76 @@ export async function GET(request: NextRequest) {
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(200),
+    supabase
+      .from("finance_price_tables")
+      .select("name, table_type, channel, customer_name, min_quantity, discount_percent, commission_percent, minimum_margin_percent, approval_required, valid_from, valid_until, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(200),
   ]);
 
   const calcRows = (calculations ?? []) as unknown as CalcRow[];
   const quoteRows = (quotes ?? []) as unknown as QuoteRow[];
+  const priceRows = (priceTables ?? []) as unknown as PriceTableRow[];
   const format = new URL(request.url).searchParams.get("format") ?? "csv";
+
+  if (format === "xlsx") {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(calcRows.map((row) => ({
+        Titulo: row.title,
+        Tipo: row.calculation_mode,
+        Modelo: row.sale_model,
+        Canal: row.channel,
+        Quantidade: row.quantity,
+        "Receita liquida": (row.totals?.netRevenueCents ?? 0) / 100,
+        "Custo total": (row.totals?.totalCostCents ?? 0) / 100,
+        "Lucro liquido": (row.totals?.netProfitCents ?? 0) / 100,
+        "Margem %": Number(row.totals?.netMarginPercent ?? 0),
+        "Criado em": new Date(row.created_at).toLocaleString("pt-BR"),
+      }))),
+      "Cenarios"
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(priceRows.map((row) => ({
+        Nome: row.name,
+        Tipo: row.table_type,
+        Canal: row.channel ?? "",
+        Cliente: row.customer_name ?? "",
+        "Quantidade minima": row.min_quantity,
+        "Desconto %": Number(row.discount_percent ?? 0),
+        "Comissao %": Number(row.commission_percent ?? 0),
+        "Margem minima %": Number(row.minimum_margin_percent ?? 0),
+        "Exige aprovacao": row.approval_required ? "Sim" : "Nao",
+        "Vigente desde": row.valid_from ?? "",
+        "Vigente ate": row.valid_until ?? "",
+      }))),
+      "Tabelas"
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(quoteRows.map((row) => ({
+        Numero: row.number,
+        Tipo: row.kind,
+        Status: row.status,
+        Cliente: row.customer_name,
+        Empresa: row.company_name ?? "",
+        Canal: row.channel ?? "",
+        Valor: (row.totals?.netRevenueCents ?? 0) / 100,
+        "Criado em": new Date(row.created_at).toLocaleString("pt-BR"),
+      }))),
+      "Documentos"
+    );
+    const workbookBytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    return new Response(workbookBytes, {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": "attachment; filename=\"flora-financeiro.xlsx\"",
+      },
+    });
+  }
 
   if (format === "pdf") {
     const lines = [
@@ -119,6 +200,11 @@ export async function GET(request: NextRequest) {
       ...quoteRows.slice(0, 14).map((row) => {
         const totals = row.totals ?? {};
         return `#${row.number} - ${row.customer_name} - ${row.status} - ${money(totals.netRevenueCents ?? 0)}`;
+      }),
+      "",
+      "Tabelas de preco:",
+      ...priceRows.slice(0, 8).map((row) => {
+        return `${row.name} - ${row.table_type}/${row.channel ?? "sem canal"} - desc ${Number(row.discount_percent).toFixed(1)}% - margem min ${Number(row.minimum_margin_percent).toFixed(1)}%`;
       }),
     ];
     return new Response(buildPdf(lines), {
@@ -161,6 +247,22 @@ export async function GET(request: NextRequest) {
       row.channel,
       money(row.totals?.netRevenueCents ?? 0),
       new Date(row.created_at).toLocaleString("pt-BR"),
+    ])),
+    csvLine([]),
+    csvLine(["Tabelas de preco"]),
+    csvLine(["Nome", "Tipo", "Canal", "Cliente", "Quantidade minima", "Desconto", "Comissao", "Margem minima", "Aprovacao", "Vigente desde", "Vigente ate"]),
+    ...priceRows.map((row) => csvLine([
+      row.name,
+      row.table_type,
+      row.channel,
+      row.customer_name,
+      row.min_quantity,
+      `${Number(row.discount_percent ?? 0).toFixed(1)}%`,
+      `${Number(row.commission_percent ?? 0).toFixed(1)}%`,
+      `${Number(row.minimum_margin_percent ?? 0).toFixed(1)}%`,
+      row.approval_required ? "Sim" : "Nao",
+      row.valid_from,
+      row.valid_until,
     ])),
   ].join("\r\n");
 
