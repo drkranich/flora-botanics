@@ -2,11 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
-import { IntegrationCard, type FieldDef } from "./IntegrationCard";
+import { IntegrationCard, type FieldDef, type IntegrationStatus } from "./IntegrationCard";
 import type { IntegrationKey } from "./actions";
 
 interface Integration {
   key: IntegrationKey;
+  providerKey: string;
   icon: string;
   title: string;
   description: string;
@@ -14,9 +15,53 @@ interface Integration {
   fields: FieldDef[];
 }
 
+interface IntegrationConnectionRow {
+  provider_key: string;
+  status: string;
+  environment: string;
+  credentials_status: string;
+  auto_sync_enabled: boolean;
+  last_sync_at: string | null;
+  last_healthcheck_at: string | null;
+  last_error: string | null;
+  latency_ms: number | null;
+  error_count: number | null;
+}
+
+interface IntegrationRunRow {
+  provider_key: string;
+  status: string;
+  created_at: string;
+}
+
 const INTEGRATIONS: Integration[] = [
   {
+    key: "integration_resend",
+    providerKey: "resend",
+    icon: "@",
+    title: "Resend",
+    description: "E-mails transacionais, carrinhos abandonados, templates e automações.",
+    docsUrl: "https://resend.com/docs",
+    fields: [
+      {
+        name: "from_email",
+        label: "Remetente padrão",
+        placeholder: "Flora Botanics <contato@florabotanics.com.br>",
+        hint: "Use o domínio já verificado no Resend. A chave RESEND_API_KEY continua como secret do Worker.",
+      },
+      {
+        name: "webhook_secret_ref",
+        label: "Referência do webhook",
+        placeholder: "RESEND_WEBHOOK_SECRET",
+        type: "password",
+        hint: "Não cole secrets rastreáveis no git. Use apenas uma referência operacional.",
+        required: false,
+      },
+    ],
+  },
+  {
     key: "integration_whatsapp",
+    providerKey: "whatsapp",
     icon: "✆",
     title: "WhatsApp Business API",
     description: "Notificações de pedidos, recuperação de carrinho e atendimento via WhatsApp.",
@@ -46,6 +91,7 @@ const INTEGRATIONS: Integration[] = [
   },
   {
     key: "integration_mercadolivre",
+    providerKey: "mercado_livre",
     icon: "◈",
     title: "Mercado Livre",
     description: "Sincronize produtos, estoque e pedidos com o Mercado Livre.",
@@ -76,6 +122,7 @@ const INTEGRATIONS: Integration[] = [
   },
   {
     key: "integration_shopee",
+    providerKey: "shopee",
     icon: "❖",
     title: "Shopee",
     description: "Publicação de catálogo e importação de pedidos da Shopee.",
@@ -113,6 +160,7 @@ const INTEGRATIONS: Integration[] = [
   },
   {
     key: "integration_instagram",
+    providerKey: "instagram",
     icon: "◎",
     title: "Instagram / Meta",
     description: "Vitrine no Instagram Shop e DMs integradas à Inbox.",
@@ -148,6 +196,7 @@ const INTEGRATIONS: Integration[] = [
   },
   {
     key: "integration_amazon",
+    providerKey: "amazon",
     icon: "▣",
     title: "Amazon",
     description: "Catálogo e pedidos no maior marketplace global.",
@@ -189,6 +238,7 @@ const INTEGRATIONS: Integration[] = [
   },
   {
     key: "integration_tiktok",
+    providerKey: "tiktok",
     icon: "♪",
     title: "TikTok Shop",
     description: "Venda direto dos vídeos e lives do TikTok.",
@@ -226,6 +276,7 @@ const INTEGRATIONS: Integration[] = [
   },
   {
     key: "integration_google_merchant",
+    providerKey: "google_merchant",
     icon: "✦",
     title: "Google Merchant Center",
     description: "Produtos no Google Shopping e nas buscas do Google.",
@@ -246,6 +297,164 @@ const INTEGRATIONS: Integration[] = [
       },
     ],
   },
+  {
+    key: "integration_correios",
+    providerKey: "correios",
+    icon: "CE",
+    title: "Correios",
+    description: "Cotação, etiquetas, prazos, postagem e rastreamento nacional.",
+    docsUrl: "https://www.correios.com.br",
+    fields: [
+      { name: "contract_code", label: "Código do contrato", placeholder: "1234567890" },
+      { name: "postcard", label: "Cartão de postagem", placeholder: "0067599079", required: false },
+      { name: "api_token_ref", label: "Referência do token", placeholder: "CORREIOS_API_TOKEN", type: "password" },
+    ],
+  },
+  {
+    key: "integration_azul_cargo",
+    providerKey: "azul_cargo",
+    icon: "AZ",
+    title: "Azul Cargo Express",
+    description: "Cotação, coleta, etiqueta e rastreamento para cargas expressas.",
+    docsUrl: "https://www.azulcargoexpress.com.br",
+    fields: [
+      { name: "account_code", label: "Código da conta", placeholder: "AZUL-123" },
+      { name: "api_token_ref", label: "Referência do token", placeholder: "AZUL_CARGO_TOKEN", type: "password" },
+    ],
+  },
+  {
+    key: "integration_loggi",
+    providerKey: "loggi",
+    icon: "LG",
+    title: "Loggi",
+    description: "Coletas urbanas, cotação, etiqueta e rastreamento.",
+    docsUrl: "https://docs.api.loggi.com",
+    fields: [
+      { name: "company_id", label: "Company ID", placeholder: "123456" },
+      { name: "api_token_ref", label: "Referência do token", placeholder: "LOGGI_API_TOKEN", type: "password" },
+    ],
+  },
+  {
+    key: "integration_jt_express",
+    providerKey: "jt_express",
+    icon: "JT",
+    title: "J&T Express",
+    description: "Remessas, etiquetas, rastreamento e atualização de status.",
+    docsUrl: "https://www.jtexpress.com.br",
+    fields: [
+      { name: "customer_code", label: "Código do cliente", placeholder: "JT-CLIENTE" },
+      { name: "api_token_ref", label: "Referência do token", placeholder: "JT_EXPRESS_TOKEN", type: "password" },
+    ],
+  },
+  {
+    key: "integration_melhor_envio",
+    providerKey: "melhor_envio",
+    icon: "ME",
+    title: "Melhor Envio",
+    description: "Gateway logístico para cotação, etiquetas e múltiplas transportadoras.",
+    docsUrl: "https://docs.melhorenvio.com.br",
+    fields: [
+      { name: "client_id", label: "Client ID", placeholder: "me_client_id" },
+      { name: "client_secret_ref", label: "Referência do secret", placeholder: "MELHOR_ENVIO_SECRET", type: "password" },
+      { name: "access_token_ref", label: "Referência do access token", placeholder: "MELHOR_ENVIO_TOKEN", type: "password", required: false },
+    ],
+  },
+  {
+    key: "integration_sefaz",
+    providerKey: "sefaz",
+    icon: "NF",
+    title: "SEFAZ / NF-e",
+    description: "Emissão fiscal, XML, DANFE, cancelamento, inutilização e carta de correção.",
+    fields: [
+      { name: "environment", label: "Ambiente fiscal", placeholder: "homologação ou produção" },
+      { name: "certificate_ref", label: "Referência do certificado A1", placeholder: "SEFAZ_CERTIFICATE_PFX", type: "password" },
+      { name: "certificate_password_ref", label: "Referência da senha do certificado", placeholder: "SEFAZ_CERTIFICATE_PASSWORD", type: "password" },
+    ],
+  },
+  {
+    key: "integration_shopify",
+    providerKey: "shopify",
+    icon: "SF",
+    title: "Shopify",
+    description: "Catálogo, estoque, preços, pedidos e webhooks.",
+    docsUrl: "https://shopify.dev/docs/api",
+    fields: [
+      { name: "shop_domain", label: "Domínio da loja", placeholder: "flora.myshopify.com", type: "url" },
+      { name: "access_token_ref", label: "Referência do token", placeholder: "SHOPIFY_ACCESS_TOKEN", type: "password" },
+    ],
+  },
+  {
+    key: "integration_woocommerce",
+    providerKey: "woocommerce",
+    icon: "WC",
+    title: "WooCommerce",
+    description: "Catálogo, estoque e pedidos via REST API.",
+    docsUrl: "https://woocommerce.github.io/woocommerce-rest-api-docs",
+    fields: [
+      { name: "store_url", label: "URL da loja", placeholder: "https://loja.com.br", type: "url" },
+      { name: "consumer_key_ref", label: "Referência Consumer Key", placeholder: "WOO_CONSUMER_KEY", type: "password" },
+      { name: "consumer_secret_ref", label: "Referência Consumer Secret", placeholder: "WOO_CONSUMER_SECRET", type: "password" },
+    ],
+  },
+  {
+    key: "integration_nuvemshop",
+    providerKey: "nuvemshop",
+    icon: "NS",
+    title: "Nuvemshop",
+    description: "Catálogo, estoque, preços, pedidos e webhooks.",
+    docsUrl: "https://tiendanube.github.io/api-documentation",
+    fields: [
+      { name: "store_id", label: "Store ID", placeholder: "123456" },
+      { name: "access_token_ref", label: "Referência do token", placeholder: "NUVEMSHOP_ACCESS_TOKEN", type: "password" },
+    ],
+  },
+  {
+    key: "integration_tray",
+    providerKey: "tray",
+    icon: "TR",
+    title: "Tray",
+    description: "Catálogo, estoque, preços e pedidos centralizados.",
+    fields: [
+      { name: "store_url", label: "URL da loja", placeholder: "https://minhaloja.commercesuite.com.br", type: "url" },
+      { name: "access_token_ref", label: "Referência do token", placeholder: "TRAY_ACCESS_TOKEN", type: "password" },
+    ],
+  },
+  {
+    key: "integration_loja_integrada",
+    providerKey: "loja_integrada",
+    icon: "LI",
+    title: "Loja Integrada",
+    description: "Produtos, estoque, preços e pedidos.",
+    fields: [
+      { name: "store_url", label: "URL da loja", placeholder: "https://minhaloja.com.br", type: "url" },
+      { name: "api_key_ref", label: "Referência da chave", placeholder: "LOJA_INTEGRADA_API_KEY", type: "password" },
+    ],
+  },
+  {
+    key: "integration_vtex",
+    providerKey: "vtex",
+    icon: "VX",
+    title: "VTEX",
+    description: "Catálogo, estoque, preços, OMS e pedidos.",
+    docsUrl: "https://developers.vtex.com",
+    fields: [
+      { name: "account_name", label: "Account name", placeholder: "florabotanics" },
+      { name: "app_key_ref", label: "Referência App Key", placeholder: "VTEX_APP_KEY", type: "password" },
+      { name: "app_token_ref", label: "Referência App Token", placeholder: "VTEX_APP_TOKEN", type: "password" },
+    ],
+  },
+  {
+    key: "integration_magento",
+    providerKey: "magento",
+    icon: "MG",
+    title: "Magento / Adobe Commerce",
+    description: "Catálogo, estoque, preços, pedidos e webhooks.",
+    docsUrl: "https://developer.adobe.com/commerce",
+    fields: [
+      { name: "store_url", label: "URL da loja", placeholder: "https://commerce.exemplo.com.br", type: "url" },
+      { name: "access_token_ref", label: "Referência do token", placeholder: "MAGENTO_ACCESS_TOKEN", type: "password" },
+    ],
+  },
 ];
 
 export default async function IntegracoesPage() {
@@ -257,19 +466,65 @@ export default async function IntegracoesPage() {
   const supabase = await supabaseServer();
 
   const keys = INTEGRATIONS.map((i) => i.key);
+  const providerKeys = INTEGRATIONS.map((i) => i.providerKey);
 
-  const { data: settings } = await supabase
-    .from("site_settings")
-    .select("key, value")
-    .eq("tenant_id", tenantId)
-    .in("key", keys);
+  const [{ data: settings }, { data: connections }, { data: runs }] = await Promise.all([
+    supabase
+      .from("site_settings")
+      .select("key, value")
+      .eq("tenant_id", tenantId)
+      .in("key", keys),
+    supabase
+      .from("integration_connections")
+      .select(
+        "provider_key, status, environment, credentials_status, auto_sync_enabled, last_sync_at, last_healthcheck_at, last_error, latency_ms, error_count"
+      )
+      .eq("tenant_id", tenantId)
+      .eq("environment", "production")
+      .in("provider_key", providerKeys),
+    supabase
+      .from("integration_sync_runs")
+      .select("provider_key, status, created_at")
+      .eq("tenant_id", tenantId)
+      .in("provider_key", providerKeys)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
   const settingsMap = Object.fromEntries(
     (settings ?? []).map((s) => [s.key, s.value as Record<string, string> | null])
   );
 
+  const latestRunMap = new Map<string, IntegrationRunRow>();
+  for (const run of ((runs ?? []) as IntegrationRunRow[])) {
+    if (!latestRunMap.has(run.provider_key)) latestRunMap.set(run.provider_key, run);
+  }
+
+  const statusMap = Object.fromEntries(
+    ((connections ?? []) as IntegrationConnectionRow[]).map((connection) => {
+      const run = latestRunMap.get(connection.provider_key);
+      const value: IntegrationStatus = {
+        providerKey: connection.provider_key,
+        status: connection.status,
+        environment: connection.environment,
+        credentialsStatus: connection.credentials_status,
+        autoSyncEnabled: connection.auto_sync_enabled,
+        lastSyncAt: connection.last_sync_at,
+        lastHealthcheckAt: connection.last_healthcheck_at,
+        lastError: connection.last_error,
+        latencyMs: connection.latency_ms,
+        errorCount: connection.error_count ?? 0,
+        latestRunStatus: run?.status ?? null,
+        latestRunAt: run?.created_at ?? null,
+      };
+      return [connection.provider_key, value];
+    })
+  );
+
   const connectedCount = INTEGRATIONS.filter(
-    (i) => settingsMap[i.key] && Object.keys(settingsMap[i.key]!).length > 0
+    (i) =>
+      (settingsMap[i.key] && Object.keys(settingsMap[i.key]!).length > 0) ||
+      statusMap[i.providerKey]?.credentialsStatus === "stored"
   ).length;
 
   return (
@@ -285,11 +540,12 @@ export default async function IntegracoesPage() {
           </Link>
         </div>
         <h1 className="display" style={{ fontSize: 40, marginTop: 8, marginBottom: 6 }}>
-          Integrações de marketplace
+          Central de Integrações
         </h1>
         <p className="muted" style={{ fontSize: 12.5 }}>
-          Salve aqui as credenciais de API de cada plataforma. As chaves ficam armazenadas
-          com segurança no banco de dados e nunca entram no código-fonte.
+          Conecte APIs externas, acompanhe status, última sincronização, fila operacional
+          e histórico de erros por canal. Esta é a base desacoplada para marketplaces,
+          mensageria, fiscal, logística e e-commerce hub.
           {connectedCount > 0 && (
             <span style={{ marginLeft: 8, color: "#8fd486", fontWeight: 700 }}>
               {connectedCount} de {INTEGRATIONS.length} configurada{connectedCount !== 1 ? "s" : ""}.
@@ -309,6 +565,7 @@ export default async function IntegracoesPage() {
             fields={integration.fields}
             docsUrl={integration.docsUrl}
             initial={settingsMap[integration.key] ?? null}
+            status={statusMap[integration.providerKey] ?? null}
           />
         ))}
       </div>
@@ -318,10 +575,12 @@ export default async function IntegracoesPage() {
         style={{ marginTop: 24, padding: "16px 22px", borderRadius: 12 }}
       >
         <p style={{ margin: 0, fontSize: 12, color: "var(--cream-dim)", lineHeight: 1.6 }}>
-          <strong style={{ color: "var(--cream)" }}>Segurança:</strong> as credenciais são
-          salvas na tabela <code style={{ fontSize: 11 }}>site_settings</code> do Supabase
-          com Row Level Security ativa. Apenas administradores da sua conta têm acesso.
-          Nunca são expostas no código-fonte ou em variáveis de ambiente rastreadas pelo git.
+          <strong style={{ color: "var(--cream)" }}>Arquitetura:</strong> as credenciais
+          legadas continuam em <code style={{ fontSize: 11 }}>site_settings</code>, mas agora
+          cada canal também possui uma conexão operacional em{" "}
+          <code style={{ fontSize: 11 }}>integration_connections</code>, com status,
+          ambiente, fila de sincronização e eventos auditáveis. Segredos reais não entram
+          no código-fonte.
         </p>
       </div>
     </main>

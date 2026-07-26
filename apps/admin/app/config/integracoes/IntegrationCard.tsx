@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { saveIntegration, removeIntegration, type IntegrationKey } from "./actions";
+import {
+  saveIntegration,
+  removeIntegration,
+  startManualSync,
+  type IntegrationKey,
+} from "./actions";
 
 export interface FieldDef {
   name: string;
@@ -20,6 +25,22 @@ interface Props {
   fields: FieldDef[];
   docsUrl?: string;
   initial: Record<string, string> | null;
+  status: IntegrationStatus | null;
+}
+
+export interface IntegrationStatus {
+  providerKey: string;
+  status: string;
+  environment: string;
+  credentialsStatus: string;
+  autoSyncEnabled: boolean;
+  lastSyncAt: string | null;
+  lastHealthcheckAt: string | null;
+  lastError: string | null;
+  latencyMs: number | null;
+  errorCount: number;
+  latestRunStatus: string | null;
+  latestRunAt: string | null;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -44,6 +65,54 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 4,
 };
 
+const statusCopy: Record<string, { label: string; color: string; background: string; border: string }> = {
+  online: {
+    label: "Online",
+    color: "#8fd486",
+    background: "rgba(143,212,134,0.12)",
+    border: "rgba(143,212,134,0.35)",
+  },
+  pending_auth: {
+    label: "Aguardando autenticação",
+    color: "var(--gold-light)",
+    background: "rgba(185,146,77,0.14)",
+    border: "rgba(185,146,77,0.35)",
+  },
+  error: {
+    label: "Erro",
+    color: "#e8a0a0",
+    background: "rgba(232,160,160,0.12)",
+    border: "rgba(232,160,160,0.35)",
+  },
+  paused: {
+    label: "Pausado",
+    color: "var(--cream-dim)",
+    background: "rgba(242,236,223,0.06)",
+    border: "var(--glass-border)",
+  },
+  offline: {
+    label: "Offline",
+    color: "var(--cream-dim)",
+    background: "rgba(242,236,223,0.06)",
+    border: "var(--glass-border)",
+  },
+};
+
+const credentialsCopy: Record<string, string> = {
+  missing: "Credenciais ausentes",
+  stored: "Credenciais salvas",
+  expired: "Credenciais expiradas",
+  invalid: "Credenciais inválidas",
+};
+
+function formatDateTime(value: string | null) {
+  if (!value) return "Nunca";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 export function IntegrationCard({
   integrationKey,
   icon,
@@ -52,13 +121,18 @@ export function IntegrationCard({
   fields,
   docsUrl,
   initial,
+  status,
 }: Props) {
-  const isConnected = initial !== null && Object.keys(initial).length > 0;
+  const hasLegacyCredentials = initial !== null && Object.keys(initial).length > 0;
+  const hasConnectionCredentials = status?.credentialsStatus === "stored";
+  const isConnected = hasLegacyCredentials || hasConnectionCredentials;
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isRemoving, startRemove] = useTransition();
+  const [isSyncing, startSync] = useTransition();
+  const badge = statusCopy[status?.status ?? (isConnected ? "pending_auth" : "offline")] ?? statusCopy.offline;
 
   function handleSave(formData: FormData) {
     setError(null);
@@ -81,6 +155,20 @@ export function IntegrationCard({
     startRemove(async () => {
       const res = await removeIntegration(integrationKey);
       if (!res.ok) setError(res.error ?? "Erro ao remover.");
+    });
+  }
+
+  function handleSync() {
+    setError(null);
+    setSaved(false);
+    startSync(async () => {
+      const res = await startManualSync(integrationKey);
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        setError(res.error ?? "Erro ao iniciar sincronização.");
+      }
     });
   }
 
@@ -113,14 +201,45 @@ export function IntegrationCard({
             fontWeight: 700,
             padding: "3px 10px",
             borderRadius: 999,
-            background: isConnected ? "rgba(143,212,134,0.12)" : "rgba(242,236,223,0.06)",
-            border: `1px solid ${isConnected ? "rgba(143,212,134,0.35)" : "var(--glass-border)"}`,
-            color: isConnected ? "#8fd486" : "var(--cream-dim)",
+            background: badge.background,
+            border: `1px solid ${badge.border}`,
+            color: badge.color,
           }}
         >
-          {isConnected ? "● Conectado" : "Não conectado"}
+          ● {badge.label}
         </span>
       </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          gap: 8,
+        }}
+      >
+        <small style={metricStyle}>
+          <span>Ambiente</span>
+          <strong>{status?.environment === "test" ? "Teste" : "Produção"}</strong>
+        </small>
+        <small style={metricStyle}>
+          <span>Credenciais</span>
+          <strong>{credentialsCopy[status?.credentialsStatus ?? "missing"] ?? "Não mapeado"}</strong>
+        </small>
+        <small style={metricStyle}>
+          <span>Última sincronização</span>
+          <strong>{formatDateTime(status?.lastSyncAt ?? null)}</strong>
+        </small>
+        <small style={metricStyle}>
+          <span>Fila</span>
+          <strong>{status?.latestRunStatus ? runLabel(status.latestRunStatus) : "Sem execuções"}</strong>
+        </small>
+      </div>
+
+      {status?.lastError ? (
+        <p style={{ margin: 0, fontSize: 12, color: "#e8a0a0", lineHeight: 1.5 }}>
+          Último erro: {status.lastError}
+        </p>
+      ) : null}
 
       {/* Feedback */}
       {saved && (
@@ -142,6 +261,17 @@ export function IntegrationCard({
         >
           {open ? "Fechar" : isConnected ? "Editar credenciais" : "Configurar"}
         </button>
+        {isConnected && !open && (
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="btn btn-gold"
+            style={{ padding: "8px 18px", fontSize: 11 }}
+          >
+            {isSyncing ? "Enfileirando…" : "Sincronizar agora"}
+          </button>
+        )}
         {isConnected && !open && (
           <button
             type="button"
@@ -246,4 +376,25 @@ export function IntegrationCard({
       )}
     </div>
   );
+}
+
+const metricStyle: React.CSSProperties = {
+  display: "grid",
+  gap: 3,
+  padding: "9px 10px",
+  borderRadius: 8,
+  border: "1px solid rgba(242,236,223,0.08)",
+  background: "rgba(10,22,11,0.32)",
+  color: "var(--cream-dim)",
+};
+
+function runLabel(status: string) {
+  const labels: Record<string, string> = {
+    queued: "Na fila",
+    running: "Executando",
+    succeeded: "Concluída",
+    failed: "Falhou",
+    cancelled: "Cancelada",
+  };
+  return labels[status] ?? status;
 }
