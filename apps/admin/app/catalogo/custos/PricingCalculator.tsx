@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useId, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 
 /* ─── tipos ─────────────────────────────────────────────────── */
@@ -429,41 +428,30 @@ function RegimeSelect({
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
 
-  useEffect(() => { setMounted(true); }, []);
-
-  // Fechar ao clicar fora
   useEffect(() => {
     if (!open) return;
     function handle(e: MouseEvent) {
       if (
-        !triggerRef.current?.contains(e.target as Node) &&
+        !wrapRef.current?.contains(e.target as Node) &&
         !menuRef.current?.contains(e.target as Node)
       ) {
         setOpen(false);
       }
     }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [open]);
-
-  function toggleOpen() {
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setMenuStyle({
-        position: "fixed",
-        top: rect.bottom + 6,
-        left: rect.left,
-        width: Math.max(rect.width, 340),
-        zIndex: 99999,
-      });
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
     }
-    setOpen((v) => !v);
-  }
+    document.addEventListener("mousedown", handle);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const selected = getRegimeOption(value);
 
@@ -474,87 +462,12 @@ function RegimeSelect({
     return acc;
   }, {});
 
-  const menu = (
-    <div
-      ref={menuRef}
-      style={{
-        ...menuStyle,
-        background: "rgba(12,24,13,0.88)",
-        backdropFilter: "blur(20px) saturate(1.4)",
-        WebkitBackdropFilter: "blur(20px) saturate(1.4)",
-        border: "1px solid rgba(185,146,77,0.25)",
-        borderRadius: 14,
-        boxShadow: "0 24px 60px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)",
-        maxHeight: 400,
-        overflowY: "auto",
-        padding: "8px 0",
-      }}
-    >
-      {Object.entries(groups).map(([group, opts]) => (
-        <div key={group}>
-          <div
-            style={{
-              padding: "8px 14px 4px",
-              fontSize: 9.5,
-              fontWeight: 800,
-              textTransform: "uppercase",
-              letterSpacing: 1.2,
-              color: "var(--gold-light)",
-              opacity: 0.8,
-            }}
-          >
-            {group}
-          </div>
-          {opts.map((opt) => {
-            const isSelected = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { onChange(opt.value); setOpen(false); }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  background: isSelected
-                    ? "rgba(185,146,77,0.18)"
-                    : "transparent",
-                  border: "none",
-                  borderLeft: isSelected ? "2px solid var(--gold)" : "2px solid transparent",
-                  padding: "9px 14px 9px 16px",
-                  cursor: "pointer",
-                  color: isSelected ? "var(--gold-light)" : "var(--cream)",
-                  fontSize: 13,
-                  fontWeight: isSelected ? 700 : 400,
-                  transition: "background 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "rgba(242,236,223,0.07)";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                }}
-              >
-                <span style={{ display: "block", lineHeight: 1.35 }}>{opt.label}</span>
-                {opt.hint && (
-                  <span style={{ display: "block", fontSize: 10.5, color: "var(--cream-dim)", marginTop: 2, lineHeight: 1.4, opacity: 0.7 }}>
-                    {opt.hint}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-
   return (
-    <>
+    <div ref={wrapRef} style={{ position: "relative", zIndex: open ? 40 : 1 }}>
       <button
         ref={triggerRef}
         type="button"
-        onClick={toggleOpen}
+        onClick={() => setOpen((v) => !v)}
         style={{
           ...inputS,
           display: "flex",
@@ -587,8 +500,76 @@ function RegimeSelect({
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      {mounted && open && createPortal(menu, document.body)}
-    </>
+      {open ? (
+        <div
+          ref={menuRef}
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            right: 0,
+            zIndex: 45,
+            background: "rgba(12,24,13,0.92)",
+            backdropFilter: "blur(20px) saturate(1.4)",
+            WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+            border: "1px solid rgba(185,146,77,0.32)",
+            borderRadius: 14,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.58), 0 2px 8px rgba(0,0,0,0.36)",
+            maxHeight: 360,
+            overflowY: "auto",
+            padding: "8px 0",
+          }}
+        >
+          {Object.entries(groups).map(([group, opts]) => (
+            <div key={group}>
+              <div
+                style={{
+                  padding: "8px 14px 4px",
+                  fontSize: 9.5,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: 1.2,
+                  color: "var(--gold-light)",
+                  opacity: 0.8,
+                }}
+              >
+                {group}
+              </div>
+              {opts.map((opt) => {
+                const isSelected = opt.value === value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { onChange(opt.value); setOpen(false); }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      background: isSelected ? "rgba(185,146,77,0.18)" : "transparent",
+                      border: "none",
+                      borderLeft: isSelected ? "2px solid var(--gold)" : "2px solid transparent",
+                      padding: "9px 14px 9px 16px",
+                      cursor: "pointer",
+                      color: isSelected ? "var(--gold-light)" : "var(--cream)",
+                      fontSize: 13,
+                      fontWeight: isSelected ? 700 : 400,
+                    }}
+                  >
+                    <span style={{ display: "block", lineHeight: 1.35 }}>{opt.label}</span>
+                    {opt.hint ? (
+                      <span style={{ display: "block", fontSize: 10.5, color: "var(--cream-dim)", marginTop: 2, lineHeight: 1.4, opacity: 0.7 }}>
+                        {opt.hint}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
