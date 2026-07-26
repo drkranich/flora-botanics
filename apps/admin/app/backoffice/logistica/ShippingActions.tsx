@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
-import { cancelShipment, queueLabelPrint, requestShipmentLabel } from "./actions";
+import { cancelShipment, queueLabelPrint, queueProductLabelPrint, requestShipmentLabel } from "./actions";
 
 export function RequestLabelButton({ orderId }: { orderId: string }) {
   const [pending, startTransition] = useTransition();
@@ -83,6 +83,55 @@ export function ShipmentButtons({ shipmentId, canPrint }: { shipmentId: string; 
           }}
         >
           Cancelar
+        </button>
+      </div>
+    </ActionWrap>
+  );
+}
+
+export function ProductLabelButtons({ variantId }: { variantId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const [copies, setCopies] = useState(1);
+
+  function run(format: "a4" | "thermal") {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await queueProductLabelPrint(variantId, format, copies);
+      setMessage(result.ok ? "Etiqueta de produto enfileirada." : result.error);
+    });
+  }
+
+  return (
+    <ActionWrap message={message}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center" }}>
+        <input
+          aria-label="Quantidade de cópias"
+          type="number"
+          min={1}
+          max={250}
+          value={copies}
+          onChange={(event) => setCopies(Number(event.target.value) || 1)}
+          className="input"
+          style={{ width: 74, padding: "7px 10px", fontSize: 11 }}
+        />
+        <button
+          type="button"
+          className="btn btn-gold"
+          disabled={pending}
+          style={{ padding: "7px 12px", fontSize: 10 }}
+          onClick={() => run("thermal")}
+        >
+          Térmica
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={pending}
+          style={{ padding: "7px 12px", fontSize: 10 }}
+          onClick={() => run("a4")}
+        >
+          A4
         </button>
       </div>
     </ActionWrap>

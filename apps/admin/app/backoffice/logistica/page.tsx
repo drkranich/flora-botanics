@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
-import { RequestLabelButton, ShipmentButtons } from "./ShippingActions";
+import { ProductLabelButtons, RequestLabelButton, ShipmentButtons } from "./ShippingActions";
 
 interface OrderRow {
   id: string;
@@ -27,6 +27,7 @@ interface ShipmentRow {
   label_url: string | null;
   label_pdf_url: string | null;
   label_format: string;
+  recipient_snapshot: Record<string, unknown> | null;
   service_cost_cents: number;
   expected_delivery_days: number | null;
   last_error: string | null;
@@ -42,6 +43,32 @@ interface ShippingRule {
   provider_key: string | null;
   service: string | null;
   strategy: string;
+}
+
+interface InventorySnapshot {
+  quantity: number;
+  reserved: number | null;
+  track: boolean | null;
+}
+
+interface ProductVariantRow {
+  id: string;
+  product_id: string;
+  sku: string;
+  name: string | null;
+  weight_g: number | null;
+  products: { name: string; status: string } | null;
+  inventory: InventorySnapshot | InventorySnapshot[] | null;
+}
+
+interface ProductLabelJobRow {
+  id: string;
+  variant_id: string | null;
+  status: string;
+  format: string;
+  copies: number;
+  barcode_value: string | null;
+  created_at: string;
 }
 
 const orderStatusLabel: Record<string, string> = {
@@ -92,14 +119,24 @@ function toneForStatus(status: string) {
   return "neutral";
 }
 
+function first<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
 export default async function LogisticaPage() {
   const staff = await currentStaff();
   if (!staff) return null;
 
   const supabase = await createClient();
 
-  const [{ data: orderData }, { data: shipmentData, error: shipmentError }, { data: rulesData, error: rulesError }] =
-    await Promise.all([
+  const [
+    { data: orderData },
+    { data: shipmentData, error: shipmentError },
+    { data: rulesData, error: rulesError },
+    { data: variantData, error: variantError },
+    { data: productLabelData, error: productLabelError },
+  ] = await Promise.all([
       supabase
         .from("orders")
         .select("id, number, status, shipping_cents, total_cents, currency, created_at, customers(email, full_name)")
@@ -110,7 +147,7 @@ export default async function LogisticaPage() {
       supabase
         .from("shipments")
         .select(
-          "id, order_id, provider_key, carrier, service, tracking_code, status, label_status, label_url, label_pdf_url, label_format, service_cost_cents, expected_delivery_days, last_error, created_at, orders(number, status, customers(email, full_name))"
+          "id, order_id, provider_key, carrier, service, tracking_code, status, label_status, label_url, label_pdf_url, label_format, recipient_snapshot, service_cost_cents, expected_delivery_days, last_error, created_at, orders(number, status, customers(email, full_name))"
         )
         .eq("tenant_id", staff.tenantId)
         .order("created_at", { ascending: false })
@@ -120,15 +157,36 @@ export default async function LogisticaPage() {
         .select("id, name, priority, status, provider_key, service, strategy")
         .eq("tenant_id", staff.tenantId)
         .order("priority", { ascending: true }),
+      supabase
+        .from("product_variants")
+        .select("id, product_id, sku, name, weight_g, products(name, status), inventory(quantity, reserved, track)")
+        .eq("tenant_id", staff.tenantId)
+        .order("sku", { ascending: true })
+        .limit(30),
+      supabase
+        .from("product_label_print_jobs")
+        .select("id, variant_id, status, format, copies, barcode_value, created_at")
+        .eq("tenant_id", staff.tenantId)
+        .order("created_at", { ascending: false })
+        .limit(40),
     ]);
 
   const shipments = shipmentError ? [] : ((shipmentData ?? []) as unknown as ShipmentRow[]);
+  const variants = variantError ? [] : ((variantData ?? []) as unknown as ProductVariantRow[]);
+  const productLabelJobs = productLabelError ? [] : ((productLabelData ?? []) as unknown as ProductLabelJobRow[]);
+  const latestProductLabelByVariant = new Map<string, ProductLabelJobRow>();
+  for (const job of productLabelJobs) {
+    if (job.variant_id && !latestProductLabelByVariant.has(job.variant_id)) {
+      latestProductLabelByVariant.set(job.variant_id, job);
+    }
+  }
   const shippedOrderIds = new Set(shipments.map((shipment) => shipment.order_id));
   const candidateOrders = ((orderData ?? []) as unknown as OrderRow[]).filter((order) => !shippedOrderIds.has(order.id));
   const rules = rulesError ? [] : ((rulesData ?? []) as ShippingRule[]);
   const queued = shipments.filter((shipment) => ["queued", "generating"].includes(shipment.label_status)).length;
   const created = shipments.filter((shipment) => ["created", "printed"].includes(shipment.label_status)).length;
   const failed = shipments.filter((shipment) => shipment.label_status === "failed" || shipment.last_error).length;
+  const productLabelsQueued = productLabelJobs.filter((job) => ["queued", "printing"].includes(job.status)).length;
 
   return (
     <div style={{ display: "grid", gap: 18, padding: "24px 28px 48px" }}>
@@ -144,6 +202,7 @@ export default async function LogisticaPage() {
         <Metric label="Na fila" value={String(queued)} tone="warn" />
         <Metric label="Criadas/impressas" value={String(created)} tone="ok" />
         <Metric label="Falhas" value={String(failed)} tone={failed ? "danger" : "ok"} />
+        <Metric label="Etiquetas internas" value={String(productLabelsQueued)} tone="warn" />
         <Metric label="Regras ativas" value={String(rules.filter((rule) => rule.status === "active").length)} />
       </div>
 
@@ -201,6 +260,78 @@ export default async function LogisticaPage() {
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
           <div>
+            <p className="eyebrow">Etiquetas de produto e estoque</p>
+            <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+              Geração própria de código de barras para produtos, prateleiras, estoque e impressão A4/térmica.
+            </p>
+          </div>
+          <Link href="/catalogo" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
+            Ver catálogo
+          </Link>
+        </div>
+        {variantError ? (
+          <EmptyState text="Não foi possível carregar os produtos para etiquetagem." />
+        ) : variants.length === 0 ? (
+          <EmptyState text="Nenhum produto cadastrado para gerar etiqueta interna." />
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <Th>Produto</Th>
+                  <Th>SKU / código</Th>
+                  <Th>Estoque</Th>
+                  <Th>Peso</Th>
+                  <Th>Última etiqueta</Th>
+                  <Th>Impressão</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {variants.map((variant) => {
+                  const inventory = first(variant.inventory);
+                  const latestJob = latestProductLabelByVariant.get(variant.id);
+                  const available = (inventory?.quantity ?? 0) - (inventory?.reserved ?? 0);
+                  return (
+                    <tr key={variant.id}>
+                      <Td>
+                        <strong>{variant.products?.name ?? variant.name ?? "Produto Flora"}</strong>
+                        <span className="muted" style={{ display: "block", fontSize: 10 }}>
+                          {variant.name ?? "Variação padrão"}
+                        </span>
+                      </Td>
+                      <Td>
+                        <code style={codeStyle}>{variant.sku}</code>
+                        <span className="muted" style={{ display: "block", fontSize: 10 }}>
+                          barras: {latestJob?.barcode_value ?? variant.sku}
+                        </span>
+                      </Td>
+                      <Td>
+                        {available} disponível
+                        <span className="muted" style={{ display: "block", fontSize: 10 }}>
+                          {inventory?.reserved ?? 0} reservado
+                        </span>
+                      </Td>
+                      <Td>{variant.weight_g ? `${variant.weight_g} g` : "—"}</Td>
+                      <Td>
+                        {latestJob ? (
+                          <StatusBadge status={latestJob.status} label={`${latestJob.copies}x · ${latestJob.format.toUpperCase()}`} />
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </Td>
+                      <Td><ProductLabelButtons variantId={variant.id} /></Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section style={cardStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
             <p className="eyebrow">Remessas e etiquetas</p>
             <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
               Impressão individual, reimpressão A4/térmica e cancelamento operacional.
@@ -218,6 +349,7 @@ export default async function LogisticaPage() {
                   <Th>Transportadora</Th>
                   <Th>Etiqueta</Th>
                   <Th>Rastreio</Th>
+                  <Th>Observação</Th>
                   <Th>Custo</Th>
                   <Th>Erro</Th>
                   <Th>Impressão</Th>
@@ -226,6 +358,7 @@ export default async function LogisticaPage() {
               <tbody>
                 {shipments.map((shipment) => {
                   const canPrint = ["created", "printed", "label_created"].includes(shipment.label_status) || Boolean(shipment.label_url || shipment.label_pdf_url);
+                  const observation = shipment.recipient_snapshot?.observation;
                   return (
                     <tr key={shipment.id}>
                       <Td>
@@ -242,6 +375,13 @@ export default async function LogisticaPage() {
                       </Td>
                       <Td><StatusBadge status={shipment.label_status} label={labelStatusLabel[shipment.label_status] ?? shipment.label_status} /></Td>
                       <Td>{shipment.tracking_code ?? "—"}</Td>
+                      <Td>
+                        {typeof observation === "string" && observation.trim() ? (
+                          <span style={{ color: "var(--cream-dim)", fontSize: 11 }}>{observation}</span>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </Td>
                       <Td>{money(shipment.service_cost_cents)}</Td>
                       <Td>
                         {shipment.last_error ? (
@@ -379,4 +519,13 @@ const tdStyle: React.CSSProperties = {
   padding: "12px",
   borderBottom: "1px solid rgba(242,236,223,0.08)",
   verticalAlign: "middle",
+};
+
+const codeStyle: React.CSSProperties = {
+  color: "var(--cream)",
+  background: "rgba(10,22,11,0.38)",
+  border: "1px solid var(--glass-border)",
+  borderRadius: 6,
+  padding: "3px 7px",
+  fontSize: 11,
 };

@@ -6,6 +6,7 @@ import { currentStaff } from "@/lib/auth";
 import { enqueueIntegrationEvent, enqueueIntegrationSync } from "@/lib/integrations/event-bus";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
+type MaybeArray<T> = T | T[];
 
 interface OrderForShipment {
   id: string;
@@ -14,6 +15,18 @@ interface OrderForShipment {
   shipping_address: Record<string, unknown> | null;
   shipping_cents: number | null;
   total_cents: number | null;
+  notes: string | null;
+  customers: MaybeArray<{ email: string; full_name: string | null; phone: string | null }> | null;
+}
+
+interface VariantForLabel {
+  id: string;
+  product_id: string;
+  tenant_id: string;
+  sku: string;
+  name: string | null;
+  weight_g: number | null;
+  products: { name: string; slug: string } | null;
 }
 
 interface ShippingRule {
@@ -28,6 +41,20 @@ function senderSnapshot() {
     document: null,
     country: "BR",
   };
+}
+
+function buildInternalTrackingCode(orderNumber: string) {
+  const cleanNumber = orderNumber.replace(/\D/g, "") || orderNumber.replace(/[^a-zA-Z0-9]/g, "");
+  return `FLORA-${cleanNumber}`;
+}
+
+function storefrontUrl() {
+  return process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://florabotanics.com.br";
+}
+
+function first<T>(value: MaybeArray<T> | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
 }
 
 async function getPreferredRule(supabase: Awaited<ReturnType<typeof createClient>>, tenantId: string) {
@@ -54,7 +81,7 @@ export async function requestShipmentLabel(orderId: string): Promise<ActionResul
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, number, tenant_id, shipping_address, shipping_cents, total_cents")
+    .select("id, number, tenant_id, shipping_address, shipping_cents, total_cents, notes, customers(email, full_name, phone)")
     .eq("id", orderId)
     .eq("tenant_id", staff.tenantId)
     .maybeSingle();
@@ -66,6 +93,23 @@ export async function requestShipmentLabel(orderId: string): Promise<ActionResul
   const providerKey = rule?.provider_key ?? "melhor_envio";
   const service = rule?.service ?? "best_rate";
   const now = new Date().toISOString();
+  const trackingCode = buildInternalTrackingCode(String(shipmentOrder.number));
+  const customer = first(shipmentOrder.customers);
+  const recipientSnapshot = {
+    ...(shipmentOrder.shipping_address ?? {}),
+    name:
+      (shipmentOrder.shipping_address?.recipient as string | undefined) ??
+      customer?.full_name ??
+      customer?.email ??
+      null,
+    phone: customer?.phone ?? null,
+    email: customer?.email ?? null,
+    observation:
+      shipmentOrder.notes ??
+      (shipmentOrder.shipping_address?.observation as string | undefined) ??
+      (shipmentOrder.shipping_address?.notes as string | undefined) ??
+      null,
+  };
 
   const { data: existing } = await supabase
     .from("shipments")
@@ -85,7 +129,10 @@ export async function requestShipmentLabel(orderId: string): Promise<ActionResul
     status: "pending",
     label_status: "queued",
     label_format: "a4",
-    recipient_snapshot: shipmentOrder.shipping_address ?? {},
+    tracking_code: trackingCode,
+    barcode: trackingCode,
+    qr_code: `${storefrontUrl()}/rastrear?codigo=${encodeURIComponent(trackingCode)}`,
+    recipient_snapshot: recipientSnapshot,
     sender_snapshot: senderSnapshot(),
     service_cost_cents: shipmentOrder.shipping_cents ?? 0,
     updated_at: now,
@@ -131,6 +178,7 @@ export async function requestShipmentLabel(orderId: string): Promise<ActionResul
       order_id: orderId,
       shipment_id: shipmentId,
       service,
+      recipient_snapshot: recipientSnapshot,
     },
     createdBy: staff.id,
   });
@@ -212,6 +260,76 @@ export async function queueLabelPrint(shipmentId: string, format: "a4" | "therma
   return { ok: true };
 }
 
+export async function queueProductLabelPrint(
+  variantId: string,
+  format: "a4" | "thermal" | "zpl" | "pdf",
+  copies = 1
+): Promise<ActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin" && staff.role !== "platform_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const safeCopies = Math.max(1, Math.min(250, Math.trunc(copies || 1)));
+  const supabase = await createClient();
+
+  const { data: variant } = await supabase
+    .from("product_variants")
+    .select("id, product_id, tenant_id, sku, name, weight_g, products(name, slug)")
+    .eq("id", variantId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!variant) return { ok: false, error: "Variação não encontrada." };
+
+  const labelVariant = variant as unknown as VariantForLabel;
+  const barcodeValue = labelVariant.sku || `FLORA-${labelVariant.id.slice(0, 8).toUpperCase()}`;
+  const productName = labelVariant.products?.name ?? labelVariant.name ?? "Produto Flora";
+
+  const labelPayload = {
+    brand: "Flora Botanics",
+    product_name: productName,
+    variant_name: labelVariant.name,
+    sku: labelVariant.sku,
+    barcode: barcodeValue,
+    weight_g: labelVariant.weight_g,
+    label_kind: "stock_product",
+    generated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from("product_label_print_jobs").insert({
+    tenant_id: staff.tenantId,
+    product_id: labelVariant.product_id,
+    variant_id: labelVariant.id,
+    template: "product_stock",
+    format,
+    status: "queued",
+    copies: safeCopies,
+    barcode_value: barcodeValue,
+    label_payload: labelPayload,
+    created_by: staff.id,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.from("shipping_audit_events").insert({
+    tenant_id: staff.tenantId,
+    event_type: "product_label_print_queued",
+    new_value: {
+      variant_id: labelVariant.id,
+      product_id: labelVariant.product_id,
+      format,
+      copies: safeCopies,
+      barcode_value: barcodeValue,
+    },
+    actor_id: staff.id,
+  }).then(() => undefined, () => undefined);
+
+  revalidatePath("/backoffice/logistica");
+  return { ok: true };
+}
+
 export async function cancelShipment(shipmentId: string): Promise<ActionResult> {
   const staff = await currentStaff();
   if (!staff) return { ok: false, error: "Sessão inválida." };
@@ -270,4 +388,3 @@ export async function cancelShipment(shipmentId: string): Promise<ActionResult> 
   revalidatePath("/backoffice/logistica");
   return { ok: true };
 }
-
