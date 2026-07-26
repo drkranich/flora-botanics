@@ -72,6 +72,7 @@ const SECTIONS = [
   { label: "Centros de custo", href: "/contabilidade#centros-de-custo" },
   { label: "Relatórios", href: "#exportacao" },
   { label: "Configurações", href: "#configuracoes" },
+  { label: "Stripe: Catálogo e Preços", href: "/financeiro/stripe" },
 ];
 
 const KIND_LABEL: Record<string, string> = {

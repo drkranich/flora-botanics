@@ -24,8 +24,8 @@ export default async function ProdutosPage() {
     supabase
       .from("products")
       .select(
-        `id, name, subtitle, slug, status, editorial_content,
-         product_variants(id, sku, price_cents, compare_at_cents, is_default, inventory(quantity)),
+        `id, name, subtitle, slug, status, editorial_content, stripe_product_id, stripe_lookup_key, stripe_sync_status, stripe_last_sync_at, stripe_last_error,
+         product_variants(id, sku, price_cents, compare_at_cents, currency, is_default, stripe_product_id, stripe_price_id, stripe_lookup_key, stripe_sync_status, stripe_last_sync_at, stripe_last_error, inventory(quantity)),
          product_categories(category_id),
          product_media(role, sort_order, media(id, storage_path))`
       )
@@ -48,7 +48,14 @@ export default async function ProdutosPage() {
       sku: string;
       price_cents: number;
       compare_at_cents: number | null;
+      currency: string;
       is_default: boolean;
+      stripe_product_id: string | null;
+      stripe_price_id: string | null;
+      stripe_lookup_key: string | null;
+      stripe_sync_status: string;
+      stripe_last_sync_at: string | null;
+      stripe_last_error: string | null;
       inventory: { quantity: number } | { quantity: number }[] | null;
     }>;
     const v = variants.find((x) => x.is_default) ?? variants[0];
@@ -86,6 +93,12 @@ export default async function ProdutosPage() {
       compare_at_cents: v?.compare_at_cents ?? null,
       stock: inv?.quantity ?? 0,
       category_id: pc[0]?.category_id ?? null,
+      stripe_product_id: v?.stripe_product_id ?? p.stripe_product_id ?? null,
+      stripe_price_id: v?.stripe_price_id ?? null,
+      stripe_lookup_key: v?.stripe_lookup_key ?? p.stripe_lookup_key ?? null,
+      stripe_sync_status: v?.stripe_sync_status ?? p.stripe_sync_status ?? "not_linked",
+      stripe_last_sync_at: v?.stripe_last_sync_at ?? p.stripe_last_sync_at ?? null,
+      stripe_last_error: v?.stripe_last_error ?? p.stripe_last_error ?? null,
       cover_url: cover?.url ?? null,
       cover_media_id: cover?.id ?? null,
       gallery_images: gallery,

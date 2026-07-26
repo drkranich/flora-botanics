@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   createProduct,
@@ -25,6 +26,12 @@ export type ProductRow = {
   compare_at_cents: number | null;
   stock: number;
   category_id: string | null;
+  stripe_product_id: string | null;
+  stripe_price_id: string | null;
+  stripe_lookup_key: string | null;
+  stripe_sync_status: string;
+  stripe_last_sync_at: string | null;
+  stripe_last_error: string | null;
   editorial_content: ProductEditorialContent | null;
   cover_url: string | null;
   cover_media_id: string | null;
@@ -133,45 +140,64 @@ export function ProductManager({
               }
             />
           ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-              <div
-                style={{
-                  width: 58,
-                  height: 58,
-                  borderRadius: 12,
-                  flexShrink: 0,
-                  background: p.cover_url
-                    ? `url("${p.cover_url}") center / cover`
-                    : "rgba(10,22,11,0.45)",
-                  border: "1px solid var(--glass-border)",
-                }}
-              />
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <strong style={{ fontSize: 14.5 }}>{p.name}</strong>
-                <p className="muted" style={{ fontSize: 11.5, marginTop: 3 }}>
-                  {money(p.price_cents)} · estoque {p.stock} · {p.sku}
-                </p>
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: 12,
+                    flexShrink: 0,
+                    background: p.cover_url
+                      ? `url("${p.cover_url}") center / cover`
+                      : "rgba(10,22,11,0.45)",
+                    border: "1px solid var(--glass-border)",
+                  }}
+                />
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <strong style={{ fontSize: 14.5 }}>{p.name}</strong>
+                  <p className="muted" style={{ fontSize: 11.5, marginTop: 3 }}>
+                    {money(p.price_cents)} · estoque {p.stock} · {p.sku}
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span className={`chip ${p.status === "published" ? "chip-live" : "chip-draft"}`}>
+                    {p.status === "published" ? "À venda" : p.status === "draft" ? "Rascunho" : "Arquivado"}
+                  </span>
+                  <button className="btn-icon" title="Editar" onClick={() => { setEditing(p.id); setCreating(false); }}>
+                    ✎
+                  </button>
+                  <button
+                    className="btn-icon"
+                    title={p.status === "archived" ? "Restaurar" : "Arquivar"}
+                    style={{ color: p.status === "archived" ? "var(--gold-light)" : "#e8a0a0" }}
+                    onClick={() =>
+                      run(
+                        () => archiveProduct(p.id, p.status !== "archived"),
+                        p.status === "archived" ? "Produto restaurado." : "Produto arquivado."
+                      )
+                    }
+                  >
+                    {p.status === "archived" ? "↺" : "▣"}
+                  </button>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span className={`chip ${p.status === "published" ? "chip-live" : "chip-draft"}`}>
-                  {p.status === "published" ? "À venda" : p.status === "draft" ? "Rascunho" : "Arquivado"}
+
+              <div style={stripeSummaryStyle}>
+                <span>
+                  <span className="eyebrow" style={{ fontSize: 8.5 }}>Integração Stripe</span>
+                  <span className="muted" style={{ display: "block", fontSize: 10.5, marginTop: 3 }}>
+                    {p.stripe_last_error ?? "Product, Price e Lookup Key controlados no Financeiro."}
+                  </span>
                 </span>
-                <button className="btn-icon" title="Editar" onClick={() => { setEditing(p.id); setCreating(false); }}>
-                  ✎
-                </button>
-                <button
-                  className="btn-icon"
-                  title={p.status === "archived" ? "Restaurar" : "Arquivar"}
-                  style={{ color: p.status === "archived" ? "var(--gold-light)" : "#e8a0a0" }}
-                  onClick={() =>
-                    run(
-                      () => archiveProduct(p.id, p.status !== "archived"),
-                      p.status === "archived" ? "Produto restaurado." : "Produto arquivado."
-                    )
-                  }
-                >
-                  {p.status === "archived" ? "↺" : "▣"}
-                </button>
+                <span className={p.stripe_sync_status === "synced" || p.stripe_sync_status === "connected" ? "chip chip-live" : "chip chip-draft"}>
+                  {p.stripe_sync_status === "connected" ? "Conectado" : p.stripe_sync_status === "synced" ? "Sincronizado" : "Não conectado"}
+                </span>
+                <code style={codePillStyle}>{p.stripe_product_id ?? "prod_..."}</code>
+                <code style={codePillStyle}>{p.stripe_price_id ?? "price_..."}</code>
+                <Link href="/financeiro/stripe" className="btn btn-ghost" style={{ padding: "8px 12px", fontSize: 9 }}>
+                  Gerenciar
+                </Link>
               </div>
             </div>
           )}
@@ -205,6 +231,26 @@ export function ProductManager({
     </div>
   );
 }
+
+const stripeSummaryStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(180px, 1fr) repeat(3, minmax(120px, auto)) auto",
+  gap: 10,
+  alignItems: "center",
+  border: "1px solid var(--glass-border)",
+  borderRadius: 12,
+  padding: "10px 12px",
+  background: "rgba(255,248,234,0.035)",
+};
+
+const codePillStyle: React.CSSProperties = {
+  border: "1px solid var(--glass-border)",
+  borderRadius: 999,
+  padding: "6px 10px",
+  color: "var(--cream-dim)",
+  background: "rgba(10,22,11,0.45)",
+  fontSize: 10,
+};
 
 function ProductFormFields({
   defaults,
