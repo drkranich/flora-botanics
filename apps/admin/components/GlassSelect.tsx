@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 export type GlassSelectOption = {
@@ -32,24 +32,31 @@ export function GlassSelect({
   inlineMenu?: boolean;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef    = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const [internalValue, setInternalValue] = useState(defaultValue ?? options[0]?.value ?? "");
   const [mounted, setMounted] = useState(false);
-  const controlled   = value !== undefined;
+  const controlled = value !== undefined;
   const currentValue = controlled ? value : internalValue;
-  const selected     = options.find((o) => o.value === currentValue) ?? options[0];
+  const selected = options.find((o) => o.value === currentValue) ?? options[0];
 
-  // Portal só existe no cliente
-  useEffect(() => { setMounted(true); }, []);
+  // Mesmo quando a tela pede inlineMenu, o menu usa portal para escapar de cards,
+  // tabelas, drawers e painéis com backdrop-filter/overflow.
+  void inlineMenu;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     function close(event: MouseEvent) {
       if (
         !triggerRef.current?.contains(event.target as Node) &&
         !menuRef.current?.contains(event.target as Node)
-      ) setOpen(false);
+      ) {
+        setOpen(false);
+      }
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
@@ -62,24 +69,46 @@ export function GlassSelect({
     };
   }, []);
 
+  const updateMenuPosition = useCallback(() => {
+    if (!triggerRef.current) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const viewportPadding = 12;
+    const menuHeight = Math.min(260, options.length * 38 + 12);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < menuHeight + 10 && rect.top > menuHeight;
+    const width = Math.max(180, rect.width);
+    const left = Math.min(
+      Math.max(viewportPadding, rect.left),
+      window.innerWidth - width - viewportPadding
+    );
+
+    setMenuStyle({
+      position: "fixed",
+      zIndex: 2147483646,
+      left,
+      width,
+      ...(openUp
+        ? { top: "auto", bottom: window.innerHeight - rect.top + 4 }
+        : { top: rect.bottom + 4, bottom: "auto" }),
+    });
+  }, [options.length]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    updateMenuPosition();
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
+  }, [open, updateMenuPosition]);
+
   function toggle() {
-    if (!inlineMenu && !open && triggerRef.current) {
-      const r = triggerRef.current.getBoundingClientRect();
-      // abre abaixo do trigger; se não couber na tela, abre acima
-      const spaceBelow = window.innerHeight - r.bottom;
-      const menuH = Math.min(260, options.length * 38 + 12);
-      const openUp = spaceBelow < menuH + 10 && r.top > menuH;
-      setMenuStyle({
-        position: "fixed",
-        zIndex: 9999,
-        left: r.left,
-        width: r.width,
-        ...(openUp
-          ? { bottom: window.innerHeight - r.top + 4 }
-          : { top: r.bottom + 4 }),
-      });
-    }
-    setOpen((v) => !v);
+    if (!open) updateMenuPosition();
+    setOpen((visible) => !visible);
   }
 
   function choose(nextValue: string) {
@@ -91,10 +120,10 @@ export function GlassSelect({
   const menuContent = open ? (
     <div
       ref={menuRef}
-      className={inlineMenu ? "glass-select-menu glass-select-menu-inline" : "glass-select-menu"}
+      className="glass-select-menu"
       role="listbox"
       aria-label={ariaLabel}
-      style={inlineMenu ? undefined : menuStyle}
+      style={menuStyle}
     >
       {options.map((option) => (
         <button
@@ -112,7 +141,7 @@ export function GlassSelect({
     </div>
   ) : null;
 
-  const menu = inlineMenu ? menuContent : open && mounted && menuContent ? createPortal(menuContent, document.body) : null;
+  const menu = open && mounted && menuContent ? createPortal(menuContent, document.body) : null;
 
   return (
     <>
@@ -132,9 +161,8 @@ export function GlassSelect({
           <span>{selected?.label ?? "Selecione"}</span>
           <span className="glass-select-arrow" aria-hidden="true" />
         </button>
-        {inlineMenu ? menu : null}
       </div>
-      {inlineMenu ? null : menu}
+      {menu}
     </>
   );
 }

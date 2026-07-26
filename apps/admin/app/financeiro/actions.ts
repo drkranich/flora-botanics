@@ -61,7 +61,7 @@ function parseComponents(formData: FormData): FinanceComponentInput[] {
       const group = GROUPS.has(row.group as FinanceComponentGroup) ? (row.group as FinanceComponentGroup) : "custom";
       return {
         group,
-        label: String(row.label ?? "").trim() || "Custo sem descricao",
+        label: String(row.label ?? "").trim() || "Custo sem descrição",
         amountCents: Math.max(0, Math.round(Number(row.amountCents) || 0)),
       };
     })
@@ -113,7 +113,7 @@ async function ensureCanEdit() {
 
 export async function saveFinanceCalculation(formData: FormData) {
   const { session, tenantId } = await ensureCanEdit();
-  const title = requiredText(formData, "title", "Nome do cenario");
+  const title = requiredText(formData, "title", "Nome do cenário");
   const modeRaw = String(formData.get("calculation_mode") ?? "unit");
   const saleModelRaw = String(formData.get("sale_model") ?? "retail");
   const mode = MODES.has(modeRaw as FinanceMode) ? (modeRaw as FinanceMode) : "unit";
@@ -159,7 +159,7 @@ export async function saveFinanceCalculation(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !calculation) throw new Error(error?.message ?? "Nao foi possivel salvar o cenario.");
+  if (error || !calculation) throw new Error(error?.message ?? "Não foi possível salvar o cenário.");
 
   const componentRows = components.map((component) => ({
     tenant_id: tenantId,
@@ -243,7 +243,7 @@ export async function createCommercialQuote(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !quote) throw new Error(error?.message ?? "Nao foi possivel criar o orcamento.");
+  if (error || !quote) throw new Error(error?.message ?? "Não foi possível criar o orçamento.");
 
   await supabase.from("finance_audit_events").insert({
     tenant_id: tenantId,
@@ -328,7 +328,7 @@ export async function createPriceTable(formData: FormData) {
   };
 
   const { data, error } = await supabase.from("finance_price_tables").insert(payload).select("id").single();
-  if (error || !data) throw new Error(error?.message ?? "Nao foi possivel criar a tabela de preco.");
+  if (error || !data) throw new Error(error?.message ?? "Não foi possível criar a tabela de preço.");
 
   await supabase.from("finance_audit_events").insert({
     tenant_id: tenantId,
@@ -349,3 +349,4 @@ export async function deletePriceTable(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/financeiro");
 }
+

@@ -5,8 +5,8 @@ import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import { createCommercialQuote } from "./actions";
 
 const KIND_OPTIONS = [
-  { value: "budget", label: "Orcamento" },
-  { value: "quote", label: "Cotacao" },
+  { value: "budget", label: "Orçamento" },
+  { value: "quote", label: "Cotação" },
   { value: "proposal", label: "Proposta comercial" },
 ];
 
@@ -15,7 +15,7 @@ const CHANNEL_OPTIONS = [
   { value: "b2b", label: "B2B" },
   { value: "wholesale", label: "Atacado" },
   { value: "marketplace", label: "Marketplace" },
-  { value: "physical_store", label: "Loja fisica" },
+  { value: "physical_store", label: "Loja física" },
   { value: "corporate", label: "Corporativo" },
 ];
 
@@ -27,7 +27,7 @@ export function CommercialQuoteForm({ calculations }: { calculations: GlassSelec
   return (
     <form action={createCommercialQuote} className="glass rise rise-1" style={{ padding: 22, display: "grid", gap: 14 }}>
       <div>
-        <p className="eyebrow" style={{ marginBottom: 7 }}>Orcamentos, cotacoes e propostas</p>
+        <p className="eyebrow" style={{ marginBottom: 7 }}>Orçamentos, cotacoes e propostas</p>
         <h2 className="display" style={{ fontSize: 28 }}>Documento comercial</h2>
       </div>
 
@@ -37,13 +37,13 @@ export function CommercialQuoteForm({ calculations }: { calculations: GlassSelec
           <GlassSelect name="kind" value={kind} onChange={setKind} options={KIND_OPTIONS} ariaLabel="Tipo de documento" inlineMenu />
         </label>
         <label className="field">
-          <span>Cenario base</span>
+          <span>Cenário base</span>
           <GlassSelect
             name="calculation_id"
             value={calculationId}
             onChange={setCalculationId}
-            options={calculations.length ? calculations : [{ value: "", label: "Sem cenario salvo" }]}
-            ariaLabel="Cenario base"
+            options={calculations.length ? calculations : [{ value: "", label: "Sem cenário salvo" }]}
+            ariaLabel="Cenário base"
             inlineMenu
             disabled={!calculations.length}
           />
@@ -77,24 +77,24 @@ export function CommercialQuoteForm({ calculations }: { calculations: GlassSelec
           <input className="input" name="seller_name" placeholder="Opcional" />
         </label>
         <label className="field">
-          <span>Condicao de pagamento</span>
+          <span>Condição de pagamento</span>
           <input className="input" name="payment_terms" placeholder="Ex: 30/60 dias, PIX, boleto" />
         </label>
         <label className="field">
-          <span>Logistica / entrega</span>
+          <span>Logística / entrega</span>
           <input className="input" name="delivery_terms" placeholder="Prazo, frete, transportadora" />
         </label>
         <label className="field" style={{ gridColumn: "1 / -1" }}>
-          <span>Endereco</span>
-          <input className="input" name="address" placeholder="Endereco comercial ou entrega" />
+          <span>Endereço</span>
+          <input className="input" name="address" placeholder="Endereço comercial ou entrega" />
         </label>
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           <span>Termos comerciais</span>
-          <textarea className="input" name="terms" rows={3} placeholder="Validade, aceite, assinatura, condicoes especiais." />
+          <textarea className="input" name="terms" rows={3} placeholder="Validade, aceite, assinatura, condições especiais." />
         </label>
         <label className="field" style={{ gridColumn: "1 / -1" }}>
-          <span>Observacoes internas</span>
-          <textarea className="input" name="notes" rows={3} placeholder="Premissas, negociacao, riscos e proximos passos." />
+          <span>Observações internas</span>
+          <textarea className="input" name="notes" rows={3} placeholder="Premissas, negociação, riscos e próximos passos." />
         </label>
       </div>
 
@@ -104,3 +104,4 @@ export function CommercialQuoteForm({ calculations }: { calculations: GlassSelec
     </form>
   );
 }
+

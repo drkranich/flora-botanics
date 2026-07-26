@@ -96,7 +96,7 @@ function buildPdf(lines: string[]) {
 export async function GET(request: NextRequest) {
   const session = await getStaffSession();
   if (!session || session.role === "tenant_editor") {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const tenantId = await effectiveTenantId();
@@ -132,18 +132,18 @@ export async function GET(request: NextRequest) {
     XLSX.utils.book_append_sheet(
       workbook,
       XLSX.utils.json_to_sheet(calcRows.map((row) => ({
-        Titulo: row.title,
+        Título: row.title,
         Tipo: row.calculation_mode,
         Modelo: row.sale_model,
         Canal: row.channel,
         Quantidade: row.quantity,
-        "Receita liquida": (row.totals?.netRevenueCents ?? 0) / 100,
+        "Receita líquida": (row.totals?.netRevenueCents ?? 0) / 100,
         "Custo total": (row.totals?.totalCostCents ?? 0) / 100,
-        "Lucro liquido": (row.totals?.netProfitCents ?? 0) / 100,
+        "Lucro líquido": (row.totals?.netProfitCents ?? 0) / 100,
         "Margem %": Number(row.totals?.netMarginPercent ?? 0),
         "Criado em": new Date(row.created_at).toLocaleString("pt-BR"),
       }))),
-      "Cenarios"
+      "Cenários"
     );
     XLSX.utils.book_append_sheet(
       workbook,
@@ -152,13 +152,13 @@ export async function GET(request: NextRequest) {
         Tipo: row.table_type,
         Canal: row.channel ?? "",
         Cliente: row.customer_name ?? "",
-        "Quantidade minima": row.min_quantity,
+        "Quantidade mínima": row.min_quantity,
         "Desconto %": Number(row.discount_percent ?? 0),
-        "Comissao %": Number(row.commission_percent ?? 0),
-        "Margem minima %": Number(row.minimum_margin_percent ?? 0),
-        "Exige aprovacao": row.approval_required ? "Sim" : "Nao",
+        "Comissão %": Number(row.commission_percent ?? 0),
+        "Margem mínima %": Number(row.minimum_margin_percent ?? 0),
+        "Exige aprovação": row.approval_required ? "Sim" : "Não",
         "Vigente desde": row.valid_from ?? "",
-        "Vigente ate": row.valid_until ?? "",
+        "Vigente até": row.valid_until ?? "",
       }))),
       "Tabelas"
     );
@@ -187,22 +187,22 @@ export async function GET(request: NextRequest) {
 
   if (format === "pdf") {
     const lines = [
-      "Flora Botanics - Financeiro, Precificacao e Orcamentos",
+      "Flora Botanics - Financeiro, Precificação e Orçamentos",
       `Emitido em: ${new Date().toLocaleString("pt-BR")}`,
       "",
-      "Cenarios salvos:",
+      "Cenários salvos:",
       ...calcRows.slice(0, 18).map((row) => {
         const totals = row.totals ?? {};
         return `${row.title} - ${row.sale_model}/${row.channel} - receita ${money(totals.netRevenueCents ?? 0)} - lucro ${money(totals.netProfitCents ?? 0)}`;
       }),
       "",
-      "Orcamentos e propostas:",
+      "Orçamentos e propostas:",
       ...quoteRows.slice(0, 14).map((row) => {
         const totals = row.totals ?? {};
         return `#${row.number} - ${row.customer_name} - ${row.status} - ${money(totals.netRevenueCents ?? 0)}`;
       }),
       "",
-      "Tabelas de preco:",
+      "Tabelas de preço:",
       ...priceRows.slice(0, 8).map((row) => {
         return `${row.name} - ${row.table_type}/${row.channel ?? "sem canal"} - desc ${Number(row.discount_percent).toFixed(1)}% - margem min ${Number(row.minimum_margin_percent).toFixed(1)}%`;
       }),
@@ -216,10 +216,10 @@ export async function GET(request: NextRequest) {
   }
 
   const csv = [
-    csvLine(["Flora Botanics - Financeiro, Precificacao e Orcamentos"]),
+    csvLine(["Flora Botanics - Financeiro, Precificação e Orçamentos"]),
     csvLine([]),
-    csvLine(["Cenarios"]),
-    csvLine(["Titulo", "Tipo", "Modelo", "Canal", "Quantidade", "Receita liquida", "Custo total", "Lucro liquido", "Margem", "Criado em"]),
+    csvLine(["Cenários"]),
+    csvLine(["Título", "Tipo", "Modelo", "Canal", "Quantidade", "Receita líquida", "Custo total", "Lucro líquido", "Margem", "Criado em"]),
     ...calcRows.map((row) => {
       const totals = row.totals ?? {};
       return csvLine([
@@ -249,8 +249,8 @@ export async function GET(request: NextRequest) {
       new Date(row.created_at).toLocaleString("pt-BR"),
     ])),
     csvLine([]),
-    csvLine(["Tabelas de preco"]),
-    csvLine(["Nome", "Tipo", "Canal", "Cliente", "Quantidade minima", "Desconto", "Comissao", "Margem minima", "Aprovacao", "Vigente desde", "Vigente ate"]),
+    csvLine(["Tabelas de preço"]),
+    csvLine(["Nome", "Tipo", "Canal", "Cliente", "Quantidade mínima", "Desconto", "Comissão", "Margem mínima", "Aprovação", "Vigente desde", "Vigente até"]),
     ...priceRows.map((row) => csvLine([
       row.name,
       row.table_type,
@@ -260,7 +260,7 @@ export async function GET(request: NextRequest) {
       `${Number(row.discount_percent ?? 0).toFixed(1)}%`,
       `${Number(row.commission_percent ?? 0).toFixed(1)}%`,
       `${Number(row.minimum_margin_percent ?? 0).toFixed(1)}%`,
-      row.approval_required ? "Sim" : "Nao",
+      row.approval_required ? "Sim" : "Não",
       row.valid_from,
       row.valid_until,
     ])),
@@ -273,3 +273,5 @@ export async function GET(request: NextRequest) {
     },
   });
 }
+
+

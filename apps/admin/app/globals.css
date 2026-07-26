@@ -680,6 +680,48 @@ select option:focus {
   background: rgba(var(--gold-rgb), 0.12);
 }
 
+.finance-subsection-link {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(var(--gold-rgb), 0.32);
+  border-radius: 999px;
+  padding: 0 14px;
+  color: var(--gold-light);
+  background:
+    linear-gradient(135deg, rgba(var(--gold-rgb), 0.12), rgba(255, 248, 234, 0.035)),
+    rgba(10, 22, 11, 0.58);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.15px;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 10px 24px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(14px) saturate(1.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.18);
+  transition:
+    transform 0.2s var(--ease),
+    border-color 0.2s var(--ease),
+    background 0.2s var(--ease),
+    color 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.finance-subsection-link:hover,
+.finance-subsection-link:focus-visible {
+  color: var(--forest-950);
+  border-color: var(--gold-light);
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  box-shadow:
+    0 12px 28px rgba(var(--gold-rgb), 0.18),
+    0 0 0 3px rgba(var(--gold-rgb), 0.12);
+  outline: none;
+  transform: translateY(-1px);
+}
+
 /* ---------- animações ---------- */
 
 @keyframes rise {

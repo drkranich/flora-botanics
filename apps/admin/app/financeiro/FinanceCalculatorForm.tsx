@@ -7,7 +7,7 @@ import { calculateFinanceScenario, type FinanceComponentGroup } from "@/lib/fina
 import { saveFinanceCalculation } from "./actions";
 
 const MODE_OPTIONS = [
-  { value: "unit", label: "Custo unitario" },
+  { value: "unit", label: "Custo unitário" },
   { value: "batch", label: "Lote" },
   { value: "kit", label: "Kit" },
   { value: "combo", label: "Combo" },
@@ -25,9 +25,9 @@ const SALE_MODEL_OPTIONS = [
   { value: "wholesale", label: "Atacado" },
   { value: "b2b", label: "B2B" },
   { value: "b2c", label: "B2C" },
-  { value: "consignment", label: "Consignacao" },
+  { value: "consignment", label: "Consignação" },
   { value: "marketplace", label: "Marketplace" },
-  { value: "physical_store", label: "Loja fisica" },
+  { value: "physical_store", label: "Loja física" },
   { value: "representative", label: "Representante" },
   { value: "subscription", label: "Assinatura" },
   { value: "corporate", label: "Corporativo" },
@@ -36,7 +36,7 @@ const SALE_MODEL_OPTIONS = [
 const CHANNEL_OPTIONS = [
   { value: "site", label: "E-commerce Flora" },
   { value: "marketplace", label: "Marketplace" },
-  { value: "physical_store", label: "Loja fisica" },
+  { value: "physical_store", label: "Loja física" },
   { value: "representative", label: "Representante" },
   { value: "b2b", label: "B2B" },
   { value: "subscription", label: "Assinatura" },
@@ -44,15 +44,15 @@ const CHANNEL_OPTIONS = [
 ];
 
 const GROUP_OPTIONS: { value: FinanceComponentGroup; label: string }[] = [
-  { value: "production", label: "Producao" },
+  { value: "production", label: "Produção" },
   { value: "packaging", label: "Embalagem" },
-  { value: "logistics", label: "Logistica" },
+  { value: "logistics", label: "Logística" },
   { value: "tax", label: "Imposto" },
-  { value: "commission", label: "Comissao" },
+  { value: "commission", label: "Comissão" },
   { value: "channel_fee", label: "Taxa de canal" },
   { value: "fixed_expense", label: "Despesa fixa" },
-  { value: "variable_expense", label: "Despesa variavel" },
-  { value: "labor", label: "Mao de obra" },
+  { value: "variable_expense", label: "Despesa variável" },
+  { value: "labor", label: "Mão de obra" },
   { value: "investment", label: "Investimento" },
   { value: "custom", label: "Personalizado" },
 ];
@@ -61,19 +61,19 @@ const ITEM_KIND_OPTIONS = [
   { value: "product", label: "Produto" },
   { value: "kit", label: "Kit" },
   { value: "combo", label: "Combo" },
-  { value: "service", label: "Servico" },
+  { value: "service", label: "Serviço" },
   { value: "custom", label: "Personalizado" },
 ];
 
 const PRESETS = [
-  { group: "production" as const, label: "Materia-prima / ativos", amount: "0" },
-  { group: "packaging" as const, label: "Frasco, tampa, rotulo e caixa", amount: "0" },
+  { group: "production" as const, label: "Matéria-prima / ativos", amount: "0" },
+  { group: "packaging" as const, label: "Frasco, tampa, rótulo e caixa", amount: "0" },
   { group: "logistics" as const, label: "Picking, packing, etiqueta e frete", amount: "0" },
   { group: "tax" as const, label: "Reserva fiscal", amount: "0" },
-  { group: "commission" as const, label: "Comissoes", amount: "0" },
+  { group: "commission" as const, label: "Comissões", amount: "0" },
   { group: "channel_fee" as const, label: "Gateway / marketplace", amount: "0" },
   { group: "fixed_expense" as const, label: "Rateio de despesas fixas", amount: "0" },
-  { group: "labor" as const, label: "Mao de obra direta e indireta", amount: "0" },
+  { group: "labor" as const, label: "Mão de obra direta e indireta", amount: "0" },
 ];
 
 type Row = { id: string; group: FinanceComponentGroup; label: string; amount: string };
@@ -92,7 +92,7 @@ function numberFromInput(value: string, fallback: number) {
 }
 
 export function FinanceCalculatorForm() {
-  const [title, setTitle] = useState("Cenario comercial Flora");
+  const [title, setTitle] = useState("Cenário comercial Flora");
   const [mode, setMode] = useState("unit");
   const [saleModel, setSaleModel] = useState("retail");
   const [channel, setChannel] = useState("site");
@@ -189,22 +189,22 @@ export function FinanceCalculatorForm() {
 
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div>
-          <p className="eyebrow" style={{ marginBottom: 7 }}>Calculadora de custos e precos</p>
+          <p className="eyebrow" style={{ marginBottom: 7 }}>Calculadora de custos e preços</p>
           <h2 className="display" style={{ fontSize: 30 }}>Motor comercial</h2>
         </div>
         <button className="btn btn-gold" style={{ padding: "11px 22px", fontSize: 10 }}>
-          Salvar cenario
+          Salvar cenário
         </button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
         <label className="field">
-          <span>Nome do cenario</span>
+          <span>Nome do cenário</span>
           <input className="input" name="title" value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <label className="field">
-          <span>Tipo de calculo</span>
-          <GlassSelect name="calculation_mode" value={mode} onChange={setMode} options={MODE_OPTIONS} ariaLabel="Tipo de calculo" inlineMenu />
+          <span>Tipo de cálculo</span>
+          <GlassSelect name="calculation_mode" value={mode} onChange={setMode} options={MODE_OPTIONS} ariaLabel="Tipo de cálculo" inlineMenu />
         </label>
         <label className="field">
           <span>Modelo de venda</span>
@@ -219,7 +219,7 @@ export function FinanceCalculatorForm() {
           <input className="input" name="desired_margin_percent" inputMode="decimal" value={desiredMargin} onChange={(e) => setDesiredMargin(e.target.value)} />
         </label>
         <label className="field">
-          <span>Margem minima %</span>
+          <span>Margem mínima %</span>
           <input className="input" name="minimum_margin_percent" inputMode="decimal" value={minimumMargin} onChange={(e) => setMinimumMargin(e.target.value)} />
         </label>
       </div>
@@ -229,7 +229,7 @@ export function FinanceCalculatorForm() {
           <div>
             <p className="eyebrow" style={{ marginBottom: 5 }}>Itens do pedido</p>
             <p className="muted" style={{ margin: 0, fontSize: 11.5 }}>
-              Cada linha respeita sua propria quantidade, preco e desconto.
+              Cada linha respeita sua própria quantidade, preço e desconto.
             </p>
           </div>
           <button type="button" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }} onClick={addItem}>
@@ -272,7 +272,7 @@ export function FinanceCalculatorForm() {
               <input className="input" inputMode="decimal" value={item.quantity} onChange={(e) => updateItem(item.id, { quantity: e.target.value })} />
             </label>
             <label className="field">
-              <span>Preco unit.</span>
+              <span>Preço unit.</span>
               <input className="input" inputMode="decimal" value={item.unitPrice} onChange={(e) => updateItem(item.id, { unitPrice: e.target.value })} />
             </label>
             <label className="field">
@@ -307,7 +307,7 @@ export function FinanceCalculatorForm() {
                 />
               </label>
               <label className="field">
-                <span>Descricao</span>
+                <span>Descrição</span>
                 <input className="input" value={row.label} onChange={(e) => updateRow(row.id, { label: e.target.value })} />
               </label>
               <label className="field">
@@ -327,14 +327,14 @@ export function FinanceCalculatorForm() {
           <ResultLine label="Unidades totais" value={`${result.totalUnits}`} />
           <ResultLine label="Receita bruta" value={money(result.grossRevenueCents)} />
           <ResultLine label="Descontos" value={`- ${money(result.discountCents)}`} muted />
-          <ResultLine label="Receita liquida" value={money(result.netRevenueCents)} strong />
+          <ResultLine label="Receita líquida" value={money(result.netRevenueCents)} strong />
           <ResultLine label="Custo total" value={money(result.totalCostCents)} />
-          <ResultLine label="Lucro liquido" value={money(result.netProfitCents)} strong tone={result.netProfitCents < 0 ? "danger" : "gold"} />
-          <ResultLine label="Margem liquida" value={`${result.netMarginPercent.toFixed(1)}%`} />
+          <ResultLine label="Lucro líquido" value={money(result.netProfitCents)} strong tone={result.netProfitCents < 0 ? "danger" : "gold"} />
+          <ResultLine label="Margem líquida" value={`${result.netMarginPercent.toFixed(1)}%`} />
           <ResultLine label="Markup" value={`${result.markupPercent.toFixed(1)}%`} />
-          <ResultLine label="Preco minimo" value={money(result.minimumPriceCents)} />
-          <ResultLine label="Preco recomendado" value={money(result.recommendedPriceCents)} strong tone="gold" />
-          <ResultLine label="Capital necessario" value={money(result.capitalNeededCents)} />
+          <ResultLine label="Preço mínimo" value={money(result.minimumPriceCents)} />
+          <ResultLine label="Preço recomendado" value={money(result.recommendedPriceCents)} strong tone="gold" />
+          <ResultLine label="Capital necessário" value={money(result.capitalNeededCents)} />
 
           {result.alerts.length ? (
             <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
@@ -358,8 +358,8 @@ export function FinanceCalculatorForm() {
           <input className="input" name="seller_name" placeholder="Opcional" />
         </label>
         <label className="field" style={{ gridColumn: "1 / -1" }}>
-          <span>Observacoes</span>
-          <textarea className="input" name="notes" rows={3} placeholder="Premissas, regras de aprovacao, observacoes fiscais e comerciais." />
+          <span>Observações</span>
+          <textarea className="input" name="notes" rows={3} placeholder="Premissas, regras de aprovação, observações fiscais e comerciais." />
         </label>
       </div>
     </form>
@@ -388,3 +388,4 @@ function ResultLine({
     </div>
   );
 }
+

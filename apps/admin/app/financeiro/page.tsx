@@ -51,38 +51,38 @@ type PriceTableRow = {
 };
 
 const SECTIONS = [
-  "Visao geral",
-  "Calculadora de custos",
-  "Formacao de precos",
-  "Kits e combos",
-  "Orcamentos",
-  "Cotacoes",
-  "Propostas comerciais",
-  "Custos fixos",
-  "Custos variaveis",
-  "Impostos",
-  "Comissoes",
-  "Logistica",
-  "Margens",
-  "Cenarios",
-  "Rentabilidade",
-  "Fluxo de caixa",
-  "Contas a pagar",
-  "Contas a receber",
-  "Centros de custo",
-  "Relatorios",
-  "Configuracoes",
+  { label: "Visão geral", href: "#visao-geral" },
+  { label: "Calculadora de custos", href: "#calculadora" },
+  { label: "Formação de preços", href: "#calculadora" },
+  { label: "Kits e combos", href: "#calculadora" },
+  { label: "Orçamentos", href: "#documentos" },
+  { label: "Cotações", href: "#documentos" },
+  { label: "Propostas comerciais", href: "#documentos" },
+  { label: "Custos fixos", href: "#calculadora" },
+  { label: "Custos variáveis", href: "#calculadora" },
+  { label: "Impostos", href: "#calculadora" },
+  { label: "Comissões", href: "#calculadora" },
+  { label: "Logística", href: "#calculadora" },
+  { label: "Margens", href: "#historico" },
+  { label: "Cenários", href: "#historico" },
+  { label: "Rentabilidade", href: "#historico" },
+  { label: "Fluxo de caixa", href: "/contabilidade#fluxo-de-caixa" },
+  { label: "Contas a pagar", href: "/contabilidade#contas-a-pagar" },
+  { label: "Contas a receber", href: "/contabilidade#contas-a-receber" },
+  { label: "Centros de custo", href: "/contabilidade#centros-de-custo" },
+  { label: "Relatórios", href: "#exportacao" },
+  { label: "Configurações", href: "#configuracoes" },
 ];
 
 const KIND_LABEL: Record<string, string> = {
-  budget: "Orcamento",
-  quote: "Cotacao",
+  budget: "Orçamento",
+  quote: "Cotação",
   proposal: "Proposta",
 };
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Rascunho",
-  review: "Revisao",
+  review: "Revisão",
   sent: "Enviado",
   viewed: "Visualizado",
   approved: "Aprovado",
@@ -154,31 +154,35 @@ export default async function FinanceiroPage() {
     <main style={pageStyle}>
       <Header />
 
-      <section className="rise" style={kpiGridStyle}>
-        <Kpi label="Receita simulada" value={money(totalRevenue)} note={`${rows.length} cenarios salvos`} />
-        <Kpi label="Custo simulado" value={money(totalCost)} note="custos, taxas, impostos e comissoes" />
-        <Kpi label="Lucro previsto" value={money(totalProfit)} note={`${averageMargin.toFixed(1)}% margem media`} />
-        <Kpi label="Documentos" value={`${quoteRows.length}`} note="orcamentos, cotacoes e propostas" />
+      <section id="visao-geral" className="rise" style={kpiGridStyle}>
+        <Kpi label="Receita simulada" value={money(totalRevenue)} note={`${rows.length} cenários salvos`} />
+        <Kpi label="Custo simulado" value={money(totalCost)} note="custos, taxas, impostos e comissões" />
+        <Kpi label="Lucro previsto" value={money(totalProfit)} note={`${averageMargin.toFixed(1)}% margem média`} />
+        <Kpi label="Documentos" value={`${quoteRows.length}`} note="orçamentos, cotações e propostas" />
       </section>
 
       <section className="glass rise rise-1" style={{ padding: 18, marginBottom: 18 }}>
-        <p className="eyebrow" style={{ marginBottom: 12 }}>Subsecoes do modulo</p>
+        <p className="eyebrow" style={{ marginBottom: 12 }}>Subseções do módulo</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {SECTIONS.map((section) => (
-            <span key={section} className="chip chip-draft">{section}</span>
+            <Link key={`${section.href}-${section.label}`} href={section.href} className="finance-subsection-link">
+              {section.label}
+            </Link>
           ))}
         </div>
       </section>
 
-      <FinanceCalculatorForm />
+      <section id="calculadora">
+        <FinanceCalculatorForm />
+      </section>
 
-      <div style={twoColumnStyle}>
+      <div id="configuracoes" style={twoColumnStyle}>
         <FinanceSettingsForm settings={settings as FinanceSettingsData | null} />
         <PriceTableForm />
       </div>
 
-      <section className="glass rise rise-2" style={{ padding: 22, marginTop: 18 }}>
-        <SectionTitle eyebrow="Tabelas comerciais" title="Precos, descontos e aprovacoes" />
+      <section id="tabelas" className="glass rise rise-2" style={{ padding: 22, marginTop: 18 }}>
+        <SectionTitle eyebrow="Tabelas comerciais" title="Preços, descontos e aprovações" />
         {priceRows.length ? (
           <div style={{ display: "grid", gap: 10 }}>
             {priceRows.map((table) => (
@@ -186,14 +190,14 @@ export default async function FinanceiroPage() {
                 <span>
                   <strong>{table.name}</strong>
                   <span className="muted" style={{ display: "block", fontSize: 11, marginTop: 3 }}>
-                    {table.table_type} - {table.channel ?? "sem canal"} - minimo {table.min_quantity}
+                    {table.table_type} - {table.channel ?? "sem canal"} - mínimo {table.min_quantity}
                     {table.customer_name ? ` - ${table.customer_name}` : ""}
                   </span>
                 </span>
                 <span className="chip chip-draft">{Number(table.discount_percent).toFixed(1)}% desc.</span>
-                <span className="chip chip-draft">{Number(table.commission_percent).toFixed(1)}% comissao</span>
+                <span className="chip chip-draft">{Number(table.commission_percent).toFixed(1)}% comissão</span>
                 <span className={table.approval_required ? "chip" : "chip chip-live"}>
-                  {table.approval_required ? "Aprovacao" : "Liberada"}
+                  {table.approval_required ? "Aprovação" : "Liberada"}
                 </span>
                 <form action={deletePriceTable.bind(null, table.id)}>
                   <button className="btn btn-ghost" style={{ padding: "7px 12px", fontSize: 9 }}>
@@ -211,13 +215,15 @@ export default async function FinanceiroPage() {
       </section>
 
       <div style={twoColumnStyle}>
-        <CommercialQuoteForm calculations={calculationOptions} />
+        <div id="documentos">
+          <CommercialQuoteForm calculations={calculationOptions} />
+        </div>
 
-        <section className="glass rise rise-2" style={{ padding: 22 }}>
+        <section id="exportacao" className="glass rise rise-2" style={{ padding: 22 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
             <div>
-              <p className="eyebrow" style={{ marginBottom: 7 }}>Relatorios</p>
-              <h2 className="display" style={{ fontSize: 28 }}>Exportacao</h2>
+              <p className="eyebrow" style={{ marginBottom: 7 }}>Relatórios</p>
+              <h2 className="display" style={{ fontSize: 28 }}>Exportação</h2>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <Link href="/financeiro/exportar?format=csv" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>CSV</Link>
@@ -226,19 +232,19 @@ export default async function FinanceiroPage() {
             </div>
           </div>
           <p className="muted" style={{ fontSize: 12, lineHeight: 1.7 }}>
-            Exporta cenarios, margens, lucros, custos totais, tabelas de preco e documentos comerciais.
+            Exporta cenários, margens, lucros, custos totais, tabelas de preço e documentos comerciais.
           </p>
         </section>
       </div>
 
-      <section className="glass rise rise-3" style={{ padding: 22, marginTop: 18 }}>
-        <SectionTitle eyebrow="Cenarios" title="Historico salvo" />
+      <section id="historico" className="glass rise rise-3" style={{ padding: 22, marginTop: 18 }}>
+        <SectionTitle eyebrow="Cenários" title="Histórico salvo" />
         {rows.length ? (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--glass-border)", color: "var(--cream-dim)", textAlign: "left" }}>
-                  <th style={thStyle}>Cenario</th>
+                  <th style={thStyle}>Cenário</th>
                   <th style={thStyle}>Modelo</th>
                   <th style={thStyle}>Canal</th>
                   <th style={thStyle}>Itens</th>
@@ -271,12 +277,12 @@ export default async function FinanceiroPage() {
             </table>
           </div>
         ) : (
-          <p className="muted" style={{ fontSize: 12, margin: 0 }}>Nenhum cenario salvo ainda.</p>
+          <p className="muted" style={{ fontSize: 12, margin: 0 }}>Nenhum cenário salvo ainda.</p>
         )}
       </section>
 
       <section className="glass rise rise-4" style={{ padding: 22, marginTop: 18 }}>
-        <SectionTitle eyebrow="Comercial" title="Orcamentos, cotacoes e propostas" />
+        <SectionTitle eyebrow="Comercial" title="Orçamentos, cotações e propostas" />
         {quoteRows.length ? (
           <div style={{ display: "grid", gap: 10 }}>
             {quoteRows.map((quote) => (
@@ -306,9 +312,9 @@ function Header() {
       <Link href="/" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 18, marginTop: 10 }}>
         <div>
-          <h1 className="display" style={{ fontSize: 42 }}>Financeiro, Precificacao e Orcamentos</h1>
+          <h1 className="display" style={{ fontSize: 42 }}>Financeiro, Precificação e Orçamentos</h1>
           <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
-            Motor de custos, margens, kits, canais, propostas e decisoes comerciais.
+            Motor de custos, margens, kits, canais, propostas e decisões comerciais.
           </p>
         </div>
       </div>
@@ -361,3 +367,4 @@ const priceTableRowStyle: CSSProperties = {
   borderRadius: 12,
   background: "rgba(255,248,234,0.035)",
 };
+

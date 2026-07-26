@@ -202,17 +202,17 @@ export function calculateFinanceScenario(input: FinanceScenarioInput): FinanceSc
   const recommendedPriceCents = priceForMargin(Math.ceil(totalCostCents / unitDivisor), input.desiredMarginPercent);
 
   const alerts: FinanceAlert[] = [];
-  if (netRevenueCents < totalCostCents) alerts.push({ tone: "danger", message: "Preco abaixo do custo total." });
+  if (netRevenueCents < totalCostCents) alerts.push({ tone: "danger", message: "Preço abaixo do custo total." });
   if (pct(netProfitCents, netRevenueCents) < input.minimumMarginPercent) {
-    alerts.push({ tone: "warning", message: "Margem abaixo do minimo definido." });
+    alerts.push({ tone: "warning", message: "Margem abaixo do mínimo definido." });
   }
   if (pct(totals.logisticsCostCents, netRevenueCents) > 18) {
-    alerts.push({ tone: "warning", message: "Logistica consumindo margem excessiva." });
+    alerts.push({ tone: "warning", message: "Logística consumindo margem excessiva." });
   }
   if (pct(totals.commissionCostCents + totals.channelFeeCents, netRevenueCents) > 25) {
-    alerts.push({ tone: "warning", message: "Comissoes e taxas de canal altas para este cenario." });
+    alerts.push({ tone: "warning", message: "Comissões e taxas de canal altas para este cenário." });
   }
-  if (totals.taxCostCents === 0) alerts.push({ tone: "info", message: "Impostos nao configurados neste cenario." });
+  if (totals.taxCostCents === 0) alerts.push({ tone: "info", message: "Impostos não configurados neste cenário." });
 
   return {
     itemCount: validItems.length || 1,
@@ -236,3 +236,4 @@ export function calculateFinanceScenario(input: FinanceScenarioInput): FinanceSc
     alerts,
   };
 }
+

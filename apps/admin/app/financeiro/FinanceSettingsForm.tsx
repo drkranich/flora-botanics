@@ -34,10 +34,10 @@ export function FinanceSettingsForm({ settings }: { settings?: FinanceSettingsDa
     <section className="glass rise rise-2" style={{ padding: 22 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", marginBottom: open ? 18 : 0 }}>
         <div>
-          <p className="eyebrow" style={{ marginBottom: 7 }}>Configuracoes financeiras</p>
+          <p className="eyebrow" style={{ marginBottom: 7 }}>Configurações financeiras</p>
           <h2 className="display" style={{ fontSize: 28 }}>Regras padrao da marca</h2>
           <p className="muted" style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.7 }}>
-            Base usada para aprovacoes, alertas, precificacao, impostos estimados, gateway e logistica.
+            Base usada para aprovações, alertas, precificação, impostos estimados, gateway e logística.
           </p>
         </div>
         <button type="button" className="btn btn-ghost" style={{ padding: "9px 16px", fontSize: 10 }} onClick={() => setOpen((v) => !v)}>
@@ -49,18 +49,18 @@ export function FinanceSettingsForm({ settings }: { settings?: FinanceSettingsDa
         <form action={updateFinanceSettings} style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
             <Field name="target_margin_percent" label="Margem desejada %" defaultValue={numberInput(settings?.target_margin_percent, 55)} />
-            <Field name="minimum_margin_percent" label="Margem minima %" defaultValue={numberInput(settings?.minimum_margin_percent, 35)} />
+            <Field name="minimum_margin_percent" label="Margem mínima %" defaultValue={numberInput(settings?.minimum_margin_percent, 35)} />
             <Field name="approval_minimum_margin_percent" label="Aprovacao abaixo de %" defaultValue={numberInput(rules.approval_minimum_margin_percent, 25)} />
-            <Field name="max_discount_without_approval_percent" label="Desconto sem aprovacao %" defaultValue={numberInput(rules.max_discount_without_approval_percent, 12)} />
+            <Field name="max_discount_without_approval_percent" label="Desconto sem aprovação %" defaultValue={numberInput(rules.max_discount_without_approval_percent, 12)} />
             <Field name="default_tax_percent" label="Imposto estimado %" defaultValue={numberInput(settings?.default_tax_percent, 8)} />
             <Field name="default_payment_fee_percent" label="Gateway %" defaultValue={numberInput(settings?.default_payment_fee_percent, 3.99)} />
             <Field name="default_payment_fixed" label="Taxa fixa gateway" defaultValue={moneyInput(settings?.default_payment_fixed_cents)} />
-            <Field name="default_logistics_percent" label="Logistica %" defaultValue={numberInput(settings?.default_logistics_percent, 6)} />
-            <Field name="logistics_warning_percent" label="Alerta logistica %" defaultValue={numberInput(rules.logistics_warning_percent, 18)} />
+            <Field name="default_logistics_percent" label="Logística %" defaultValue={numberInput(settings?.default_logistics_percent, 6)} />
+            <Field name="logistics_warning_percent" label="Alerta logística %" defaultValue={numberInput(rules.logistics_warning_percent, 18)} />
             <Field name="default_overhead_percent" label="Rateio operacional %" defaultValue={numberInput(settings?.default_overhead_percent, 5)} />
           </div>
           <button className="btn btn-gold" style={{ padding: "11px 22px", fontSize: 10, justifySelf: "start" }}>
-            Salvar configuracoes
+            Salvar configurações
           </button>
         </form>
       ) : null}
@@ -76,3 +76,4 @@ function Field({ name, label, defaultValue }: { name: string; label: string; def
     </label>
   );
 }
+
