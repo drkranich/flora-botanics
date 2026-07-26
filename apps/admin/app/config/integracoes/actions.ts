@@ -175,7 +175,6 @@ export async function startManualSync(
     .update({
       last_sync_at: now,
       last_error: null,
-      status: "online",
       updated_at: now,
     })
     .eq("tenant_id", staff.tenantId)
