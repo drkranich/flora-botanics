@@ -123,7 +123,13 @@ export function AccountingEntryForm() {
             </label>
             <label className="field">
               <span>Data do lancamento</span>
-              <GlassDateInput name="occurred_at" value={occurredAt} onChange={setOccurredAt} placeholder="Selecionar data" />
+              <GlassDateInput
+                name="occurred_at"
+                value={occurredAt}
+                onChange={setOccurredAt}
+                placeholder="Selecionar data"
+                inlinePopover
+              />
             </label>
           </div>
 
