@@ -28,6 +28,32 @@ type StripeObject = {
   pause_collection?: unknown;
 };
 
+type StripeProductEventObject = StripeObject & {
+  active?: boolean;
+  name?: string;
+  description?: string | null;
+  default_price?: string | null;
+};
+
+type StripePriceEventObject = StripeObject & {
+  active?: boolean;
+  currency?: string;
+  unit_amount?: number | null;
+  lookup_key?: string | null;
+  product?: string | { id?: string };
+  recurring?: {
+    interval?: string;
+    interval_count?: number;
+  } | null;
+};
+
+type StripeInvoiceEventObject = StripeObject & {
+  subscription?: string | { id?: string } | null;
+  amount_paid?: number | null;
+  currency?: string | null;
+  hosted_invoice_url?: string | null;
+};
+
 async function verifyEvent(payload: string, signature: string | null) {
   const secrets = await getStripeWebhookSecrets();
   if (!secrets.length) {
@@ -55,6 +81,11 @@ function eventTenantId(event: StripeEvent) {
 
 function orderIdFrom(object: CheckoutSessionObject | StripeObject) {
   return object.metadata?.order_id ?? ("client_reference_id" in object ? object.client_reference_id : null) ?? null;
+}
+
+function idFromStripeRef(ref: string | { id?: string } | null | undefined) {
+  if (!ref) return null;
+  return typeof ref === "string" ? ref : ref.id ?? null;
 }
 
 async function markCheckoutPaid({
@@ -215,6 +246,107 @@ async function syncSubscriptionLifecycle(event: StripeEvent) {
   return `Assinatura ${subscription.id} atualizada para ${status}.`;
 }
 
+async function syncCatalogProduct(event: StripeEvent, environment: StripeEnvironment) {
+  const service = await getServerSupabase();
+  const product = event.data.object as StripeProductEventObject;
+  if (!product.id) return "Evento de Product sem ID; ignorado.";
+
+  const status = event.type === "product.deleted" ? "archived" : product.active === false ? "inactive" : "active";
+  const { data: existing } = await service
+    .from("stripe_products")
+    .select("id")
+    .eq("environment", environment)
+    .eq("stripe_product_id", product.id)
+    .maybeSingle();
+
+  if (!existing) {
+    return `Product ${product.id} existe no Stripe, mas ainda não está vinculado ao catálogo Flora.`;
+  }
+
+  await service
+    .from("stripe_products")
+    .update({
+      name: product.name,
+      description: product.description ?? null,
+      stripe_status: status,
+      sync_status: status === "active" ? "synced" : status,
+      metadata: product.metadata ?? {},
+      last_synced_at: new Date().toISOString(),
+      last_error: null,
+    })
+    .eq("id", existing.id);
+
+  return `Product ${product.id} sincronizado como ${status}.`;
+}
+
+async function syncCatalogPrice(event: StripeEvent, environment: StripeEnvironment) {
+  const service = await getServerSupabase();
+  const price = event.data.object as StripePriceEventObject;
+  if (!price.id) return "Evento de Price sem ID; ignorado.";
+
+  const productId = idFromStripeRef(price.product);
+  const status = event.type === "price.deleted" ? "archived" : price.active === false ? "archived" : "active";
+  const billingType = price.recurring ? "recurring" : "one_time";
+
+  const { data: existing } = await service
+    .from("stripe_prices")
+    .select("id")
+    .eq("environment", environment)
+    .eq("stripe_price_id", price.id)
+    .maybeSingle();
+
+  if (!existing) {
+    return `Price ${price.id} existe no Stripe, mas ainda não está vinculado ao catálogo Flora.`;
+  }
+
+  await service
+    .from("stripe_prices")
+    .update({
+      stripe_product_id: productId,
+      lookup_key: price.lookup_key ?? null,
+      currency: price.currency?.toUpperCase() ?? "BRL",
+      unit_amount_cents: price.unit_amount ?? 0,
+      billing_type: billingType,
+      recurring_interval: price.recurring?.interval ?? null,
+      recurring_interval_count: price.recurring?.interval_count ?? 1,
+      status,
+      active: status === "active",
+      metadata: price.metadata ?? {},
+      last_synced_at: new Date().toISOString(),
+      last_error: null,
+    })
+    .eq("id", existing.id);
+
+  return `Price ${price.id} sincronizado como ${status}.`;
+}
+
+async function syncInvoicePayment(event: StripeEvent) {
+  const service = await getServerSupabase();
+  const invoice = event.data.object as StripeInvoiceEventObject;
+  const subscriptionId = idFromStripeRef(invoice.subscription);
+  if (!subscriptionId) return "Invoice sem assinatura Stripe vinculada; evento registrado.";
+
+  const status = event.type === "invoice.payment_failed" ? "past_due" : "active";
+  const { data: subscription } = await service
+    .from("subscriptions")
+    .select("id, tenant_id")
+    .eq("stripe_subscription_id", subscriptionId)
+    .maybeSingle();
+
+  if (!subscription) {
+    return `Invoice de assinatura ${subscriptionId} recebida antes do vínculo local; evento registrado para reconciliação.`;
+  }
+
+  await service
+    .from("subscriptions")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", subscription.id);
+
+  return event.type === "invoice.payment_failed"
+    ? `Assinatura ${subscriptionId} marcada como em atraso.`
+    : `Assinatura ${subscriptionId} confirmada por invoice paga.`;
+}
+
 async function processEvent(event: StripeEvent, environment: StripeEnvironment) {
   switch (event.type) {
     case "checkout.session.completed":
@@ -230,6 +362,18 @@ async function processEvent(event: StripeEvent, environment: StripeEnvironment) 
     case "customer.subscription.updated":
     case "customer.subscription.deleted":
       return syncSubscriptionLifecycle(event);
+    case "product.created":
+    case "product.updated":
+    case "product.deleted":
+      return syncCatalogProduct(event, environment);
+    case "price.created":
+    case "price.updated":
+    case "price.deleted":
+      return syncCatalogPrice(event, environment);
+    case "invoice.paid":
+    case "invoice.payment_succeeded":
+    case "invoice.payment_failed":
+      return syncInvoicePayment(event);
     default:
       return `Evento ${event.type} registrado sem ação operacional.`;
   }
