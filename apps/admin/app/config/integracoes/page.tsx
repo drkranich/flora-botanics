@@ -552,6 +552,14 @@ export default async function IntegracoesPage() {
             </span>
           )}
         </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+          <Link href="/config/integracoes/monitoramento" className="btn btn-gold" style={{ padding: "10px 18px", fontSize: 10 }}>
+            Monitoramento
+          </Link>
+          <Link href="/config" className="btn btn-ghost" style={{ padding: "10px 18px", fontSize: 10 }}>
+            Voltar para configurações
+          </Link>
+        </div>
       </header>
 
       <div style={{ display: "grid", gap: 14 }}>
