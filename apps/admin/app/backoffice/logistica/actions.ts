@@ -9,6 +9,29 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 type MaybeArray<T> = T | T[];
 type PrintJobKind = "shipping" | "product";
 
+const MARKETPLACE_LABEL_PREFERENCES = new Set([
+  "external_label",
+  "flora_label",
+  "external_then_flora",
+  "flora_then_external",
+]);
+
+const MARKETPLACE_LABEL_TEMPLATES = new Set([
+  "shipping_100x150",
+  "shipping_a4",
+  "mixed_a4_sheet",
+  "sku_50x30",
+  "barcode_60x40",
+  "barcode_100x50",
+  "barcode_a4_2x7",
+  "sku_a4_3x8",
+  "kit_80x50",
+]);
+
+const MARKETPLACE_QUEUE_FORMATS = new Set(["a4", "thermal", "zpl", "pdf"]);
+const MARKETPLACE_TRACKING_SOURCES = new Set(["marketplace", "shipping_provider", "flora", "manual"]);
+const MARKETPLACE_SETTING_STATUSES = new Set(["active", "paused", "archived"]);
+
 interface OrderForShipment {
   id: string;
   number: string;
@@ -56,6 +79,22 @@ function storefrontUrl() {
 function first<T>(value: MaybeArray<T> | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
+}
+
+function valueFromSet(formData: FormData, name: string, allowed: Set<string>, fallback: string) {
+  const value = String(formData.get(name) ?? fallback);
+  return allowed.has(value) ? value : fallback;
+}
+
+function booleanValue(formData: FormData, name: string) {
+  return String(formData.get(name) ?? "") === "true";
+}
+
+function formatList(formData: FormData) {
+  const values = formData.getAll("external_label_formats").map((value) => String(value));
+  const allowed = new Set(["pdf", "zpl", "png", "jpg", "html"]);
+  const safe = values.filter((value) => allowed.has(value));
+  return safe.length ? safe : ["pdf", "zpl", "png"];
 }
 
 async function getPreferredRule(supabase: Awaited<ReturnType<typeof createClient>>, tenantId: string) {
@@ -431,6 +470,106 @@ export async function markPrintJobsPrinted(jobs: Array<{ id: string; kind: Print
       printed_at: now,
     },
     actor_id: staff.id,
+  }).then(() => undefined, () => undefined);
+
+  revalidatePath("/backoffice/logistica");
+  return { ok: true };
+}
+
+export async function saveMarketplaceLabelSetting(providerKey: string, formData: FormData): Promise<ActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin" && staff.role !== "platform_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const supabase = await createClient();
+  const { data: provider } = await supabase
+    .from("integration_providers")
+    .select("key, category")
+    .eq("key", providerKey)
+    .eq("category", "marketplace")
+    .maybeSingle();
+
+  if (!provider) return { ok: false, error: "Marketplace não encontrado." };
+
+  const payload = {
+    tenant_id: staff.tenantId,
+    provider_key: providerKey,
+    status: valueFromSet(formData, "status", MARKETPLACE_SETTING_STATUSES, "active"),
+    source_preference: valueFromSet(formData, "source_preference", MARKETPLACE_LABEL_PREFERENCES, "external_then_flora"),
+    external_label_formats: formatList(formData),
+    default_print_template: valueFromSet(formData, "default_print_template", MARKETPLACE_LABEL_TEMPLATES, "shipping_100x150"),
+    default_queue_format: valueFromSet(formData, "default_queue_format", MARKETPLACE_QUEUE_FORMATS, "thermal"),
+    tracking_source: valueFromSet(formData, "tracking_source", MARKETPLACE_TRACKING_SOURCES, "marketplace"),
+    fallback_enabled: booleanValue(formData, "fallback_enabled"),
+    auto_queue_external_label: booleanValue(formData, "auto_queue_external_label"),
+    store_original_label: booleanValue(formData, "store_original_label"),
+    reprint_original_enabled: booleanValue(formData, "reprint_original_enabled"),
+    notes: String(formData.get("notes") ?? "").trim() || null,
+    created_by: staff.id,
+  };
+
+  const { error } = await supabase
+    .from("marketplace_label_settings")
+    .upsert(payload, { onConflict: "tenant_id,provider_key" });
+
+  if (error) {
+    return {
+      ok: false,
+      error: `${error.message}. Verifique se a migration marketplace_label_settings já foi aplicada.`,
+    };
+  }
+
+  await supabase.from("shipping_audit_events").insert({
+    tenant_id: staff.tenantId,
+    event_type: "marketplace_label_setting_saved",
+    new_value: payload,
+    actor_id: staff.id,
+  }).then(() => undefined, () => undefined);
+
+  revalidatePath("/backoffice/logistica");
+  return { ok: true };
+}
+
+export async function requestMarketplaceLabelSync(providerKey: string): Promise<ActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin" && staff.role !== "platform_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const supabase = await createClient();
+  const { data: connection } = await supabase
+    .from("integration_connections")
+    .select("id, provider_key")
+    .eq("tenant_id", staff.tenantId)
+    .eq("provider_key", providerKey)
+    .eq("environment", "production")
+    .maybeSingle();
+
+  await enqueueIntegrationSync(supabase, {
+    tenantId: staff.tenantId,
+    providerKey,
+    connectionId: connection?.id ?? null,
+    action: "sync_marketplace_labels",
+    trigger: "manual",
+    requestPayload: {
+      provider_key: providerKey,
+      scope: "labels_and_tracking",
+    },
+    createdBy: staff.id,
+  });
+
+  await enqueueIntegrationEvent(supabase, {
+    tenantId: staff.tenantId,
+    eventType: "marketplace.labels.sync_requested",
+    source: "admin",
+    sourceId: providerKey,
+    aggregateType: "marketplace_label_settings",
+    aggregateId: providerKey,
+    payload: { provider_key: providerKey },
+    idempotencyKey: `marketplace-label-sync:${providerKey}:${Date.now()}`,
   }).then(() => undefined, () => undefined);
 
   revalidatePath("/backoffice/logistica");

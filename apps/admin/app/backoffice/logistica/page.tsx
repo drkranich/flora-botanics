@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
+import { MarketplaceLabelSettings, type MarketplaceLabelSettingRow } from "./MarketplaceLabelSettings";
 import { PrintQueue, type PrintQueueItem } from "./PrintQueue";
 import { ProductLabelButtons, RequestLabelButton, ShipmentButtons } from "./ShippingActions";
 
@@ -93,6 +94,36 @@ interface ShippingPrintJobRow {
   } | null;
 }
 
+interface MarketplaceProviderRow {
+  key: string;
+  display_name: string;
+}
+
+interface IntegrationConnectionRow {
+  provider_key: string;
+  status: string;
+  credentials_status: string;
+  last_sync_at: string | null;
+  last_error: string | null;
+}
+
+interface MarketplaceLabelDbRow {
+  provider_key: string;
+  status: string;
+  source_preference: string;
+  external_label_formats: unknown;
+  default_print_template: string;
+  default_queue_format: string;
+  tracking_source: string;
+  fallback_enabled: boolean;
+  auto_queue_external_label: boolean;
+  store_original_label: boolean;
+  reprint_original_enabled: boolean;
+  notes: string | null;
+  last_sync_at: string | null;
+  last_error: string | null;
+}
+
 const orderStatusLabel: Record<string, string> = {
   pending: "Pendente",
   paid: "Pago",
@@ -150,6 +181,10 @@ function text(value: unknown, fallback = "—") {
   return typeof value === "string" && value.trim() ? value : fallback;
 }
 
+function stringArray(value: unknown, fallback: string[]) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : fallback;
+}
+
 export default async function LogisticaPage() {
   const staff = await currentStaff();
   if (!staff) return null;
@@ -163,6 +198,9 @@ export default async function LogisticaPage() {
     { data: variantData, error: variantError },
     { data: productLabelData, error: productLabelError },
     { data: shippingPrintData, error: shippingPrintError },
+    { data: marketplaceProviderData, error: marketplaceProviderError },
+    { data: integrationConnectionData, error: integrationConnectionError },
+    { data: marketplaceLabelData, error: marketplaceLabelError },
   ] = await Promise.all([
       supabase
         .from("orders")
@@ -202,12 +240,55 @@ export default async function LogisticaPage() {
         .eq("tenant_id", staff.tenantId)
         .order("created_at", { ascending: false })
         .limit(40),
+      supabase
+        .from("integration_providers")
+        .select("key, display_name")
+        .eq("category", "marketplace")
+        .eq("is_active", true)
+        .order("display_name", { ascending: true }),
+      supabase
+        .from("integration_connections")
+        .select("provider_key, status, credentials_status, last_sync_at, last_error")
+        .eq("tenant_id", staff.tenantId)
+        .eq("environment", "production"),
+      supabase
+        .from("marketplace_label_settings")
+        .select("provider_key, status, source_preference, external_label_formats, default_print_template, default_queue_format, tracking_source, fallback_enabled, auto_queue_external_label, store_original_label, reprint_original_enabled, notes, last_sync_at, last_error")
+        .eq("tenant_id", staff.tenantId),
     ]);
 
   const shipments = shipmentError ? [] : ((shipmentData ?? []) as unknown as ShipmentRow[]);
   const variants = variantError ? [] : ((variantData ?? []) as unknown as ProductVariantRow[]);
   const productLabelJobs = productLabelError ? [] : ((productLabelData ?? []) as unknown as ProductLabelJobRow[]);
   const shippingPrintJobs = shippingPrintError ? [] : ((shippingPrintData ?? []) as unknown as ShippingPrintJobRow[]);
+  const marketplaceProviders = marketplaceProviderError ? [] : ((marketplaceProviderData ?? []) as MarketplaceProviderRow[]);
+  const integrationConnections = integrationConnectionError ? [] : ((integrationConnectionData ?? []) as IntegrationConnectionRow[]);
+  const marketplaceLabelSettings = marketplaceLabelError ? [] : ((marketplaceLabelData ?? []) as MarketplaceLabelDbRow[]);
+  const connectionsByProvider = new Map(integrationConnections.map((connection) => [connection.provider_key, connection]));
+  const settingsByProvider = new Map(marketplaceLabelSettings.map((setting) => [setting.provider_key, setting]));
+  const marketplaceRows: MarketplaceLabelSettingRow[] = marketplaceProviders.map((provider) => {
+    const setting = settingsByProvider.get(provider.key);
+    const connection = connectionsByProvider.get(provider.key);
+    return {
+      providerKey: provider.key,
+      displayName: provider.display_name,
+      status: setting?.status ?? "active",
+      connectionStatus: connection?.status ?? "offline",
+      credentialsStatus: connection?.credentials_status ?? "missing",
+      sourcePreference: setting?.source_preference ?? "external_then_flora",
+      externalLabelFormats: stringArray(setting?.external_label_formats, ["pdf", "zpl", "png"]),
+      defaultPrintTemplate: setting?.default_print_template ?? "shipping_100x150",
+      defaultQueueFormat: setting?.default_queue_format ?? "thermal",
+      trackingSource: setting?.tracking_source ?? "marketplace",
+      fallbackEnabled: setting?.fallback_enabled ?? true,
+      autoQueueExternalLabel: setting?.auto_queue_external_label ?? true,
+      storeOriginalLabel: setting?.store_original_label ?? true,
+      reprintOriginalEnabled: setting?.reprint_original_enabled ?? true,
+      notes: setting?.notes ?? "",
+      lastSyncAt: setting?.last_sync_at ?? connection?.last_sync_at ?? null,
+      lastError: setting?.last_error ?? connection?.last_error ?? null,
+    };
+  });
   const latestProductLabelByVariant = new Map<string, ProductLabelJobRow>();
   for (const job of productLabelJobs) {
     if (job.variant_id && !latestProductLabelByVariant.has(job.variant_id)) {
@@ -307,6 +388,21 @@ export default async function LogisticaPage() {
           </div>
         </div>
         <PrintQueue items={printQueueItems} />
+      </section>
+
+      <section style={cardStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <p className="eyebrow">Etiquetas de marketplaces</p>
+            <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+              Configure como Mercado Livre, Shopee, Amazon e outros canais tratam etiqueta recebida, rastreio externo, reimpressão e fallback Flora.
+            </p>
+          </div>
+          <Link href="/config/integracoes" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
+            Ver integrações
+          </Link>
+        </div>
+        <MarketplaceLabelSettings rows={marketplaceRows} migrationReady={!marketplaceLabelError} />
       </section>
 
       <section style={cardStyle}>

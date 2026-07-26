@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useTransition, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { markPrintJobsPrinted } from "./actions";
 
@@ -202,6 +203,11 @@ export function PrintQueue({ items }: { items: PrintQueueItem[] }) {
   const [pendingPrintItems, setPendingPrintItems] = useState<PrintQueueItem[]>([]);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const visibleItems = useMemo(() => {
     return items.filter((item) => {
@@ -419,76 +425,79 @@ export function PrintQueue({ items }: { items: PrintQueueItem[] }) {
         </div>
       )}
 
-      {templateModalOpen ? (
-        <div style={modalBackdropStyle} role="presentation" onMouseDown={() => setTemplateModalOpen(false)}>
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="print-template-title"
-            style={modalStyle}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
-              <div>
-                <p className="eyebrow">Formato de impressão</p>
-                <h2 id="print-template-title" style={{ margin: "6px 0 0", fontSize: 26, fontWeight: 900 }}>
-                  Escolha o modelo da etiqueta
-                </h2>
-                <p className="muted" style={{ margin: "6px 0 0", fontSize: 12 }}>
-                  {pendingPrintItems.length} etiqueta(s) selecionada(s). O modelo define tamanho, densidade e leitura do código.
-                </p>
-              </div>
-              <button type="button" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }} onClick={() => setTemplateModalOpen(false)}>
-                Fechar
-              </button>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.45fr) minmax(220px, 0.75fr)", gap: 18, alignItems: "start" }}>
-              <div style={templateGridStyle}>
-                {compatibleTemplates.map((template) => (
-                  <button
-                    key={template.id}
-                    type="button"
-                    onClick={() => setTemplateId(template.id)}
-                    style={{
-                      ...templateCardStyle,
-                      borderColor: templateId === template.id ? "var(--gold-light)" : "var(--glass-border)",
-                      background: templateId === template.id ? "rgba(185,146,77,0.18)" : "rgba(10,22,11,0.42)",
-                      boxShadow: templateId === template.id ? "0 16px 38px rgba(185,146,77,0.16)" : "none",
-                    }}
-                  >
-                    <span className="eyebrow" style={{ color: "var(--gold-light)" }}>{template.group}</span>
-                    <strong style={{ display: "block", marginTop: 7, fontSize: 14 }}>{template.name}</strong>
-                    <span className="muted" style={{ display: "block", marginTop: 6, fontSize: 11, lineHeight: 1.45 }}>
-                      {template.description}
-                    </span>
-                    <span style={templateMetaStyle}>
-                      {template.widthMm} x {template.heightMm} mm · {template.page === "single" ? "individual" : "folha A4"}
-                    </span>
+      {mounted && templateModalOpen
+        ? createPortal(
+            <div style={modalBackdropStyle} role="presentation" onMouseDown={() => setTemplateModalOpen(false)}>
+              <section
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="print-template-title"
+                style={modalStyle}
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
+                  <div>
+                    <p className="eyebrow">Formato de impressão</p>
+                    <h2 id="print-template-title" style={{ margin: "6px 0 0", fontSize: 26, fontWeight: 900 }}>
+                      Escolha o modelo da etiqueta
+                    </h2>
+                    <p className="muted" style={{ margin: "6px 0 0", fontSize: 12 }}>
+                      {pendingPrintItems.length} etiqueta(s) selecionada(s). O modelo define tamanho, densidade e leitura do código.
+                    </p>
+                  </div>
+                  <button type="button" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }} onClick={() => setTemplateModalOpen(false)}>
+                    Fechar
                   </button>
-                ))}
-              </div>
+                </div>
 
-              <div style={previewPanelStyle}>
-                <p className="eyebrow">Prévia</p>
-                <PreviewLabel template={selectedTemplate} item={pendingPrintItems[0]} />
-                <p className="muted" style={{ margin: "10px 0 0", fontSize: 10.5 }}>
-                  Use modelos compactos para SKU e produtos pequenos. Use modelos completos para envio e rastreio.
-                </p>
-              </div>
-            </div>
+                <div style={modalBodyStyle}>
+                  <div style={templateGridStyle}>
+                    {compatibleTemplates.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => setTemplateId(template.id)}
+                        style={{
+                          ...templateCardStyle,
+                          borderColor: templateId === template.id ? "var(--gold-light)" : "var(--glass-border)",
+                          background: templateId === template.id ? "rgba(185,146,77,0.18)" : "rgba(10,22,11,0.42)",
+                          boxShadow: templateId === template.id ? "0 16px 38px rgba(185,146,77,0.16)" : "none",
+                        }}
+                      >
+                        <span className="eyebrow" style={{ color: "var(--gold-light)" }}>{template.group}</span>
+                        <strong style={{ display: "block", marginTop: 7, fontSize: 14 }}>{template.name}</strong>
+                        <span className="muted" style={{ display: "block", marginTop: 6, fontSize: 11, lineHeight: 1.45 }}>
+                          {template.description}
+                        </span>
+                        <span style={templateMetaStyle}>
+                          {template.widthMm} x {template.heightMm} mm · {template.page === "single" ? "individual" : "folha A4"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
-              <button type="button" className="btn btn-ghost" style={{ padding: "10px 18px", fontSize: 10 }} onClick={() => setTemplateModalOpen(false)}>
-                Cancelar
-              </button>
-              <button type="button" className="btn btn-gold" style={{ padding: "10px 22px", fontSize: 10 }} onClick={printWithTemplate}>
-                Imprimir neste modelo
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+                  <div style={previewPanelStyle}>
+                    <p className="eyebrow">Prévia</p>
+                    <PreviewLabel template={selectedTemplate} item={pendingPrintItems[0]} />
+                    <p className="muted" style={{ margin: "10px 0 0", fontSize: 10.5 }}>
+                      Use modelos compactos para SKU e produtos pequenos. Use modelos completos para envio e rastreio.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                  <button type="button" className="btn btn-ghost" style={{ padding: "10px 18px", fontSize: 10 }} onClick={() => setTemplateModalOpen(false)}>
+                    Cancelar
+                  </button>
+                  <button type="button" className="btn btn-gold" style={{ padding: "10px 22px", fontSize: 10 }} onClick={printWithTemplate}>
+                    Imprimir neste modelo
+                  </button>
+                </div>
+              </section>
+            </div>,
+            document.body
+          )
+        : null}
 
       <div
         className="flora-print-area"
@@ -638,18 +647,20 @@ const codeStyle: CSSProperties = {
 const modalBackdropStyle: CSSProperties = {
   position: "fixed",
   inset: 0,
-  zIndex: 1000,
+  zIndex: 2147483647,
   display: "grid",
   placeItems: "center",
-  padding: 24,
+  padding: "24px max(18px, env(safe-area-inset-right)) 24px max(18px, env(safe-area-inset-left))",
   background: "rgba(3, 10, 5, 0.72)",
   backdropFilter: "blur(14px)",
+  WebkitBackdropFilter: "blur(14px)",
 };
 
 const modalStyle: CSSProperties = {
   width: "min(920px, 100%)",
-  maxHeight: "min(760px, calc(100vh - 48px))",
+  maxHeight: "calc(100vh - 48px)",
   overflowY: "auto",
+  overscrollBehavior: "contain",
   display: "grid",
   gap: 20,
   borderRadius: 22,
@@ -658,6 +669,13 @@ const modalStyle: CSSProperties = {
   boxShadow: "0 30px 80px rgba(0,0,0,0.48)",
   padding: 24,
   color: "var(--cream)",
+};
+
+const modalBodyStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1.45fr) minmax(220px, 0.75fr)",
+  gap: 18,
+  alignItems: "start",
 };
 
 const templateGridStyle: CSSProperties = {
