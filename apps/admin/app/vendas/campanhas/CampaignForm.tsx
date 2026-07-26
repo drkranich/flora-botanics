@@ -38,10 +38,12 @@ export function CampaignForm({
           <span>Nome da campanha</span>
           <input className="input" name="title" defaultValue={values?.title ?? ""} required />
         </label>
+
         <label className="field">
           <span>Slug</span>
-          <input className="input" name="slug" defaultValue={values?.slug ?? ""} placeholder="gerado pelo título" />
+          <input className="input" name="slug" defaultValue={values?.slug ?? ""} placeholder="gerado pelo titulo" />
         </label>
+
         <label className="field">
           <span>Status</span>
           <GlassSelect
@@ -56,55 +58,68 @@ export function CampaignForm({
             ]}
           />
         </label>
+
         <label className="field">
           <span>Canal</span>
           <input className="input" name="channel" defaultValue={values?.channel ?? ""} placeholder="Site, e-mail, Instagram..." />
         </label>
+
         <label className="field">
-          <span>Início</span>
-          <GlassDateInput name="starts_at" defaultValue={toLocalDateTime(values?.starts_at)} withTime placeholder="Selecionar in�cio" />
+          <span>Inicio</span>
+          <GlassDateInput name="starts_at" defaultValue={toLocalDateTime(values?.starts_at)} withTime placeholder="Selecionar inicio" />
         </label>
+
         <label className="field">
           <span>Fim</span>
           <GlassDateInput name="ends_at" defaultValue={toLocalDateTime(values?.ends_at)} withTime placeholder="Selecionar fim" />
         </label>
+
         <label className="field">
           <span>Cidades-alvo</span>
-          <input className="input" name="target_cities" defaultValue={(values?.target_cities ?? []).join(", ")} placeholder="São Paulo, Rio de Janeiro" />
+          <input className="input" name="target_cities" defaultValue={(values?.target_cities ?? []).join(", ")} placeholder="Sao Paulo, Rio de Janeiro" />
         </label>
+
         <label className="field">
-          <span>Regiões-alvo</span>
+          <span>Regioes-alvo</span>
           <input className="input" name="target_regions" defaultValue={(values?.target_regions ?? []).join(", ")} placeholder="Sudeste, Sul" />
         </label>
+
         <label className="field">
-          <span>Orçamento</span>
+          <span>Orcamento</span>
           <input className="input" name="budget" defaultValue={moneyInput(values?.budget_cents)} placeholder="0,00" />
         </label>
+
         <label className="field">
           <span>CTA</span>
           <input className="input" name="cta_label" defaultValue={values?.cta_label ?? ""} placeholder="Comprar agora" />
         </label>
+
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           <span>URL do CTA</span>
           <input className="input" name="cta_url" defaultValue={values?.cta_url ?? ""} placeholder="https://florabotanics.com.br/produtos" />
         </label>
+
         <label className="field">
           <span>UTM source</span>
           <input className="input" name="utm_source" defaultValue={values?.utm_source ?? ""} />
         </label>
+
         <label className="field">
           <span>UTM medium</span>
           <input className="input" name="utm_medium" defaultValue={values?.utm_medium ?? ""} />
         </label>
+
         <label className="field">
           <span>UTM campaign</span>
           <input className="input" name="utm_campaign" defaultValue={values?.utm_campaign ?? ""} />
         </label>
+
         <label className="field" style={{ gridColumn: "1 / -1" }}>
-          <span>Descrição</span>
+          <span>Descricao</span>
           <textarea className="input" name="body" defaultValue={values?.body ?? ""} rows={7} />
         </label>
       </div>
+
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
         <button className="btn btn-gold" type="submit">{submitLabel}</button>
       </div>
