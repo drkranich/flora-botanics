@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession } from "@/lib/supabase/server";
 import { SalesTabs } from "@/app/vendas/Tabs";
@@ -44,12 +45,17 @@ export default async function CarrinhosPage() {
   const recent = carts.filter((c) => c.minutes_abandoned < 30);
 
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 28px 80px" }}>
+    <main style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 28px 80px" }}>
+      <header className="rise" style={{ marginBottom: 26 }}>
+        <Link href="/" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
+        <h1 className="display" style={{ fontSize: 44, marginTop: 10 }}>Vendas</h1>
+      </header>
+
       <SalesTabs />
 
-      <h1 className="display" style={{ fontSize: 32, marginBottom: 28 }}>
+      <h2 className="display" style={{ fontSize: 34, marginBottom: 28 }}>
         Carrinhos Abandonados
-      </h1>
+      </h2>
 
       {/* ── Aviso: migration pendente ── */}
       {migrationPending && (
