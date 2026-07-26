@@ -82,6 +82,57 @@ export async function createCoupon(form: {
   revalidatePath("/vendas/cupons");
 }
 
+export async function enqueueCouponStripeSync(id: string, environment: "test" | "production" = "test") {
+  const session = await getStaffSession();
+  if (!session) throw new Error("Não autorizado");
+  const tenantId = await effectiveTenantId();
+  const supabase = await supabaseServer();
+
+  const { data: coupon } = await supabase
+    .from("coupons")
+    .select("id, code")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (!coupon) throw new Error("Cupom não encontrado.");
+
+  const idempotencyKey = `stripe:${tenantId}:${environment}:sync_now:coupon:${id}`;
+  const { data: existing } = await supabase
+    .from("stripe_sync_jobs")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("idempotency_key", idempotencyKey)
+    .in("status", ["queued", "running", "failed"])
+    .maybeSingle();
+
+  if (!existing) {
+    await supabase.from("stripe_sync_jobs").insert({
+      tenant_id: tenantId,
+      environment,
+      action: "sync_now",
+      entity_type: "coupon",
+      entity_id: id,
+      idempotency_key: idempotencyKey,
+      payload: { coupon_code: coupon.code, requested_from: "sales_coupons" },
+      created_by: session.userId,
+    });
+  }
+
+  await supabase
+    .from("coupons")
+    .update({
+      stripe_environment: environment,
+      stripe_sync_status: "queued",
+      stripe_last_error: null,
+    })
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+
+  revalidatePath("/vendas/cupons");
+  revalidatePath("/financeiro/stripe");
+}
+
 export async function toggleCoupon(id: string, active: boolean) {
   const session = await getStaffSession();
   if (!session) throw new Error("Não autorizado");

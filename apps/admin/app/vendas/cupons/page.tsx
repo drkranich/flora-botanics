@@ -15,7 +15,7 @@ export default async function CouponsPage() {
 
   const { data: coupons } = await supabase
     .from("coupons")
-    .select("id, code, type, value, min_subtotal_cents, used_count, max_uses, ends_at, status")
+    .select("id, code, type, value, min_subtotal_cents, used_count, max_uses, ends_at, status, stripe_environment, stripe_sync_status, stripe_coupon_id, stripe_promotion_code_id, stripe_last_error")
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
 

@@ -48,9 +48,18 @@ export type StripeCoupon = {
   id: string;
   object: "coupon";
   amount_off?: number | null;
+  percent_off?: number | null;
   currency?: string | null;
   duration: string;
   name?: string | null;
+};
+
+export type StripePromotionCode = {
+  id: string;
+  object: "promotion_code";
+  active: boolean;
+  code: string;
+  coupon: string | StripeCoupon;
 };
 
 export type StripeEvent = {
@@ -272,8 +281,9 @@ export function createStripeCheckoutSession(apiKey: string, input: {
 }
 
 export function createStripeCoupon(apiKey: string, input: {
-  amountOffCents: number;
-  currency: string;
+  amountOffCents?: number;
+  percentOff?: number;
+  currency?: string;
   name: string;
   metadata?: Record<string, string | null | undefined>;
   idempotencyKey: string;
@@ -284,10 +294,36 @@ export function createStripeCoupon(apiKey: string, input: {
     path: "/v1/coupons",
     idempotencyKey: input.idempotencyKey,
     params: {
-      amount_off: input.amountOffCents,
-      currency: input.currency.toLowerCase(),
+      ...(input.amountOffCents && input.amountOffCents > 0 ? { amount_off: input.amountOffCents } : {}),
+      ...(input.amountOffCents && input.amountOffCents > 0 ? { currency: (input.currency ?? "BRL").toLowerCase() } : {}),
+      ...(input.percentOff && input.percentOff > 0 ? { percent_off: input.percentOff } : {}),
       duration: "once",
       name: input.name,
+      metadata: cleanMetadata(input.metadata),
+    },
+  });
+}
+
+export function createStripePromotionCode(apiKey: string, input: {
+  couponId: string;
+  code: string;
+  active?: boolean;
+  maxRedemptions?: number | null;
+  expiresAt?: number | null;
+  metadata?: Record<string, string | null | undefined>;
+  idempotencyKey: string;
+}) {
+  return stripeRequest<StripePromotionCode>({
+    apiKey,
+    method: "POST",
+    path: "/v1/promotion_codes",
+    idempotencyKey: input.idempotencyKey,
+    params: {
+      coupon: input.couponId,
+      code: input.code,
+      active: input.active ?? true,
+      ...(input.maxRedemptions ? { max_redemptions: input.maxRedemptions } : {}),
+      ...(input.expiresAt ? { expires_at: input.expiresAt } : {}),
       metadata: cleanMetadata(input.metadata),
     },
   });

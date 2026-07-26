@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createCoupon, toggleCoupon, deleteCoupon } from "@/lib/sales/actions";
+import { createCoupon, deleteCoupon, enqueueCouponStripeSync, toggleCoupon } from "@/lib/sales/actions";
 import { GlassSelect } from "@/components/GlassSelect";
 import { GlassDateInput } from "@/components/GlassDateInput";
 
@@ -15,6 +15,11 @@ type Coupon = {
   max_uses: number | null;
   ends_at: string | null;
   status: string;
+  stripe_environment: string | null;
+  stripe_sync_status: string | null;
+  stripe_coupon_id: string | null;
+  stripe_promotion_code_id: string | null;
+  stripe_last_error: string | null;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -63,11 +68,38 @@ export function CouponManager({ initial }: { initial: Coupon[] }) {
               {describe(c)} · usado {c.used_count}×
               {c.ends_at ? ` · expira ${new Date(c.ends_at).toLocaleDateString("pt-BR")}` : ""}
             </p>
+            <p className="muted" style={{ fontSize: 10.5, marginTop: 4 }}>
+              Stripe: {c.stripe_sync_status ?? "não vinculado"}
+              {c.stripe_promotion_code_id ? ` · Promotion Code ${c.stripe_promotion_code_id}` : ""}
+            </p>
+            {c.stripe_last_error ? (
+              <p style={{ color: "#e8a0a0", fontSize: 11, marginTop: 4 }}>{c.stripe_last_error}</p>
+            ) : null}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span className={`chip ${c.status === "active" ? "chip-live" : "chip-draft"}`}>
               {c.status === "active" ? "Ativo" : "Desativado"}
             </span>
+            <button
+              className="btn btn-ghost"
+              disabled={pending}
+              style={{ padding: "8px 14px", fontSize: 9.5 }}
+              onClick={() =>
+                run(() => enqueueCouponStripeSync(c.id, "test"), "Cupom enviado para a fila Stripe.")
+              }
+            >
+              Stripe teste
+            </button>
+            <button
+              className="btn btn-gold"
+              disabled={pending}
+              style={{ padding: "8px 14px", fontSize: 9.5 }}
+              onClick={() =>
+                run(() => enqueueCouponStripeSync(c.id, "production"), "Cupom enviado para a fila Stripe produção.")
+              }
+            >
+              Stripe produção
+            </button>
             <button
               className="btn btn-ghost"
               disabled={pending}

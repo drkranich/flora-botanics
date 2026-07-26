@@ -1,6 +1,8 @@
 import {
   archiveStripePrice,
+  createStripeCoupon,
   createStripePrice,
+  createStripePromotionCode,
   createStripeProduct,
   retrieveStripePrice,
   retrieveStripeProduct,
@@ -35,6 +37,18 @@ type Candidate = {
   stripeProductId: string | null;
   stripePriceId: string | null;
   lookupKey: string;
+};
+
+type CouponRow = {
+  id: string;
+  code: string;
+  type: "percent" | "fixed" | "free_shipping";
+  value: number;
+  max_uses: number | null;
+  ends_at: string | null;
+  status: string;
+  stripe_coupon_id: string | null;
+  stripe_promotion_code_id: string | null;
 };
 
 export async function processStripeJobs({
@@ -108,7 +122,9 @@ async function processOneJob({
       const priceId = await createAndStorePrice({ supabase, apiKey, job, candidate: { ...candidate, stripeProductId: productId }, actorId });
       message = `Price criado/vinculado: ${priceId}.`;
     } else if (job.action === "sync_now" || job.action === "publish_catalog") {
-      if (job.entity_id) {
+      if (job.entity_type === "coupon" && job.entity_id) {
+        message = await syncCouponPromotionCode({ supabase, apiKey, job, actorId });
+      } else if (job.entity_id) {
         const candidate = await loadCandidate(supabase, job);
         const productId = await ensureStripeProduct({ supabase, apiKey, job, candidate, actorId });
         const priceId = await createAndStorePrice({ supabase, apiKey, job, candidate: { ...candidate, stripeProductId: productId }, actorId });
@@ -147,6 +163,8 @@ async function processOneJob({
         .update({ status: "archived", active: false, valid_until: new Date().toISOString(), last_synced_at: new Date().toISOString() })
         .eq("id", price.id);
       message = `Price arquivado: ${price.stripe_price_id}.`;
+    } else if (job.action === "copy_test_to_production") {
+      message = await copyVariantToProduction({ supabase, apiKey, job, actorId });
     } else if (job.action === "reconcile_catalog") {
       message = await reconcileTenantCatalog({ supabase, apiKey, job });
     } else {
@@ -472,6 +490,169 @@ async function publishCatalogBatch({
   }
 
   return `Publicação em lote concluída: ${published} variante(s) sincronizada(s), ${failed} falha(s).`;
+}
+
+async function syncCouponPromotionCode({
+  supabase,
+  apiKey,
+  job,
+  actorId,
+}: {
+  supabase: SupabaseClient;
+  apiKey: string;
+  job: JobRow;
+  actorId?: string;
+}) {
+  if (!job.entity_id) throw new Error("Cupom sem identificador interno.");
+
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("id, code, type, value, max_uses, ends_at, status, stripe_coupon_id, stripe_promotion_code_id")
+    .eq("tenant_id", job.tenant_id)
+    .eq("id", job.entity_id)
+    .maybeSingle();
+
+  if (error || !data) throw new Error(error?.message ?? "Cupom não encontrado.");
+  const coupon = data as CouponRow;
+
+  if (coupon.type === "free_shipping") {
+    await supabase
+      .from("coupons")
+      .update({
+        stripe_environment: job.environment,
+        stripe_sync_status: "error",
+        stripe_last_error: "Cupom de frete grátis é aplicado no checkout Flora; Stripe Promotion Code cobre desconto de valor ou percentual.",
+      })
+      .eq("id", coupon.id)
+      .eq("tenant_id", job.tenant_id);
+    throw new Error("Frete grátis não tem Promotion Code Stripe equivalente neste fluxo.");
+  }
+
+  let stripeCouponId = coupon.stripe_coupon_id;
+  if (!stripeCouponId) {
+    const stripeCoupon = await createStripeCoupon(apiKey, {
+      name: `Flora ${coupon.code}`,
+      amountOffCents: coupon.type === "fixed" ? Math.round(Number(coupon.value) * 100) : undefined,
+      percentOff: coupon.type === "percent" ? Number(coupon.value) : undefined,
+      currency: "BRL",
+      idempotencyKey: `${job.idempotency_key}:coupon:${coupon.id}`,
+      metadata: {
+        tenant_id: job.tenant_id,
+        coupon_id: coupon.id,
+        coupon_code: coupon.code,
+        environment: job.environment,
+      },
+    });
+    if (!stripeCoupon.ok) throw new Error(stripeCoupon.error);
+    stripeCouponId = stripeCoupon.data.id;
+  }
+
+  let promotionCodeId = coupon.stripe_promotion_code_id;
+  if (!promotionCodeId) {
+    const promotion = await createStripePromotionCode(apiKey, {
+      couponId: stripeCouponId,
+      code: coupon.code,
+      active: coupon.status === "active",
+      maxRedemptions: coupon.max_uses,
+      expiresAt: coupon.ends_at ? Math.floor(new Date(coupon.ends_at).getTime() / 1000) : null,
+      idempotencyKey: `${job.idempotency_key}:promotion:${coupon.id}:${coupon.code}`,
+      metadata: {
+        tenant_id: job.tenant_id,
+        coupon_id: coupon.id,
+        coupon_code: coupon.code,
+        environment: job.environment,
+      },
+    });
+    if (!promotion.ok) throw new Error(promotion.error);
+    promotionCodeId = promotion.data.id;
+  }
+
+  await supabase
+    .from("coupons")
+    .update({
+      stripe_coupon_id: stripeCouponId,
+      stripe_promotion_code_id: promotionCodeId,
+      stripe_environment: job.environment,
+      stripe_sync_status: "synced",
+      stripe_last_sync_at: new Date().toISOString(),
+      stripe_last_error: null,
+      stripe_metadata: {
+        coupon_id: stripeCouponId,
+        promotion_code_id: promotionCodeId,
+        environment: job.environment,
+      },
+    })
+    .eq("id", coupon.id)
+    .eq("tenant_id", job.tenant_id);
+
+  return `Promotion Code ${coupon.code} sincronizado no Stripe.`;
+}
+
+async function copyVariantToProduction({
+  supabase,
+  apiKey,
+  job,
+  actorId,
+}: {
+  supabase: SupabaseClient;
+  apiKey: string;
+  job: JobRow;
+  actorId?: string;
+}) {
+  if (job.environment !== "production") {
+    throw new Error("Cópia teste → produção precisa ser executada no ambiente produção.");
+  }
+
+  const candidate = await loadCandidate(supabase, job);
+  const productId = await ensureStripeProduct({ supabase, apiKey, job, candidate, actorId });
+  const priceId = await createAndStorePrice({
+    supabase,
+    apiKey,
+    job,
+    candidate: { ...candidate, stripeProductId: productId, lookupKey: `${candidate.lookupKey}_live` },
+    actorId,
+    reason: "Cópia aprovada do ambiente teste para produção.",
+  });
+
+  const [{ data: testProduct }, { data: testPrice }] = await Promise.all([
+    supabase
+      .from("stripe_products")
+      .select("stripe_product_id, lookup_key_base")
+      .eq("tenant_id", job.tenant_id)
+      .eq("entity_type", "product_variant")
+      .eq("entity_id", candidate.variantId)
+      .eq("environment", "test")
+      .maybeSingle(),
+    supabase
+      .from("stripe_prices")
+      .select("stripe_price_id, lookup_key")
+      .eq("tenant_id", job.tenant_id)
+      .eq("entity_type", "product_variant")
+      .eq("entity_id", candidate.variantId)
+      .eq("environment", "test")
+      .eq("active", true)
+      .eq("is_default", true)
+      .maybeSingle(),
+  ]);
+
+  await supabase.from("stripe_environment_mappings").upsert({
+    tenant_id: job.tenant_id,
+    entity_type: "product_variant",
+    entity_id: candidate.variantId,
+    test_stripe_product_id: testProduct?.stripe_product_id ?? candidate.stripeProductId,
+    production_stripe_product_id: productId,
+    test_stripe_price_id: testPrice?.stripe_price_id ?? candidate.stripePriceId,
+    production_stripe_price_id: priceId,
+    test_lookup_key: testPrice?.lookup_key ?? testProduct?.lookup_key_base ?? candidate.lookupKey,
+    production_lookup_key: `${candidate.lookupKey}_live`,
+    copy_status: "copied",
+    last_copied_at: new Date().toISOString(),
+    last_error: null,
+    metadata: { copied_by: actorId ?? job.created_by, job_id: job.id },
+    created_by: actorId ?? job.created_by,
+  }, { onConflict: "tenant_id,entity_type,entity_id" });
+
+  return `Variante ${candidate.sku} copiada para produção: ${productId} / ${priceId}.`;
 }
 
 async function activePriceForCandidate(

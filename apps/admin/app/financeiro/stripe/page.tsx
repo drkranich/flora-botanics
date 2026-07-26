@@ -422,6 +422,7 @@ export default async function StripeCatalogPage() {
                 <ItemJob row={row} action="sync_now" label="Sincronizar" />
                 <ItemJob row={row} action="replace_price" label="Substituir Price" />
                 <ItemJob row={row} action="archive_price" label="Arquivar Price" danger />
+                <ItemJob row={row} action="copy_test_to_production" label="Teste → Produção" environment="production" />
                 <ItemJob row={row} action="search_stripe" label="Buscar no Stripe" />
                 {stripeDashboardUrl("test", row.stripeProductId) ? (
                   <a href={stripeDashboardUrl("test", row.stripeProductId) ?? "#"} target="_blank" rel="noreferrer" className="btn btn-ghost" style={smallButtonStyle}>
@@ -547,11 +548,23 @@ function ProcessQueue({ environment, label }: { environment: "test" | "productio
   );
 }
 
-function ItemJob({ row, action, label, danger }: { row: ProductCandidate; action: string; label: string; danger?: boolean }) {
+function ItemJob({
+  row,
+  action,
+  label,
+  danger,
+  environment = "test",
+}: {
+  row: ProductCandidate;
+  action: string;
+  label: string;
+  danger?: boolean;
+  environment?: "test" | "production";
+}) {
   return (
     <form action={enqueueStripeCatalogJob}>
       <input type="hidden" name="action" value={action} />
-      <input type="hidden" name="environment" value="test" />
+      <input type="hidden" name="environment" value={environment} />
       <input type="hidden" name="entity_type" value="product_variant" />
       <input type="hidden" name="entity_id" value={row.variantId} />
       <input type="hidden" name="entity_name" value={row.name} />
