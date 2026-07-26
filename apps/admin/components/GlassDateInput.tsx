@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
+const HOURS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
+const MINUTES = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"));
 
 function parseValue(value?: string) {
   if (!value) return null;
@@ -65,8 +67,14 @@ export function GlassDateInput({
   const [view, setView] = useState(() => selected ?? new Date());
   const [time, setTime] = useState(() => currentValue.split("T")[1]?.slice(0, 5) ?? "09:00");
   const days = useMemo(() => daysForMonth(view.getFullYear(), view.getMonth()), [view]);
+  const [hour = "09", minute = "00"] = time.split(":");
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const nextTime = currentValue.split("T")[1]?.slice(0, 5);
+    if (nextTime) setTime(nextTime);
+  }, [currentValue]);
 
   useEffect(() => {
     function close(event: MouseEvent) {
@@ -116,6 +124,14 @@ export function GlassDateInput({
     setOpen(false);
   }
 
+  function chooseHour(nextHour: string) {
+    setTime(`${nextHour}:${minute}`);
+  }
+
+  function chooseMinute(nextMinute: string) {
+    setTime(`${hour}:${nextMinute}`);
+  }
+
   return (
     <>
       {name ? <input type="hidden" name={name} value={currentValue} /> : null}
@@ -127,13 +143,23 @@ export function GlassDateInput({
         ? createPortal(
             <div ref={popoverRef} className="glass-date-popover" style={position}>
               <div className="glass-date-head">
-                <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}>‹</button>
-                <strong>{MONTHS[view.getMonth()]} {view.getFullYear()}</strong>
-                <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() + 1, 1))}>›</button>
+                <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}>
+                  {"<"}
+                </button>
+                <strong>
+                  {MONTHS[view.getMonth()]} {view.getFullYear()}
+                </strong>
+                <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() + 1, 1))}>
+                  {">"}
+                </button>
               </div>
+
               <div className="glass-date-grid glass-date-weekdays">
-                {WEEKDAYS.map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
+                {WEEKDAYS.map((day, index) => (
+                  <span key={`${day}-${index}`}>{day}</span>
+                ))}
               </div>
+
               <div className="glass-date-grid">
                 {days.map((day, index) => {
                   const active = !!day && selected?.toDateString() === day.toDateString();
@@ -151,13 +177,52 @@ export function GlassDateInput({
                   );
                 })}
               </div>
+
               {withTime ? (
                 <div className="glass-date-time">
-                  <input className="input" type="time" value={time} onChange={(event) => setTime(event.target.value)} />
-                  <button type="button" className="btn btn-gold" onClick={applyTime}>Aplicar</button>
+                  <div className="glass-time-picker" aria-label="Selecionar horario">
+                    <div className="glass-time-column" aria-label="Hora">
+                      {HOURS.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className={option === hour ? "glass-time-option is-active" : "glass-time-option"}
+                          onClick={() => chooseHour(option)}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="glass-time-separator">:</div>
+                    <div className="glass-time-column" aria-label="Minuto">
+                      {MINUTES.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className={option === minute ? "glass-time-option is-active" : "glass-time-option"}
+                          onClick={() => chooseMinute(option)}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button type="button" className="btn btn-gold" onClick={applyTime}>
+                    Aplicar
+                  </button>
                 </div>
               ) : null}
-              <button type="button" className="glass-date-clear" onClick={() => { setNext(""); setOpen(false); }}>Limpar</button>
+
+              <button
+                type="button"
+                className="glass-date-clear"
+                onClick={() => {
+                  setNext("");
+                  setOpen(false);
+                }}
+              >
+                Limpar
+              </button>
             </div>,
             document.body
           )
