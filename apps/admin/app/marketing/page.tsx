@@ -14,6 +14,7 @@ import {
   createMarketingLandingPage,
   createMarketingQueueItem,
   createMarketingSegment,
+  processMarketingQueueNow,
   recordMarketingConsent,
 } from "./actions";
 
@@ -652,6 +653,26 @@ export default async function MarketingPage() {
         </Panel>
 
         <Panel title="Próximos envios" eyebrow="Monitoramento">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              marginBottom: 14,
+            }}
+          >
+            <p className="muted" style={{ margin: 0, maxWidth: 520, fontSize: 12.5, lineHeight: 1.6 }}>
+              O executor envia e-mails via Resend, registra eventos, guarda logs do provedor e reagenda falhas
+              com retentativa automática. SMS e WhatsApp permanecem enfileirados até o provedor oficial ser ativado.
+            </p>
+            <form action={processMarketingQueueNow}>
+              <button className="btn btn-gold" style={{ ...buttonStyle, minWidth: 190 }}>
+                Processar fila agora
+              </button>
+            </form>
+          </div>
           <ListEmpty when={!queue.length} text="Nenhum envio enfileirado ainda." />
           <div style={{ display: "grid", gap: 10 }}>
             {queue.slice(0, 8).map((item) => (
@@ -659,6 +680,9 @@ export default async function MarketingPage() {
                 <span className="chip chip-draft">{channelLabel(item.channel)}</span>
                 <strong>{item.recipient}</strong>
                 <span className="muted">{statusLabel(item.status)} · tentativas {item.attempts}</span>
+                {item.last_error ? (
+                  <span style={{ color: "#e8a0a0", fontSize: 11, lineHeight: 1.5 }}>{item.last_error}</span>
+                ) : null}
               </div>
             ))}
           </div>

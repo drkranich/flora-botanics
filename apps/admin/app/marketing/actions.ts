@@ -3,7 +3,32 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { sendEmail } from "@/lib/email/resend";
+import { nextRetryIso, renderMarketingEmail, type MarketingTemplate } from "@/lib/marketing/queue";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
+
+type QueueItem = {
+  id: string;
+  tenant_id: string;
+  campaign_id: string | null;
+  campaign_channel_id: string | null;
+  journey_id: string | null;
+  template_id: string | null;
+  customer_id: string | null;
+  lead_id: string | null;
+  channel: string;
+  recipient: string;
+  payload: unknown;
+  attempts: number;
+  max_attempts: number;
+};
+
+type QueueProcessResult = {
+  processed: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+};
 
 function nullableText(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
@@ -64,6 +89,91 @@ async function requireMarketingAdmin() {
   if (session.role === "tenant_editor") redirect("/");
   const tenantId = await effectiveTenantId();
   return { session, tenantId };
+}
+
+function isRetryableMarketingError(error: string) {
+  return !/não está configurado|nao esta configurado|domínio não verificado|dominio nao verificado|domain is not verified|template não encontrado|template nao encontrado|não é de e-mail|nao e de e-mail|canal ainda não possui provedor/i.test(error);
+}
+
+async function logMarketingProvider(
+  supabase: Awaited<ReturnType<typeof supabaseServer>>,
+  input: {
+    tenantId: string;
+    action: string;
+    status: "success" | "warning" | "error";
+    latencyMs?: number;
+    request?: Record<string, unknown>;
+    response?: Record<string, unknown>;
+    error?: string;
+  }
+) {
+  await supabase.from("marketing_provider_logs").insert({
+    tenant_id: input.tenantId,
+    provider: "resend",
+    action: input.action,
+    status: input.status,
+    latency_ms: input.latencyMs ?? null,
+    request_payload: input.request ?? {},
+    response_payload: input.response ?? {},
+    error_message: input.error ?? null,
+  });
+}
+
+async function registerMarketingEvent(
+  supabase: Awaited<ReturnType<typeof supabaseServer>>,
+  item: QueueItem,
+  input: { type: "sent" | "failure"; provider?: string; externalId?: string; error?: string }
+) {
+  await supabase.from("marketing_events").insert({
+    tenant_id: item.tenant_id,
+    campaign_id: item.campaign_id,
+    campaign_channel_id: item.campaign_channel_id,
+    customer_id: item.customer_id,
+    lead_id: item.lead_id,
+    channel: item.channel,
+    event_type: input.type,
+    provider: input.provider ?? "resend",
+    external_id: input.externalId ?? null,
+    metadata: {
+      queue_id: item.id,
+      journey_id: item.journey_id,
+      template_id: item.template_id,
+      recipient: item.recipient,
+      ...(input.error ? { error: input.error } : {}),
+    },
+  });
+}
+
+async function failMarketingQueueItem(
+  supabase: Awaited<ReturnType<typeof supabaseServer>>,
+  item: QueueItem,
+  error: string,
+  attempt: number
+) {
+  const retryable = isRetryableMarketingError(error);
+  const nextStatus = retryable && attempt < item.max_attempts ? "queued" : "dead";
+  const nextRunAt = nextStatus === "queued" ? nextRetryIso(attempt) : new Date().toISOString();
+
+  await supabase
+    .from("marketing_message_queue")
+    .update({
+      attempts: attempt,
+      status: nextStatus,
+      run_at: nextRunAt,
+      last_error: error,
+      locked_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+
+  await registerMarketingEvent(supabase, item, { type: "failure", error });
+  await logMarketingProvider(supabase, {
+    tenantId: item.tenant_id,
+    action: "send_email",
+    status: retryable ? "warning" : "error",
+    request: { queue_id: item.id, template_id: item.template_id, recipient: item.recipient },
+    error,
+  });
 }
 
 export async function createMarketingAudience(formData: FormData) {
@@ -241,6 +351,129 @@ export async function createMarketingQueueItem(formData: FormData) {
   });
 
   if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+}
+
+export async function processMarketingQueueNow(): Promise<void> {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("marketing_message_queue")
+    .select(
+      "id, tenant_id, campaign_id, campaign_channel_id, journey_id, template_id, customer_id, lead_id, channel, recipient, payload, attempts, max_attempts"
+    )
+    .eq("tenant_id", tenantId)
+    .in("status", ["queued", "failed"])
+    .lte("run_at", now)
+    .order("priority", { ascending: true })
+    .order("run_at", { ascending: true })
+    .limit(15);
+
+  if (error) throw new Error(error.message);
+
+  const rows = ((data ?? []) as QueueItem[]).filter((item) => item.attempts < item.max_attempts);
+  const result: QueueProcessResult = { processed: 0, sent: 0, failed: 0, skipped: 0 };
+
+  for (const item of rows) {
+    result.processed += 1;
+    const attempt = item.attempts + 1;
+
+    const { error: lockError } = await supabase
+      .from("marketing_message_queue")
+      .update({
+        status: "processing",
+        attempts: attempt,
+        locked_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id)
+      .in("status", ["queued", "failed"]);
+
+    if (lockError) {
+      result.skipped += 1;
+      continue;
+    }
+
+    if (item.channel !== "email") {
+      await failMarketingQueueItem(
+        supabase,
+        item,
+        `Canal ${item.channel} ainda não possui provedor ativo. O envio ficou registrado para ativação futura.`,
+        attempt
+      );
+      result.failed += 1;
+      continue;
+    }
+
+    if (!item.template_id) {
+      await failMarketingQueueItem(supabase, item, "Selecione um template antes de enviar.", attempt);
+      result.failed += 1;
+      continue;
+    }
+
+    const { data: template, error: templateError } = await supabase
+      .from("message_templates")
+      .select("id, name, channel, subject, body, variables, blocks")
+      .eq("tenant_id", tenantId)
+      .eq("id", item.template_id)
+      .maybeSingle();
+
+    if (templateError || !template) {
+      await failMarketingQueueItem(supabase, item, templateError?.message ?? "Template não encontrado.", attempt);
+      result.failed += 1;
+      continue;
+    }
+
+    const rendered = renderMarketingEmail(template as MarketingTemplate, item.payload);
+    if (!rendered.ok) {
+      await failMarketingQueueItem(supabase, item, rendered.error, attempt);
+      result.failed += 1;
+      continue;
+    }
+
+    const started = Date.now();
+    const sent = await sendEmail({
+      to: item.recipient,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+    const latencyMs = Date.now() - started;
+
+    if (!sent.ok) {
+      await failMarketingQueueItem(supabase, item, sent.error, attempt);
+      result.failed += 1;
+      continue;
+    }
+
+    await supabase
+      .from("marketing_message_queue")
+      .update({
+        status: "sent",
+        last_error: null,
+        locked_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    await registerMarketingEvent(supabase, item, {
+      type: "sent",
+      provider: "resend",
+      externalId: sent.id,
+    });
+    await logMarketingProvider(supabase, {
+      tenantId,
+      action: "send_email",
+      status: "success",
+      latencyMs,
+      request: { queue_id: item.id, template_id: item.template_id, recipient: item.recipient },
+      response: { id: sent.id },
+    });
+    result.sent += 1;
+  }
+
   revalidatePath("/marketing");
 }
 
