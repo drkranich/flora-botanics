@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -71,6 +71,10 @@ export function GlassDateInput({
   const days = useMemo(() => daysForMonth(view.getFullYear(), view.getMonth()), [view]);
   const [hour = "09", minute = "00"] = time.split(":");
 
+  // Mesmo quando a tela pede inlinePopover, o calendário usa portal para
+  // escapar de cards, tabelas e painéis que criam novas camadas visuais.
+  void inlinePopover;
+
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
@@ -100,17 +104,45 @@ export function GlassDateInput({
     onChange?.(next);
   }
 
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const viewportPadding = 12;
+    const width = Math.max(rect.width, withTime ? 330 : 286);
+    const estimatedHeight = withTime ? 455 : 360;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < estimatedHeight + viewportPadding && rect.top > estimatedHeight;
+    const left = Math.min(
+      Math.max(viewportPadding, rect.left),
+      window.innerWidth - width - viewportPadding
+    );
+
+    setPosition({
+      position: "fixed",
+      zIndex: 2147483646,
+      left,
+      width,
+      ...(openUp
+        ? { top: "auto", bottom: window.innerHeight - rect.top + 8 }
+        : { top: rect.bottom + 8, bottom: "auto" }),
+    });
+  }, [withTime]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, updatePosition]);
+
   function openPicker() {
-    if (!inlinePopover && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPosition({
-        position: "fixed",
-        zIndex: 99999,
-        top: rect.bottom + 8,
-        left: rect.left,
-        width: Math.max(rect.width, 286),
-      });
-    }
+    if (!open) updatePosition();
     setOpen((v) => !v);
   }
 
@@ -137,8 +169,8 @@ export function GlassDateInput({
   const calendar = open ? (
     <div
       ref={popoverRef}
-      className={inlinePopover ? "glass-date-popover glass-date-popover-inline" : "glass-date-popover"}
-      style={inlinePopover ? undefined : position}
+      className="glass-date-popover"
+      style={position}
     >
       <div className="glass-date-head">
         <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}>
@@ -178,7 +210,7 @@ export function GlassDateInput({
 
       {withTime ? (
         <div className="glass-date-time">
-          <div className="glass-time-picker" aria-label="Selecionar horario">
+          <div className="glass-time-picker" aria-label="Selecionar horário">
             <div className="glass-time-column" aria-label="Hora">
               {HOURS.map((option) => (
                 <button
@@ -231,7 +263,7 @@ export function GlassDateInput({
         <span>{displayValue(currentValue, withTime) || placeholder}</span>
         <span className="glass-date-icon">▦</span>
       </button>
-      {inlinePopover ? calendar : mounted && calendar ? createPortal(calendar, document.body) : null}
+      {mounted && calendar ? createPortal(calendar, document.body) : null}
     </span>
   );
 }
