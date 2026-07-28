@@ -27,6 +27,18 @@ const CONVERSATION_CHANNEL_LABELS: Record<string, string> = {
   facebook: "Facebook",
 };
 
+const MARKETING_EVENT_LABELS: Record<string, string> = {
+  sent: "Enviado",
+  delivered: "Entregue",
+  opened: "Aberto",
+  clicked: "Clique",
+  failure: "Falha",
+  conversion: "Conversão",
+  consent: "Consentimento",
+  tracking_sent: "Rastreamento enviado",
+  post_purchase: "Pós-venda",
+};
+
 function formatBRL(cents: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 }
@@ -85,6 +97,15 @@ interface AddressRow {
   is_default_shipping: boolean;
 }
 
+interface MarketingTimelineRow {
+  id: string;
+  channel: string | null;
+  event_type: string;
+  title: string;
+  description: string | null;
+  occurred_at: string;
+}
+
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const staff = await currentStaff();
@@ -102,7 +123,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   if (!customerData) notFound();
   const customer = customerData as CustomerDetail;
 
-  const [ordersRes, conversationsRes, addressesRes] = await Promise.all([
+  const [ordersRes, conversationsRes, addressesRes, timelineRes] = await Promise.all([
     supabase
       .from("orders")
       .select("id, number, status, total_cents, placed_at, created_at")
@@ -122,11 +143,19 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       .select("id, label, recipient, street, number, district, city, state, zip, is_default_shipping")
       .eq("tenant_id", staff.tenantId)
       .eq("customer_id", id),
+    supabase
+      .from("marketing_customer_timeline")
+      .select("id, channel, event_type, title, description, occurred_at")
+      .eq("tenant_id", staff.tenantId)
+      .eq("customer_id", id)
+      .order("occurred_at", { ascending: false })
+      .limit(30),
   ]);
 
   const orders = (ordersRes.data ?? []) as OrderRow[];
   const conversations = (conversationsRes.data ?? []) as ConversationRow[];
   const addresses = (addressesRes.data ?? []) as AddressRow[];
+  const timeline = (timelineRes.data ?? []) as MarketingTimelineRow[];
 
   const totalSpent = orders
     .filter((o) => ["paid", "processing", "shipped", "delivered"].includes(o.status))
@@ -165,6 +194,10 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <div style={cardStyle}>
           <div style={{ fontSize: 13, color: "var(--cream-dim)" }}>Conversas</div>
           <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>{conversations.length}</div>
+        </div>
+        <div style={cardStyle}>
+          <div style={{ fontSize: 13, color: "var(--cream-dim)" }}>Relacionamento</div>
+          <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>{timeline.length}</div>
         </div>
       </div>
 
@@ -238,6 +271,29 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                     {c.last_message_preview && (
                       <span style={{ color: "var(--cream-dim)" }}>{c.last_message_preview}</span>
                     )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Linha do tempo de relacionamento</h2>
+            {timeline.length === 0 ? (
+              <p style={emptyStyle}>Nenhum evento de marketing ou relacionamento registrado para este cliente.</p>
+            ) : (
+              <ul style={listStyle}>
+                {timeline.map((event) => (
+                  <li key={event.id} style={{ ...listItemStyle, alignItems: "flex-start", flexDirection: "column", gap: 4 }}>
+                    <span style={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 12 }}>
+                      <strong>{event.title}</strong>
+                      <span style={{ color: "var(--cream-dim)", whiteSpace: "nowrap" }}>{formatDateTime(event.occurred_at)}</span>
+                    </span>
+                    <span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <span className="chip chip-live">{CONVERSATION_CHANNEL_LABELS[event.channel ?? ""] ?? event.channel ?? "Canal"}</span>
+                      <span className="chip chip-draft">{MARKETING_EVENT_LABELS[event.event_type] ?? event.event_type}</span>
+                    </span>
+                    {event.description ? <span style={{ color: "var(--cream-dim)" }}>{event.description}</span> : null}
                   </li>
                 ))}
               </ul>

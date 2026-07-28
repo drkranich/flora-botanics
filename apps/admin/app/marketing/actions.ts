@@ -649,12 +649,19 @@ export async function upsertMarketingProviderConnection(formData: FormData) {
 export async function createMarketingReportExport(formData: FormData) {
   const { session, tenantId } = await requireMarketingAdmin();
   const supabase = await supabaseServer();
+  const reportType = requiredText(formData, "report_type", "o tipo de relatório");
+  const format = requiredText(formData, "format", "o formato");
+  const filters = jsonObject(formData, "filters");
+  const params = new URLSearchParams({ format, report: reportType });
 
   const { error } = await supabase.from("marketing_report_exports").insert({
     tenant_id: tenantId,
-    report_type: requiredText(formData, "report_type", "o tipo de relatório"),
-    format: requiredText(formData, "format", "o formato"),
-    filters: jsonObject(formData, "filters"),
+    report_type: reportType,
+    format,
+    filters,
+    status: "ready",
+    file_url: `/marketing/exportar?${params.toString()}`,
+    finished_at: new Date().toISOString(),
     created_by: session.userId,
   });
 

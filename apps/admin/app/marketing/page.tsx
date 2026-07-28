@@ -1174,6 +1174,17 @@ export default async function MarketingPage() {
         </Panel>
 
         <Panel title="Exportações" eyebrow="PDF / CSV / XLSX">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+            <Link href="/marketing/exportar?format=pdf" className="btn btn-gold" style={{ padding: "8px 14px", fontSize: 10 }}>
+              Baixar PDF
+            </Link>
+            <Link href="/marketing/exportar?format=csv" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
+              Baixar CSV
+            </Link>
+            <Link href="/marketing/exportar?format=xlsx" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
+              Baixar XLSX
+            </Link>
+          </div>
           <form action={createMarketingReportExport} style={formGridStyle}>
             <Field label="Relatório">
               <input name="report_type" required style={inputStyle} placeholder="campanhas, eventos, custos, consentimentos..." />
@@ -1193,6 +1204,11 @@ export default async function MarketingPage() {
                 <span className="chip chip-draft">{item.format.toUpperCase()}</span>
                 <strong>{item.report_type}</strong>
                 <span className="muted">{statusLabel(item.status)} · {formatDateTime(item.created_at)}</span>
+                {item.file_url ? (
+                  <Link href={item.file_url} className="btn btn-ghost" style={{ padding: "6px 12px", fontSize: 10, width: "fit-content" }}>
+                    Baixar
+                  </Link>
+                ) : null}
               </div>
             ))}
           </div>
