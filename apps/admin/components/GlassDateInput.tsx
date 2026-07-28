@@ -128,7 +128,7 @@ export function GlassDateInput({
   }, [withTime]);
 
   useEffect(() => {
-    if (!open || inlinePopover) return;
+    if (!open) return;
 
     updatePosition();
     window.addEventListener("resize", updatePosition);
@@ -137,10 +137,10 @@ export function GlassDateInput({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition);
     };
-  }, [inlinePopover, open, updatePosition]);
+  }, [open, updatePosition]);
 
   function openPicker() {
-    if (!open && !inlinePopover) updatePosition();
+    if (!open) updatePosition();
     setOpen((v) => !v);
   }
 
@@ -167,8 +167,8 @@ export function GlassDateInput({
   const calendar = open ? (
     <div
       ref={popoverRef}
-      className={inlinePopover ? "glass-date-popover glass-date-popover-inline" : "glass-date-popover"}
-      style={inlinePopover ? undefined : position}
+      className={inlinePopover ? "glass-date-popover glass-date-popover-field" : "glass-date-popover"}
+      style={position}
     >
       <div className="glass-date-head">
         <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}>
@@ -255,13 +255,13 @@ export function GlassDateInput({
   ) : null;
 
   return (
-    <span className={open && inlinePopover ? "glass-date-wrap is-open" : "glass-date-wrap"}>
+    <span className="glass-date-wrap">
       {name ? <input type="hidden" name={name} value={currentValue} /> : null}
       <button ref={triggerRef} type="button" className="glass-date-trigger" onClick={openPicker}>
         <span>{displayValue(currentValue, withTime) || placeholder}</span>
         <span className="glass-date-icon">▦</span>
       </button>
-      {inlinePopover ? calendar : mounted && calendar ? createPortal(calendar, document.body) : null}
+      {mounted && calendar ? createPortal(calendar, document.body) : null}
     </span>
   );
 }

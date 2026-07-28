@@ -344,10 +344,6 @@ select option:focus {
   width: 100%;
 }
 
-.glass-date-wrap.is-open {
-  z-index: 5000;
-}
-
 .glass-date-trigger {
   width: 100%;
   min-height: 44px;
@@ -396,15 +392,6 @@ select option:focus {
   box-shadow: 0 22px 55px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(22px) saturate(1.2);
   -webkit-backdrop-filter: blur(22px) saturate(1.2);
-}
-
-.glass-date-popover-inline {
-  position: absolute;
-  z-index: 5001 !important;
-  top: calc(100% + 8px);
-  left: 0;
-  width: max(100%, 330px);
-  max-width: min(420px, calc(100vw - 32px));
 }
 
 .glass-date-head {
