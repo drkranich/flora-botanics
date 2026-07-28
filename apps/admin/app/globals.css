@@ -344,6 +344,10 @@ select option:focus {
   width: 100%;
 }
 
+.glass-date-wrap.is-open {
+  z-index: 5000;
+}
+
 .glass-date-trigger {
   width: 100%;
   min-height: 44px;
@@ -395,11 +399,12 @@ select option:focus {
 }
 
 .glass-date-popover-inline {
-  position: fixed;
-  z-index: 2147483647 !important;
+  position: absolute;
+  z-index: 5001 !important;
   top: calc(100% + 8px);
   left: 0;
-  width: min(max(100%, 286px), calc(100vw - 32px));
+  width: max(100%, 330px);
+  max-width: min(420px, calc(100vw - 32px));
 }
 
 .glass-date-head {

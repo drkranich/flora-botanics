@@ -71,10 +71,8 @@ export function GlassDateInput({
   const days = useMemo(() => daysForMonth(view.getFullYear(), view.getMonth()), [view]);
   const [hour = "09", minute = "00"] = time.split(":");
 
-  // Mesmo quando a tela pede inlinePopover, o calendário usa portal para
-  // escapar de cards, tabelas e painéis que criam novas camadas visuais.
-  void inlinePopover;
-
+  // Em formulários densos, inlinePopover mantém o calendário preso ao campo.
+  // Fora desses casos, o portal evita truncamento por containers externos.
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
@@ -130,19 +128,19 @@ export function GlassDateInput({
   }, [withTime]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || inlinePopover) return;
 
     updatePosition();
     window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("scroll", updatePosition);
     return () => {
       window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("scroll", updatePosition);
     };
-  }, [open, updatePosition]);
+  }, [inlinePopover, open, updatePosition]);
 
   function openPicker() {
-    if (!open) updatePosition();
+    if (!open && !inlinePopover) updatePosition();
     setOpen((v) => !v);
   }
 
@@ -169,8 +167,8 @@ export function GlassDateInput({
   const calendar = open ? (
     <div
       ref={popoverRef}
-      className="glass-date-popover"
-      style={position}
+      className={inlinePopover ? "glass-date-popover glass-date-popover-inline" : "glass-date-popover"}
+      style={inlinePopover ? undefined : position}
     >
       <div className="glass-date-head">
         <button type="button" className="btn-icon" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}>
@@ -257,13 +255,13 @@ export function GlassDateInput({
   ) : null;
 
   return (
-    <span className="glass-date-wrap">
+    <span className={open && inlinePopover ? "glass-date-wrap is-open" : "glass-date-wrap"}>
       {name ? <input type="hidden" name={name} value={currentValue} /> : null}
       <button ref={triggerRef} type="button" className="glass-date-trigger" onClick={openPicker}>
         <span>{displayValue(currentValue, withTime) || placeholder}</span>
         <span className="glass-date-icon">▦</span>
       </button>
-      {mounted && calendar ? createPortal(calendar, document.body) : null}
+      {inlinePopover ? calendar : mounted && calendar ? createPortal(calendar, document.body) : null}
     </span>
   );
 }
