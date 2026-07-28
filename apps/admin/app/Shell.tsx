@@ -46,7 +46,7 @@ const COMMANDS = [
   { label: "Ir para Financeiro, Precificação e Orçamentos", href: "/financeiro" },
   { label: "Ir para Marketing e Relacionamento", href: "/marketing" },
   { label: "Ir para Marketing — Campanhas", href: "/marketing#campanhas" },
-  { label: "Ir para Marketing — Templates", href: "/marketing#e-mail-marketing" },
+  { label: "Ir para Marketing — Templates", href: "/marketing/templates" },
   { label: "Ir para Marketing — Segmentos", href: "/marketing#segmentos" },
   { label: "Ir para Marketing — Jornadas", href: "/marketing#jornadas" },
   { label: "Ir para Marketing — Consentimentos", href: "/marketing#consentimentos" },

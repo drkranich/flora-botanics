@@ -384,7 +384,7 @@ export default async function MarketingPage() {
       </section>
 
       <section id="e-mail-marketing" style={twoColumnStyle}>
-        <Panel title="Biblioteca de templates" eyebrow="Templates / Resend" actionHref="/backoffice/mensagens" actionLabel="Abrir editor visual">
+        <Panel title="Biblioteca de templates" eyebrow="Templates / Resend" actionHref="/marketing/templates" actionLabel="Abrir biblioteca">
           <p className="muted" style={mutedTextStyle}>
             Modelos Flora prontos para lançamento, promoção, boas-vindas, rastreamento,
             carrinho abandonado, pós-venda, B2B, orçamento e datas comemorativas.
@@ -748,7 +748,7 @@ function subsectionHref(label: string) {
     Campanhas: "#campanhas",
     Automação: "#jornadas",
     "E-mail marketing": "#e-mail-marketing",
-    Templates: "#e-mail-marketing",
+    Templates: "/marketing/templates",
     SMS: "#campanhas",
     "WhatsApp Business": "#campanhas",
     "Mensagens transacionais": "#jornadas",

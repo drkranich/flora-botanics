@@ -35,6 +35,17 @@ function jsonObject(formData: FormData, key: string) {
   }
 }
 
+function jsonArray(formData: FormData, key: string) {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    throw new Error(`O campo ${key} precisa ser uma lista JSON válida.`);
+  }
+}
+
 function datetime(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
   return value ? new Date(value).toISOString() : null;
@@ -253,4 +264,79 @@ export async function createMarketingAttributionEvent(formData: FormData) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/marketing");
+}
+
+export async function installMarketingTemplateBlueprint(formData: FormData) {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+  const blueprintId = requiredText(formData, "blueprint_id", "o modelo");
+
+  const { data: blueprint, error: blueprintError } = await supabase
+    .from("marketing_template_blueprints")
+    .select("id, name, channel, category, subject, description, variables, blocks")
+    .eq("id", blueprintId)
+    .maybeSingle();
+
+  if (blueprintError || !blueprint) {
+    throw new Error(blueprintError?.message ?? "Modelo Flora não encontrado.");
+  }
+
+  const blocks = Array.isArray(blueprint.blocks) ? blueprint.blocks : [];
+  const body = JSON.stringify({ blocks });
+
+  const { error } = await supabase.from("message_templates").upsert(
+    {
+      tenant_id: tenantId,
+      name: blueprint.name,
+      channel: blueprint.channel,
+      category: blueprint.category,
+      subject: blueprint.subject,
+      body,
+      variables: blueprint.variables ?? [],
+      status: "draft",
+      language: "pt-BR",
+      preview: blueprint.description,
+      blocks,
+      metadata: {
+        source: "marketing_template_blueprints",
+        blueprint_id: blueprint.id,
+      },
+    },
+    { onConflict: "tenant_id,name", ignoreDuplicates: false }
+  );
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+  revalidatePath("/marketing/templates");
+  revalidatePath("/backoffice/mensagens");
+}
+
+export async function createMarketingTemplate(formData: FormData) {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+  const name = requiredText(formData, "name", "o nome do template");
+  const channel = requiredText(formData, "channel", "o canal");
+  const body = requiredText(formData, "body", "o conteúdo");
+  const variables = jsonArray(formData, "variables");
+
+  const { error } = await supabase.from("message_templates").insert({
+    tenant_id: tenantId,
+    name,
+    channel,
+    category: nullableText(formData, "category"),
+    subject: nullableText(formData, "subject"),
+    body,
+    variables,
+    status: String(formData.get("status") ?? "draft"),
+    language: String(formData.get("language") ?? "pt-BR"),
+    preview: nullableText(formData, "preview"),
+    metadata: {
+      source: "marketing_manual_template",
+    },
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+  revalidatePath("/marketing/templates");
+  revalidatePath("/backoffice/mensagens");
 }
