@@ -287,7 +287,7 @@ export default async function FinanceiroPage() {
         {quoteRows.length ? (
           <div style={{ display: "grid", gap: 10 }}>
             {quoteRows.map((quote) => (
-              <div key={quote.id} style={quoteRowStyle}>
+              <Link key={quote.id} href={`/financeiro/documentos/${quote.id}`} style={{ ...quoteRowStyle, textDecoration: "none", color: "inherit" }}>
                 <span>
                   <strong>#{quote.number} - {quote.customer_name}</strong>
                   <span className="muted" style={{ display: "block", fontSize: 11, marginTop: 3 }}>
@@ -296,7 +296,7 @@ export default async function FinanceiroPage() {
                 </span>
                 <span className="chip chip-draft">{STATUS_LABEL[quote.status] ?? quote.status}</span>
                 <strong style={{ color: "var(--gold-light)" }}>{money(quote.totals?.netRevenueCents ?? 0)}</strong>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (

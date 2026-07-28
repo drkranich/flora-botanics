@@ -17,6 +17,7 @@ const MODES = new Set<FinanceMode>(["unit", "batch", "kit", "combo", "order", "c
 const SALE_MODELS = new Set<SaleModel>(["retail", "wholesale", "b2b", "b2c", "consignment", "marketplace", "physical_store", "representative", "subscription", "corporate"]);
 const GROUPS = new Set<FinanceComponentGroup>(["production", "packaging", "logistics", "tax", "commission", "channel_fee", "fixed_expense", "variable_expense", "labor", "investment", "custom"]);
 const PRICE_TABLE_TYPES = new Set(["retail", "wholesale", "distributor", "representative", "physical_store", "marketplace", "b2b", "special_customer", "campaign", "subscription", "region", "export"]);
+const COMMERCIAL_QUOTE_STATUSES = new Set(["draft", "review", "sent", "viewed", "approved", "rejected", "expired", "cancelled"]);
 
 function text(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
@@ -348,5 +349,103 @@ export async function deletePriceTable(id: string) {
   const { error } = await supabase.from("finance_price_tables").delete().eq("id", id).eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);
   revalidatePath("/financeiro");
+}
+
+export async function updateCommercialQuoteStatus(id: string, status: string) {
+  const { session, tenantId } = await ensureCanEdit();
+  if (!COMMERCIAL_QUOTE_STATUSES.has(status)) throw new Error("Status inválido.");
+
+  const supabase = await supabaseServer();
+  const payload: Record<string, string | null> = { status };
+  if (status === "sent") payload.sent_at = new Date().toISOString();
+  if (status === "approved") payload.accepted_at = new Date().toISOString();
+
+  const { data: before } = await supabase
+    .from("commercial_quotes")
+    .select("id, status")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("commercial_quotes")
+    .update(payload)
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .neq("status", "converted");
+
+  if (error) throw new Error(error.message);
+
+  await supabase.from("finance_audit_events").insert({
+    tenant_id: tenantId,
+    entity_type: "commercial_quote",
+    entity_id: id,
+    action: "status_updated",
+    before_data: before ?? null,
+    after_data: payload,
+    created_by: session.userId,
+  });
+
+  revalidatePath("/financeiro");
+  revalidatePath(`/financeiro/documentos/${id}`);
+}
+
+export async function duplicateCommercialQuote(id: string) {
+  const { session, tenantId } = await ensureCanEdit();
+  const supabase = await supabaseServer();
+  const { data: quote, error: quoteError } = await supabase
+    .from("commercial_quotes")
+    .select("kind, customer_name, company_name, document_number, state_registration, phone, email, address, responsible_contact, seller_name, channel, payment_terms, delivery_terms, valid_until, items, calculation_id, totals, terms, notes")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (quoteError || !quote) throw new Error(quoteError?.message ?? "Documento não encontrado.");
+
+  const { data: copy, error } = await supabase
+    .from("commercial_quotes")
+    .insert({
+      ...quote,
+      tenant_id: tenantId,
+      status: "draft",
+      sent_at: null,
+      viewed_at: null,
+      accepted_at: null,
+      converted_order_id: null,
+      notes: quote.notes ? `${quote.notes}\n\nDuplicado do documento ${id}.` : `Duplicado do documento ${id}.`,
+      created_by: session.userId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !copy) throw new Error(error?.message ?? "Não foi possível duplicar o documento.");
+
+  await supabase.from("finance_audit_events").insert({
+    tenant_id: tenantId,
+    entity_type: "commercial_quote",
+    entity_id: copy.id,
+    action: "duplicated",
+    before_data: { source_id: id },
+    after_data: { copy_id: copy.id },
+    created_by: session.userId,
+  });
+
+  revalidatePath("/financeiro");
+  redirect(`/financeiro/documentos/${copy.id}`);
+}
+
+export async function convertCommercialQuoteToOrder(id: string) {
+  await ensureCanEdit();
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.rpc("convert_commercial_quote_to_order", { p_quote_id: id });
+  if (error) throw new Error(error.message);
+
+  const result = data as { order_id?: string } | null;
+  if (!result?.order_id) throw new Error("A conversão não retornou um pedido.");
+
+  revalidatePath("/financeiro");
+  revalidatePath(`/financeiro/documentos/${id}`);
+  revalidatePath("/vendas");
+  redirect(`/vendas/${result.order_id}`);
 }
 
