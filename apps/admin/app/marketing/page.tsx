@@ -8,14 +8,22 @@ import { money } from "@/lib/format";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import {
   createCampaignChannel,
+  createMarketingAbTest,
   createMarketingAttributionEvent,
   createMarketingAudience,
+  createMarketingCalendarItem,
+  createMarketingCostEntry,
   createMarketingJourney,
   createMarketingLandingPage,
   createMarketingQueueItem,
+  createMarketingReportExport,
   createMarketingSegment,
   processMarketingQueueNow,
   recordMarketingConsent,
+  requeueMarketingDeadLetters,
+  requestCampaignApproval,
+  reviewCampaignApproval,
+  upsertMarketingProviderConnection,
 } from "./actions";
 
 type CampaignRow = {
@@ -33,7 +41,82 @@ type NamedRow = { id: string; name: string; status?: string; description?: strin
 type TemplateRow = { id: string; name: string; channel: string; subject: string | null };
 type BlueprintRow = { id: string; name: string; channel: string; category: string; description: string; variables: string[] };
 type EventRow = { event_type: string; revenue_cents: number; cost_cents: number; channel: string | null };
-type QueueRow = { id: string; channel: string; recipient: string; status: string; run_at: string; attempts: number; last_error: string | null };
+type QueueRow = { id: string; channel: string; recipient: string; status: string; run_at: string; attempts: number; last_error: string | null; provider: string | null; external_id: string | null; delivered_at: string | null; opened_at: string | null; clicked_at: string | null };
+type CalendarRow = { id: string; title: string; item_type: string; channel: string | null; starts_at: string; status: string; owner_name: string | null };
+type ApprovalRow = { id: string; campaign_id: string; status: string; reason: string | null; decision_notes: string | null; requested_at: string };
+type CostRow = { id: string; campaign_id: string | null; channel: string | null; provider: string | null; cost_type: string; description: string; quantity: number; unit_cost_cents: number; total_cost_cents: number; occurred_at: string };
+type ProviderRow = { id: string; provider_key: string; provider_type: string; display_name: string; status: string; environment: string; last_sync_at: string | null; last_error: string | null };
+type WebhookRow = { id: string; provider: string; event_type: string; created_at: string; queue_id: string | null };
+type TimelineRow = { id: string; channel: string | null; event_type: string; title: string; description: string | null; occurred_at: string };
+type ExportRow = { id: string; report_type: string; format: string; status: string; file_url: string | null; created_at: string };
+type AbTestRow = { id: string; name: string; status: string; variable: string; winner_metric: string | null; starts_at: string | null; ends_at: string | null };
+
+const ITEM_TYPE_OPTIONS: GlassSelectOption[] = [
+  { value: "campaign", label: "Campanha" },
+  { value: "send", label: "Envio" },
+  { value: "ad", label: "Anúncio" },
+  { value: "launch", label: "Lançamento" },
+  { value: "holiday", label: "Data comemorativa" },
+  { value: "coupon", label: "Cupom" },
+  { value: "landing_page", label: "Landing page" },
+  { value: "content", label: "Conteúdo" },
+  { value: "task", label: "Tarefa" },
+];
+
+const CALENDAR_STATUS_OPTIONS: GlassSelectOption[] = [
+  { value: "planned", label: "Planejado" },
+  { value: "draft", label: "Rascunho" },
+  { value: "review", label: "Em revisão" },
+  { value: "approved", label: "Aprovado" },
+  { value: "scheduled", label: "Agendado" },
+  { value: "active", label: "Ativo" },
+  { value: "done", label: "Concluído" },
+  { value: "cancelled", label: "Cancelado" },
+];
+
+const COST_TYPE_OPTIONS: GlassSelectOption[] = [
+  { value: "media", label: "Mídia" },
+  { value: "message", label: "Mensagem" },
+  { value: "creative", label: "Criativo" },
+  { value: "tool", label: "Ferramenta" },
+  { value: "agency", label: "Agência" },
+  { value: "coupon", label: "Cupom" },
+  { value: "shipping", label: "Frete" },
+  { value: "other", label: "Outro" },
+];
+
+const PROVIDER_TYPE_OPTIONS: GlassSelectOption[] = [
+  { value: "email", label: "E-mail" },
+  { value: "sms", label: "SMS" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "meta_ads", label: "Meta Ads" },
+  { value: "google_ads", label: "Google Ads" },
+  { value: "analytics", label: "Analytics" },
+  { value: "crm", label: "CRM" },
+  { value: "webhook", label: "Webhook" },
+];
+
+const PROVIDER_STATUS_OPTIONS: GlassSelectOption[] = [
+  { value: "online", label: "Online" },
+  { value: "offline", label: "Offline" },
+  { value: "pending", label: "Pendente" },
+  { value: "error", label: "Erro" },
+  { value: "paused", label: "Pausado" },
+];
+
+const REPORT_FORMAT_OPTIONS: GlassSelectOption[] = [
+  { value: "pdf", label: "PDF" },
+  { value: "csv", label: "CSV" },
+  { value: "xlsx", label: "XLSX" },
+];
+
+const AB_STATUS_OPTIONS: GlassSelectOption[] = [
+  { value: "draft", label: "Rascunho" },
+  { value: "running", label: "Rodando" },
+  { value: "paused", label: "Pausado" },
+  { value: "completed", label: "Concluído" },
+  { value: "cancelled", label: "Cancelado" },
+];
 
 const SUBSECTIONS = [
   "Visão geral",
@@ -166,6 +249,14 @@ export default async function MarketingPage() {
     eventsRes,
     queueRes,
     landingPagesRes,
+    calendarRes,
+    approvalsRes,
+    costsRes,
+    providersRes,
+    webhooksRes,
+    timelineRes,
+    exportsRes,
+    abTestsRes,
     leadsRes,
   ] = await Promise.all([
     supabase
@@ -223,13 +314,61 @@ export default async function MarketingPage() {
       .limit(500),
     supabase
       .from("marketing_message_queue")
-      .select("id, channel, recipient, status, run_at, attempts, last_error")
+      .select("id, channel, recipient, status, run_at, attempts, last_error, provider, external_id, delivered_at, opened_at, clicked_at")
       .eq("tenant_id", tenantId)
       .order("run_at", { ascending: false })
       .limit(30),
     supabase
       .from("marketing_landing_pages")
       .select("id, name:title, status, description:slug")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(40),
+    supabase
+      .from("marketing_calendar_items")
+      .select("id, title, item_type, channel, starts_at, status, owner_name")
+      .eq("tenant_id", tenantId)
+      .order("starts_at", { ascending: true })
+      .limit(60),
+    supabase
+      .from("marketing_campaign_approvals")
+      .select("id, campaign_id, status, reason, decision_notes, requested_at")
+      .eq("tenant_id", tenantId)
+      .order("requested_at", { ascending: false })
+      .limit(40),
+    supabase
+      .from("marketing_cost_entries")
+      .select("id, campaign_id, channel, provider, cost_type, description, quantity, unit_cost_cents, total_cost_cents, occurred_at")
+      .eq("tenant_id", tenantId)
+      .order("occurred_at", { ascending: false })
+      .limit(80),
+    supabase
+      .from("marketing_provider_connections")
+      .select("id, provider_key, provider_type, display_name, status, environment, last_sync_at, last_error")
+      .eq("tenant_id", tenantId)
+      .order("provider_type")
+      .limit(40),
+    supabase
+      .from("marketing_webhook_events")
+      .select("id, provider, event_type, created_at, queue_id")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(40),
+    supabase
+      .from("marketing_customer_timeline")
+      .select("id, channel, event_type, title, description, occurred_at")
+      .eq("tenant_id", tenantId)
+      .order("occurred_at", { ascending: false })
+      .limit(40),
+    supabase
+      .from("marketing_report_exports")
+      .select("id, report_type, format, status, file_url, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(40),
+    supabase
+      .from("marketing_ab_tests")
+      .select("id, name, status, variable, winner_metric, starts_at, ends_at")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(40),
@@ -246,7 +385,15 @@ export default async function MarketingPage() {
     consentsRes.error ||
     eventsRes.error ||
     queueRes.error ||
-    landingPagesRes.error;
+    landingPagesRes.error ||
+    calendarRes.error ||
+    approvalsRes.error ||
+    costsRes.error ||
+    providersRes.error ||
+    webhooksRes.error ||
+    timelineRes.error ||
+    exportsRes.error ||
+    abTestsRes.error;
 
   if (foundationError) {
     return (
@@ -273,6 +420,14 @@ export default async function MarketingPage() {
   const events = (eventsRes.data ?? []) as EventRow[];
   const queue = (queueRes.data ?? []) as QueueRow[];
   const landingPages = (landingPagesRes.data ?? []) as NamedRow[];
+  const calendarItems = (calendarRes.data ?? []) as CalendarRow[];
+  const approvals = (approvalsRes.data ?? []) as ApprovalRow[];
+  const costs = (costsRes.data ?? []) as CostRow[];
+  const providers = (providersRes.data ?? []) as ProviderRow[];
+  const webhooks = (webhooksRes.data ?? []) as WebhookRow[];
+  const timeline = (timelineRes.data ?? []) as TimelineRow[];
+  const reportExports = (exportsRes.data ?? []) as ExportRow[];
+  const abTests = (abTestsRes.data ?? []) as AbTestRow[];
   const channels = channelsRes.data ?? [];
   const consents = consentsRes.data ?? [];
 
@@ -283,7 +438,10 @@ export default async function MarketingPage() {
   const conversions = events.filter((e) => e.event_type === "conversion").length;
   const failures = events.filter((e) => e.event_type === "failure").length;
   const revenue = campaigns.reduce((sum, row) => sum + (row.revenue_cents ?? 0), 0) + events.reduce((sum, row) => sum + (row.revenue_cents ?? 0), 0);
-  const cost = campaigns.reduce((sum, row) => sum + ((row.cost_cents ?? 0) || (row.budget_cents ?? 0)), 0) + events.reduce((sum, row) => sum + (row.cost_cents ?? 0), 0);
+  const cost =
+    campaigns.reduce((sum, row) => sum + ((row.cost_cents ?? 0) || (row.budget_cents ?? 0)), 0) +
+    events.reduce((sum, row) => sum + (row.cost_cents ?? 0), 0) +
+    costs.reduce((sum, row) => sum + (row.total_cost_cents ?? 0), 0);
   const roi = cost > 0 ? ((revenue - cost) / cost) * 100 : 0;
   const activeCampaigns = campaigns.filter((c) => ["active", "ativa"].includes(c.status)).length;
   const scheduledCampaigns = campaigns.filter((c) => ["scheduled", "agendada"].includes(c.status)).length;
@@ -294,6 +452,9 @@ export default async function MarketingPage() {
   const audienceOptions = optionRows(audiences, "Sem público específico");
   const segmentOptions = optionRows(segments, "Sem segmento específico");
   const templateOptions = optionRows(templates, "Sem template");
+  const pendingApprovals = approvals.filter((item) => item.status === "pending");
+  const deadQueue = queue.filter((item) => item.status === "dead");
+  const onlineProviders = providers.filter((item) => item.status === "online").length;
 
   return (
     <main style={pageStyle}>
@@ -306,6 +467,9 @@ export default async function MarketingPage() {
         <Kpi label="Conversões" value={`${conversions}`} note={`${money(revenue)} atribuídos · ROI ${roi.toFixed(1)}%`} tone="rose" />
         <Kpi label="Consentimentos" value={`${grantedConsents}`} note="marketing separado de mensagens transacionais" />
         <Kpi label="Falhas" value={`${failures}`} note={`${queue.filter((q) => q.status === "queued").length} itens na fila`} tone={failures ? "alert" : "default"} />
+        <Kpi label="Aprovações" value={`${pendingApprovals.length}`} note={`${approvals.length} solicitações registradas`} tone={pendingApprovals.length ? "alert" : "default"} />
+        <Kpi label="Integrações" value={`${onlineProviders}`} note={`${providers.length} provedores configurados`} />
+        <Kpi label="Dead-letter" value={`${deadQueue.length}`} note="mensagens bloqueadas para reprocessamento manual" tone={deadQueue.length ? "alert" : "default"} />
       </section>
 
       <section className="glass rise rise-1" style={cardStyle}>
@@ -533,6 +697,30 @@ export default async function MarketingPage() {
             <Field label="Template">
               <input name="template_key" style={inputStyle} placeholder="editorial-campanha" />
             </Field>
+            <Field label="Chamada curta">
+              <input name="eyebrow" style={inputStyle} placeholder="Lançamento Flora" />
+            </Field>
+            <Field label="Headline pública">
+              <input name="headline" style={inputStyle} placeholder="Uma nova rotina para sua pele" />
+            </Field>
+            <Field label="CTA">
+              <input name="cta_label" style={inputStyle} placeholder="Conhecer produtos" />
+            </Field>
+            <Field label="Link do CTA">
+              <input name="cta_url" style={inputStyle} placeholder="/produtos" />
+            </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Introdução</label>
+              <textarea name="intro" rows={3} style={textareaStyle} placeholder="Resumo editorial da campanha." />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Texto da landing</label>
+              <textarea name="body" rows={5} style={textareaStyle} placeholder="Conteúdo principal publicado no storefront." />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Blocos JSON</label>
+              <textarea name="blocks" rows={4} style={textareaStyle} placeholder='[{"type":"benefit","title":"Benefício","text":"Texto curto"}]' />
+            </div>
             <Field label="SEO título">
               <input name="seo_title" style={inputStyle} placeholder="Título para busca" />
             </Field>
@@ -689,6 +877,328 @@ export default async function MarketingPage() {
         </Panel>
       </section>
 
+      <section id="calendario" style={twoColumnStyle}>
+        <Panel title="Calendário de marketing" eyebrow="Agenda operacional">
+          <form action={createMarketingCalendarItem} style={formGridStyle}>
+            <Field label="Título">
+              <input name="title" required style={inputStyle} placeholder="Envio de campanha de recompra" />
+            </Field>
+            <Field label="Campanha">
+              <GlassSelect name="campaign_id" options={campaignOptions} ariaLabel="Campanha do calendário" inlineMenu />
+            </Field>
+            <Field label="Tipo">
+              <GlassSelect name="item_type" options={ITEM_TYPE_OPTIONS} ariaLabel="Tipo do item" inlineMenu />
+            </Field>
+            <Field label="Canal">
+              <GlassSelect name="channel" options={CHANNEL_OPTIONS} ariaLabel="Canal do item" inlineMenu />
+            </Field>
+            <Field label="Início">
+              <GlassDateInput name="starts_at" withTime placeholder="Data e horário" inlinePopover />
+            </Field>
+            <Field label="Fim">
+              <GlassDateInput name="ends_at" withTime placeholder="Opcional" inlinePopover />
+            </Field>
+            <Field label="Status">
+              <GlassSelect name="status" options={CALENDAR_STATUS_OPTIONS} ariaLabel="Status do calendário" inlineMenu />
+            </Field>
+            <Field label="Responsável">
+              <input name="owner_name" style={inputStyle} placeholder="Equipe ou responsável" />
+            </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Metadados JSON</label>
+              <textarea name="metadata" rows={3} style={textareaStyle} placeholder='{"tarefa":"validar criativo","prioridade":"alta"}' />
+            </div>
+            <button className="btn btn-gold" style={buttonStyle}>Adicionar ao calendário</button>
+          </form>
+        </Panel>
+
+        <Panel title="Próximas ações" eyebrow="Calendário">
+          <ListEmpty when={!calendarItems.length} text="Nenhuma ação de marketing agendada ainda." />
+          <div style={{ display: "grid", gap: 10 }}>
+            {calendarItems.slice(0, 8).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className="chip chip-draft">{statusLabel(item.status)}</span>
+                <strong>{item.title}</strong>
+                <span className="muted">{itemTypeLabel(item.item_type)} · {formatDateTime(item.starts_at)}</span>
+                <span className="muted">{item.owner_name ?? channelLabel(item.channel)}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section id="aprovacoes" style={twoColumnStyle}>
+        <Panel title="Solicitar aprovação de campanha" eyebrow="Governança">
+          <form action={requestCampaignApproval} style={formGridStyle}>
+            <Field label="Campanha">
+              <GlassSelect name="campaign_id" options={campaignOptions} ariaLabel="Campanha para aprovação" inlineMenu />
+            </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Motivo</label>
+              <textarea name="reason" required rows={4} style={textareaStyle} placeholder="Descreva investimento, público, risco, desconto, meta e por que precisa de aprovação." />
+            </div>
+            <button className="btn btn-gold" style={buttonStyle}>Enviar para aprovação</button>
+          </form>
+        </Panel>
+
+        <Panel title="Aprovações pendentes" eyebrow="Fluxo de campanha">
+          <ListEmpty when={!approvals.length} text="Nenhuma aprovação registrada ainda." />
+          <div style={{ display: "grid", gap: 10 }}>
+            {approvals.slice(0, 8).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className={item.status === "approved" ? "chip chip-live" : "chip chip-draft"}>{statusLabel(item.status)}</span>
+                <strong>{campaigns.find((campaign) => campaign.id === item.campaign_id)?.title ?? "Campanha"}</strong>
+                <span className="muted">{item.reason ?? "Sem justificativa"} · {formatDateTime(item.requested_at)}</span>
+                {item.status === "pending" ? (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", gridColumn: "1 / -1" }}>
+                    <form action={reviewCampaignApproval}>
+                      <input type="hidden" name="approval_id" value={item.id} />
+                      <input type="hidden" name="campaign_id" value={item.campaign_id} />
+                      <input type="hidden" name="status" value="approved" />
+                      <button className="btn btn-gold" style={{ padding: "7px 12px", fontSize: 9 }}>Aprovar</button>
+                    </form>
+                    <form action={reviewCampaignApproval}>
+                      <input type="hidden" name="approval_id" value={item.id} />
+                      <input type="hidden" name="campaign_id" value={item.campaign_id} />
+                      <input type="hidden" name="status" value="rejected" />
+                      <button className="btn btn-ghost" style={{ padding: "7px 12px", fontSize: 9 }}>Reprovar</button>
+                    </form>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section id="custos" style={twoColumnStyle}>
+        <Panel title="Controle de custos por envio e campanha" eyebrow="Custos / ROI">
+          <form action={createMarketingCostEntry} style={formGridStyle}>
+            <Field label="Campanha">
+              <GlassSelect name="campaign_id" options={campaignOptions} ariaLabel="Campanha do custo" inlineMenu />
+            </Field>
+            <Field label="Tipo de custo">
+              <GlassSelect name="cost_type" options={COST_TYPE_OPTIONS} ariaLabel="Tipo de custo" inlineMenu />
+            </Field>
+            <Field label="Canal">
+              <GlassSelect name="channel" options={CHANNEL_OPTIONS} ariaLabel="Canal do custo" inlineMenu />
+            </Field>
+            <Field label="Provedor">
+              <input name="provider" style={inputStyle} placeholder="resend, meta, google..." />
+            </Field>
+            <Field label="Quantidade">
+              <input name="quantity" style={inputStyle} inputMode="decimal" placeholder="1" />
+            </Field>
+            <Field label="Custo unitário">
+              <input name="unit_cost" style={inputStyle} inputMode="decimal" placeholder="0,00" />
+            </Field>
+            <Field label="Data">
+              <GlassDateInput name="occurred_at" placeholder="Hoje" inlinePopover />
+            </Field>
+            <Field label="Descrição">
+              <input name="description" required style={inputStyle} placeholder="Disparo, criativo, mídia, agência..." />
+            </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Metadados JSON</label>
+              <textarea name="metadata" rows={3} style={textareaStyle} placeholder='{"invoice":"NF 123","observacao":"campanha julho"}' />
+            </div>
+            <button className="btn btn-gold" style={buttonStyle}>Registrar custo</button>
+          </form>
+        </Panel>
+
+        <Panel title="Custos registrados" eyebrow="Rentabilidade">
+          <p className="muted" style={mutedTextStyle}>
+            Total considerado no ROI: <strong style={{ color: "var(--cream)" }}>{money(cost)}</strong>
+          </p>
+          <ListEmpty when={!costs.length} text="Nenhum custo de marketing registrado ainda." />
+          <div style={{ display: "grid", gap: 10 }}>
+            {costs.slice(0, 8).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className="chip chip-draft">{costTypeLabel(item.cost_type)}</span>
+                <strong>{item.description}</strong>
+                <span className="muted">{money(item.total_cost_cents)} · {item.channel ? channelLabel(item.channel) : "Sem canal"}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section id="integracoes" style={twoColumnStyle}>
+        <Panel title="Provedores e integrações" eyebrow="SMS / WhatsApp / Ads / Webhooks">
+          <form action={upsertMarketingProviderConnection} style={formGridStyle}>
+            <Field label="Chave">
+              <input name="provider_key" required style={inputStyle} placeholder="resend, twilio, zenvia, meta_ads..." />
+            </Field>
+            <Field label="Nome">
+              <input name="display_name" required style={inputStyle} placeholder="Resend" />
+            </Field>
+            <Field label="Tipo">
+              <GlassSelect name="provider_type" options={PROVIDER_TYPE_OPTIONS} ariaLabel="Tipo de provedor" inlineMenu />
+            </Field>
+            <Field label="Status">
+              <GlassSelect name="status" options={PROVIDER_STATUS_OPTIONS} ariaLabel="Status do provedor" inlineMenu />
+            </Field>
+            <Field label="Escopos">
+              <input name="scopes" style={inputStyle} placeholder="send, templates, webhooks" />
+            </Field>
+            <Field label="Última sincronização">
+              <GlassDateInput name="last_sync_at" withTime placeholder="Opcional" inlinePopover />
+            </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Configuração pública JSON</label>
+              <textarea name="config" rows={3} style={textareaStyle} placeholder='{"secret_names":["RESEND_API_KEY"],"requires_oauth":false}' />
+            </div>
+            <button className="btn btn-gold" style={buttonStyle}>Salvar provedor</button>
+          </form>
+        </Panel>
+
+        <Panel title="Status dos provedores" eyebrow="Monitoramento">
+          <ListEmpty when={!providers.length} text="Nenhum provedor cadastrado ainda." />
+          <div style={{ display: "grid", gap: 10 }}>
+            {providers.slice(0, 10).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className={item.status === "online" ? "chip chip-live" : "chip chip-draft"}>{statusLabel(item.status)}</span>
+                <strong>{item.display_name}</strong>
+                <span className="muted">{providerTypeLabel(item.provider_type)} · {item.environment}</span>
+                {item.last_error ? <span style={{ color: "#e8a0a0", fontSize: 11 }}>{item.last_error}</span> : null}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section id="webhooks" style={twoColumnStyle}>
+        <Panel title="Eventos reais do Resend" eyebrow="Abertura / clique / entrega">
+          <p className="muted" style={mutedTextStyle}>
+            A Edge Function <code>resend-webhook</code> valida assinatura Svix, evita duplicidade por evento,
+            atualiza a fila e alimenta a linha do tempo do cliente.
+          </p>
+          <ListEmpty when={!webhooks.length} text="Nenhum webhook recebido ainda." />
+          <div style={{ display: "grid", gap: 10 }}>
+            {webhooks.slice(0, 8).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className="chip chip-live">{item.provider}</span>
+                <strong>{item.event_type}</strong>
+                <span className="muted">{formatDateTime(item.created_at)} · fila {item.queue_id ? "vinculada" : "não vinculada"}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Dead-letter e reprocessamento" eyebrow="Fila segura">
+          <p className="muted" style={mutedTextStyle}>
+            Mensagens sem provedor, domínio inválido ou erro não recuperável ficam bloqueadas até revisão humana.
+          </p>
+          <form action={requeueMarketingDeadLetters} style={{ marginBottom: 12 }}>
+            <button className="btn btn-gold" style={{ ...buttonStyle, minWidth: 210 }}>Reprocessar dead-letter</button>
+          </form>
+          <ListEmpty when={!deadQueue.length} text="Nenhuma mensagem em dead-letter." />
+          <div style={{ display: "grid", gap: 10 }}>
+            {deadQueue.slice(0, 6).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className="chip chip-draft">{channelLabel(item.channel)}</span>
+                <strong>{item.recipient}</strong>
+                <span style={{ color: "#e8a0a0", fontSize: 11 }}>{item.last_error ?? "Sem detalhe do erro"}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section id="experimentos" style={twoColumnStyle}>
+        <Panel title="Teste A/B" eyebrow="Experimentos">
+          <form action={createMarketingAbTest} style={formGridStyle}>
+            <Field label="Nome">
+              <input name="name" required style={inputStyle} placeholder="Assunto editorial vs. benefício" />
+            </Field>
+            <Field label="Campanha">
+              <GlassSelect name="campaign_id" options={campaignOptions} ariaLabel="Campanha do teste A/B" inlineMenu />
+            </Field>
+            <Field label="Variável">
+              <input name="variable" required style={inputStyle} placeholder="assunto, botão, horário, público..." />
+            </Field>
+            <Field label="Métrica vencedora">
+              <input name="winner_metric" style={inputStyle} placeholder="open_rate, click_rate, conversion_rate" />
+            </Field>
+            <Field label="Amostra">
+              <input name="sample_size" style={inputStyle} inputMode="numeric" placeholder="1000" />
+            </Field>
+            <Field label="Status">
+              <GlassSelect name="status" options={AB_STATUS_OPTIONS} ariaLabel="Status do teste A/B" inlineMenu />
+            </Field>
+            <Field label="Início">
+              <GlassDateInput name="starts_at" withTime placeholder="Opcional" inlinePopover />
+            </Field>
+            <Field label="Fim">
+              <GlassDateInput name="ends_at" withTime placeholder="Opcional" inlinePopover />
+            </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Hipótese</label>
+              <textarea name="hypothesis" rows={3} style={textareaStyle} placeholder="O assunto com benefício direto deve gerar mais cliques." />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Variantes JSON</label>
+              <textarea name="variants" rows={4} style={textareaStyle} placeholder='[{"name":"A","subject":"Sua rotina Flora"},{"name":"B","subject":"10% para repor seu cuidado"}]' />
+            </div>
+            <button className="btn btn-gold" style={buttonStyle}>Criar teste</button>
+          </form>
+        </Panel>
+
+        <Panel title="Testes ativos" eyebrow="Otimização">
+          <ListEmpty when={!abTests.length} text="Nenhum teste A/B cadastrado ainda." />
+          <div style={{ display: "grid", gap: 10 }}>
+            {abTests.slice(0, 8).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className="chip chip-draft">{statusLabel(item.status)}</span>
+                <strong>{item.name}</strong>
+                <span className="muted">{item.variable} · vence por {item.winner_metric ?? "métrica a definir"}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section id="timeline-relatorios" style={twoColumnStyle}>
+        <Panel title="Linha do tempo do cliente" eyebrow="Histórico de relacionamento">
+          <ListEmpty when={!timeline.length} text="Nenhum evento de relacionamento registrado ainda." />
+          <div style={{ display: "grid", gap: 10 }}>
+            {timeline.slice(0, 10).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className="chip chip-live">{channelLabel(item.channel)}</span>
+                <strong>{item.title}</strong>
+                <span className="muted">{eventTypeLabel(item.event_type)} · {formatDateTime(item.occurred_at)}</span>
+                {item.description ? <span className="muted">{item.description}</span> : null}
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Exportações" eyebrow="PDF / CSV / XLSX">
+          <form action={createMarketingReportExport} style={formGridStyle}>
+            <Field label="Relatório">
+              <input name="report_type" required style={inputStyle} placeholder="campanhas, eventos, custos, consentimentos..." />
+            </Field>
+            <Field label="Formato">
+              <GlassSelect name="format" options={REPORT_FORMAT_OPTIONS} ariaLabel="Formato do relatório" inlineMenu />
+            </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Filtros JSON</label>
+              <textarea name="filters" rows={3} style={textareaStyle} placeholder='{"período":"30d","canal":"email"}' />
+            </div>
+            <button className="btn btn-gold" style={buttonStyle}>Gerar exportação</button>
+          </form>
+          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+            {reportExports.slice(0, 6).map((item) => (
+              <div key={item.id} style={rowStyle}>
+                <span className="chip chip-draft">{item.format.toUpperCase()}</span>
+                <strong>{item.report_type}</strong>
+                <span className="muted">{statusLabel(item.status)} · {formatDateTime(item.created_at)}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
       <section id="relatorios" className="glass rise" style={cardStyle}>
         <p className="eyebrow">Relatórios, integrações e segurança</p>
         <div style={reportGridStyle}>
@@ -826,6 +1336,66 @@ function statusLabel(value: string) {
     completed: "Concluída",
   };
   return labels[value] ?? value;
+}
+
+function itemTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    campaign: "Campanha",
+    send: "Envio",
+    ad: "Anúncio",
+    launch: "Lançamento",
+    holiday: "Data comemorativa",
+    coupon: "Cupom",
+    landing_page: "Landing page",
+    content: "Conteúdo",
+    task: "Tarefa",
+  };
+  return labels[value] ?? value;
+}
+
+function costTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    media: "Mídia",
+    message: "Mensagem",
+    creative: "Criativo",
+    tool: "Ferramenta",
+    agency: "Agência",
+    coupon: "Cupom",
+    shipping: "Frete",
+    other: "Outro",
+  };
+  return labels[value] ?? value;
+}
+
+function providerTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    email: "E-mail",
+    sms: "SMS",
+    whatsapp: "WhatsApp",
+    meta_ads: "Meta Ads",
+    google_ads: "Google Ads",
+    analytics: "Analytics",
+    crm: "CRM",
+    webhook: "Webhook",
+  };
+  return labels[value] ?? value;
+}
+
+function eventTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    sent: "Enviado",
+    delivered: "Entregue",
+    opened: "Aberto",
+    clicked: "Clique",
+    failure: "Falha",
+    conversion: "Conversão",
+  };
+  return labels[value] ?? value;
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "Sem data";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
 const pageStyle: CSSProperties = {

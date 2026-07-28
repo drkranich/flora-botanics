@@ -359,6 +359,9 @@ Deno.serve(async (req) => {
 
     await supabase.from("marketing_message_queue").update({
       status: "sent",
+      provider: "resend",
+      external_id: payload?.id ?? null,
+      sent_at: new Date().toISOString(),
       last_error: null,
       locked_at: null,
       updated_at: new Date().toISOString(),

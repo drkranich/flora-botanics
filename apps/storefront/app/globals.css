@@ -2880,6 +2880,90 @@ a { color: inherit; text-decoration: none; }
 .footer li { font-size: 10px; line-height: 1.8; color: #efe4cc; }
 .footer li a { color: #efe4cc; transition: color 0.2s ease; }
 .footer li a:hover { color: var(--gold); }
+
+.marketing-landing {
+  display: grid;
+  gap: 24px;
+}
+
+.marketing-landing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+  margin: 18px 0;
+}
+
+.marketing-landing-card {
+  border: 1px solid rgba(104, 75, 44, 0.14);
+  background: rgba(255, 248, 234, 0.62);
+  padding: 28px;
+  box-shadow: 0 20px 45px rgba(40, 37, 29, 0.08);
+}
+
+.marketing-landing-card h2 {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.05;
+  font-weight: 500;
+  margin: 8px 0 12px;
+}
+
+.marketing-landing-card p {
+  color: rgba(40, 37, 29, 0.72);
+  line-height: 1.7;
+}
+
+.preference-center-card {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.preference-contact {
+  border: 1px solid var(--account-border);
+  border-radius: 16px;
+  background: rgba(255, 248, 234, 0.06);
+  padding: 16px;
+  display: grid;
+  gap: 4px;
+}
+
+.preference-contact strong { color: var(--account-text); }
+.preference-contact span { color: var(--account-muted); font-size: 13px; }
+
+.preference-form {
+  gap: 16px;
+}
+
+.preference-toggle {
+  border: 1px solid var(--account-border);
+  border-radius: 14px;
+  background: rgba(255, 248, 234, 0.045);
+  padding: 13px 14px;
+}
+
+.preference-frequency {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.preference-radio {
+  border: 1px solid var(--account-border);
+  border-radius: 14px;
+  background: rgba(10, 22, 11, 0.34);
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  color: var(--account-text);
+  cursor: pointer;
+}
+
+.preference-radio input {
+  accent-color: var(--gold);
+}
 .socials { display: flex; gap: 14px; margin-top: 12px; }
 .socials a { width: 24px; height: 24px; border: 1px solid #efe4cc; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
 .copyright { text-align: center; font-size: 10px; color: rgba(239, 228, 204, 0.75); margin-top: 18px; }

@@ -19,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const client = db();
   const baseUrl = await currentSiteUrl();
 
-  const [{ data: pages }, { data: products }, { data: categories }, { data: campaigns }] = await Promise.all([
+  const [{ data: pages }, { data: products }, { data: categories }, { data: campaigns }, { data: landingPages }] = await Promise.all([
     client
       .from("pages")
       .select("slug, updated_at")
@@ -41,6 +41,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select("slug, updated_at")
       .eq("tenant_id", tenant.tenantId)
       .eq("status", "active"),
+    client
+      .from("marketing_landing_pages")
+      .select("slug, updated_at")
+      .eq("tenant_id", tenant.tenantId)
+      .eq("status", "published"),
   ]);
 
   const entries: MetadataRoute.Sitemap = [
@@ -88,6 +93,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entries.push({
       url: absoluteUrl(baseUrl, `/c/${campaign.slug}`),
       lastModified: new Date(dateOf(campaign)),
+      changeFrequency: "daily",
+      priority: 0.7,
+    });
+  }
+
+  for (const landing of (landingPages ?? []) as DatedSlug[]) {
+    if (!landing.slug) continue;
+    entries.push({
+      url: absoluteUrl(baseUrl, `/l/${landing.slug}`),
+      lastModified: new Date(dateOf(landing)),
       changeFrequency: "daily",
       priority: 0.7,
     });

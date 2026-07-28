@@ -76,6 +76,11 @@ function datetime(formData: FormData, key: string) {
   return value ? new Date(value).toISOString() : null;
 }
 
+function dateOnly(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "").trim();
+  return value ? new Date(value).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+}
+
 function cents(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").replace(",", ".").trim();
   if (!value) return 0;
@@ -161,6 +166,8 @@ async function failMarketingQueueItem(
       status: nextStatus,
       run_at: nextRunAt,
       last_error: error,
+      dead_reason: nextStatus === "dead" ? error : null,
+      failed_at: new Date().toISOString(),
       locked_at: null,
       updated_at: new Date().toISOString(),
     })
@@ -295,6 +302,15 @@ export async function createMarketingLandingPage(formData: FormData) {
     template_key: nullableText(formData, "template_key"),
     status: String(formData.get("status") ?? "draft"),
     publish_at: datetime(formData, "publish_at"),
+    content: {
+      eyebrow: nullableText(formData, "eyebrow"),
+      headline: nullableText(formData, "headline") ?? requiredText(formData, "title", "o título"),
+      intro: nullableText(formData, "intro"),
+      body: nullableText(formData, "body"),
+      cta_label: nullableText(formData, "cta_label"),
+      cta_url: nullableText(formData, "cta_url"),
+      blocks: jsonArray(formData, "blocks"),
+    },
     seo: {
       title: nullableText(formData, "seo_title"),
       description: nullableText(formData, "seo_description"),
@@ -452,6 +468,9 @@ export async function processMarketingQueueNow(): Promise<void> {
       .from("marketing_message_queue")
       .update({
         status: "sent",
+        provider: "resend",
+        external_id: sent.id,
+        sent_at: new Date().toISOString(),
         last_error: null,
         locked_at: null,
         updated_at: new Date().toISOString(),
@@ -495,6 +514,198 @@ export async function createMarketingAttributionEvent(formData: FormData) {
     metadata: jsonObject(formData, "metadata"),
   });
 
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+}
+
+export async function createMarketingCalendarItem(formData: FormData) {
+  const { session, tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase.from("marketing_calendar_items").insert({
+    tenant_id: tenantId,
+    campaign_id: nullableText(formData, "campaign_id"),
+    title: requiredText(formData, "title", "o título do compromisso"),
+    item_type: String(formData.get("item_type") ?? "campaign"),
+    channel: nullableText(formData, "channel"),
+    starts_at: datetime(formData, "starts_at") ?? new Date().toISOString(),
+    ends_at: datetime(formData, "ends_at"),
+    status: String(formData.get("status") ?? "planned"),
+    owner_name: nullableText(formData, "owner_name") ?? session.email,
+    metadata: jsonObject(formData, "metadata"),
+    created_by: session.userId,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+}
+
+export async function requestCampaignApproval(formData: FormData) {
+  const { session, tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+  const campaignId = requiredText(formData, "campaign_id", "a campanha");
+
+  const { error } = await supabase.from("marketing_campaign_approvals").insert({
+    tenant_id: tenantId,
+    campaign_id: campaignId,
+    requested_by: session.userId,
+    reason: requiredText(formData, "reason", "o motivo da aprovação"),
+  });
+
+  if (error) throw new Error(error.message);
+  await supabase
+    .from("campaigns")
+    .update({ approval_status: "review", updated_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId)
+    .eq("id", campaignId);
+  revalidatePath("/marketing");
+  revalidatePath("/vendas/campanhas");
+}
+
+export async function reviewCampaignApproval(formData: FormData) {
+  const { session, tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+  const approvalId = requiredText(formData, "approval_id", "a aprovação");
+  const campaignId = requiredText(formData, "campaign_id", "a campanha");
+  const status = String(formData.get("status") ?? "approved");
+  const approved = status === "approved";
+
+  const { error } = await supabase
+    .from("marketing_campaign_approvals")
+    .update({
+      status,
+      reviewed_by: session.userId,
+      reviewed_at: new Date().toISOString(),
+      decision_notes: nullableText(formData, "decision_notes"),
+    })
+    .eq("tenant_id", tenantId)
+    .eq("id", approvalId);
+
+  if (error) throw new Error(error.message);
+  await supabase
+    .from("campaigns")
+    .update({
+      approval_status: approved ? "approved" : "rejected",
+      approved_by: approved ? session.userId : null,
+      approved_at: approved ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("tenant_id", tenantId)
+    .eq("id", campaignId);
+  revalidatePath("/marketing");
+  revalidatePath("/vendas/campanhas");
+}
+
+export async function createMarketingCostEntry(formData: FormData) {
+  const { session, tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase.from("marketing_cost_entries").insert({
+    tenant_id: tenantId,
+    campaign_id: nullableText(formData, "campaign_id"),
+    channel: nullableText(formData, "channel"),
+    provider: nullableText(formData, "provider"),
+    cost_type: String(formData.get("cost_type") ?? "media"),
+    description: requiredText(formData, "description", "a descrição do custo"),
+    quantity: Number(String(formData.get("quantity") ?? "1").replace(",", ".")) || 1,
+    unit_cost_cents: cents(formData, "unit_cost"),
+    occurred_at: dateOnly(formData, "occurred_at"),
+    metadata: jsonObject(formData, "metadata"),
+    created_by: session.userId,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+}
+
+export async function upsertMarketingProviderConnection(formData: FormData) {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+  const providerKey = requiredText(formData, "provider_key", "o provedor");
+  const environment = String(formData.get("environment") ?? "production");
+
+  const { error } = await supabase.from("marketing_provider_connections").upsert(
+    {
+      tenant_id: tenantId,
+      provider_key: providerKey,
+      provider_type: requiredText(formData, "provider_type", "o tipo do provedor"),
+      display_name: requiredText(formData, "display_name", "o nome do provedor"),
+      status: String(formData.get("status") ?? "pending"),
+      environment,
+      last_sync_at: datetime(formData, "last_sync_at"),
+      last_error: nullableText(formData, "last_error"),
+      config: jsonObject(formData, "config"),
+      scopes: textList(formData, "scopes"),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "tenant_id,provider_key,environment" }
+  );
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+  revalidatePath("/canais");
+}
+
+export async function createMarketingReportExport(formData: FormData) {
+  const { session, tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase.from("marketing_report_exports").insert({
+    tenant_id: tenantId,
+    report_type: requiredText(formData, "report_type", "o tipo de relatório"),
+    format: requiredText(formData, "format", "o formato"),
+    filters: jsonObject(formData, "filters"),
+    created_by: session.userId,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+}
+
+export async function createMarketingAbTest(formData: FormData) {
+  const { session, tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase.from("marketing_ab_tests").insert({
+    tenant_id: tenantId,
+    campaign_id: nullableText(formData, "campaign_id"),
+    name: requiredText(formData, "name", "o nome do teste"),
+    hypothesis: nullableText(formData, "hypothesis"),
+    variable: requiredText(formData, "variable", "a variável testada"),
+    sample_size: Number(String(formData.get("sample_size") ?? "")) || null,
+    winner_metric: nullableText(formData, "winner_metric"),
+    status: String(formData.get("status") ?? "draft"),
+    variants: jsonArray(formData, "variants"),
+    starts_at: datetime(formData, "starts_at"),
+    ends_at: datetime(formData, "ends_at"),
+    created_by: session.userId,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+}
+
+export async function requeueMarketingDeadLetters(formData: FormData) {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+  const queueId = nullableText(formData, "queue_id");
+
+  let query = supabase
+    .from("marketing_message_queue")
+    .update({
+      status: "queued",
+      locked_at: null,
+      last_error: null,
+      dead_reason: null,
+      run_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("tenant_id", tenantId)
+    .eq("status", "dead");
+
+  if (queueId) query = query.eq("id", queueId);
+
+  const { error } = await query;
   if (error) throw new Error(error.message);
   revalidatePath("/marketing");
 }
