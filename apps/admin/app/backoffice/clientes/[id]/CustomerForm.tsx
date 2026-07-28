@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { GlassDateInput } from "@/components/GlassDateInput";
 import { updateCustomer } from "./actions";
 
 interface CustomerFormProps {
@@ -30,15 +31,14 @@ export function CustomerForm({
   return (
     <form action={formAction} style={{ display: "grid", gap: 14 }}>
       <div style={fieldGroup}>
-        <label style={labelStyle} htmlFor="birthday">
+        <label style={labelStyle}>
           Aniversário
         </label>
-        <input
-          id="birthday"
+        <GlassDateInput
           name="birthday"
-          type="date"
           defaultValue={birthday ?? ""}
-          style={inputStyle}
+          placeholder="dd/mm/aaaa"
+          inlinePopover
         />
       </div>
 

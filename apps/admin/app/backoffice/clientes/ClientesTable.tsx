@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { GlassDateInput } from "@/components/GlassDateInput";
 import {
   updateCustomerFull,
   archiveCustomer,
@@ -106,11 +107,11 @@ function CustomerEditRow({
               </div>
               <div>
                 <label style={labelS}>Aniversário</label>
-                <input
+                <GlassDateInput
                   name="birthday"
-                  type="date"
                   defaultValue={customer.birthday ?? ""}
-                  style={inputS}
+                  placeholder="dd/mm/aaaa"
+                  inlinePopover
                 />
               </div>
               <div>
