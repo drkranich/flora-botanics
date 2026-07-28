@@ -120,7 +120,7 @@ export function GlassDateInput({
 
     setPosition({
       position: "fixed",
-      zIndex: 2147483646,
+      zIndex: 2147483647,
       left,
       width,
       ...(openUp

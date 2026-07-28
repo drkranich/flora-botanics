@@ -380,6 +380,11 @@ select option:focus {
 }
 
 .glass-date-popover {
+  position: fixed;
+  z-index: 2147483647 !important;
+  isolation: isolate;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
   padding: 14px;
   border: 1px solid var(--glass-border-hover);
   border-radius: 16px;
@@ -390,8 +395,8 @@ select option:focus {
 }
 
 .glass-date-popover-inline {
-  position: absolute;
-  z-index: 80;
+  position: fixed;
+  z-index: 2147483647 !important;
   top: calc(100% + 8px);
   left: 0;
   width: min(max(100%, 286px), calc(100vw - 32px));
