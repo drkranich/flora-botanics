@@ -39,6 +39,20 @@ export async function createDraftNfe(orderId: string): Promise<void> {
     return;
   }
 
+  const { data: existing } = await supabase
+    .from("nfe_documents")
+    .select("id")
+    .eq("tenant_id", staff.tenantId)
+    .eq("order_id", order.id)
+    .neq("status", "cancelada")
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.id) {
+    revalidatePath("/backoffice/notas-fiscais");
+    return;
+  }
+
   const { error: insertError } = await supabase.from("nfe_documents").insert({
     tenant_id: staff.tenantId,
     order_id: order.id,

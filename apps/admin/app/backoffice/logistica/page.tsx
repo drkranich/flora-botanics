@@ -4,7 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { MarketplaceLabelSettings, type MarketplaceLabelSettingRow } from "./MarketplaceLabelSettings";
 import { PrintQueue, type PrintQueueItem } from "./PrintQueue";
-import { ProductLabelButtons, RequestLabelButton, ShipmentButtons } from "./ShippingActions";
+import {
+  ChooseQuoteButton,
+  ProductLabelButtons,
+  RequestLabelButton,
+  RequestQuotesButton,
+  ShipmentButtons,
+} from "./ShippingActions";
 
 interface OrderRow {
   id: string;
@@ -45,6 +51,22 @@ interface ShippingRule {
   provider_key: string | null;
   service: string | null;
   strategy: string;
+}
+
+interface ShippingQuoteRow {
+  id: string;
+  order_id: string | null;
+  provider_key: string;
+  service: string;
+  service_name: string | null;
+  status: string;
+  cost_cents: number;
+  price_cents: number;
+  currency: string;
+  deadline_days: number | null;
+  error: string | null;
+  expires_at: string | null;
+  created_at: string;
 }
 
 interface InventorySnapshot {
@@ -194,6 +216,7 @@ export default async function LogisticaPage() {
   const [
     { data: orderData },
     { data: shipmentData, error: shipmentError },
+    { data: quoteData, error: quoteError },
     { data: rulesData, error: rulesError },
     { data: variantData, error: variantError },
     { data: productLabelData, error: productLabelError },
@@ -217,6 +240,13 @@ export default async function LogisticaPage() {
         .eq("tenant_id", staff.tenantId)
         .order("created_at", { ascending: false })
         .limit(40),
+      supabase
+        .from("shipping_quotes")
+        .select("id, order_id, provider_key, service, service_name, status, cost_cents, price_cents, currency, deadline_days, error, expires_at, created_at")
+        .eq("tenant_id", staff.tenantId)
+        .in("status", ["quoted", "selected", "failed"])
+        .order("created_at", { ascending: false })
+        .limit(120),
       supabase
         .from("shipping_rules")
         .select("id, name, priority, status, provider_key, service, strategy")
@@ -258,6 +288,7 @@ export default async function LogisticaPage() {
     ]);
 
   const shipments = shipmentError ? [] : ((shipmentData ?? []) as unknown as ShipmentRow[]);
+  const quotes = quoteError ? [] : ((quoteData ?? []) as unknown as ShippingQuoteRow[]);
   const variants = variantError ? [] : ((variantData ?? []) as unknown as ProductVariantRow[]);
   const productLabelJobs = productLabelError ? [] : ((productLabelData ?? []) as unknown as ProductLabelJobRow[]);
   const shippingPrintJobs = shippingPrintError ? [] : ((shippingPrintData ?? []) as unknown as ShippingPrintJobRow[]);
@@ -297,6 +328,13 @@ export default async function LogisticaPage() {
   }
   const shippedOrderIds = new Set(shipments.map((shipment) => shipment.order_id));
   const candidateOrders = ((orderData ?? []) as unknown as OrderRow[]).filter((order) => !shippedOrderIds.has(order.id));
+  const quotesByOrder = new Map<string, ShippingQuoteRow[]>();
+  for (const quote of quotes) {
+    if (!quote.order_id) continue;
+    const rows = quotesByOrder.get(quote.order_id) ?? [];
+    rows.push(quote);
+    quotesByOrder.set(quote.order_id, rows);
+  }
   const rules = rulesError ? [] : ((rulesData ?? []) as ShippingRule[]);
   const queued = shipments.filter((shipment) => ["queued", "generating"].includes(shipment.label_status)).length;
   const created = shipments.filter((shipment) => ["created", "printed"].includes(shipment.label_status)).length;
@@ -429,12 +467,14 @@ export default async function LogisticaPage() {
                   <Th>Status</Th>
                   <Th>Frete</Th>
                   <Th>Total</Th>
+                  <Th>Cotações</Th>
                   <Th>Ação</Th>
                 </tr>
               </thead>
               <tbody>
                 {candidateOrders.map((order) => {
                   const customer = order.customers as { email: string; full_name: string | null } | null;
+                  const orderQuotes = quotesByOrder.get(order.id) ?? [];
                   return (
                     <tr key={order.id}>
                       <Td>
@@ -446,7 +486,13 @@ export default async function LogisticaPage() {
                       <Td><StatusBadge status={order.status} label={orderStatusLabel[order.status] ?? order.status} /></Td>
                       <Td>{money(order.shipping_cents, order.currency)}</Td>
                       <Td>{money(order.total_cents, order.currency)}</Td>
-                      <Td><RequestLabelButton orderId={order.id} /></Td>
+                      <Td><QuoteList quotes={orderQuotes} /></Td>
+                      <Td>
+                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                          <RequestQuotesButton orderId={order.id} />
+                          <RequestLabelButton orderId={order.id} />
+                        </div>
+                      </Td>
                     </tr>
                   );
                 })}
@@ -557,6 +603,7 @@ export default async function LogisticaPage() {
               <tbody>
                 {shipments.map((shipment) => {
                   const canPrint = ["created", "printed", "label_created"].includes(shipment.label_status) || Boolean(shipment.label_url || shipment.label_pdf_url);
+                  const canDispatch = !["shipped", "in_transit", "delivered", "returned"].includes(shipment.status);
                   const observation = shipment.recipient_snapshot?.observation;
                   return (
                     <tr key={shipment.id}>
@@ -589,7 +636,7 @@ export default async function LogisticaPage() {
                           <span className="muted">—</span>
                         )}
                       </Td>
-                      <Td><ShipmentButtons shipmentId={shipment.id} canPrint={canPrint} /></Td>
+                      <Td><ShipmentButtons shipmentId={shipment.id} canPrint={canPrint} canDispatch={canDispatch} /></Td>
                     </tr>
                   );
                 })}
@@ -642,6 +689,47 @@ function Metric({ label, value, tone = "neutral" }: { label: string; value: stri
     <div className="glass" style={{ padding: "16px 18px" }}>
       <p className="display" style={{ fontSize: 28, color }}>{value}</p>
       <p className="muted" style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginTop: 4 }}>{label}</p>
+    </div>
+  );
+}
+
+function QuoteList({ quotes }: { quotes: ShippingQuoteRow[] }) {
+  if (quotes.length === 0) {
+    return <span className="muted" style={{ fontSize: 11 }}>Sem cotação</span>;
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 8, minWidth: 250 }}>
+      {quotes.slice(0, 3).map((quote) => (
+        <div
+          key={quote.id}
+          className="glass"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 10,
+            alignItems: "center",
+            padding: "10px 12px",
+            background: quote.status === "selected" ? "rgba(185,146,77,0.16)" : "rgba(10,22,11,0.32)",
+            borderColor: quote.status === "selected" ? "rgba(217,184,122,0.5)" : "var(--glass-border)",
+          }}
+        >
+          <div>
+            <strong style={{ display: "block", fontSize: 12 }}>
+              {providerLabel(quote.provider_key)} · {quote.service_name ?? quote.service}
+            </strong>
+            <span className="muted" style={{ display: "block", fontSize: 10.5, marginTop: 3 }}>
+              {money(quote.cost_cents, quote.currency)} · {quote.deadline_days ? `${quote.deadline_days} dias` : "prazo a confirmar"}
+            </span>
+            {quote.error ? <span style={{ color: "#e8a0a0", fontSize: 10.5 }}>{quote.error}</span> : null}
+          </div>
+          {quote.status === "selected" ? (
+            <StatusBadge status="created" label="Escolhida" />
+          ) : (
+            <ChooseQuoteButton quoteId={quote.id} />
+          )}
+        </div>
+      ))}
     </div>
   );
 }

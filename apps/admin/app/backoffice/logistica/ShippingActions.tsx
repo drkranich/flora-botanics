@@ -2,7 +2,15 @@
 
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
-import { cancelShipment, queueLabelPrint, queueProductLabelPrint, requestShipmentLabel } from "./actions";
+import {
+  cancelShipment,
+  chooseShippingQuote,
+  dispatchShipment,
+  queueLabelPrint,
+  queueProductLabelPrint,
+  requestShipmentLabel,
+  requestShippingQuotes,
+} from "./actions";
 
 export function RequestLabelButton({ orderId }: { orderId: string }) {
   const [pending, startTransition] = useTransition();
@@ -23,23 +31,83 @@ export function RequestLabelButton({ orderId }: { orderId: string }) {
           });
         }}
       >
-        {pending ? "Enfileirando…" : "Gerar etiqueta"}
+        {pending ? "Enfileirando..." : "Gerar etiqueta"}
       </button>
     </ActionWrap>
   );
 }
 
-export function ShipmentButtons({ shipmentId, canPrint }: { shipmentId: string; canPrint: boolean }) {
+export function RequestQuotesButton({ orderId }: { orderId: string }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
-  function run(action: "print_a4" | "print_thermal" | "cancel") {
+  return (
+    <ActionWrap message={message}>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        disabled={pending}
+        style={{ padding: "8px 14px", fontSize: 10 }}
+        onClick={() => {
+          setMessage(null);
+          startTransition(async () => {
+            const result = await requestShippingQuotes(orderId);
+            setMessage(result.ok ? "Cotações atualizadas." : result.error);
+          });
+        }}
+      >
+        {pending ? "Cotando..." : "Cotar frete"}
+      </button>
+    </ActionWrap>
+  );
+}
+
+export function ChooseQuoteButton({ quoteId }: { quoteId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+
+  return (
+    <ActionWrap message={message}>
+      <button
+        type="button"
+        className="btn btn-gold"
+        disabled={pending}
+        style={{ padding: "7px 12px", fontSize: 10 }}
+        onClick={() => {
+          setMessage(null);
+          startTransition(async () => {
+            const result = await chooseShippingQuote(quoteId);
+            setMessage(result.ok ? "Transportadora escolhida." : result.error);
+          });
+        }}
+      >
+        {pending ? "Escolhendo..." : "Escolher"}
+      </button>
+    </ActionWrap>
+  );
+}
+
+export function ShipmentButtons({
+  shipmentId,
+  canPrint,
+  canDispatch = true,
+}: {
+  shipmentId: string;
+  canPrint: boolean;
+  canDispatch?: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+
+  function run(action: "print_a4" | "print_thermal" | "dispatch" | "cancel") {
     setMessage(null);
     startTransition(async () => {
       const result =
         action === "cancel"
           ? await cancelShipment(shipmentId)
-          : await queueLabelPrint(shipmentId, action === "print_a4" ? "a4" : "thermal");
+          : action === "dispatch"
+            ? await dispatchShipment(shipmentId)
+            : await queueLabelPrint(shipmentId, action === "print_a4" ? "a4" : "thermal");
       setMessage(result.ok ? "Ação registrada." : result.error);
     });
   }
@@ -47,6 +115,17 @@ export function ShipmentButtons({ shipmentId, canPrint }: { shipmentId: string; 
   return (
     <ActionWrap message={message}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          className="btn btn-gold"
+          disabled={pending || !canDispatch}
+          style={{ padding: "7px 12px", fontSize: 10 }}
+          onClick={() => {
+            if (confirm("Marcar esta remessa como expedida e enviar o rastreio ao cliente?")) run("dispatch");
+          }}
+        >
+          Expedir
+        </button>
         <button
           type="button"
           className="btn btn-gold"

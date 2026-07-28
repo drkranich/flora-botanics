@@ -36,9 +36,11 @@ interface OrderForShipment {
   id: string;
   number: string;
   tenant_id: string;
+  customer_id: string | null;
   shipping_address: Record<string, unknown> | null;
   shipping_cents: number | null;
   total_cents: number | null;
+  currency?: string | null;
   notes: string | null;
   customers: MaybeArray<{ email: string; full_name: string | null; phone: string | null }> | null;
 }
@@ -72,8 +74,20 @@ function buildInternalTrackingCode(orderNumber: string) {
   return `FLORA-${cleanNumber}`;
 }
 
+function providerLabel(value: string | null) {
+  if (!value) return "Automático";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function storefrontUrl() {
   return process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://florabotanics.com.br";
+}
+
+function trackingUrl(code: string) {
+  return `${storefrontUrl()}/rastrear?codigo=${encodeURIComponent(code)}`;
 }
 
 function first<T>(value: MaybeArray<T> | null | undefined): T | null {
@@ -108,6 +122,139 @@ async function getPreferredRule(supabase: Awaited<ReturnType<typeof createClient
     .maybeSingle();
 
   return data as ShippingRule | null;
+}
+
+async function ensureDraftNfeForOrder(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  staff: NonNullable<Awaited<ReturnType<typeof currentStaff>>>,
+  orderId: string
+) {
+  const { data: existing } = await supabase
+    .from("nfe_documents")
+    .select("id")
+    .eq("tenant_id", staff.tenantId)
+    .eq("order_id", orderId)
+    .neq("status", "cancelada")
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.id) return { status: "already_exists", id: String(existing.id) };
+
+  const [{ data: order }, { data: fiscal }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id, total_cents")
+      .eq("tenant_id", staff.tenantId)
+      .eq("id", orderId)
+      .maybeSingle(),
+    supabase
+      .from("fiscal_configs")
+      .select("serie_nfe, proximo_numero_nfe, ambiente")
+      .eq("tenant_id", staff.tenantId)
+      .maybeSingle(),
+  ]);
+
+  if (!order || !fiscal) return { status: "missing_config" };
+
+  const { data: nfe, error } = await supabase
+    .from("nfe_documents")
+    .insert({
+      tenant_id: staff.tenantId,
+      order_id: order.id,
+      numero: fiscal.proximo_numero_nfe,
+      serie: fiscal.serie_nfe,
+      ambiente: fiscal.ambiente,
+      status: "rascunho",
+      valor_total_cents: order.total_cents,
+      motivo_status: "Criada automaticamente ao expedir o pedido.",
+    })
+    .select("id")
+    .single();
+
+  if (error || !nfe) return { status: "failed", error: error?.message ?? "Falha ao criar NF-e." };
+
+  await supabase
+    .from("fiscal_configs")
+    .update({ proximo_numero_nfe: fiscal.proximo_numero_nfe + 1 })
+    .eq("tenant_id", staff.tenantId);
+
+  return { status: "created", id: String(nfe.id) };
+}
+
+async function enqueueTrackingEmail(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  staff: NonNullable<Awaited<ReturnType<typeof currentStaff>>>,
+  order: OrderForShipment,
+  shipment: {
+    id: string;
+    provider_key: string | null;
+    carrier: string | null;
+    service: string | null;
+    tracking_code: string | null;
+  }
+) {
+  const customer = first(order.customers);
+  const recipient = customer?.email;
+  const trackingCode = shipment.tracking_code;
+
+  if (!recipient || !trackingCode) return { status: "skipped", reason: "sem destinatário ou rastreio" };
+
+  const { data: template } = await supabase
+    .from("message_templates")
+    .select("id")
+    .eq("tenant_id", staff.tenantId)
+    .eq("channel", "email")
+    .or("category.eq.pedido expedido,name.ilike.%Pedido expedido%,subject.ilike.%enviado%")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!template?.id) return { status: "skipped", reason: "template de pedido expedido não instalado" };
+
+  const firstName = (customer?.full_name ?? recipient).split(" ")[0] ?? "cliente";
+  const carrier = providerLabel(shipment.provider_key ?? shipment.carrier ?? null);
+  const url = trackingUrl(trackingCode);
+
+  const { error } = await supabase.from("marketing_message_queue").upsert(
+    {
+      tenant_id: staff.tenantId,
+      template_id: template.id,
+      customer_id: order.customer_id,
+      channel: "email",
+      recipient,
+      payload: {
+        customer: {
+          first_name: firstName,
+          name: customer?.full_name ?? recipient,
+          email: recipient,
+        },
+        order: {
+          id: order.id,
+          number: order.number,
+          total: ((order.total_cents ?? 0) / 100).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: order.currency ?? "BRL",
+          }),
+          url: `${storefrontUrl()}/conta/pedidos/${order.id}`,
+        },
+        shipment: {
+          id: shipment.id,
+          carrier,
+          service: shipment.service ?? "serviço automático",
+          tracking_code: trackingCode,
+          tracking_url: url,
+        },
+      },
+      idempotency_key: `order-shipped:${order.id}:${trackingCode}`,
+      priority: 2,
+      run_at: new Date().toISOString(),
+      status: "queued",
+    },
+    { onConflict: "tenant_id,idempotency_key" }
+  );
+
+  if (error) return { status: "failed", reason: error.message };
+  return { status: "queued" };
 }
 
 export async function requestShipmentLabel(orderId: string): Promise<ActionResult> {
@@ -250,6 +397,304 @@ export async function requestShipmentLabel(orderId: string): Promise<ActionResul
 
   revalidatePath("/backoffice/logistica");
   revalidatePath(`/vendas/${orderId}`);
+  return { ok: true };
+}
+
+export async function requestShippingQuotes(orderId: string): Promise<ActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin" && staff.role !== "platform_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const supabase = await createClient();
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, number, tenant_id, shipping_cents, total_cents, currency")
+    .eq("id", orderId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!order) return { ok: false, error: "Pedido não encontrado." };
+
+  const { data: providers } = await supabase
+    .from("integration_providers")
+    .select("key, display_name")
+    .eq("category", "shipping")
+    .eq("is_active", true)
+    .order("display_name", { ascending: true });
+
+  const fallbackProviders = [
+    { key: "melhor_envio", display_name: "Melhor Envio" },
+    { key: "correios", display_name: "Correios" },
+    { key: "loggi", display_name: "Loggi" },
+  ];
+  const availableProviders = (providers?.length ? providers : fallbackProviders).slice(0, 5);
+  const baseCost = Math.max(900, Number(order.shipping_cents ?? 0) || Math.round(Number(order.total_cents ?? 0) * 0.06));
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 6).toISOString();
+
+  await supabase
+    .from("shipping_quotes")
+    .update({ status: "expired" })
+    .eq("tenant_id", staff.tenantId)
+    .eq("order_id", orderId)
+    .eq("status", "quoted");
+
+  const quotes = availableProviders.map((provider, index) => {
+    const deadline = 2 + index * 2;
+    const cost = Math.round(baseCost * (1 + index * 0.18));
+    return {
+      tenant_id: staff.tenantId,
+      order_id: orderId,
+      provider_key: provider.key,
+      service: index === 0 ? "best_rate" : index === 1 ? "standard" : "express",
+      service_name: index === 0 ? "Melhor custo" : index === 1 ? "Padrão" : "Expresso",
+      status: "quoted",
+      cost_cents: cost,
+      price_cents: cost,
+      currency: order.currency ?? "BRL",
+      deadline_days: deadline,
+      expires_at: expiresAt,
+      payload: {
+        source: "manual_admin_quote",
+        provider_name: provider.display_name,
+        note: "Cotação operacional criada no CMS até a API da transportadora retornar valores reais.",
+      },
+    };
+  });
+
+  const { error } = await supabase.from("shipping_quotes").insert(quotes);
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.from("shipping_audit_events").insert({
+    tenant_id: staff.tenantId,
+    order_id: orderId,
+    event_type: "shipping_quotes_requested",
+    new_value: { quotes: quotes.map((quote) => ({ provider_key: quote.provider_key, service: quote.service })) },
+    actor_id: staff.id,
+  }).then(() => undefined, () => undefined);
+
+  revalidatePath("/backoffice/logistica");
+  return { ok: true };
+}
+
+export async function chooseShippingQuote(quoteId: string): Promise<ActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin" && staff.role !== "platform_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const supabase = await createClient();
+  const { data: quote } = await supabase
+    .from("shipping_quotes")
+    .select("id, order_id, provider_key, service, service_name, cost_cents, price_cents, currency, deadline_days")
+    .eq("id", quoteId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!quote?.order_id) return { ok: false, error: "Cotação não encontrada." };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, number, tenant_id, customer_id, shipping_address, shipping_cents, total_cents, currency, notes, customers(email, full_name, phone)")
+    .eq("id", quote.order_id)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!order) return { ok: false, error: "Pedido não encontrado." };
+
+  const shipmentOrder = order as OrderForShipment;
+  const customer = first(shipmentOrder.customers);
+  const trackingCode = buildInternalTrackingCode(String(shipmentOrder.number));
+  const now = new Date().toISOString();
+  const recipientSnapshot = {
+    ...(shipmentOrder.shipping_address ?? {}),
+    name:
+      (shipmentOrder.shipping_address?.recipient as string | undefined) ??
+      customer?.full_name ??
+      customer?.email ??
+      null,
+    phone: customer?.phone ?? null,
+    email: customer?.email ?? null,
+    observation:
+      shipmentOrder.notes ??
+      (shipmentOrder.shipping_address?.observation as string | undefined) ??
+      (shipmentOrder.shipping_address?.notes as string | undefined) ??
+      null,
+  };
+
+  await supabase
+    .from("shipping_quotes")
+    .update({ status: "quoted" })
+    .eq("tenant_id", staff.tenantId)
+    .eq("order_id", quote.order_id)
+    .eq("status", "selected");
+
+  await supabase
+    .from("shipping_quotes")
+    .update({ status: "selected" })
+    .eq("tenant_id", staff.tenantId)
+    .eq("id", quoteId);
+
+  const { data: existing } = await supabase
+    .from("shipments")
+    .select("id")
+    .eq("tenant_id", staff.tenantId)
+    .eq("order_id", quote.order_id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const shipmentPayload = {
+    tenant_id: staff.tenantId,
+    order_id: quote.order_id,
+    provider_key: quote.provider_key,
+    quote_id: quote.id,
+    carrier: quote.provider_key,
+    service: quote.service_name ?? quote.service,
+    status: "pending",
+    label_status: "queued",
+    label_format: "a4",
+    tracking_code: trackingCode,
+    barcode: trackingCode,
+    qr_code: trackingUrl(trackingCode),
+    recipient_snapshot: recipientSnapshot,
+    sender_snapshot: senderSnapshot(),
+    service_cost_cents: quote.cost_cents,
+    expected_delivery_days: quote.deadline_days,
+    updated_at: now,
+  };
+
+  const shipmentResult = existing?.id
+    ? await supabase.from("shipments").update(shipmentPayload).eq("id", existing.id).select("id").single()
+    : await supabase.from("shipments").insert(shipmentPayload).select("id").single();
+
+  if (shipmentResult.error || !shipmentResult.data) {
+    return { ok: false, error: shipmentResult.error?.message ?? "Não foi possível selecionar a transportadora." };
+  }
+
+  await enqueueIntegrationSync(supabase, {
+    tenantId: staff.tenantId,
+    providerKey: quote.provider_key,
+    connectionId: null,
+    action: "create_shipping_label",
+    trigger: "manual",
+    requestPayload: {
+      order_id: quote.order_id,
+      shipment_id: shipmentResult.data.id,
+      quote_id: quote.id,
+      provider_key: quote.provider_key,
+      service: quote.service,
+      recipient_snapshot: recipientSnapshot,
+    },
+    createdBy: staff.id,
+  });
+
+  await supabase.from("shipping_audit_events").insert({
+    tenant_id: staff.tenantId,
+    shipment_id: shipmentResult.data.id,
+    order_id: quote.order_id,
+    event_type: "shipping_quote_selected",
+    new_value: shipmentPayload,
+    actor_id: staff.id,
+  }).then(() => undefined, () => undefined);
+
+  revalidatePath("/backoffice/logistica");
+  revalidatePath(`/vendas/${quote.order_id}`);
+  return { ok: true };
+}
+
+export async function dispatchShipment(shipmentId: string): Promise<ActionResult> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin" && staff.role !== "platform_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const supabase = await createClient();
+  const { data: shipment } = await supabase
+    .from("shipments")
+    .select("id, order_id, provider_key, carrier, service, tracking_code")
+    .eq("id", shipmentId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!shipment?.order_id) return { ok: false, error: "Remessa não encontrada." };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, number, tenant_id, customer_id, shipping_address, shipping_cents, total_cents, currency, notes, customers(email, full_name, phone)")
+    .eq("id", shipment.order_id)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!order) return { ok: false, error: "Pedido não encontrado." };
+
+  const shipmentOrder = order as OrderForShipment;
+  const trackingCode = shipment.tracking_code || buildInternalTrackingCode(String(shipmentOrder.number));
+  const now = new Date().toISOString();
+  const tracking = trackingUrl(trackingCode);
+
+  const { error: shipmentError } = await supabase
+    .from("shipments")
+    .update({
+      status: "shipped",
+      label_status: "created",
+      tracking_code: trackingCode,
+      barcode: trackingCode,
+      qr_code: tracking,
+      shipped_at: now,
+      updated_at: now,
+    })
+    .eq("id", shipmentId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (shipmentError) return { ok: false, error: shipmentError.message };
+
+  await supabase
+    .from("orders")
+    .update({ status: "shipped" })
+    .eq("id", shipment.order_id)
+    .eq("tenant_id", staff.tenantId);
+
+  await supabase.from("shipping_events").insert({
+    tenant_id: staff.tenantId,
+    order_id: shipment.order_id,
+    status: "dispatched",
+    description: "Pedido expedido pela Flora Botanics.",
+    carrier: providerLabel(shipment.provider_key ?? shipment.carrier ?? null),
+    tracking_code: trackingCode,
+    created_by: staff.id,
+  }).then(() => undefined, () => undefined);
+
+  const nfeResult = await ensureDraftNfeForOrder(supabase, staff, shipment.order_id);
+  const emailResult = await enqueueTrackingEmail(supabase, staff, shipmentOrder, {
+    id: shipment.id,
+    provider_key: shipment.provider_key,
+    carrier: shipment.carrier,
+    service: shipment.service,
+    tracking_code: trackingCode,
+  });
+
+  await supabase.from("shipping_audit_events").insert({
+    tenant_id: staff.tenantId,
+    shipment_id: shipmentId,
+    order_id: shipment.order_id,
+    event_type: "shipment_dispatched",
+    new_value: {
+      tracking_code: trackingCode,
+      tracking_url: tracking,
+      nfe: nfeResult,
+      tracking_email: emailResult,
+    },
+    actor_id: staff.id,
+  }).then(() => undefined, () => undefined);
+
+  revalidatePath("/backoffice/logistica");
+  revalidatePath("/backoffice/notas-fiscais");
+  revalidatePath(`/vendas/${shipment.order_id}`);
   return { ok: true };
 }
 
