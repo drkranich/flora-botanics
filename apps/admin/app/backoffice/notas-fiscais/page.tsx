@@ -6,6 +6,7 @@ import { money } from "@/lib/format";
 import { FISCAL_GOVERNMENT_PROVIDERS } from "@/lib/fiscal/government-providers";
 import { createDraftNfe, cancelNfeDraft } from "./actions";
 import { FiscalGovernmentPanel } from "./FiscalGovernmentPanel";
+import { InternationalTradeCenter } from "./InternationalTradeCenter";
 import {
   AccountantProfileForm,
   AccountantRequestForm,
@@ -125,6 +126,7 @@ const GUIDE_TYPE_LABELS: Record<string, string> = {
 const SUBSECTIONS = [
   ["Visão geral", "#visao-geral"],
   ["Conexão Governo", "#governo"],
+  ["Comércio Exterior", "#comercio-exterior"],
   ["Documentos fiscais", "#documentos"],
   ["Emissão de NF-e", "#emissao"],
   ["Pedidos sem nota", "#pedidos-sem-nota"],
@@ -1098,6 +1100,8 @@ export default async function NotasFiscaisPage() {
           </div>
         )}
       </section>
+
+      <InternationalTradeCenter />
 
       <section id="relatorios" className="glass" style={cardStyle}>
         <SectionTitle eyebrow="Relatórios" title="Exportação fiscal, documental e contábil">

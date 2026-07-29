@@ -55,6 +55,43 @@ type VaultExport = {
   origin: string;
 };
 
+type ExportOperationExport = {
+  operation_number: string;
+  title: string;
+  status: string;
+  sale_type: string;
+  sale_channel: string;
+  destination_country: string;
+  destination_region: string | null;
+  incoterm: string;
+  tax_responsibility: string;
+  currency: string;
+  created_at: string;
+};
+
+type LandedCostExport = {
+  scenario_name: string;
+  total_landed_cost_cents: number;
+  recommended_price_cents: number;
+  profit_net_cents: number;
+  margin_net_percent: number;
+  taxes_paid_by_flora_cents: number;
+  taxes_paid_by_buyer_cents: number;
+  currency: string;
+  created_at: string;
+};
+
+type InternationalDocumentExport = {
+  document_scope: string;
+  document_type: string;
+  title: string;
+  document_number: string | null;
+  country_code: string | null;
+  status: string;
+  requirement_status: string;
+  expires_at: string | null;
+};
+
 function csvCell(value: string | number | null | undefined) {
   const text = String(value ?? "");
   return `"${text.replace(/"/g, '""')}"`;
@@ -121,7 +158,15 @@ export async function GET(request: NextRequest) {
 
   const supabase = await supabaseServer();
   const tenantId = await effectiveTenantId();
-  const [{ data: documents }, { data: guides }, { data: obligations }, { data: vault }] = await Promise.all([
+  const [
+    { data: documents },
+    { data: guides },
+    { data: obligations },
+    { data: vault },
+    { data: exportOperations },
+    { data: landedCosts },
+    { data: internationalDocuments },
+  ] = await Promise.all([
     supabase
       .from("fiscal_documents")
       .select("document_type, number, series, party_name, party_document, competence, due_date, total_cents, tax_total_cents, payment_status, verification_status, status, origin, updated_at")
@@ -146,12 +191,33 @@ export async function GET(request: NextRequest) {
       .eq("tenant_id", tenantId)
       .order("updated_at", { ascending: false })
       .limit(500),
+    supabase
+      .from("export_operations")
+      .select("operation_number, title, status, sale_type, sale_channel, destination_country, destination_region, incoterm, tax_responsibility, currency, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(500),
+    supabase
+      .from("landed_cost_calculations")
+      .select("scenario_name, total_landed_cost_cents, recommended_price_cents, profit_net_cents, margin_net_percent, taxes_paid_by_flora_cents, taxes_paid_by_buyer_cents, currency, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(500),
+    supabase
+      .from("international_documents")
+      .select("document_scope, document_type, title, document_number, country_code, status, requirement_status, expires_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(500),
   ]);
 
   const docRows = (documents ?? []) as unknown as FiscalDocExport[];
   const guideRows = (guides ?? []) as unknown as GuideExport[];
   const obligationRows = (obligations ?? []) as unknown as ObligationExport[];
   const vaultRows = (vault ?? []) as unknown as VaultExport[];
+  const exportOperationRows = (exportOperations ?? []) as unknown as ExportOperationExport[];
+  const landedCostRows = (landedCosts ?? []) as unknown as LandedCostExport[];
+  const internationalDocumentRows = (internationalDocuments ?? []) as unknown as InternationalDocumentExport[];
   const format = new URL(request.url).searchParams.get("format") ?? "csv";
 
   if (format === "json") {
@@ -161,6 +227,9 @@ export async function GET(request: NextRequest) {
       guides: guideRows,
       obligations: obligationRows,
       vault: vaultRows,
+      exportOperations: exportOperationRows,
+      landedCosts: landedCostRows,
+      internationalDocuments: internationalDocumentRows,
     });
   }
 
@@ -228,6 +297,52 @@ export async function GET(request: NextRequest) {
       }))),
       "Cofre"
     );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(exportOperationRows.map((row) => ({
+        Operação: row.operation_number,
+        Título: row.title,
+        Status: row.status,
+        Venda: row.sale_type,
+        Canal: row.sale_channel,
+        Destino: row.destination_country,
+        Região: row.destination_region ?? "",
+        Incoterm: row.incoterm,
+        Tributos: row.tax_responsibility,
+        Moeda: row.currency,
+        Criado: row.created_at,
+      }))),
+      "Comércio Exterior"
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(landedCostRows.map((row) => ({
+        Cenário: row.scenario_name,
+        "Landed cost": row.total_landed_cost_cents / 100,
+        "Preço recomendado": row.recommended_price_cents / 100,
+        "Lucro líquido": row.profit_net_cents / 100,
+        "Margem líquida": row.margin_net_percent,
+        "Tributos Flora": row.taxes_paid_by_flora_cents / 100,
+        "Tributos comprador": row.taxes_paid_by_buyer_cents / 100,
+        Moeda: row.currency,
+        Criado: row.created_at,
+      }))),
+      "Landed Cost"
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(internationalDocumentRows.map((row) => ({
+        Escopo: row.document_scope,
+        Tipo: row.document_type,
+        Título: row.title,
+        Número: row.document_number ?? "",
+        País: row.country_code ?? "",
+        Status: row.status,
+        Obrigatoriedade: row.requirement_status,
+        Validade: row.expires_at ?? "",
+      }))),
+      "Docs Internacionais"
+    );
     const workbookBytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
     return new Response(workbookBytes, {
       headers: {
@@ -250,6 +365,12 @@ export async function GET(request: NextRequest) {
       "",
       "Obrigacoes:",
       ...obligationRows.slice(0, 8).map((row) => `${row.name} - ${row.competence ?? ""} - ${formatDate(row.due_date)} - ${row.status}`),
+      "",
+      "Comercio Exterior:",
+      ...exportOperationRows.slice(0, 10).map((row) => `${row.operation_number} - ${row.title} - ${row.destination_country} - ${row.incoterm} - ${row.status}`),
+      "",
+      "Landed Cost:",
+      ...landedCostRows.slice(0, 10).map((row) => `${row.scenario_name} - ${money(row.total_landed_cost_cents, row.currency)} - preco ${money(row.recommended_price_cents, row.currency)} - margem ${row.margin_net_percent}%`),
     ];
     return new Response(buildPdf(lines), {
       headers: {
@@ -319,6 +440,49 @@ export async function GET(request: NextRequest) {
       row.status,
       row.verification_status,
       row.origin,
+    ])),
+    csvLine([]),
+    csvLine(["Comércio Exterior"]),
+    csvLine(["Operação", "Título", "Status", "Venda", "Canal", "Destino", "Região", "Incoterm", "Tributos", "Moeda", "Criado"]),
+    ...exportOperationRows.map((row) => csvLine([
+      row.operation_number,
+      row.title,
+      row.status,
+      row.sale_type,
+      row.sale_channel,
+      row.destination_country,
+      row.destination_region,
+      row.incoterm,
+      row.tax_responsibility,
+      row.currency,
+      row.created_at,
+    ])),
+    csvLine([]),
+    csvLine(["Memória de landed cost"]),
+    csvLine(["Cenário", "Landed cost", "Preço recomendado", "Lucro líquido", "Margem líquida", "Tributos Flora", "Tributos comprador", "Moeda", "Criado"]),
+    ...landedCostRows.map((row) => csvLine([
+      row.scenario_name,
+      money(row.total_landed_cost_cents, row.currency),
+      money(row.recommended_price_cents, row.currency),
+      money(row.profit_net_cents, row.currency),
+      `${row.margin_net_percent}%`,
+      money(row.taxes_paid_by_flora_cents, row.currency),
+      money(row.taxes_paid_by_buyer_cents, row.currency),
+      row.currency,
+      row.created_at,
+    ])),
+    csvLine([]),
+    csvLine(["Documentos internacionais"]),
+    csvLine(["Escopo", "Tipo", "Título", "Número", "País", "Status", "Obrigatoriedade", "Validade"]),
+    ...internationalDocumentRows.map((row) => csvLine([
+      row.document_scope,
+      row.document_type,
+      row.title,
+      row.document_number,
+      row.country_code,
+      row.status,
+      row.requirement_status,
+      formatDate(row.expires_at),
     ])),
   ].join("\n");
 
