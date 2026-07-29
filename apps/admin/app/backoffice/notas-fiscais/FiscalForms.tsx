@@ -52,15 +52,48 @@ const environmentOptions: GlassSelectOption[] = [
 ];
 
 const paymentStatuses: GlassSelectOption[] = [
+  { value: "not_applicable", label: "Não se aplica" },
+  { value: "unclassified", label: "Sem classificação" },
+  { value: "unpaid", label: "Não pago" },
   { value: "open", label: "Em aberto" },
+  { value: "waiting_approval", label: "Aguardando aprovação" },
+  { value: "approved_for_payment", label: "Aprovado para pagamento" },
   { value: "scheduled", label: "Programada" },
   { value: "near_due", label: "Próxima do vencimento" },
+  { value: "due_today", label: "Vence hoje" },
   { value: "overdue", label: "Vencida" },
   { value: "partial", label: "Parcialmente paga" },
   { value: "paid", label: "Paga" },
+  { value: "paid_with_interest", label: "Paga com juros" },
+  { value: "paid_with_discount", label: "Paga com desconto" },
   { value: "compensated", label: "Compensada" },
+  { value: "installment", label: "Parcelada" },
+  { value: "suspended", label: "Suspensa" },
   { value: "cancelled", label: "Cancelada" },
-  { value: "disputed", label: "Em discussão" },
+  { value: "disputed", label: "Contestada" },
+  { value: "reversed", label: "Estornada" },
+  { value: "refunded", label: "Reembolsada" },
+  { value: "reconciled", label: "Conciliada" },
+  { value: "divergent", label: "Divergente" },
+  { value: "waiting_receipt", label: "Aguardando comprovante" },
+  { value: "receipt_review", label: "Comprovante em verificação" },
+];
+
+const financialNatureOptions: GlassSelectOption[] = [
+  { value: "not_applicable", label: "Não se aplica" },
+  { value: "unclassified", label: "Analisar depois" },
+  { value: "payable", label: "Conta a pagar" },
+  { value: "receivable", label: "Conta a receber" },
+  { value: "needs_review", label: "Precisa de revisão" },
+  { value: "proof", label: "Comprovante" },
+  { value: "fiscal_document", label: "Documento fiscal" },
+  { value: "tax_guide", label: "Guia tributária" },
+  { value: "boleto", label: "Boleto" },
+  { value: "receipt", label: "Recibo" },
+  { value: "budget", label: "Orçamento" },
+  { value: "financial_contract", label: "Contrato financeiro" },
+  { value: "installment", label: "Parcela" },
+  { value: "other", label: "Outro" },
 ];
 
 const verificationStatuses: GlassSelectOption[] = [
@@ -122,6 +155,15 @@ const statusOptions: GlassSelectOption[] = [
   { value: "with_pending_items", label: "Com pendências" },
   { value: "paid", label: "Paga" },
   { value: "archived", label: "Arquivada" },
+];
+
+const vaultStatusOptions: GlassSelectOption[] = [
+  { value: "received", label: "Recebido" },
+  { value: "open", label: "Em aberto" },
+  { value: "review", label: "Em análise" },
+  { value: "verified", label: "Verificado" },
+  { value: "verified_with_notes", label: "Verificado com ressalvas" },
+  { value: "archived", label: "Arquivado" },
 ];
 
 const priorityOptions: GlassSelectOption[] = [
@@ -294,13 +336,19 @@ export function FiscalVaultForm() {
       <Field label="Emissão"><GlassDateInput name="issued_at" placeholder="Data de emissão" inlinePopover /></Field>
       <Field label="Vencimento"><GlassDateInput name="due_date" placeholder="Opcional" inlinePopover /></Field>
       <Field label="Valor"><TextInput name="value" placeholder="0,00" /></Field>
+      <Field label="Natureza financeira">
+        <GlassSelect name="financial_nature" options={financialNatureOptions} defaultValue="needs_review" inlineMenu />
+      </Field>
+      <Field label="Status financeiro">
+        <GlassSelect name="payment_status" options={paymentStatuses} defaultValue="open" inlineMenu />
+      </Field>
       <Field label="CNPJ"><TextInput name="cnpj" placeholder="CNPJ vinculado" /></Field>
       <Field label="CPF"><TextInput name="cpf" placeholder="CPF vinculado" /></Field>
       <Field label="Chave"><TextInput name="access_key" placeholder="Chave fiscal" /></Field>
       <Field label="Número"><TextInput name="number" placeholder="Número" /></Field>
       <Field label="Série"><TextInput name="series" placeholder="Série" /></Field>
       <Field label="Origem"><TextInput name="origin" placeholder="upload, contador, órgão..." /></Field>
-      <Field label="Status"><GlassSelect name="status" options={statusOptions} defaultValue="open" inlineMenu /></Field>
+      <Field label="Status do cofre"><GlassSelect name="status" options={vaultStatusOptions} defaultValue="received" inlineMenu /></Field>
       <Field label="Arquivo privado">
         <FiscalFileUpload name="storage_path" label="Enviar arquivo" kind="cofre" />
       </Field>

@@ -20,6 +20,7 @@ import {
   GuidePaymentForm,
   MonthlyClosingForm,
 } from "./FiscalForms";
+import { VaultDocumentActions } from "./VaultDocumentActions";
 
 const NFE_STATUS_LABELS: Record<string, string> = {
   rascunho: "Rascunho",
@@ -67,6 +68,25 @@ const STATUS_LABELS: Record<string, string> = {
   active: "Ativo",
   expiring: "Vencendo",
   expired: "Vencido",
+  received: "Recebido",
+  not_applicable: "Não se aplica",
+  unclassified: "Sem classificação",
+  unpaid: "Não pago",
+  waiting_approval: "Aguardando aprovação",
+  approved_for_payment: "Aprovado para pagamento",
+  due_today: "Vence hoje",
+  paid_with_interest: "Paga com juros",
+  paid_with_discount: "Paga com desconto",
+  installment: "Parcelada",
+  suspended: "Suspensa",
+  disputed: "Contestada",
+  reversed: "Estornada",
+  refunded: "Reembolsada",
+  reconciled: "Conciliada",
+  waiting_receipt: "Aguardando comprovante",
+  receipt_review: "Comprovante em verificação",
+  missing: "Sem comprovante",
+  sent: "Comprovante enviado",
 };
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -309,6 +329,18 @@ type VaultRow = {
   visibility_status: string;
   origin: string;
   storage_path: string | null;
+  financial_control_id: string | null;
+  archived_at: string | null;
+  favorite: boolean | null;
+};
+
+type VaultControlRow = {
+  source_id: string | null;
+  payment_status: string;
+  paid_cents: number;
+  remaining_cents: number;
+  due_date: string | null;
+  proof_status: string;
 };
 
 type EventRow = {
@@ -468,8 +500,9 @@ export default async function NotasFiscaisPage() {
       .limit(80),
     supabase
       .from("fiscal_vault_documents")
-      .select("id, name, document_type, category, department, competence, due_date, value_cents, status, verification_status, visibility_status, origin, storage_path")
+      .select("id, name, document_type, category, department, competence, due_date, value_cents, status, verification_status, visibility_status, origin, storage_path, financial_control_id, archived_at, favorite")
       .eq("tenant_id", staff.tenantId)
+      .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(80),
     supabase
@@ -544,6 +577,19 @@ export default async function NotasFiscaisPage() {
   const accountant = accountantProfileRes.data as AccountantProfileRow | null;
   const closings = (closingsRes.data ?? []) as unknown as ClosingRow[];
   const integrations = (integrationsRes.data ?? []) as unknown as IntegrationRow[];
+  const vaultControlRes = vaultDocs.length
+    ? await supabase
+        .from("document_financial_controls")
+        .select("source_id, payment_status, paid_cents, remaining_cents, due_date, proof_status")
+        .eq("tenant_id", staff.tenantId)
+        .eq("source_table", "fiscal_vault_documents")
+        .in("source_id", vaultDocs.map((doc) => doc.id))
+    : { data: [] };
+  const vaultControls = new Map(
+    ((vaultControlRes.data ?? []) as unknown as VaultControlRow[])
+      .filter((control) => control.source_id)
+      .map((control) => [control.source_id as string, control])
+  );
 
   const ordersWithNfe = new Set(nfes.map((n) => n.order_id).filter(Boolean));
   const pendingOrders = orders.filter((o) => !ordersWithNfe.has(o.id));
@@ -943,19 +989,40 @@ export default async function NotasFiscaisPage() {
             <EmptyState title="Cofre vazio" action="Arquive XML, DANFE, DARF, DAS, comprovantes, contratos, licenças, certidões e documentos do contador." />
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
-              {vaultDocs.map((doc) => (
-                <div key={doc.id} style={compactRowStyle}>
-                  <span>
-                    <strong>{doc.name}</strong>
-                    <small>{doc.document_type} · {doc.department ?? "sem departamento"} · {doc.competence ?? "permanente"} · {formatBRL(doc.value_cents)}</small>
-                    <FileLink path={doc.storage_path}>Abrir arquivo</FileLink>
-                  </span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <StatusChip status={doc.visibility_status} />
-                    <StatusChip status={doc.verification_status} />
-                  </span>
-                </div>
-              ))}
+              {vaultDocs.map((doc) => {
+                const control = vaultControls.get(doc.id);
+                return (
+                  <div key={doc.id} style={vaultRowStyle}>
+                    <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+                      <div>
+                        <strong>{doc.favorite ? "★ " : ""}{doc.name}</strong>
+                        <small>
+                          {doc.document_type} · {doc.department ?? "sem departamento"} · {doc.competence ?? "permanente"} · {formatBRL(doc.value_cents)}
+                        </small>
+                        <small>
+                          {doc.archived_at ? `Arquivado em ${formatDate(doc.archived_at)}` : "Documento ativo no cofre"} · origem {doc.origin}
+                        </small>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <FileLink path={doc.storage_path}>Abrir arquivo</FileLink>
+                        <StatusChip status={doc.status} />
+                        <StatusChip status={doc.visibility_status} />
+                        <StatusChip status={doc.verification_status} />
+                        {control ? <StatusChip status={control.payment_status} /> : null}
+                        <span className={`fiscal-chip fiscal-chip-${doc.financial_control_id ? "ok" : "warn"}`}>
+                          {doc.financial_control_id ? "Financeiro vinculado" : "Classificar financeiro"}
+                        </span>
+                      </div>
+                      {control ? (
+                        <small>
+                          Financeiro: pago {formatBRL(control.paid_cents)} · saldo {formatBRL(control.remaining_cents)} · vencimento {formatDate(control.due_date)} · comprovante {label(STATUS_LABELS, control.proof_status)}
+                        </small>
+                      ) : null}
+                    </div>
+                    <VaultDocumentActions documentId={doc.id} compact />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1120,6 +1187,19 @@ const compactRowStyle: CSSProperties = {
   border: "1px solid var(--glass-border)",
   borderRadius: 12,
   background: "rgba(242, 236, 223, 0.055)",
+};
+
+const vaultRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(240px, 1fr) minmax(280px, 420px)",
+  gap: 16,
+  alignItems: "start",
+  padding: "14px",
+  border: "1px solid var(--glass-border)",
+  borderRadius: 14,
+  background: "rgba(242, 236, 223, 0.055)",
+  backdropFilter: "blur(18px) saturate(1.18)",
+  WebkitBackdropFilter: "blur(18px) saturate(1.18)",
 };
 
 const emptyStateStyle: CSSProperties = {

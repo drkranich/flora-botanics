@@ -64,6 +64,23 @@ function booleanValue(formData: FormData, key: string) {
   return value === "on" || value === "true" || value === "1";
 }
 
+function paymentStatusForFinancialControl(status: string | null) {
+  if (!status) return "open";
+  const map: Record<string, string> = {
+    open: "open",
+    pending: "open",
+    scheduled: "scheduled",
+    near_due: "near_due",
+    overdue: "overdue",
+    partial: "partial",
+    paid: "paid",
+    compensated: "compensated",
+    cancelled: "cancelled",
+    disputed: "disputed",
+  };
+  return map[status] ?? status;
+}
+
 function publicCredentialsPreview(formData: FormData) {
   return {
     cnpj: text(formData, "cnpj"),
@@ -560,6 +577,30 @@ export async function createFiscalGuide(formData: FormData): Promise<void> {
   };
   const { data, error } = await supabase.from("fiscal_guides").insert(payload).select("id").single();
   if (!error && data) {
+    await supabase.from("document_financial_controls").insert({
+      tenant_id: staff.tenantId,
+      source_module: "fiscal",
+      source_table: "fiscal_guides",
+      source_id: data.id,
+      document_name: payload.document_name,
+      financial_nature: "tax_guide",
+      document_category: payload.guide_type,
+      competence: payload.competence,
+      due_date: payload.due_date,
+      original_cents: payload.original_cents,
+      interest_cents: payload.interest_cents,
+      penalty_cents: payload.penalty_cents,
+      updated_cents: payload.updated_cents,
+      paid_cents: 0,
+      remaining_cents: payload.updated_cents,
+      payment_status: paymentStatusForFinancialControl(payload.payment_status),
+      proof_status: payload.receipt_path ? "sent" : "missing",
+      guide_id: data.id,
+      storage_path: payload.guide_path,
+      receipt_paths: payload.receipt_path ? [payload.receipt_path] : [],
+      notes: payload.notes,
+      created_by: staff.id,
+    });
     await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_fiscal_guide", entityType: "fiscal_guide", entityId: data.id, afterData: payload });
   }
   revalidatePath(FISCAL_PATH);
@@ -579,6 +620,44 @@ export async function registerFiscalGuidePayment(guideId: string, formData: Form
     notes: text(formData, "notes"),
   };
   await supabase.from("fiscal_guides").update(payload).eq("id", guideId).eq("tenant_id", staff.tenantId);
+  const { data: control } = await supabase
+    .from("document_financial_controls")
+    .select("id, updated_cents")
+    .eq("tenant_id", staff.tenantId)
+    .eq("source_table", "fiscal_guides")
+    .eq("source_id", guideId)
+    .maybeSingle();
+
+  if (control) {
+    const updatedCents = Number(control.updated_cents ?? 0);
+    await supabase
+      .from("document_financial_controls")
+      .update({
+        payment_status: paymentStatusForFinancialControl(payload.payment_status),
+        paid_cents: payload.paid_cents,
+        remaining_cents: Math.max(0, updatedCents - payload.paid_cents),
+        payment_method: payload.payment_method,
+        bank_account: payload.bank_account,
+        proof_status: payload.receipt_path ? "sent" : "missing",
+        receipt_paths: payload.receipt_path ? [payload.receipt_path] : [],
+      })
+      .eq("id", control.id)
+      .eq("tenant_id", staff.tenantId);
+
+    await supabase.from("document_financial_payments").insert({
+      tenant_id: staff.tenantId,
+      control_id: control.id,
+      payment_kind: payload.payment_status === "scheduled" ? "scheduled" : payload.payment_status === "partial" ? "partial" : "full",
+      status: payload.payment_status === "scheduled" ? "scheduled" : "registered",
+      amount_cents: payload.paid_cents,
+      paid_at: payload.payment_date,
+      bank_account: payload.bank_account,
+      payment_method: payload.payment_method,
+      proof_paths: payload.receipt_path ? [payload.receipt_path] : [],
+      notes: payload.notes,
+      created_by: staff.id,
+    });
+  }
   await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "registered_guide_payment", entityType: "fiscal_guide", entityId: guideId, afterData: payload });
   revalidatePath(FISCAL_PATH);
 }
@@ -589,6 +668,9 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
   const supabase = await createClient();
   const storagePath = text(formData, "storage_path");
   const inferredName = fileTitleFromPath(storagePath);
+  const financialNature = text(formData, "financial_nature") ?? (cents(formData, "value") > 0 ? "needs_review" : "not_applicable");
+  const paymentStatus = text(formData, "payment_status") ?? (financialNature === "not_applicable" ? "not_applicable" : "open");
+  const valueCents = cents(formData, "value");
   const payload = {
     tenant_id: staff.tenantId,
     name: text(formData, "name") ?? inferredName ?? "Documento fiscal importado",
@@ -598,21 +680,191 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
     competence: text(formData, "competence"),
     issued_at: dateValue(formData, "issued_at"),
     due_date: dateValue(formData, "due_date"),
-    value_cents: cents(formData, "value"),
+    value_cents: valueCents,
     cnpj: text(formData, "cnpj"),
     cpf: text(formData, "cpf"),
     access_key: text(formData, "access_key"),
     number: text(formData, "number"),
     series: text(formData, "series"),
     origin: text(formData, "origin") ?? (storagePath ? "upload" : "manual"),
-    status: text(formData, "status") ?? "open",
+    status: text(formData, "status") ?? "received",
     storage_path: storagePath,
     tags: jsonArray(formData, "tags"),
     notes: text(formData, "notes"),
     created_by: staff.id,
   };
   const { data, error } = await supabase.from("fiscal_vault_documents").insert(payload).select("id").single();
-  if (!error && data) await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_vault_document", entityType: "fiscal_vault_document", entityId: data.id, afterData: payload });
+  if (!error && data) {
+    if (financialNature !== "not_applicable") {
+      const { data: control } = await supabase
+        .from("document_financial_controls")
+        .insert({
+          tenant_id: staff.tenantId,
+          source_module: "cofre_fiscal",
+          source_table: "fiscal_vault_documents",
+          source_id: data.id,
+          document_name: payload.name,
+          financial_nature: financialNature,
+          document_category: payload.category ?? payload.document_type,
+          counterparty_document: payload.cnpj ?? payload.cpf,
+          document_number: payload.number,
+          competence: payload.competence,
+          issued_at: payload.issued_at,
+          due_date: payload.due_date,
+          original_cents: valueCents,
+          updated_cents: valueCents,
+          remaining_cents: valueCents,
+          payment_status: paymentStatusForFinancialControl(paymentStatus),
+          proof_status: "missing",
+          department: payload.department,
+          storage_path: payload.storage_path,
+          notes: payload.notes,
+          created_by: staff.id,
+        })
+        .select("id")
+        .single();
+
+      if (control) {
+        await supabase
+          .from("fiscal_vault_documents")
+          .update({ financial_control_id: control.id })
+          .eq("id", data.id)
+          .eq("tenant_id", staff.tenantId);
+      }
+    }
+
+    await supabase.from("document_vault_versions").insert({
+      tenant_id: staff.tenantId,
+      vault_document_id: data.id,
+      version: 1,
+      storage_path: storagePath ?? "sem-arquivo",
+      file_name: inferredName ?? payload.name,
+      reason: "Versão inicial",
+      notes: payload.notes,
+      created_by: staff.id,
+    });
+
+    await supabase.from("document_vault_audit_events").insert({
+      tenant_id: staff.tenantId,
+      vault_document_id: data.id,
+      action: "created",
+      new_value: payload,
+      actor_id: staff.id,
+    });
+
+    await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_vault_document", entityType: "fiscal_vault_document", entityId: data.id, afterData: payload });
+  }
+  revalidatePath(FISCAL_PATH);
+}
+
+export async function registerVaultDocumentPayment(vaultDocumentId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const paymentStatus = requiredText(formData, "payment_status", "Status financeiro");
+  const paid = cents(formData, "paid");
+  const receiptPath = text(formData, "receipt_path");
+  const paymentDate = dateValue(formData, "payment_date");
+
+  const { data: doc } = await supabase
+    .from("fiscal_vault_documents")
+    .select("id, name, value_cents, financial_control_id")
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+  if (!doc) return;
+
+  let controlId = doc.financial_control_id as string | null;
+  if (!controlId) {
+    const { data: control } = await supabase
+      .from("document_financial_controls")
+      .insert({
+        tenant_id: staff.tenantId,
+        source_module: "cofre_fiscal",
+        source_table: "fiscal_vault_documents",
+        source_id: vaultDocumentId,
+        document_name: doc.name,
+        financial_nature: "needs_review",
+        original_cents: Number(doc.value_cents ?? 0),
+        updated_cents: Number(doc.value_cents ?? 0),
+        remaining_cents: Number(doc.value_cents ?? 0),
+        payment_status: "open",
+        created_by: staff.id,
+      })
+      .select("id")
+      .single();
+    controlId = control?.id ?? null;
+    if (controlId) {
+      await supabase.from("fiscal_vault_documents").update({ financial_control_id: controlId }).eq("id", vaultDocumentId).eq("tenant_id", staff.tenantId);
+    }
+  }
+
+  if (!controlId) return;
+
+  const updatedCents = Number(doc.value_cents ?? 0);
+  await supabase
+    .from("document_financial_controls")
+    .update({
+      payment_status: paymentStatusForFinancialControl(paymentStatus),
+      paid_cents: paid,
+      remaining_cents: Math.max(0, updatedCents - paid),
+      payment_method: text(formData, "payment_method"),
+      bank_account: text(formData, "bank_account"),
+      proof_status: receiptPath ? "sent" : "missing",
+      receipt_paths: receiptPath ? [receiptPath] : [],
+    })
+    .eq("id", controlId)
+    .eq("tenant_id", staff.tenantId);
+
+  await supabase.from("document_financial_payments").insert({
+    tenant_id: staff.tenantId,
+    control_id: controlId,
+    payment_kind: paymentStatus === "scheduled" ? "scheduled" : paymentStatus === "partial" ? "partial" : "full",
+    status: paymentStatus === "scheduled" ? "scheduled" : "registered",
+    amount_cents: paid,
+    paid_at: paymentDate,
+    scheduled_for: paymentStatus === "scheduled" ? paymentDate : null,
+    bank_account: text(formData, "bank_account"),
+    payment_method: text(formData, "payment_method"),
+    proof_paths: receiptPath ? [receiptPath] : [],
+    notes: text(formData, "notes"),
+    created_by: staff.id,
+  });
+
+  await supabase
+    .from("fiscal_vault_documents")
+    .update({ paid_at: paymentDate })
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId);
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    vault_document_id: vaultDocumentId,
+    action: "registered_financial_payment",
+    new_value: { payment_status: paymentStatus, paid_cents: paid, receipt_path: receiptPath },
+    actor_id: staff.id,
+  });
+
+  revalidatePath(FISCAL_PATH);
+}
+
+export async function archiveVaultDocument(vaultDocumentId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const reason = text(formData, "reason") ?? "Arquivamento solicitado no cofre fiscal.";
+  await supabase
+    .from("fiscal_vault_documents")
+    .update({ archived_at: new Date().toISOString(), status: "archived" })
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId);
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    vault_document_id: vaultDocumentId,
+    action: "archived",
+    reason,
+    actor_id: staff.id,
+  });
   revalidatePath(FISCAL_PATH);
 }
 

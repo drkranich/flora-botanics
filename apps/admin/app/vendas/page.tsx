@@ -48,7 +48,12 @@ export default async function OrdersPage() {
         <Link href="/" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12, marginTop: 10 }}>
           <h1 className="display" style={{ fontSize: 44 }}>Vendas</h1>
-          <SiteChip name={tenant?.name} isPlatformAdmin={session.role === "platform_admin"} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <SiteChip name={tenant?.name} isPlatformAdmin={session.role === "platform_admin"} />
+            <Link href="/vendas/novo" className="btn btn-gold" style={{ padding: "10px 18px", fontSize: 10 }}>
+              + Criar pedido manual
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -103,6 +108,9 @@ export default async function OrdersPage() {
               Os pedidos aparecerão aqui automaticamente assim que o checkout
               Stripe entrar no ar — próxima etapa do roadmap.
             </p>
+            <Link href="/vendas/novo" className="btn btn-gold" style={{ display: "inline-flex", marginTop: 16, padding: "11px 20px", fontSize: 10 }}>
+              Criar pedido manual
+            </Link>
           </div>
         ) : null}
       </div>
