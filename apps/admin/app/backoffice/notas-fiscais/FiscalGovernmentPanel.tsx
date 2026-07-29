@@ -30,7 +30,9 @@ const environmentOptions = [
 
 function formatDateTime(iso: string | null) {
   if (!iso) return "Nunca";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Nunca";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
 function connectionTone(connection: ConnectionRow | undefined) {

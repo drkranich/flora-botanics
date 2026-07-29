@@ -48,6 +48,17 @@ function jsonArray(formData: FormData, key: string) {
     .filter(Boolean);
 }
 
+function fileTitleFromPath(path: string | null) {
+  if (!path) return null;
+  const name = path.split("/").pop() ?? path;
+  return name
+    .replace(/^\d+-[0-9a-f-]+-/i, "")
+    .replace(/\.[^.]+$/, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function booleanValue(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "");
   return value === "on" || value === "true" || value === "1";
@@ -466,7 +477,7 @@ export async function createManualFiscalDocument(formData: FormData): Promise<vo
     due_date: dateValue(formData, "due_date"),
     total_cents: cents(formData, "total"),
     tax_total_cents: cents(formData, "tax_total"),
-    payment_status: requiredText(formData, "payment_status", "Pagamento"),
+    payment_status: text(formData, "payment_status") ?? "paid",
     verification_status: requiredText(formData, "verification_status", "Verificação"),
     origin: requiredText(formData, "origin", "Origem"),
     source_channel: text(formData, "source_channel"),
@@ -523,24 +534,27 @@ export async function createFiscalGuide(formData: FormData): Promise<void> {
   const interest = cents(formData, "interest");
   const penalty = cents(formData, "penalty");
   const updated = cents(formData, "updated") || original + interest + penalty;
+  const guidePath = text(formData, "guide_path");
+  const receiptPath = text(formData, "receipt_path");
+  const inferredName = fileTitleFromPath(guidePath ?? receiptPath);
   const payload = {
     tenant_id: staff.tenantId,
-    guide_type: requiredText(formData, "guide_type", "Tipo de guia"),
-    document_name: requiredText(formData, "document_name", "Documento"),
+    guide_type: text(formData, "guide_type") ?? "other",
+    document_name: text(formData, "document_name") ?? inferredName ?? "Guia fiscal importada",
     competence: text(formData, "competence"),
     due_date: dateValue(formData, "due_date"),
     original_cents: original,
     interest_cents: interest,
     penalty_cents: penalty,
     updated_cents: updated,
-    payment_status: requiredText(formData, "payment_status", "Status de pagamento"),
+    payment_status: text(formData, "payment_status") ?? "open",
     verification_status: requiredText(formData, "verification_status", "Verificação"),
     barcode: text(formData, "barcode"),
     digitable_line: text(formData, "digitable_line"),
     qr_code: text(formData, "qr_code"),
     official_identifier: text(formData, "official_identifier"),
-    guide_path: text(formData, "guide_path"),
-    receipt_path: text(formData, "receipt_path"),
+    guide_path: guidePath,
+    receipt_path: receiptPath,
     notes: text(formData, "notes"),
     created_by: staff.id,
   };
@@ -573,10 +587,12 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
   const staff = await currentStaff();
   if (!staff) return;
   const supabase = await createClient();
+  const storagePath = text(formData, "storage_path");
+  const inferredName = fileTitleFromPath(storagePath);
   const payload = {
     tenant_id: staff.tenantId,
-    name: requiredText(formData, "name", "Nome do documento"),
-    document_type: requiredText(formData, "document_type", "Tipo"),
+    name: text(formData, "name") ?? inferredName ?? "Documento fiscal importado",
+    document_type: text(formData, "document_type") ?? "Arquivo fiscal",
     category: text(formData, "category"),
     department: text(formData, "department"),
     competence: text(formData, "competence"),
@@ -588,9 +604,9 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
     access_key: text(formData, "access_key"),
     number: text(formData, "number"),
     series: text(formData, "series"),
-    origin: requiredText(formData, "origin", "Origem"),
-    status: requiredText(formData, "status", "Status"),
-    storage_path: text(formData, "storage_path"),
+    origin: text(formData, "origin") ?? (storagePath ? "upload" : "manual"),
+    status: text(formData, "status") ?? "open",
+    storage_path: storagePath,
     tags: jsonArray(formData, "tags"),
     notes: text(formData, "notes"),
     created_by: staff.id,
