@@ -59,6 +59,13 @@ function fileTitleFromPath(path: string | null) {
     .trim();
 }
 
+function fileTypeFromPath(path: string | null) {
+  if (!path) return null;
+  const ext = path.split(".").pop()?.toUpperCase().trim();
+  if (!ext || ext === path.toUpperCase()) return null;
+  return ext;
+}
+
 function booleanValue(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "");
   return value === "on" || value === "true" || value === "1";
@@ -674,7 +681,7 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
   const payload = {
     tenant_id: staff.tenantId,
     name: text(formData, "name") ?? inferredName ?? "Documento fiscal importado",
-    document_type: text(formData, "document_type") ?? "Arquivo fiscal",
+    document_type: text(formData, "document_type") ?? fileTypeFromPath(storagePath) ?? "Arquivo fiscal",
     category: text(formData, "category"),
     department: text(formData, "department"),
     competence: text(formData, "competence"),
@@ -694,7 +701,16 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
     created_by: staff.id,
   };
   const { data, error } = await supabase.from("fiscal_vault_documents").insert(payload).select("id").single();
-  if (!error && data) {
+  if (error || !data) {
+    console.error("Falha ao salvar documento no cofre fiscal", {
+      tenantId: staff.tenantId,
+      storagePath,
+      error,
+    });
+    throw new Error(`Não foi possível guardar o documento no cofre fiscal: ${error?.message ?? "registro não retornado"}.`);
+  }
+
+  if (data) {
     if (financialNature !== "not_applicable") {
       const { data: control } = await supabase
         .from("document_financial_controls")

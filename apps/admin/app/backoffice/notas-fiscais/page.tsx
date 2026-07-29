@@ -208,6 +208,12 @@ function FileLink({ path, children }: { path: string | null | undefined; childre
   );
 }
 
+function fileNameFromPath(path: string | null | undefined) {
+  if (!path) return null;
+  const fileName = path.split("/").pop() ?? path;
+  return fileName.replace(/^\d+-[0-9a-f-]+-/i, "");
+}
+
 function SectionTitle({ eyebrow, title, children }: { eyebrow: string; title: string; children?: ReactNode }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
@@ -1003,6 +1009,9 @@ export default async function NotasFiscaisPage() {
                         </small>
                         <small>
                           {doc.archived_at ? `Arquivado em ${formatDate(doc.archived_at)}` : "Documento ativo no cofre"} · origem {doc.origin}
+                        </small>
+                        <small>
+                          Arquivo: {fileNameFromPath(doc.storage_path) ?? "sem arquivo anexado"}
                         </small>
                       </div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

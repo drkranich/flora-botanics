@@ -224,7 +224,7 @@ function FormShell({
   buttonLabel: string;
 }) {
   return (
-    <form action={action} className="glass fiscal-form-card">
+    <form action={action} className="glass fiscal-form-card" noValidate>
       <p className="eyebrow" style={{ marginBottom: 6 }}>{eyebrow}</p>
       <h3 style={formTitleStyle}>{title}</h3>
       <div style={formGridStyle}>{children}</div>
@@ -328,8 +328,8 @@ export function FiscalObligationForm() {
 export function FiscalVaultForm() {
   return (
     <FormShell eyebrow="Cofre fiscal" title="Arquivar documento" action={createFiscalVaultDocument} buttonLabel="Guardar no cofre">
-      <Field label="Nome"><TextInput name="name" required placeholder="DANFE NF-e 123" /></Field>
-      <Field label="Tipo"><TextInput name="document_type" required placeholder="XML, DANFE, DARF, contrato..." /></Field>
+      <Field label="Nome"><TextInput name="name" placeholder="DANFE NF-e 123 ou deixe o arquivo nomear" /></Field>
+      <Field label="Tipo"><TextInput name="document_type" placeholder="XML, DANFE, DARF, contrato..." /></Field>
       <Field label="Categoria"><TextInput name="category" placeholder="Nota, guia, comprovante..." /></Field>
       <Field label="Departamento"><GlassSelect name="department" options={departments} defaultValue="fiscal" inlineMenu /></Field>
       <Field label="Competência"><TextInput name="competence" placeholder="2026-07" /></Field>
