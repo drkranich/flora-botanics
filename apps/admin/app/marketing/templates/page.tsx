@@ -393,10 +393,7 @@ function LandingTemplateCard({
         <input type="hidden" name="testimonial_text" value="Inclua avaliação, garantia, ingrediente ou argumento de confiança." />
         <input type="hidden" name="seo_title" value={preset.title} />
         <input type="hidden" name="seo_description" value={preset.intro} />
-        <div style={cardActionRowStyle}>
-          <button className="btn btn-gold" style={fullWidthButtonStyle}>Criar landing editável</button>
-          <Link href="/marketing/landing-pages" className="btn btn-ghost" style={fullWidthButtonStyle}>Editar landings</Link>
-        </div>
+        <button className="btn btn-gold" style={fullWidthButtonStyle}>Criar este modelo editável</button>
       </form>
     </article>
   );
@@ -815,12 +812,6 @@ const smallButtonStyle: CSSProperties = {
 const fullWidthButtonStyle: CSSProperties = {
   ...smallButtonStyle,
   width: "100%",
-};
-
-const cardActionRowStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr",
-  gap: 8,
 };
 
 const rowStyle: CSSProperties = {

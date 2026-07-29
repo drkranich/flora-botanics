@@ -190,6 +190,30 @@ function dateOnly(formData: FormData, key: string) {
   return value ? new Date(value).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
 }
 
+async function uniqueMarketingLandingSlug(
+  supabase: Awaited<ReturnType<typeof supabaseServer>>,
+  tenantId: string,
+  slug: string
+) {
+  const cleanSlug = slug
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 90);
+
+  const baseSlug = cleanSlug || `landing-${Date.now().toString(36)}`;
+  const { data } = await supabase
+    .from("marketing_landing_pages")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("slug", baseSlug)
+    .maybeSingle();
+
+  return data ? `${baseSlug}-${Date.now().toString(36)}` : baseSlug;
+}
+
 function cents(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").replace(",", ".").trim();
   if (!value) return 0;
@@ -402,11 +426,12 @@ export async function createMarketingJourney(formData: FormData) {
 export async function createMarketingLandingPage(formData: FormData) {
   const { session, tenantId } = await requireMarketingAdmin();
   const supabase = await supabaseServer();
+  const slug = await uniqueMarketingLandingSlug(supabase, tenantId, requiredText(formData, "slug", "o slug"));
 
   const { error } = await supabase.from("marketing_landing_pages").insert({
     tenant_id: tenantId,
     campaign_id: nullableText(formData, "campaign_id"),
-    slug: requiredText(formData, "slug", "o slug"),
+    slug,
     title: requiredText(formData, "title", "o título"),
     template_key: nullableText(formData, "template_key"),
     status: String(formData.get("status") ?? "draft"),
@@ -436,6 +461,111 @@ export async function createMarketingLandingPage(formData: FormData) {
   revalidatePath("/marketing");
   revalidatePath("/marketing/landing-pages");
   redirect("/marketing/landing-pages");
+}
+
+export async function updateMarketingLandingPage(landingPageId: string, formData: FormData) {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase
+    .from("marketing_landing_pages")
+    .update({
+      campaign_id: nullableText(formData, "campaign_id"),
+      slug: requiredText(formData, "slug", "o slug"),
+      title: requiredText(formData, "title", "o título"),
+      template_key: nullableText(formData, "template_key"),
+      status: String(formData.get("status") ?? "draft"),
+      publish_at: datetime(formData, "publish_at"),
+      content: {
+        eyebrow: nullableText(formData, "eyebrow"),
+        headline: nullableText(formData, "headline") ?? requiredText(formData, "title", "o título"),
+        intro: nullableText(formData, "intro"),
+        body: nullableText(formData, "body"),
+        cta_label: nullableText(formData, "cta_label"),
+        cta_url: nullableText(formData, "cta_url"),
+        blocks: guidedLandingBlocks(formData),
+      },
+      seo: {
+        title: nullableText(formData, "seo_title"),
+        description: nullableText(formData, "seo_description"),
+      },
+      utm: {
+        source: nullableText(formData, "utm_source"),
+        medium: nullableText(formData, "utm_medium"),
+        campaign: nullableText(formData, "utm_campaign"),
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", landingPageId)
+    .eq("tenant_id", tenantId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+  revalidatePath("/marketing/landing-pages");
+}
+
+export async function archiveMarketingLandingPage(landingPageId: string) {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase
+    .from("marketing_landing_pages")
+    .update({ status: "archived", updated_at: new Date().toISOString() })
+    .eq("id", landingPageId)
+    .eq("tenant_id", tenantId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+  revalidatePath("/marketing/landing-pages");
+}
+
+export async function deleteMarketingLandingPage(landingPageId: string) {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase
+    .from("marketing_landing_pages")
+    .delete()
+    .eq("id", landingPageId)
+    .eq("tenant_id", tenantId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+  revalidatePath("/marketing/landing-pages");
+}
+
+export async function duplicateMarketingLandingPage(landingPageId: string) {
+  const { session, tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { data: page, error: loadError } = await supabase
+    .from("marketing_landing_pages")
+    .select("campaign_id, slug, title, template_key, content, seo, utm")
+    .eq("id", landingPageId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (loadError) throw new Error(loadError.message);
+  if (!page) throw new Error("Landing page não encontrada.");
+
+  const suffix = Date.now().toString(36);
+  const { error } = await supabase.from("marketing_landing_pages").insert({
+    tenant_id: tenantId,
+    campaign_id: page.campaign_id,
+    slug: `${page.slug}-copia-${suffix}`.slice(0, 120),
+    title: `${page.title} — cópia`,
+    template_key: page.template_key,
+    content: page.content ?? {},
+    seo: page.seo ?? {},
+    utm: page.utm ?? {},
+    status: "draft",
+    publish_at: null,
+    created_by: session.userId,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+  revalidatePath("/marketing/landing-pages");
 }
 
 export async function recordMarketingConsent(formData: FormData) {
