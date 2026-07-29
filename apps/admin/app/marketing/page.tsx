@@ -225,6 +225,90 @@ const PAGE_STATUS_OPTIONS: GlassSelectOption[] = [
   { value: "paused", label: "Pausada" },
 ];
 
+const SEGMENT_PRESET_OPTIONS: GlassSelectOption[] = [
+  { value: "", label: "Escolha um modelo" },
+  { value: "cart_total_min", label: "Carrinho acima de um valor" },
+  { value: "orders_min", label: "Clientes com compras recorrentes" },
+  { value: "last_purchase_days", label: "Cliente sem comprar há X dias" },
+  { value: "product_interest", label: "Interesse por produto ou kit" },
+  { value: "consent_channel", label: "Consentimento por canal" },
+];
+
+const READY_TEMPLATE_CARDS = [
+  {
+    title: "Pedido expedido",
+    category: "Transacional",
+    text: "E-mail com transportadora, código de rastreio, link de acompanhamento e histórico do cliente.",
+    variables: ["customer.first_name", "order.number", "shipment.tracking_code"],
+  },
+  {
+    title: "Carrinho abandonado",
+    category: "Remarketing",
+    text: "Modelo editorial com chamada de retorno, benefício, CTA de compra e parada automática ao converter.",
+    variables: ["customer.first_name", "cart.link", "coupon.code"],
+  },
+  {
+    title: "Pós-venda ritual",
+    category: "Relacionamento",
+    text: "Sequência para instruções de uso, avaliação, recompra e cuidado depois da entrega.",
+    variables: ["customer.first_name", "product.name", "review.link"],
+  },
+  {
+    title: "Proposta B2B",
+    category: "Comercial",
+    text: "Template para lojas, clínicas, hotéis e parceiros com proposta, validade e botão de aceite.",
+    variables: ["company.name", "quote.number", "cta.url"],
+  },
+];
+
+const PROVIDER_CARDS = [
+  {
+    key: "resend",
+    name: "Resend",
+    type: "email",
+    status: "online",
+    scopes: "send,templates,webhooks",
+    text: "E-mails transacionais, marketing, templates e webhooks de abertura, clique e entrega.",
+    secret: "RESEND_API_KEY + RESEND_FROM_EMAIL",
+  },
+  {
+    key: "whatsapp_business",
+    name: "WhatsApp Business",
+    type: "whatsapp",
+    status: "pending",
+    scopes: "templates,messages,webhooks,opt-out",
+    text: "Templates aprovados, rastreamento, pós-venda, respostas e histórico do cliente.",
+    secret: "Token do provedor oficial",
+  },
+  {
+    key: "sms_provider",
+    name: "SMS",
+    type: "sms",
+    status: "pending",
+    scopes: "messages,delivery,costs",
+    text: "Avisos curtos, recuperação, entrega e códigos de rastreio com controle de custo.",
+    secret: "Chave do provedor de SMS",
+  },
+  {
+    key: "meta_ads",
+    name: "Meta Ads",
+    type: "meta_ads",
+    status: "pending",
+    scopes: "campaigns,events,conversions,attribution",
+    text: "Campanhas, UTMs, eventos, conversões e receita atribuída sem duplicar eventos.",
+    secret: "Token Meta + Pixel",
+  },
+  {
+    key: "google_ads",
+    name: "Google Ads",
+    type: "google_ads",
+    status: "pending",
+    scopes: "campaigns,costs,conversions,attribution",
+    text: "Custos, cliques, conversões, termos disponíveis e retorno por campanha.",
+    secret: "OAuth/conta Google Ads",
+  },
+];
+
 function optionRows(rows: { id: string; name?: string; title?: string }[], emptyLabel: string): GlassSelectOption[] {
   return [{ value: "", label: emptyLabel }, ...rows.map((row) => ({ value: row.id, label: row.name ?? row.title ?? row.id }))];
 }
@@ -483,8 +567,43 @@ export default async function MarketingPage() {
         </div>
       </section>
 
+      <section className="glass rise rise-1" style={cardStyle}>
+        <div style={sectionHeaderInlineStyle}>
+          <div>
+            <p className="eyebrow" style={{ marginBottom: 8 }}>Templates prontos para usar</p>
+            <h2 style={{ margin: 0, fontSize: 28 }}>Modelos Flora editáveis, sem programação</h2>
+            <p className="muted" style={{ ...mutedTextStyle, maxWidth: 820, marginTop: 8 }}>
+              Escolha um modelo, instale no tenant e ajuste no editor visual. As variáveis são preenchidas pelo
+              sistema a partir de clientes, pedidos, carrinhos, etiquetas, cupons e campanhas.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <Link href="./marketing/templates" className="btn btn-gold" style={{ padding: "9px 16px", fontSize: 10 }}>
+              Abrir modelos
+            </Link>
+            <Link href="./backoffice/mensagens" className="btn btn-ghost" style={{ padding: "9px 16px", fontSize: 10 }}>
+              Editor visual
+            </Link>
+          </div>
+        </div>
+        <div style={readyTemplateGridStyle}>
+          {READY_TEMPLATE_CARDS.map((template) => (
+            <article key={template.title} style={readyTemplateCardStyle}>
+              <span className="chip chip-draft">{template.category}</span>
+              <h3 style={{ margin: "14px 0 8px", fontSize: 21 }}>{template.title}</h3>
+              <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{template.text}</p>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+                {template.variables.map((variable) => (
+                  <span key={variable} style={variablePillStyle}>{`{{${variable}}}`}</span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section id="campanhas" style={twoColumnStyle}>
-        <Panel title="Campanhas multicanal" eyebrow="Campanhas" actionHref="/vendas/campanhas" actionLabel="Abrir campanhas">
+        <Panel title="Campanhas multicanal" eyebrow="Campanhas" actionHref="./vendas/campanhas" actionLabel="Abrir campanhas">
           <p className="muted" style={mutedTextStyle}>
             Uma campanha pode combinar e-mail, SMS, WhatsApp, landing page, cupons, Meta Ads,
             Google Ads e públicos de remarketing com métricas próprias por canal.
@@ -549,7 +668,7 @@ export default async function MarketingPage() {
       </section>
 
       <section id="e-mail-marketing" style={twoColumnStyle}>
-        <Panel title="Biblioteca de templates" eyebrow="Templates / Resend" actionHref="/marketing/templates" actionLabel="Abrir biblioteca">
+        <Panel title="Biblioteca de templates" eyebrow="Templates / Resend" actionHref="./marketing/templates" actionLabel="Abrir biblioteca">
           <p className="muted" style={mutedTextStyle}>
             Modelos Flora prontos para lançamento, promoção, boas-vindas, rastreamento,
             carrinho abandonado, pós-venda, B2B, orçamento e datas comemorativas.
@@ -591,10 +710,24 @@ export default async function MarketingPage() {
             <Field label="Tags">
               <input name="tags" style={inputStyle} placeholder="skincare, recorrente, alto valor" />
             </Field>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Filtros em JSON</label>
-              <textarea name="filters" rows={4} style={textareaStyle} placeholder='{"cidade":"São Paulo","pedidos_minimos":2}' />
-            </div>
+            <Field label="Modelo pronto">
+              <GlassSelect name="segment_preset" options={SEGMENT_PRESET_OPTIONS} ariaLabel="Modelo do público" inlineMenu />
+            </Field>
+            <Field label="Cidade">
+              <input name="city" style={inputStyle} placeholder="São Paulo" />
+            </Field>
+            <Field label="Estado">
+              <input name="state" style={inputStyle} placeholder="SP" />
+            </Field>
+            <Field label="Origem">
+              <input name="source" style={inputStyle} placeholder="site, campanha, checkout" />
+            </Field>
+            <Field label="Valor mínimo do carrinho">
+              <input name="cart_total_min" style={inputStyle} placeholder="150,00" inputMode="decimal" />
+            </Field>
+            <Field label="Pedidos mínimos">
+              <input name="orders_min" style={inputStyle} placeholder="2" inputMode="numeric" />
+            </Field>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>Descrição</label>
               <textarea name="description" rows={3} style={textareaStyle} placeholder="Critério comercial e objetivo deste público." />
@@ -617,10 +750,21 @@ export default async function MarketingPage() {
             <Field label="Tags">
               <input name="tags" style={inputStyle} placeholder="carrinho, remarketing" />
             </Field>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Filtros em JSON</label>
-              <textarea name="filters" rows={4} style={textareaStyle} placeholder='{"cart_total_min":15000,"consent.email":"granted"}' />
-            </div>
+            <Field label="Modelo pronto">
+              <GlassSelect name="segment_preset" options={SEGMENT_PRESET_OPTIONS} ariaLabel="Modelo do segmento" inlineMenu />
+            </Field>
+            <Field label="Valor mínimo do carrinho">
+              <input name="cart_total_min" style={inputStyle} placeholder="150,00" inputMode="decimal" />
+            </Field>
+            <Field label="Produto ou kit">
+              <input name="product_interest" style={inputStyle} placeholder="Sérum, Ritual das Camadas..." />
+            </Field>
+            <Field label="Canal com consentimento">
+              <GlassSelect name="consent_channel" options={CONSENT_CHANNEL_OPTIONS} ariaLabel="Canal com consentimento" inlineMenu />
+            </Field>
+            <Field label="Dias sem compra">
+              <input name="last_purchase_days" style={inputStyle} placeholder="60" inputMode="numeric" />
+            </Field>
             <button className="btn btn-gold" style={buttonStyle}>Criar segmento</button>
           </form>
         </Panel>
@@ -647,10 +791,7 @@ export default async function MarketingPage() {
             <Field label="Status">
               <GlassSelect name="status" options={STATUS_OPTIONS} ariaLabel="Status da jornada" inlineMenu />
             </Field>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Regras de agenda</label>
-              <textarea name="schedule_rules" rows={3} style={textareaStyle} placeholder='{"timezone":"America/Sao_Paulo","quiet_hours":["21:00","08:00"]}' />
-            </div>
+            <input type="hidden" name="schedule_rules" value='{"timezone":"America/Sao_Paulo","quiet_hours":["21:00","08:00"]}' />
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>Descrição</label>
               <textarea name="description" rows={3} style={textareaStyle} placeholder="Objetivo, condição de parada e cuidado com consentimento." />
@@ -694,9 +835,7 @@ export default async function MarketingPage() {
             <Field label="Publicar em">
               <GlassDateInput name="publish_at" withTime placeholder="Opcional" inlinePopover />
             </Field>
-            <Field label="Template">
-              <input name="template_key" style={inputStyle} placeholder="editorial-campanha" />
-            </Field>
+            <input type="hidden" name="template_key" value="editorial-campanha" />
             <Field label="Chamada curta">
               <input name="eyebrow" style={inputStyle} placeholder="Lançamento Flora" />
             </Field>
@@ -717,10 +856,24 @@ export default async function MarketingPage() {
               <label style={labelStyle}>Texto da landing</label>
               <textarea name="body" rows={5} style={textareaStyle} placeholder="Conteúdo principal publicado no storefront." />
             </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Blocos JSON</label>
-              <textarea name="blocks" rows={4} style={textareaStyle} placeholder='[{"type":"benefit","title":"Benefício","text":"Texto curto"}]' />
-            </div>
+            <Field label="Bloco 1: benefício">
+              <input name="benefit_title" style={inputStyle} placeholder="Benefício principal" />
+            </Field>
+            <Field label="Texto do benefício">
+              <input name="benefit_text" style={inputStyle} placeholder="O que esta campanha entrega para o cliente." />
+            </Field>
+            <Field label="Bloco 2: produto ou kit">
+              <input name="product_title" style={inputStyle} placeholder="Produto, kit ou ritual" />
+            </Field>
+            <Field label="Texto do produto">
+              <input name="product_text" style={inputStyle} placeholder="Resumo curto do item promovido." />
+            </Field>
+            <Field label="Bloco 3: prova social">
+              <input name="testimonial_title" style={inputStyle} placeholder="Depoimento, avaliação ou garantia" />
+            </Field>
+            <Field label="Texto da prova social">
+              <input name="testimonial_text" style={inputStyle} placeholder="Frase de apoio para aumentar confiança." />
+            </Field>
             <Field label="SEO título">
               <input name="seo_title" style={inputStyle} placeholder="Título para busca" />
             </Field>
@@ -800,10 +953,27 @@ export default async function MarketingPage() {
             <Field label="Prioridade">
               <input name="priority" style={inputStyle} placeholder="5" inputMode="numeric" />
             </Field>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Payload JSON</label>
-              <textarea name="payload" rows={3} style={textareaStyle} placeholder='{"customer.first_name":"Gustavo","order.number":"1001"}' />
-            </div>
+            <Field label="Nome do cliente">
+              <input name="customer_first_name" style={inputStyle} placeholder="Gustavo" />
+            </Field>
+            <Field label="Número do pedido">
+              <input name="order_number" style={inputStyle} placeholder="1001" />
+            </Field>
+            <Field label="Valor do pedido">
+              <input name="order_value" style={inputStyle} placeholder="R$ 189,90" />
+            </Field>
+            <Field label="Código de rastreio">
+              <input name="shipment_tracking_code" style={inputStyle} placeholder="BR123456789" />
+            </Field>
+            <Field label="Link de rastreio">
+              <input name="shipment_tracking_url" style={inputStyle} placeholder="https://..." />
+            </Field>
+            <Field label="Cupom">
+              <input name="coupon_code" style={inputStyle} placeholder="VOLTE10" />
+            </Field>
+            <Field label="Link do botão">
+              <input name="cta_url" style={inputStyle} placeholder="https://florabotanics.com.br/..." />
+            </Field>
             <button className="btn btn-gold" style={buttonStyle}>Enfileirar envio</button>
           </form>
         </Panel>
@@ -904,10 +1074,7 @@ export default async function MarketingPage() {
             <Field label="Responsável">
               <input name="owner_name" style={inputStyle} placeholder="Equipe ou responsável" />
             </Field>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Metadados JSON</label>
-              <textarea name="metadata" rows={3} style={textareaStyle} placeholder='{"tarefa":"validar criativo","prioridade":"alta"}' />
-            </div>
+            <input type="hidden" name="metadata" value="{}" />
             <button className="btn btn-gold" style={buttonStyle}>Adicionar ao calendário</button>
           </form>
         </Panel>
@@ -998,10 +1165,7 @@ export default async function MarketingPage() {
             <Field label="Descrição">
               <input name="description" required style={inputStyle} placeholder="Disparo, criativo, mídia, agência..." />
             </Field>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Metadados JSON</label>
-              <textarea name="metadata" rows={3} style={textareaStyle} placeholder='{"invoice":"NF 123","observacao":"campanha julho"}' />
-            </div>
+            <input type="hidden" name="metadata" value="{}" />
             <button className="btn btn-gold" style={buttonStyle}>Registrar custo</button>
           </form>
         </Panel>
@@ -1024,32 +1188,35 @@ export default async function MarketingPage() {
       </section>
 
       <section id="integracoes" style={twoColumnStyle}>
-        <Panel title="Provedores e integrações" eyebrow="SMS / WhatsApp / Ads / Webhooks">
-          <form action={upsertMarketingProviderConnection} style={formGridStyle}>
-            <Field label="Chave">
-              <input name="provider_key" required style={inputStyle} placeholder="resend, twilio, zenvia, meta_ads..." />
-            </Field>
-            <Field label="Nome">
-              <input name="display_name" required style={inputStyle} placeholder="Resend" />
-            </Field>
-            <Field label="Tipo">
-              <GlassSelect name="provider_type" options={PROVIDER_TYPE_OPTIONS} ariaLabel="Tipo de provedor" inlineMenu />
-            </Field>
-            <Field label="Status">
-              <GlassSelect name="status" options={PROVIDER_STATUS_OPTIONS} ariaLabel="Status do provedor" inlineMenu />
-            </Field>
-            <Field label="Escopos">
-              <input name="scopes" style={inputStyle} placeholder="send, templates, webhooks" />
-            </Field>
-            <Field label="Última sincronização">
-              <GlassDateInput name="last_sync_at" withTime placeholder="Opcional" inlinePopover />
-            </Field>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Configuração pública JSON</label>
-              <textarea name="config" rows={3} style={textareaStyle} placeholder='{"secret_names":["RESEND_API_KEY"],"requires_oauth":false}' />
-            </div>
-            <button className="btn btn-gold" style={buttonStyle}>Salvar provedor</button>
-          </form>
+        <Panel title="Conectar APIs" eyebrow="SMS / WhatsApp / Ads / Webhooks">
+          <p className="muted" style={mutedTextStyle}>
+            Cadastre a conexão operacional sem expor segredo na tela. As chaves continuam em Secrets do
+            Cloudflare/Supabase; aqui o CMS apenas sabe qual provedor está ativo e o que ele pode fazer.
+          </p>
+          <div style={providerCardGridStyle}>
+            {PROVIDER_CARDS.map((provider) => (
+              <form key={provider.key} action={upsertMarketingProviderConnection} style={providerCardStyle}>
+                <input type="hidden" name="provider_key" value={provider.key} />
+                <input type="hidden" name="display_name" value={provider.name} />
+                <input type="hidden" name="provider_type" value={provider.type} />
+                <input type="hidden" name="status" value={provider.status} />
+                <input type="hidden" name="environment" value="production" />
+                <input type="hidden" name="scopes" value={provider.scopes} />
+                <input type="hidden" name="config" value={`{"secret_hint":"${provider.secret}"}`} />
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                  <span className={provider.status === "online" ? "chip chip-live" : "chip chip-draft"}>
+                    {provider.status === "online" ? "Pronto" : "Preparado"}
+                  </span>
+                  <span className="muted" style={{ fontSize: 10 }}>{provider.secret}</span>
+                </div>
+                <h3 style={{ margin: "12px 0 8px", fontSize: 20 }}>{provider.name}</h3>
+                <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{provider.text}</p>
+                <button className={provider.status === "online" ? "btn btn-gold" : "btn btn-ghost"} style={{ ...buttonStyle, marginTop: 16 }}>
+                  Salvar conexão
+                </button>
+              </form>
+            ))}
+          </div>
         </Panel>
 
         <Panel title="Status dos provedores" eyebrow="Monitoramento">
@@ -1136,10 +1303,18 @@ export default async function MarketingPage() {
               <label style={labelStyle}>Hipótese</label>
               <textarea name="hypothesis" rows={3} style={textareaStyle} placeholder="O assunto com benefício direto deve gerar mais cliques." />
             </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Variantes JSON</label>
-              <textarea name="variants" rows={4} style={textareaStyle} placeholder='[{"name":"A","subject":"Sua rotina Flora"},{"name":"B","subject":"10% para repor seu cuidado"}]' />
-            </div>
+            <Field label="Variante A: assunto">
+              <input name="variant_a_subject" style={inputStyle} placeholder="Sua rotina Flora chegou" />
+            </Field>
+            <Field label="Variante A: botão">
+              <input name="variant_a_cta" style={inputStyle} placeholder="Conhecer agora" />
+            </Field>
+            <Field label="Variante B: assunto">
+              <input name="variant_b_subject" style={inputStyle} placeholder="10% para repor seu cuidado" />
+            </Field>
+            <Field label="Variante B: botão">
+              <input name="variant_b_cta" style={inputStyle} placeholder="Usar benefício" />
+            </Field>
             <button className="btn btn-gold" style={buttonStyle}>Criar teste</button>
           </form>
         </Panel>
@@ -1175,13 +1350,13 @@ export default async function MarketingPage() {
 
         <Panel title="Exportações" eyebrow="PDF / CSV / XLSX">
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-            <Link href="/marketing/exportar?format=pdf" className="btn btn-gold" style={{ padding: "8px 14px", fontSize: 10 }}>
+            <Link href="./marketing/exportar?format=pdf" className="btn btn-gold" style={{ padding: "8px 14px", fontSize: 10 }}>
               Baixar PDF
             </Link>
-            <Link href="/marketing/exportar?format=csv" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
+            <Link href="./marketing/exportar?format=csv" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
               Baixar CSV
             </Link>
-            <Link href="/marketing/exportar?format=xlsx" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
+            <Link href="./marketing/exportar?format=xlsx" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
               Baixar XLSX
             </Link>
           </div>
@@ -1192,10 +1367,15 @@ export default async function MarketingPage() {
             <Field label="Formato">
               <GlassSelect name="format" options={REPORT_FORMAT_OPTIONS} ariaLabel="Formato do relatório" inlineMenu />
             </Field>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Filtros JSON</label>
-              <textarea name="filters" rows={3} style={textareaStyle} placeholder='{"período":"30d","canal":"email"}' />
-            </div>
+            <Field label="Canal">
+              <GlassSelect name="channel" options={CHANNEL_OPTIONS} ariaLabel="Canal do relatório" inlineMenu />
+            </Field>
+            <Field label="Cidade">
+              <input name="city" style={inputStyle} placeholder="São Paulo" />
+            </Field>
+            <Field label="Origem">
+              <input name="source" style={inputStyle} placeholder="newsletter, meta, google..." />
+            </Field>
             <button className="btn btn-gold" style={buttonStyle}>Gerar exportação</button>
           </form>
           <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
@@ -1231,7 +1411,7 @@ export default async function MarketingPage() {
 function Header() {
   return (
     <header className="rise" style={{ marginBottom: 26 }}>
-      <Link href="/" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
+      <Link href="./" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
       <h1 className="display" style={{ fontSize: 42, marginTop: 10 }}>Marketing e Relacionamento</h1>
       <p className="muted" style={{ maxWidth: 850, lineHeight: 1.7, marginTop: 10 }}>
         Central integrada para campanhas, públicos, automações, templates, e-mail marketing,
@@ -1449,6 +1629,53 @@ const formGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: 12,
+};
+
+const sectionHeaderInlineStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: 18,
+  flexWrap: "wrap",
+  marginBottom: 18,
+};
+
+const readyTemplateGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 12,
+};
+
+const readyTemplateCardStyle: CSSProperties = {
+  border: "1px solid var(--glass-border)",
+  borderRadius: 14,
+  padding: 16,
+  background: "linear-gradient(135deg, rgba(255,248,234,0.08), rgba(185,146,77,0.06))",
+  minHeight: 190,
+};
+
+const variablePillStyle: CSSProperties = {
+  border: "1px solid rgba(217, 184, 122, 0.34)",
+  borderRadius: 999,
+  padding: "4px 8px",
+  color: "var(--gold-light)",
+  background: "rgba(185, 146, 77, 0.10)",
+  fontSize: 10,
+  fontWeight: 800,
+};
+
+const providerCardGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+  gap: 12,
+  marginTop: 14,
+};
+
+const providerCardStyle: CSSProperties = {
+  border: "1px solid var(--glass-border)",
+  borderRadius: 14,
+  padding: 16,
+  background: "rgba(10, 22, 11, 0.38)",
 };
 
 const labelStyle: CSSProperties = {

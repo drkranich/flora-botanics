@@ -100,7 +100,7 @@ export default async function MarketingTemplatesPage() {
             <p className="eyebrow" style={{ marginBottom: 8 }}>Biblioteca completa de modelos</p>
             <h2 style={{ margin: 0, fontSize: 28 }}>Instalar modelos prontos da Flora</h2>
           </div>
-          <Link href="/marketing" className="btn btn-ghost" style={smallButtonStyle}>Voltar ao Marketing</Link>
+          <Link href="../marketing" className="btn btn-ghost" style={smallButtonStyle}>Voltar ao Marketing</Link>
         </div>
 
         <div style={blueprintGridStyle}>
@@ -157,8 +157,8 @@ export default async function MarketingTemplatesPage() {
               <input name="language" defaultValue="pt-BR" style={inputStyle} />
             </Field>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Variáveis JSON</label>
-              <textarea name="variables" rows={3} style={textareaStyle} placeholder='["customer.first_name","order.number","cta.url"]' />
+              <label style={labelStyle}>Variáveis disponíveis</label>
+              <textarea name="variables" rows={3} style={textareaStyle} placeholder="customer.first_name, order.number, cta.url" />
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>Prévia</label>
@@ -184,7 +184,7 @@ export default async function MarketingTemplatesPage() {
               <p className="eyebrow" style={{ marginBottom: 8 }}>Templates do tenant</p>
               <h2 style={{ margin: 0, fontSize: 24 }}>Modelos editáveis</h2>
             </div>
-            <Link href="/backoffice/mensagens" className="btn btn-ghost" style={smallButtonStyle}>Editor visual</Link>
+            <Link href="../backoffice/mensagens" className="btn btn-ghost" style={smallButtonStyle}>Editor visual</Link>
           </div>
           {templateRows.length === 0 ? (
             <p className="muted" style={{ margin: 0, lineHeight: 1.7 }}>
@@ -213,7 +213,7 @@ export default async function MarketingTemplatesPage() {
 function Header() {
   return (
     <header className="rise" style={{ marginBottom: 26 }}>
-      <Link href="/marketing" className="eyebrow" style={{ opacity: 0.8 }}>← Marketing e Relacionamento</Link>
+      <Link href="../marketing" className="eyebrow" style={{ opacity: 0.8 }}>← Marketing e Relacionamento</Link>
       <h1 className="display" style={{ fontSize: 42, marginTop: 10 }}>Templates de e-mail e mensagens</h1>
       <p className="muted" style={{ maxWidth: 820, lineHeight: 1.7, marginTop: 10 }}>
         Biblioteca de modelos Flora para Resend, SMS, WhatsApp e mensagens transacionais,

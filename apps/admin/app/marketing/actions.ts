@@ -71,6 +71,110 @@ function jsonArray(formData: FormData, key: string) {
   }
 }
 
+function textListOrJsonArray(formData: FormData, key: string) {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (!raw) return [];
+  if (raw.startsWith("[")) return jsonArray(formData, key).map(String);
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 80);
+}
+
+function guidedFilters(formData: FormData) {
+  const raw = jsonObject(formData, "filters");
+  const filters: Record<string, unknown> = { ...raw };
+  const entries = [
+    ["city", "cidade"],
+    ["state", "estado"],
+    ["source", "origem"],
+    ["channel", "canal"],
+    ["product_interest", "produto"],
+    ["consent_channel", "consentimento"],
+    ["cart_total_min", "valor_minimo_carrinho"],
+    ["orders_min", "pedidos_minimos"],
+    ["last_purchase_days", "dias_desde_ultima_compra"],
+  ] as const;
+
+  for (const [field, key] of entries) {
+    const value = nullableText(formData, field);
+    if (!value) continue;
+    filters[key] = ["cart_total_min", "orders_min", "last_purchase_days"].includes(field)
+      ? Number(value.replace(",", "."))
+      : value;
+  }
+
+  return filters;
+}
+
+function guidedLandingBlocks(formData: FormData) {
+  const raw = jsonArray(formData, "blocks");
+  if (raw.length) return raw;
+
+  return [
+    {
+      type: "benefit",
+      title: nullableText(formData, "benefit_title"),
+      text: nullableText(formData, "benefit_text"),
+    },
+    {
+      type: "product",
+      title: nullableText(formData, "product_title"),
+      text: nullableText(formData, "product_text"),
+    },
+    {
+      type: "testimonial",
+      title: nullableText(formData, "testimonial_title"),
+      text: nullableText(formData, "testimonial_text"),
+    },
+  ].filter((block) => block.title || block.text);
+}
+
+function guidedQueuePayload(formData: FormData) {
+  const raw = jsonObject(formData, "payload");
+  const payload: Record<string, unknown> = { ...raw };
+  const entries = [
+    ["customer_first_name", "customer.first_name"],
+    ["customer_name", "customer.name"],
+    ["order_number", "order.number"],
+    ["order_value", "order.value"],
+    ["shipment_tracking_code", "shipment.tracking_code"],
+    ["shipment_tracking_url", "shipment.tracking_url"],
+    ["coupon_code", "coupon.code"],
+    ["coupon_expires_at", "coupon.expires_at"],
+    ["subscription_next_billing_date", "subscription.next_billing_date"],
+    ["cta_url", "cta.url"],
+  ] as const;
+
+  for (const [field, key] of entries) {
+    const value = nullableText(formData, field);
+    if (value) payload[key] = value;
+  }
+
+  return payload;
+}
+
+function guidedAbVariants(formData: FormData) {
+  const raw = jsonArray(formData, "variants");
+  if (raw.length) return raw;
+
+  return [
+    {
+      name: "A",
+      subject: nullableText(formData, "variant_a_subject"),
+      preheader: nullableText(formData, "variant_a_preheader"),
+      cta: nullableText(formData, "variant_a_cta"),
+    },
+    {
+      name: "B",
+      subject: nullableText(formData, "variant_b_subject"),
+      preheader: nullableText(formData, "variant_b_preheader"),
+      cta: nullableText(formData, "variant_b_cta"),
+    },
+  ].filter((variant) => variant.subject || variant.preheader || variant.cta);
+}
+
 function datetime(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
   return value ? new Date(value).toISOString() : null;
@@ -192,7 +296,7 @@ export async function createMarketingAudience(formData: FormData) {
     name: requiredText(formData, "name", "o nome do público"),
     description: nullableText(formData, "description"),
     audience_type: String(formData.get("audience_type") ?? "dynamic"),
-    filters: jsonObject(formData, "filters"),
+    filters: guidedFilters(formData),
     tags: textList(formData, "tags"),
     created_by: session.userId,
   });
@@ -211,7 +315,7 @@ export async function createMarketingSegment(formData: FormData) {
     name: requiredText(formData, "name", "o nome do segmento"),
     description: nullableText(formData, "description"),
     segment_type: String(formData.get("segment_type") ?? "dynamic"),
-    filters: jsonObject(formData, "filters"),
+    filters: guidedFilters(formData),
     tags: textList(formData, "tags"),
     created_by: session.userId,
   });
@@ -309,7 +413,7 @@ export async function createMarketingLandingPage(formData: FormData) {
       body: nullableText(formData, "body"),
       cta_label: nullableText(formData, "cta_label"),
       cta_url: nullableText(formData, "cta_url"),
-      blocks: jsonArray(formData, "blocks"),
+      blocks: guidedLandingBlocks(formData),
     },
     seo: {
       title: nullableText(formData, "seo_title"),
@@ -360,7 +464,7 @@ export async function createMarketingQueueItem(formData: FormData) {
     template_id: nullableText(formData, "template_id"),
     channel,
     recipient,
-    payload: jsonObject(formData, "payload"),
+    payload: guidedQueuePayload(formData),
     run_at: datetime(formData, "run_at") ?? new Date().toISOString(),
     priority: Number(String(formData.get("priority") ?? "5")) || 5,
     idempotency_key: idempotencyKey,
@@ -651,7 +755,7 @@ export async function createMarketingReportExport(formData: FormData) {
   const supabase = await supabaseServer();
   const reportType = requiredText(formData, "report_type", "o tipo de relatório");
   const format = requiredText(formData, "format", "o formato");
-  const filters = jsonObject(formData, "filters");
+  const filters = guidedFilters(formData);
   const params = new URLSearchParams({ format, report: reportType });
 
   const { error } = await supabase.from("marketing_report_exports").insert({
@@ -682,7 +786,7 @@ export async function createMarketingAbTest(formData: FormData) {
     sample_size: Number(String(formData.get("sample_size") ?? "")) || null,
     winner_metric: nullableText(formData, "winner_metric"),
     status: String(formData.get("status") ?? "draft"),
-    variants: jsonArray(formData, "variants"),
+    variants: guidedAbVariants(formData),
     starts_at: datetime(formData, "starts_at"),
     ends_at: datetime(formData, "ends_at"),
     created_by: session.userId,
@@ -768,7 +872,7 @@ export async function createMarketingTemplate(formData: FormData) {
   const name = requiredText(formData, "name", "o nome do template");
   const channel = requiredText(formData, "channel", "o canal");
   const body = requiredText(formData, "body", "o conteúdo");
-  const variables = jsonArray(formData, "variables");
+  const variables = textListOrJsonArray(formData, "variables");
 
   const { error } = await supabase.from("message_templates").insert({
     tenant_id: tenantId,
