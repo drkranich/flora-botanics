@@ -899,6 +899,17 @@ select option:focus {
   transform: translateY(-1px);
 }
 
+.fiscal-subsection-link-active {
+  color: var(--forest-950);
+  border-color: rgba(var(--gold-rgb), 0.78);
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  box-shadow: 0 10px 26px rgba(var(--gold-rgb), 0.22);
+}
+
+.fiscal-section-hidden {
+  display: none !important;
+}
+
 .fiscal-file-link {
   display: inline-flex;
   align-items: center;
