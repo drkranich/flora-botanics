@@ -86,21 +86,15 @@ export async function POST(req: NextRequest) {
     const path = `${tenantId}/${Date.now()}-${clean}`;
     const bytes = await file.arrayBuffer();
     const admin = await createAdminClient();
+    const writer = admin ?? (await supabaseServer());
 
-    if (!admin) {
-      return jsonError(
-        "Upload indisponível: configure SUPABASE_SERVICE_ROLE_KEY nos secrets do Worker flora-admin.",
-        500
-      );
-    }
-
-    const { error: uploadError } = await admin.storage
+    const { error: uploadError } = await writer.storage
       .from("media")
       .upload(path, bytes, { cacheControl: "31536000", upsert: false, contentType: file.type });
 
     if (uploadError) return jsonError(uploadError.message);
 
-    const { data, error: insertError } = await admin
+    const { data, error: insertError } = await writer
       .from("media")
       .insert({
         tenant_id: tenantId,
@@ -114,14 +108,14 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (insertError) {
-      await admin.storage.from("media").remove([path]).catch(() => undefined);
+      await writer.storage.from("media").remove([path]).catch(() => undefined);
       return jsonError(insertError.message);
     }
 
     return NextResponse.json({
       item: {
         ...data,
-        public_url: admin.storage.from("media").getPublicUrl(data.storage_path).data.publicUrl,
+        public_url: writer.storage.from("media").getPublicUrl(data.storage_path).data.publicUrl,
       },
     });
   } catch (err) {

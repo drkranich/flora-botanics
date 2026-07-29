@@ -23,6 +23,7 @@ import {
   requeueMarketingDeadLetters,
   requestCampaignApproval,
   reviewCampaignApproval,
+  testMarketingProviderConnection,
   upsertMarketingProviderConnection,
 } from "./actions";
 
@@ -45,8 +46,20 @@ type QueueRow = { id: string; channel: string; recipient: string; status: string
 type CalendarRow = { id: string; title: string; item_type: string; channel: string | null; starts_at: string; status: string; owner_name: string | null };
 type ApprovalRow = { id: string; campaign_id: string; status: string; reason: string | null; decision_notes: string | null; requested_at: string };
 type CostRow = { id: string; campaign_id: string | null; channel: string | null; provider: string | null; cost_type: string; description: string; quantity: number; unit_cost_cents: number; total_cost_cents: number; occurred_at: string };
-type ProviderRow = { id: string; provider_key: string; provider_type: string; display_name: string; status: string; environment: string; last_sync_at: string | null; last_error: string | null };
+type ProviderRow = {
+  id: string;
+  provider_key: string;
+  provider_type: string;
+  display_name: string;
+  status: string;
+  environment: string;
+  last_sync_at: string | null;
+  last_error: string | null;
+  config: Record<string, unknown> | null;
+  scopes: string[] | null;
+};
 type WebhookRow = { id: string; provider: string; event_type: string; created_at: string; queue_id: string | null };
+type ProviderLogRow = { id: string; provider: string; action: string; status: string; latency_ms: number | null; error_message: string | null; created_at: string };
 type TimelineRow = { id: string; channel: string | null; event_type: string; title: string; description: string | null; occurred_at: string };
 type ExportRow = { id: string; report_type: string; format: string; status: string; file_url: string | null; created_at: string };
 type AbTestRow = { id: string; name: string; status: string; variable: string; winner_metric: string | null; starts_at: string | null; ends_at: string | null };
@@ -102,6 +115,11 @@ const PROVIDER_STATUS_OPTIONS: GlassSelectOption[] = [
   { value: "pending", label: "Pendente" },
   { value: "error", label: "Erro" },
   { value: "paused", label: "Pausado" },
+];
+
+const PROVIDER_ENVIRONMENT_OPTIONS: GlassSelectOption[] = [
+  { value: "production", label: "Produção" },
+  { value: "test", label: "Teste" },
 ];
 
 const REPORT_FORMAT_OPTIONS: GlassSelectOption[] = [
@@ -270,6 +288,13 @@ const PROVIDER_CARDS = [
     scopes: "send,templates,webhooks",
     text: "E-mails transacionais, marketing, templates e webhooks de abertura, clique e entrega.",
     secret: "RESEND_API_KEY + RESEND_FROM_EMAIL",
+    secretNames: "RESEND_API_KEY, RESEND_FROM_EMAIL, RESEND_WEBHOOK_SECRET",
+    setup: ["Remetente verificado", "Webhook Resend ativo", "Templates transacionais instalados"],
+    fields: {
+      account: "contato@florabotanics.com.br",
+      webhook: "https://mbpvzhcrimdwcqkqvoqr.supabase.co/functions/v1/resend-webhook",
+      sender: "Flora Botanics <contato@florabotanics.com.br>",
+    },
   },
   {
     key: "whatsapp_business",
@@ -279,6 +304,13 @@ const PROVIDER_CARDS = [
     scopes: "templates,messages,webhooks,opt-out",
     text: "Templates aprovados, rastreamento, pós-venda, respostas e histórico do cliente.",
     secret: "Token do provedor oficial",
+    secretNames: "WHATSAPP_PROVIDER_TOKEN, WHATSAPP_WEBHOOK_SECRET",
+    setup: ["Conta oficial aprovada", "Templates sincronizados", "Webhook de entrega e resposta"],
+    fields: {
+      account: "ID da conta WhatsApp Business",
+      webhook: "URL do webhook do provedor",
+      sender: "Número remetente aprovado",
+    },
   },
   {
     key: "sms_provider",
@@ -288,6 +320,13 @@ const PROVIDER_CARDS = [
     scopes: "messages,delivery,costs",
     text: "Avisos curtos, recuperação, entrega e códigos de rastreio com controle de custo.",
     secret: "Chave do provedor de SMS",
+    secretNames: "SMS_PROVIDER_API_KEY, SMS_WEBHOOK_SECRET",
+    setup: ["Provedor contratado", "Remetente validado", "Status de entrega habilitado"],
+    fields: {
+      account: "Conta ou subconta SMS",
+      webhook: "URL de status de entrega",
+      sender: "Nome/número remetente",
+    },
   },
   {
     key: "meta_ads",
@@ -297,6 +336,13 @@ const PROVIDER_CARDS = [
     scopes: "campaigns,events,conversions,attribution",
     text: "Campanhas, UTMs, eventos, conversões e receita atribuída sem duplicar eventos.",
     secret: "Token Meta + Pixel",
+    secretNames: "META_ACCESS_TOKEN, META_PIXEL_ID",
+    setup: ["Conta de anúncios conectada", "Pixel informado", "Deduplicação por event_id"],
+    fields: {
+      account: "Conta de anúncios / Pixel",
+      webhook: "Webhook de conversões",
+      sender: "Business Manager",
+    },
   },
   {
     key: "google_ads",
@@ -306,6 +352,13 @@ const PROVIDER_CARDS = [
     scopes: "campaigns,costs,conversions,attribution",
     text: "Custos, cliques, conversões, termos disponíveis e retorno por campanha.",
     secret: "OAuth/conta Google Ads",
+    secretNames: "GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_REFRESH_TOKEN",
+    setup: ["OAuth autorizado", "Customer ID vinculado", "Conversões configuradas"],
+    fields: {
+      account: "Customer ID Google Ads",
+      webhook: "Endpoint de conversões",
+      sender: "Conta Google autorizada",
+    },
   },
 ];
 
@@ -360,6 +413,7 @@ export default async function MarketingPage() {
     approvalsRes,
     costsRes,
     providersRes,
+    providerLogsRes,
     webhooksRes,
     timelineRes,
     exportsRes,
@@ -451,10 +505,16 @@ export default async function MarketingPage() {
       .limit(80),
     supabase
       .from("marketing_provider_connections")
-      .select("id, provider_key, provider_type, display_name, status, environment, last_sync_at, last_error")
+      .select("id, provider_key, provider_type, display_name, status, environment, last_sync_at, last_error, config, scopes")
       .eq("tenant_id", tenantId)
       .order("provider_type")
       .limit(40),
+    supabase
+      .from("marketing_provider_logs")
+      .select("id, provider, action, status, latency_ms, error_message, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(30),
     supabase
       .from("marketing_webhook_events")
       .select("id, provider, event_type, created_at, queue_id")
@@ -497,6 +557,7 @@ export default async function MarketingPage() {
     approvalsRes.error ||
     costsRes.error ||
     providersRes.error ||
+    providerLogsRes.error ||
     webhooksRes.error ||
     timelineRes.error ||
     exportsRes.error ||
@@ -531,6 +592,7 @@ export default async function MarketingPage() {
   const approvals = (approvalsRes.data ?? []) as ApprovalRow[];
   const costs = (costsRes.data ?? []) as CostRow[];
   const providers = (providersRes.data ?? []) as ProviderRow[];
+  const providerLogs = (providerLogsRes.data ?? []) as ProviderLogRow[];
   const webhooks = (webhooksRes.data ?? []) as WebhookRow[];
   const timeline = (timelineRes.data ?? []) as TimelineRow[];
   const reportExports = (exportsRes.data ?? []) as ExportRow[];
@@ -1222,28 +1284,92 @@ export default async function MarketingPage() {
             Cloudflare/Supabase; aqui o CMS apenas sabe qual provedor está ativo e o que ele pode fazer.
           </p>
           <div style={providerCardGridStyle}>
-            {PROVIDER_CARDS.map((provider) => (
+            {PROVIDER_CARDS.map((provider) => {
+              const connection = providers.find((item) => item.provider_key === provider.key);
+              const config = providerConfig(connection);
+              const logs = providerLogs.filter((log) => log.provider === provider.key).slice(0, 2);
+              const status = connection?.status ?? provider.status;
+
+              return (
               <form key={provider.key} action={upsertMarketingProviderConnection} style={providerCardStyle}>
                 <input type="hidden" name="provider_key" value={provider.key} />
                 <input type="hidden" name="display_name" value={provider.name} />
                 <input type="hidden" name="provider_type" value={provider.type} />
-                <input type="hidden" name="status" value={provider.status} />
-                <input type="hidden" name="environment" value="production" />
                 <input type="hidden" name="scopes" value={provider.scopes} />
-                <input type="hidden" name="config" value={`{"secret_hint":"${provider.secret}"}`} />
+                <input type="hidden" name="secret_names" value={provider.secretNames} />
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                  <span className={provider.status === "online" ? "chip chip-live" : "chip chip-draft"}>
-                    {provider.status === "online" ? "Pronto" : "Preparado"}
+                  <span className={status === "online" ? "chip chip-live" : "chip chip-draft"}>
+                    {statusLabel(status)}
                   </span>
                   <span className="muted" style={{ fontSize: 10 }}>{provider.secret}</span>
                 </div>
                 <h3 style={{ margin: "12px 0 8px", fontSize: 20 }}>{provider.name}</h3>
                 <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{provider.text}</p>
-                <button className={provider.status === "online" ? "btn btn-gold" : "btn btn-ghost"} style={{ ...buttonStyle, marginTop: 16 }}>
+                <div style={providerChecklistStyle}>
+                  {provider.setup.map((item) => (
+                    <span key={item} className="fiscal-chip fiscal-chip-draft">{item}</span>
+                  ))}
+                </div>
+                <div style={providerFormStyle}>
+                  <Field label="Status">
+                    <GlassSelect name="status" options={PROVIDER_STATUS_OPTIONS} defaultValue={status} ariaLabel={`Status de ${provider.name}`} inlineMenu />
+                  </Field>
+                  <Field label="Ambiente">
+                    <GlassSelect name="environment" options={PROVIDER_ENVIRONMENT_OPTIONS} defaultValue={connection?.environment ?? "production"} ariaLabel={`Ambiente de ${provider.name}`} inlineMenu />
+                  </Field>
+                  <Field label="Referência segura">
+                    <input name="secret_reference" style={inputStyle} placeholder={provider.secretNames} defaultValue={String(config.secret_reference ?? "")} />
+                  </Field>
+                  <Field label="Conta / identificador">
+                    <input name="account_identifier" style={inputStyle} placeholder={provider.fields.account} defaultValue={String(config.account_identifier ?? "")} />
+                  </Field>
+                  <Field label="Webhook / retorno">
+                    <input name="webhook_url" style={inputStyle} placeholder={provider.fields.webhook} defaultValue={String(config.webhook_url ?? "")} />
+                  </Field>
+                  <Field label="Remetente / origem">
+                    <input name="sender_identity" style={inputStyle} placeholder={provider.fields.sender} defaultValue={String(config.sender_identity ?? "")} />
+                  </Field>
+                  <Field label="Limite diário">
+                    <input name="daily_limit" style={inputStyle} inputMode="numeric" placeholder="ex: 5000" defaultValue={String(config.daily_limit ?? "")} />
+                  </Field>
+                  <Field label="Custo por mensagem">
+                    <input name="cost_per_message_cents" style={inputStyle} inputMode="numeric" placeholder="centavos" defaultValue={String(config.cost_per_message_cents ?? "")} />
+                  </Field>
+                </div>
+                <div style={providerToggleGridStyle}>
+                  <label style={toggleLabelStyle}><input type="checkbox" name="auto_sync" defaultChecked={Boolean(config.auto_sync)} /> Sincronização automática</label>
+                  <label style={toggleLabelStyle}><input type="checkbox" name="transactional_enabled" defaultChecked={Boolean(config.transactional_enabled ?? provider.key === "resend")} /> Transacional</label>
+                  <label style={toggleLabelStyle}><input type="checkbox" name="marketing_enabled" defaultChecked={Boolean(config.marketing_enabled ?? provider.key === "resend")} /> Marketing</label>
+                </div>
+                <textarea name="notes" rows={2} style={textareaStyle} placeholder="Observações, conta, responsável, limites, regra de uso ou etapa pendente." defaultValue={String(config.notes ?? "")} />
+                <div style={providerActionsStyle}>
+                  <button className={status === "online" ? "btn btn-gold" : "btn btn-ghost"} style={providerButtonStyle}>
+                    Salvar configuração
+                  </button>
+                  <button
+                    formAction={testMarketingProviderConnection.bind(null, provider.key)}
+                    className="btn btn-ghost"
+                    style={providerButtonStyle}
+                  >
+                    Testar conexão
+                  </button>
+                </div>
+                <div style={providerHealthStyle}>
+                  <span className="muted">Última sincronização: {formatDateTime(connection?.last_sync_at ?? null)}</span>
+                  {connection?.last_error ? <span style={{ color: "#e8a0a0", fontSize: 11 }}>{connection.last_error}</span> : null}
+                  {logs.map((log) => (
+                    <span key={log.id} className="muted" style={{ fontSize: 11 }}>
+                      {formatDateTime(log.created_at)} · {providerActionLabel(log.action)} · {providerLogStatusLabel(log.status)}
+                      {log.latency_ms ? ` · ${log.latency_ms}ms` : ""}
+                    </span>
+                  ))}
+                </div>
+                <button hidden aria-hidden="true" className={provider.status === "online" ? "btn btn-gold" : "btn btn-ghost"} style={{ ...buttonStyle, marginTop: 16 }}>
                   Salvar conexão
                 </button>
               </form>
-            ))}
+              );
+            })}
           </div>
         </Panel>
 
@@ -1605,6 +1731,35 @@ function providerTypeLabel(value: string) {
   return labels[value] ?? value;
 }
 
+function providerConfig(provider: ProviderRow | undefined) {
+  return (provider?.config ?? {}) as Record<string, unknown>;
+}
+
+function providerLabel(value: string) {
+  const provider = PROVIDER_CARDS.find((item) => item.key === value);
+  return provider?.name ?? value;
+}
+
+function providerActionLabel(value: string) {
+  const labels: Record<string, string> = {
+    provider_connection_saved: "Configuração salva",
+    provider_healthcheck: "Teste de conexão",
+    resend_webhook: "Webhook Resend",
+    webhook_received: "Webhook recebido",
+    sync: "Sincronização",
+  };
+  return labels[value] ?? value;
+}
+
+function providerLogStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    success: "Sucesso",
+    warning: "Atenção",
+    error: "Erro",
+  };
+  return labels[value] ?? value;
+}
+
 function eventTypeLabel(value: string) {
   const labels: Record<string, string> = {
     sent: "Enviado",
@@ -1694,9 +1849,10 @@ const variablePillStyle: CSSProperties = {
 
 const providerCardGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-  gap: 12,
+  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+  gap: 14,
   marginTop: 14,
+  alignItems: "stretch",
 };
 
 const providerCardStyle: CSSProperties = {
@@ -1704,6 +1860,68 @@ const providerCardStyle: CSSProperties = {
   borderRadius: 14,
   padding: 16,
   background: "rgba(10, 22, 11, 0.38)",
+  display: "grid",
+  gap: 14,
+  minHeight: 620,
+  gridTemplateRows: "auto auto auto 1fr auto auto auto",
+};
+
+const providerCardHeaderStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "flex-start",
+};
+
+const providerChecklistStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 6,
+};
+
+const providerFormStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 10,
+  alignItems: "end",
+};
+
+const providerToggleGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 8,
+};
+
+const toggleLabelStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  color: "var(--cream-dim)",
+  fontSize: 12,
+  lineHeight: 1.4,
+};
+
+const providerActionsStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 8,
+  alignItems: "stretch",
+};
+
+const providerButtonStyle: CSSProperties = {
+  minHeight: 42,
+  padding: "10px 14px",
+  fontSize: 10,
+  width: "100%",
+  justifyContent: "center",
+};
+
+const providerHealthStyle: CSSProperties = {
+  borderTop: "1px solid var(--glass-border)",
+  paddingTop: 10,
+  display: "grid",
+  gap: 4,
+  minHeight: 58,
 };
 
 const labelStyle: CSSProperties = {
@@ -1749,6 +1967,12 @@ const rowStyle: CSSProperties = {
   border: "1px solid var(--glass-border)",
   borderRadius: 12,
   background: "rgba(255, 248, 234, 0.045)",
+};
+
+const compactLogRowStyle: CSSProperties = {
+  ...rowStyle,
+  gridTemplateColumns: "auto minmax(110px, 1fr)",
+  padding: "10px 12px",
 };
 
 const mutedTextStyle: CSSProperties = {

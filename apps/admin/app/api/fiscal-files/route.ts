@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentStaff } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 const BUCKET = "fiscal-documents";
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -73,18 +74,13 @@ export async function POST(req: NextRequest) {
     }
 
     const admin = await createAdminClient();
-    if (!admin) {
-      return jsonError(
-        "Upload indisponível: configure SUPABASE_SERVICE_ROLE_KEY nos secrets do Worker flora-admin.",
-        500
-      );
-    }
+    const supabase = admin ?? (await createClient());
 
     const safeName = cleanSegment(file.name) || `arquivo.${ext}`;
     const path = `${staff.tenantId}/${kind}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
     const bytes = await file.arrayBuffer();
 
-    const { error } = await admin.storage.from(BUCKET).upload(path, bytes, {
+    const { error } = await supabase.storage.from(BUCKET).upload(path, bytes, {
       cacheControl: "31536000",
       contentType: file.type || "application/octet-stream",
       upsert: false,
@@ -116,14 +112,9 @@ export async function GET(req: NextRequest) {
     }
 
     const admin = await createAdminClient();
-    if (!admin) {
-      return jsonError(
-        "Download indisponível: configure SUPABASE_SERVICE_ROLE_KEY nos secrets do Worker flora-admin.",
-        500
-      );
-    }
+    const supabase = admin ?? (await createClient());
 
-    const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(path, 300);
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);
     if (error || !data?.signedUrl) return jsonError(error?.message ?? "Arquivo não encontrado.", 404);
 
     return NextResponse.redirect(data.signedUrl);

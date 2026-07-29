@@ -75,9 +75,9 @@ export function FiscalGovernmentPanel({ connections }: { connections: Connection
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
-          gap: 14,
-          alignItems: "start",
+          gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))",
+          gap: 16,
+          alignItems: "stretch",
         }}
       >
         {FISCAL_GOVERNMENT_PROVIDERS.map((provider) => {
@@ -92,6 +92,8 @@ export function FiscalGovernmentPanel({ connections }: { connections: Connection
                 padding: 18,
                 display: "grid",
                 gap: 14,
+                minHeight: 690,
+                gridTemplateRows: "auto auto auto 1fr auto auto",
                 borderColor: tone === "danger" ? "rgba(232,160,160,0.42)" : tone === "warn" ? "rgba(var(--gold-rgb),0.42)" : "var(--glass-border)",
               }}
             >
@@ -118,7 +120,7 @@ export function FiscalGovernmentPanel({ connections }: { connections: Connection
                 {connection?.last_error ? <small style={{ color: "#e8a0a0", lineHeight: 1.5 }}>{connection.last_error}</small> : null}
               </div>
 
-              <form action={configureFiscalGovernmentConnection} style={{ display: "grid", gap: 9 }}>
+              <form action={configureFiscalGovernmentConnection} style={{ display: "grid", gap: 10, alignSelf: "stretch" }}>
                 <input type="hidden" name="provider_key" value={provider.key} />
                 <GlassSelect name="environment" options={environmentOptions} defaultValue={connection?.environment ?? "production"} inlineMenu />
                 <div style={formGridStyle}>
@@ -142,14 +144,14 @@ export function FiscalGovernmentPanel({ connections }: { connections: Connection
                   Criar/atualizar guias automaticamente
                 </label>
                 <textarea name="notes" rows={2} className="input" placeholder="Observações de acesso, contador, certificado ou regra fiscal." defaultValue={String(connection?.settings?.notes ?? "")} />
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button className="btn btn-gold" style={{ padding: "9px 14px", fontSize: 10 }}>
+                <div style={actionGridStyle}>
+                  <button className="btn btn-gold" style={buttonFixedStyle}>
                     Salvar conexão
                   </button>
                   <button
                     formAction={requestFiscalGovernmentSync.bind(null, provider.key as FiscalGovernmentProviderKey)}
                     className="btn btn-ghost"
-                    style={{ padding: "9px 14px", fontSize: 10 }}
+                    style={buttonFixedStyle}
                   >
                     Sincronizar agora
                   </button>
@@ -174,4 +176,19 @@ const formGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
   gap: 8,
+};
+
+const actionGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 8,
+  alignItems: "stretch",
+};
+
+const buttonFixedStyle = {
+  minHeight: 40,
+  width: "100%",
+  padding: "9px 12px",
+  fontSize: 10,
+  justifyContent: "center",
 };

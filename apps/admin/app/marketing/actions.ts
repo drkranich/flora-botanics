@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { effectiveTenantId } from "@/lib/cms/actions";
-import { sendEmail } from "@/lib/email/resend";
+import { isResendConfigured, sendEmail } from "@/lib/email/resend";
 import { nextRetryIso, renderMarketingEmail, type MarketingTemplate } from "@/lib/marketing/queue";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 
@@ -47,6 +47,11 @@ function textList(formData: FormData, key: string) {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 40);
+}
+
+function booleanValue(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "");
+  return value === "on" || value === "true" || value === "1";
 }
 
 function jsonObject(formData: FormData, key: string) {
@@ -723,29 +728,136 @@ export async function createMarketingCostEntry(formData: FormData) {
 }
 
 export async function upsertMarketingProviderConnection(formData: FormData) {
-  const { tenantId } = await requireMarketingAdmin();
+  const { session, tenantId } = await requireMarketingAdmin();
   const supabase = await supabaseServer();
   const providerKey = requiredText(formData, "provider_key", "o provedor");
   const environment = String(formData.get("environment") ?? "production");
+  const providerType = requiredText(formData, "provider_type", "o tipo do provedor");
+  const displayName = requiredText(formData, "display_name", "o nome do provedor");
+  const status = String(formData.get("status") ?? "pending");
+  const secretNames = textList(formData, "secret_names");
+  const scopes = textList(formData, "scopes");
+  const config = {
+    secret_names: secretNames,
+    secret_reference: nullableText(formData, "secret_reference"),
+    account_identifier: nullableText(formData, "account_identifier"),
+    webhook_url: nullableText(formData, "webhook_url"),
+    webhook_secret_name: nullableText(formData, "webhook_secret_name"),
+    sender_identity: nullableText(formData, "sender_identity"),
+    daily_limit: nullableText(formData, "daily_limit"),
+    cost_per_message_cents: nullableText(formData, "cost_per_message_cents"),
+    auto_sync: booleanValue(formData, "auto_sync"),
+    transactional_enabled: booleanValue(formData, "transactional_enabled"),
+    marketing_enabled: booleanValue(formData, "marketing_enabled"),
+    notes: nullableText(formData, "notes"),
+  };
 
   const { error } = await supabase.from("marketing_provider_connections").upsert(
     {
       tenant_id: tenantId,
       provider_key: providerKey,
-      provider_type: requiredText(formData, "provider_type", "o tipo do provedor"),
-      display_name: requiredText(formData, "display_name", "o nome do provedor"),
-      status: String(formData.get("status") ?? "pending"),
+      provider_type: providerType,
+      display_name: displayName,
+      status,
       environment,
       last_sync_at: datetime(formData, "last_sync_at"),
       last_error: nullableText(formData, "last_error"),
-      config: jsonObject(formData, "config"),
-      scopes: textList(formData, "scopes"),
+      config,
+      scopes,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "tenant_id,provider_key,environment" }
   );
 
   if (error) throw new Error(error.message);
+
+  await supabase.from("marketing_provider_logs").insert({
+    tenant_id: tenantId,
+    provider: providerKey,
+    action: "provider_connection_saved",
+    environment,
+    status: status === "error" ? "error" : "success",
+    request_payload: {
+      provider_key: providerKey,
+      provider_type: providerType,
+      display_name: displayName,
+      scopes,
+      configured_by: session.userId,
+    },
+    response_payload: {
+      secret_names: secretNames,
+      has_secret_reference: Boolean(config.secret_reference),
+      has_account_identifier: Boolean(config.account_identifier),
+      auto_sync: config.auto_sync,
+    },
+    error_message: nullableText(formData, "last_error"),
+  });
+
+  revalidatePath("/marketing");
+  revalidatePath("/canais");
+}
+
+export async function testMarketingProviderConnection(providerKey: string) {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { data: connection } = await supabase
+    .from("marketing_provider_connections")
+    .select("id, provider_key, provider_type, display_name, environment, config")
+    .eq("tenant_id", tenantId)
+    .eq("provider_key", providerKey)
+    .maybeSingle();
+
+  const environment = String(connection?.environment ?? "production");
+  const config = (connection?.config ?? {}) as Record<string, unknown>;
+  const started = Date.now();
+  let ok = false;
+  let message = "";
+  let responsePayload: Record<string, unknown> = {};
+
+  if (providerKey === "resend") {
+    ok = await isResendConfigured();
+    message = ok
+      ? "Resend configurado no runtime do Worker."
+      : "Resend sem RESEND_API_KEY e/ou RESEND_FROM_EMAIL disponíveis no runtime do Worker.";
+    responsePayload = { checked_runtime: "cloudflare_worker", required: ["RESEND_API_KEY", "RESEND_FROM_EMAIL"] };
+  } else {
+    const hasReference = Boolean(config.secret_reference || config.account_identifier || config.webhook_url);
+    ok = hasReference;
+    message = hasReference
+      ? "Referência operacional cadastrada. A sincronização real depende do adaptador/provedor oficial."
+      : "Informe referência segura, conta/OAuth ou webhook do provedor antes de ativar.";
+    responsePayload = {
+      checked_runtime: "cms_configuration",
+      has_secret_reference: Boolean(config.secret_reference),
+      has_account_identifier: Boolean(config.account_identifier),
+      has_webhook_url: Boolean(config.webhook_url),
+    };
+  }
+
+  await supabase.from("marketing_provider_logs").insert({
+    tenant_id: tenantId,
+    provider: providerKey,
+    action: "provider_healthcheck",
+    environment,
+    status: ok ? "success" : "warning",
+    latency_ms: Date.now() - started,
+    request_payload: { provider_key: providerKey },
+    response_payload: responsePayload,
+    error_message: ok ? null : message,
+  });
+
+  await supabase
+    .from("marketing_provider_connections")
+    .update({
+      status: ok ? "online" : "pending",
+      last_sync_at: new Date().toISOString(),
+      last_error: ok ? null : message,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("tenant_id", tenantId)
+    .eq("provider_key", providerKey);
+
   revalidatePath("/marketing");
   revalidatePath("/canais");
 }
