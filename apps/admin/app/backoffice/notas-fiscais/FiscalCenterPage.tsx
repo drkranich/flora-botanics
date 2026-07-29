@@ -437,6 +437,7 @@ type ClosingRow = {
 };
 
 type IntegrationRow = {
+  id: string;
   provider_key: string;
   display_name: string | null;
   environment: string;
@@ -448,6 +449,44 @@ type IntegrationRow = {
   sync_interval_minutes: number;
   last_sync_at: string | null;
   last_error: string | null;
+};
+
+type IntegrationSyncRunRow = {
+  id: string;
+  connection_id: string | null;
+  provider_key: string;
+  action: string;
+  trigger: string;
+  status: string;
+  records_in: number;
+  records_out: number;
+  error: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  created_at: string;
+};
+
+type FiscalAuditRow = {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  justification: string | null;
+  integration: string | null;
+  protocol: string | null;
+  environment: string | null;
+  result: string;
+  error: string | null;
+  created_at: string;
+};
+
+type VaultAuditRow = {
+  id: string;
+  vault_document_id: string | null;
+  action: string;
+  reason: string | null;
+  created_at: string;
 };
 
 type QueryErrorItem = {
@@ -510,6 +549,9 @@ export async function FiscalCenterPage({
     accountantProfileRes,
     closingsRes,
     integrationsRes,
+    syncRunsRes,
+    fiscalAuditRes,
+    vaultAuditRes,
   ] = await Promise.all([
     supabase
       .from("fiscal_configs")
@@ -603,10 +645,29 @@ export async function FiscalCenterPage({
       .limit(24),
     supabase
       .from("integration_connections")
-      .select("provider_key, display_name, environment, status, credentials_status, credentials_ref, settings, auto_sync_enabled, sync_interval_minutes, last_sync_at, last_error")
+      .select("id, provider_key, display_name, environment, status, credentials_status, credentials_ref, settings, auto_sync_enabled, sync_interval_minutes, last_sync_at, last_error")
       .eq("tenant_id", staff.tenantId)
       .in("provider_key", FISCAL_GOVERNMENT_PROVIDERS.map((provider) => provider.key))
       .limit(20),
+    supabase
+      .from("integration_sync_runs")
+      .select("id, connection_id, provider_key, action, trigger, status, records_in, records_out, error, started_at, finished_at, duration_ms, created_at")
+      .eq("tenant_id", staff.tenantId)
+      .in("provider_key", FISCAL_GOVERNMENT_PROVIDERS.map((provider) => provider.key))
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("fiscal_audit_events")
+      .select("id, action, entity_type, entity_id, justification, integration, protocol, environment, result, error, created_at")
+      .eq("tenant_id", staff.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(80),
+    supabase
+      .from("document_vault_audit_events")
+      .select("id, vault_document_id, action, reason, created_at")
+      .eq("tenant_id", staff.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const fiscal = fiscalRes.data as FiscalConfigRow | null;
@@ -617,6 +678,9 @@ export async function FiscalCenterPage({
     { label: "Guias e pagamentos", error: guidesRes.error },
     { label: "Obrigações", error: obligationsRes.error },
     { label: "Cofre fiscal", error: vaultRes.error },
+    { label: "Sincronizações", error: syncRunsRes.error },
+    { label: "Auditoria fiscal", error: fiscalAuditRes.error },
+    { label: "Auditoria do cofre", error: vaultAuditRes.error },
   ] satisfies QueryErrorItem[]).filter((item) => item.error);
   const migrationPending = fiscalCenterErrors.some((item) => isSchemaMissingError(item.error));
   const fiscalDocs = (fiscalDocsRes.data ?? []) as unknown as FiscalDocumentRow[];
@@ -632,6 +696,9 @@ export async function FiscalCenterPage({
   const accountant = accountantProfileRes.data as AccountantProfileRow | null;
   const closings = (closingsRes.data ?? []) as unknown as ClosingRow[];
   const integrations = (integrationsRes.data ?? []) as unknown as IntegrationRow[];
+  const syncRuns = (syncRunsRes.data ?? []) as unknown as IntegrationSyncRunRow[];
+  const fiscalAuditEvents = (fiscalAuditRes.data ?? []) as unknown as FiscalAuditRow[];
+  const vaultAuditEvents = (vaultAuditRes.data ?? []) as unknown as VaultAuditRow[];
   const vaultControlRes = vaultDocs.length
     ? await supabase
         .from("document_financial_controls")
@@ -690,6 +757,44 @@ export async function FiscalCenterPage({
   const totalTax = guides.reduce((sum, guide) => sum + Number(guide.updated_cents ?? 0), 0);
   const openRequests = accountantRequests.filter((item) => !["closed", "archived", "paid"].includes(item.status));
   const queueProblems = queue.filter((job) => ["failed", "dead"].includes(job.status));
+  const integrationIssues = integrations.filter((item) => item.status !== "online" && item.status !== "connected");
+  const configuredIntegrations = integrations.filter((item) => item.credentials_status && item.credentials_status !== "missing");
+  const syncFailures = syncRuns.filter((run) => run.status === "failed" || run.status === "cancelled");
+  const latestSync = syncRuns[0] ?? null;
+  const auditFailures = fiscalAuditEvents.filter((event) => event.result !== "success" || event.error);
+  const criticalAuditEvents = fiscalAuditEvents.filter((event) =>
+    /emit|cancel|corr|inutil|cert|pag|transmit|delete|archive|share/i.test(event.action)
+  );
+  const recentAuditTrail = [
+    ...fiscalAuditEvents.map((event) => ({
+      id: `fiscal-${event.id}`,
+      title: event.action,
+      detail: `${event.entity_type}${event.protocol ? ` · protocolo ${event.protocol}` : ""}`,
+      status: event.result,
+      error: event.error,
+      createdAt: event.created_at,
+    })),
+    ...vaultAuditEvents.map((event) => ({
+      id: `cofre-${event.id}`,
+      title: `Cofre · ${event.action}`,
+      detail: event.reason ?? "Documento fiscal privado",
+      status: "success",
+      error: null,
+      createdAt: event.created_at,
+    })),
+  ]
+    .sort((a, b) => sortDate(b.createdAt) - sortDate(a.createdAt))
+    .slice(0, 16);
+  const reportRows = [
+    { title: "Documentos fiscais", count: fiscalDocs.length + nfes.length, detail: `${authorizedDocs} autorizados · ${rejectedDocs} rejeitados`, href: "/backoffice/notas-fiscais/documentos" },
+    { title: "Guias e pagamentos", count: guides.length, detail: `${openGuides.length} em aberto · ${overdueGuides.length} vencidas`, href: "/backoffice/notas-fiscais/guias" },
+    { title: "Cofre fiscal", count: vaultDocs.length, detail: `${filteredVaultDocs.length} visíveis no filtro atual`, href: "/backoffice/notas-fiscais/cofre" },
+    { title: "Apurações", count: assessments.length, detail: `${closings.length} fechamentos mensais acompanhados`, href: "/backoffice/notas-fiscais/apuracao" },
+    { title: "Agenda fiscal", count: obligations.length, detail: "DCTFWeb, MIT, eSocial, guias e obrigações", href: "/backoffice/notas-fiscais/agenda" },
+    { title: "Solicitações ao contador", count: accountantRequests.length, detail: `${openRequests.length} abertas para retorno`, href: "/backoffice/notas-fiscais/contador" },
+    { title: "Filas e integrações", count: queue.length + syncRuns.length, detail: `${queueProblems.length + syncFailures.length} com falha`, href: "/backoffice/notas-fiscais/filas" },
+    { title: "Auditoria", count: fiscalAuditEvents.length + vaultAuditEvents.length, detail: `${criticalAuditEvents.length} eventos críticos rastreados`, href: "/backoffice/notas-fiscais/auditoria" },
+  ];
   const show = (section: FiscalSectionId) => activeSection === section;
   const sectionClass = (section: FiscalSectionId, className = "") =>
     `${className} ${show(section) ? "" : "fiscal-section-hidden"}`.trim();
@@ -708,7 +813,7 @@ export async function FiscalCenterPage({
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link href="/backoffice/config" className="btn btn-ghost" style={topButtonStyle}>Config fiscal</Link>
-            <Link href="/config/integracoes#integration_sefaz" className="btn btn-ghost" style={topButtonStyle}>SEFAZ</Link>
+            <Link href="/backoffice/notas-fiscais/governo" className="btn btn-ghost" style={topButtonStyle}>SEFAZ</Link>
             <Link href="/backoffice/notas-fiscais/exportar?format=pdf" className="btn btn-gold" style={topButtonStyle}>Exportar PDF</Link>
           </div>
         </div>
@@ -767,6 +872,11 @@ export async function FiscalCenterPage({
             {fiscal?.ambiente === "producao" ? "Produção" : "Homologação"}
           </span>
         </SectionTitle>
+        <div style={{ ...kpiGridStyle, marginBottom: 16 }}>
+          <Kpi label="Integrações configuradas" value={`${configuredIntegrations.length}/${FISCAL_GOVERNMENT_PROVIDERS.length}`} note={`${integrationIssues.length} exigem atenção`} tone={integrationIssues.length ? "warn" : "ok"} />
+          <Kpi label="Última sincronização" value={latestSync ? formatDateTime(latestSync.created_at) : "—"} note={latestSync ? `${latestSync.provider_key} · ${label(STATUS_LABELS, latestSync.status)}` : "nenhuma execução registrada"} tone={latestSync?.status === "failed" ? "danger" : "neutral"} />
+          <Kpi label="Falhas de governo" value={`${syncFailures.length + queueProblems.length}`} note="sincronizações, transmissões e filas com erro" tone={syncFailures.length + queueProblems.length ? "danger" : "ok"} />
+        </div>
         <div style={integrationGridStyle}>
           <div>
             <p style={paragraphStyle}>
@@ -777,18 +887,30 @@ export async function FiscalCenterPage({
               O sistema prepara documentos e filas, mas não finge transmissão oficial. Para transmitir,
               exige certificado, autorização, ambiente correto, leiaute vigente e integração habilitada.
             </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+              <Link href="/backoffice/notas-fiscais/certificados" className="btn btn-ghost" style={smallButtonStyle}>Certificados</Link>
+              <Link href="/backoffice/notas-fiscais/filas" className="btn btn-ghost" style={smallButtonStyle}>Ver filas</Link>
+              <Link href="/backoffice/notas-fiscais/auditoria" className="btn btn-gold" style={smallButtonStyle}>Auditoria</Link>
+            </div>
           </div>
           <div style={{ display: "grid", gap: 8 }}>
             {integrations.length ? integrations.map((item) => (
               <div key={`${item.provider_key}-${item.environment}`} style={compactRowStyle}>
                 <span>
                   <strong>{item.display_name ?? "SEFAZ / NF-e"}</strong>
-                  <small>{item.environment === "production" ? "Produção" : "Teste"} · credenciais {item.credentials_status}</small>
+                  <small>
+                    {item.environment === "production" ? "Produção" : "Teste"} · credenciais {item.credentials_status} ·
+                    {item.auto_sync_enabled ? ` automática a cada ${item.sync_interval_minutes} min` : " sincronização manual"}
+                  </small>
+                  <small>
+                    Última sincronização: {formatDateTime(item.last_sync_at)}
+                    {item.last_error ? <span style={{ color: "#e8a0a0" }}> · {item.last_error}</span> : null}
+                  </small>
                 </span>
                 <StatusChip status={item.status} />
               </div>
             )) : (
-              <EmptyState title="SEFAZ ainda não conectada" action="Abra Configurações → Integrações para cadastrar credenciais e ambiente." />
+              <EmptyState title="SEFAZ ainda não conectada" action="Cadastre certificado, ambiente e credenciais oficiais nesta própria área fiscal antes de transmitir documentos." />
             )}
           </div>
         </div>
@@ -1277,19 +1399,55 @@ export async function FiscalCenterPage({
             <Link href="/backoffice/notas-fiscais/exportar?format=json" className="btn btn-ghost" style={smallButtonStyle}>JSON</Link>
           </div>
         </SectionTitle>
-        <p className="muted" style={{ lineHeight: 1.7, margin: 0 }}>
+        <p className="muted" style={{ lineHeight: 1.7, margin: "0 0 16px" }}>
           Exporta documentos fiscais, guias, obrigações, cofre, solicitações do contador, fila e apurações.
           XMLs e documentos oficiais devem permanecer no cofre privado e ser baixados por URL assinada quando essa camada estiver conectada.
         </p>
+        <div style={reportGridStyle}>
+          {reportRows.map((report) => (
+            <Link key={report.title} href={report.href} style={reportCardStyle}>
+              <span className="eyebrow" style={{ margin: 0 }}>{report.title}</span>
+              <strong>{report.count}</strong>
+              <small>{report.detail}</small>
+              <span style={reportActionStyle}>Abrir módulo</span>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section id="auditoria" className={sectionClass("auditoria", "glass")} style={cardStyle}>
-        <SectionTitle eyebrow="Auditoria fiscal" title="Trilha obrigatória de operação" />
-        <p className="muted" style={{ lineHeight: 1.7, margin: 0 }}>
+        <SectionTitle eyebrow="Auditoria fiscal" title="Trilha obrigatória de operação">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href="/backoffice/notas-fiscais/exportar?format=csv" className="btn btn-ghost" style={smallButtonStyle}>Exportar CSV</Link>
+            <Link href="/backoffice/notas-fiscais/filas" className="btn btn-gold" style={smallButtonStyle}>Revisar filas</Link>
+          </div>
+        </SectionTitle>
+        <p className="muted" style={{ lineHeight: 1.7, margin: "0 0 16px" }}>
           Toda criação por formulário registra ação em `fiscal_audit_events`: usuário, entidade, valores, justificativa e resultado.
           Operações críticas como emissão, cancelamento, correção, inutilização, recálculo, pagamento e alteração de certificado ficam preparadas
           para revisão por auditor, contador e administração.
         </p>
+        <div style={{ ...kpiGridStyle, marginBottom: 16 }}>
+          <Kpi label="Eventos auditados" value={`${fiscalAuditEvents.length + vaultAuditEvents.length}`} note="ações fiscais e movimentações do cofre" tone="neutral" />
+          <Kpi label="Ações críticas" value={`${criticalAuditEvents.length}`} note="emissão, certificado, pagamento, exclusão e arquivo" tone={criticalAuditEvents.length ? "warn" : "neutral"} />
+          <Kpi label="Falhas registradas" value={`${auditFailures.length + syncFailures.length}`} note="auditoria e integrações oficiais" tone={auditFailures.length + syncFailures.length ? "danger" : "ok"} />
+        </div>
+        {recentAuditTrail.length === 0 ? (
+          <EmptyState title="Nenhum evento auditado ainda" action="Ao salvar certificados, guias, cofre, apurações, filas e integrações, os eventos aparecem aqui com horário e resultado." />
+        ) : (
+          <div style={auditListStyle}>
+            {recentAuditTrail.map((event) => (
+              <div key={event.id} style={compactRowStyle}>
+                <span>
+                  <strong>{event.title}</strong>
+                  <small>{event.detail} · {formatDateTime(event.createdAt)}</small>
+                  {event.error ? <small style={{ color: "#e8a0a0" }}>{event.error}</small> : null}
+                </span>
+                <StatusChip status={event.status} />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
@@ -1356,6 +1514,43 @@ const compactRowStyle: CSSProperties = {
   border: "1px solid var(--glass-border)",
   borderRadius: 12,
   background: "rgba(242, 236, 223, 0.055)",
+};
+
+const reportGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 12,
+};
+
+const reportCardStyle: CSSProperties = {
+  display: "grid",
+  gap: 8,
+  minHeight: 142,
+  padding: 16,
+  border: "1px solid var(--glass-border)",
+  borderRadius: 14,
+  background: "rgba(242, 236, 223, 0.055)",
+  color: "var(--cream)",
+  textDecoration: "none",
+  alignContent: "start",
+};
+
+const reportActionStyle: CSSProperties = {
+  width: "max-content",
+  marginTop: 4,
+  padding: "7px 12px",
+  borderRadius: 999,
+  border: "1px solid rgba(185, 146, 77, 0.28)",
+  color: "var(--gold-light)",
+  fontSize: 9,
+  fontWeight: 800,
+  letterSpacing: 1.2,
+  textTransform: "uppercase",
+};
+
+const auditListStyle: CSSProperties = {
+  display: "grid",
+  gap: 10,
 };
 
 const vaultRowStyle: CSSProperties = {

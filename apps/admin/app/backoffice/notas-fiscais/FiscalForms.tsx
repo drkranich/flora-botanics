@@ -497,20 +497,23 @@ export function MonthlyClosingForm() {
 
 const fieldStyle: CSSProperties = {
   display: "grid",
-  gap: 6,
+  gap: 4,
   minWidth: 0,
+  alignContent: "start",
 };
 
 const labelStyle: CSSProperties = {
   color: "var(--cream-dim)",
   fontSize: 10,
   fontWeight: 800,
+  lineHeight: 1.1,
   letterSpacing: 1.4,
   textTransform: "uppercase",
 };
 
 const inputStyle: CSSProperties = {
   minHeight: 42,
+  width: "100%",
 };
 
 const formTitleStyle: CSSProperties = {
