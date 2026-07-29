@@ -313,6 +313,29 @@ function optionRows(rows: { id: string; name?: string; title?: string }[], empty
   return [{ value: "", label: emptyLabel }, ...rows.map((row) => ({ value: row.id, label: row.name ?? row.title ?? row.id }))];
 }
 
+function visibleTemplateVariables(variables: string[]) {
+  return variables.filter((variable) => !variable.toLowerCase().includes("cta"));
+}
+
+function humanVariableLabel(variable: string) {
+  const labels: Record<string, string> = {
+    "customer.first_name": "Nome do cliente",
+    "customer.name": "Cliente",
+    "order.number": "Pedido",
+    "shipment.tracking_code": "Rastreio",
+    "shipment.tracking_url": "Link de rastreio",
+    "coupon.code": "Cupom",
+    "cart.link": "Carrinho",
+    "cart.url": "Carrinho",
+    "review.link": "Avaliação",
+    "review.url": "Avaliação",
+    "quote.number": "Orçamento",
+    "company.name": "Empresa",
+    "product.name": "Produto",
+  };
+  return labels[variable] ?? variable.replaceAll("_", " ").replaceAll(".", " ");
+}
+
 export default async function MarketingPage() {
   const session = await getStaffSession();
   if (!session) redirect("/login");
@@ -578,10 +601,10 @@ export default async function MarketingPage() {
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <Link href="./marketing/templates" className="btn btn-gold" style={{ padding: "9px 16px", fontSize: 10 }}>
+            <Link href="/marketing/templates" className="btn btn-gold" style={{ padding: "9px 16px", fontSize: 10 }}>
               Abrir modelos
             </Link>
-            <Link href="./backoffice/mensagens" className="btn btn-ghost" style={{ padding: "9px 16px", fontSize: 10 }}>
+            <Link href="/backoffice/mensagens" className="btn btn-ghost" style={{ padding: "9px 16px", fontSize: 10 }}>
               Editor visual
             </Link>
           </div>
@@ -593,8 +616,8 @@ export default async function MarketingPage() {
               <h3 style={{ margin: "14px 0 8px", fontSize: 21 }}>{template.title}</h3>
               <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{template.text}</p>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
-                {template.variables.map((variable) => (
-                  <span key={variable} style={variablePillStyle}>{`{{${variable}}}`}</span>
+                {visibleTemplateVariables(template.variables).map((variable) => (
+                  <span key={variable} style={variablePillStyle}>{humanVariableLabel(variable)}</span>
                 ))}
               </div>
             </article>
@@ -668,7 +691,7 @@ export default async function MarketingPage() {
       </section>
 
       <section id="e-mail-marketing" style={twoColumnStyle}>
-        <Panel title="Biblioteca de templates" eyebrow="Templates / Resend" actionHref="./marketing/templates" actionLabel="Abrir biblioteca">
+        <Panel title="Biblioteca de templates" eyebrow="Templates / Resend" actionHref="/marketing/templates" actionLabel="Abrir biblioteca">
           <p className="muted" style={mutedTextStyle}>
             Modelos Flora prontos para lançamento, promoção, boas-vindas, rastreamento,
             carrinho abandonado, pós-venda, B2B, orçamento e datas comemorativas.
@@ -680,8 +703,8 @@ export default async function MarketingPage() {
                 <h3 style={{ margin: "14px 0 8px", fontSize: 20 }}>{template.name}</h3>
                 <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{template.description}</p>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
-                  {template.variables.slice(0, 3).map((variable) => (
-                    <span key={variable} style={variablePillStyle}>{variable.replaceAll(".", " ")}</span>
+                  {visibleTemplateVariables(template.variables).slice(0, 3).map((variable) => (
+                    <span key={variable} style={variablePillStyle}>{humanVariableLabel(variable)}</span>
                   ))}
                 </div>
               </article>

@@ -397,7 +397,7 @@ export function TemplateStudio({
   });
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20, minHeight: "70vh" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "280px minmax(0, 1fr)", gap: 20, minHeight: 0, alignItems: "start" }}>
       {/* ── sidebar: template list ── */}
       <aside style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -487,7 +487,7 @@ export function TemplateStudio({
 
       {/* ── main editor area ── */}
       {selected ? (
-        <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
           {/* toolbar */}
           <div
             className="glass"
@@ -618,7 +618,7 @@ export function TemplateStudio({
               </div>
               <iframe
                 srcDoc={html}
-                style={{ width: "100%", minHeight: 600, border: 0, display: "block", background: "#f0ebe0" }}
+                style={{ width: "100%", height: "clamp(420px, 56vh, 620px)", border: 0, display: "block", background: "#f0ebe0" }}
                 title="Prévia do e-mail"
                 sandbox="allow-same-origin"
               />

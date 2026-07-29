@@ -157,8 +157,8 @@ export default async function MarketingTemplatesPage() {
             <form action={installAllMarketingTemplateBlueprints}>
               <button className="btn btn-gold" style={smallButtonStyle}>Instalar todos</button>
             </form>
-            <Link href="../backoffice/mensagens" className="btn btn-ghost" style={smallButtonStyle}>Editor visual</Link>
-            <Link href="../marketing" className="btn btn-ghost" style={smallButtonStyle}>Voltar</Link>
+            <Link href="/backoffice/mensagens" className="btn btn-ghost" style={smallButtonStyle}>Editor visual</Link>
+            <Link href="/marketing" className="btn btn-ghost" style={smallButtonStyle}>Voltar</Link>
           </div>
         </div>
 
@@ -168,7 +168,7 @@ export default async function MarketingTemplatesPage() {
             return (
               <article key={template.id} style={templateCardStyle}>
                 <EmailTemplatePreview template={template} installed={installed} />
-                <form action={installMarketingTemplateBlueprint} style={{ marginTop: 16 }}>
+                <form action={installMarketingTemplateBlueprint} style={{ marginTop: "auto", paddingTop: 16 }}>
                   <input type="hidden" name="blueprint_id" value={template.id} />
                   <button className={installed ? "btn btn-ghost" : "btn btn-gold"} style={smallButtonStyle}>
                     {installed ? "Atualizar modelo" : "Instalar modelo"}
@@ -249,7 +249,7 @@ export default async function MarketingTemplatesPage() {
               <p className="eyebrow" style={{ marginBottom: 8 }}>Templates do tenant</p>
               <h2 style={{ margin: 0, fontSize: 24 }}>Modelos editáveis</h2>
             </div>
-            <Link href="../backoffice/mensagens" className="btn btn-ghost" style={smallButtonStyle}>Editor visual</Link>
+            <Link href="/backoffice/mensagens" className="btn btn-ghost" style={smallButtonStyle}>Editor visual</Link>
           </div>
           {templateRows.length === 0 ? (
             <p className="muted" style={{ margin: 0, lineHeight: 1.7 }}>
@@ -285,7 +285,7 @@ export default async function MarketingTemplatesPage() {
 function Header() {
   return (
     <header className="rise" style={{ marginBottom: 26 }}>
-      <Link href="../marketing" className="eyebrow" style={{ opacity: 0.8 }}>← Marketing e Relacionamento</Link>
+      <Link href="/marketing" className="eyebrow" style={{ opacity: 0.8 }}>← Marketing e Relacionamento</Link>
       <h1 className="display" style={{ fontSize: 42, marginTop: 10 }}>Templates de e-mail e mensagens</h1>
       <p className="muted" style={{ maxWidth: 820, lineHeight: 1.7, marginTop: 10 }}>
         Biblioteca de modelos Flora para Resend, SMS, WhatsApp e mensagens transacionais,
@@ -306,6 +306,8 @@ function Kpi({ label, value, note }: { label: string; value: string; note: strin
 }
 
 function EmailTemplatePreview({ template, installed }: { template: BlueprintRow; installed: boolean }) {
+  const variables = visibleVariables(template.variables).slice(0, 4);
+
   return (
     <>
       <div style={emailPreviewShellStyle}>
@@ -327,11 +329,13 @@ function EmailTemplatePreview({ template, installed }: { template: BlueprintRow;
       </div>
       <h3 style={{ margin: "12px 0 8px", fontSize: 20 }}>{template.name}</h3>
       <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{template.description}</p>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
-        {template.variables.slice(0, 4).map((variable) => (
-          <span key={variable} style={variableStyle}>{variableLabel(variable)}</span>
-        ))}
-      </div>
+      {variables.length ? (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+          {variables.map((variable) => (
+            <span key={variable} style={variableStyle}>{variableLabel(variable)}</span>
+          ))}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -427,6 +431,10 @@ function variableLabel(variable: string) {
     "cta.url": "Botão",
   };
   return labels[variable] ?? variable.replaceAll("_", " ").replaceAll(".", " ");
+}
+
+function visibleVariables(variables: string[]) {
+  return variables.filter((variable) => !variable.toLowerCase().includes("cta"));
 }
 
 function landingBodyFor(tone: string) {
