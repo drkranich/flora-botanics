@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
   { href: "/canais", label: "Canais", icon: "⌬", match: (p) => p.startsWith("/canais") },
   { href: "/operacoes", label: "Operações", icon: "▤", match: (p) => p.startsWith("/operacoes") },
   { href: "/config", label: "Configurações", icon: "✦", match: (p) => p.startsWith("/config") },
+  { href: "/dicionario", label: "Dicionário", icon: "ABC", match: (p) => p.startsWith("/dicionario") },
   { href: "/backoffice", label: "Backoffice", icon: "▣", match: (p) => p.startsWith("/backoffice") },
 ];
 
@@ -54,6 +55,7 @@ const COMMANDS = [
   { label: "Ir para Canais de venda", href: "/canais" },
   { label: "Ir para Operações — Estoque", href: "/operacoes" },
   { label: "Ir para Configurações", href: "/config" },
+  { label: "Ir para Dicionário de siglas", href: "/dicionario" },
   { label: "Ir para Backoffice", href: "/backoffice" },
   { label: "Ir para Backoffice — Clientes (CRM)", href: "/backoffice/clientes" },
   { label: "Ir para Backoffice — Pedidos", href: "/backoffice/pedidos" },
@@ -69,7 +71,7 @@ const COMMANDS = [
 ];
 
 /** Módulos visíveis para o papel Editor (tenant_editor). */
-const EDITOR_HREFS = ["/", "/cms", "/catalogo", "/backoffice"];
+const EDITOR_HREFS = ["/", "/cms", "/catalogo", "/dicionario", "/backoffice"];
 
 export function Shell({
   children,
