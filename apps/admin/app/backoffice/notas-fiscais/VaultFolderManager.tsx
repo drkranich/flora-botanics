@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { ColorPickerField, type ColorSwatch } from "@/components/ColorPickerField";
 import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import {
   archiveVaultFolder,
@@ -42,12 +44,36 @@ const accessOptions: GlassSelectOption[] = [
   { value: "management", label: "Diretoria" },
 ];
 
-const colorOptions: GlassSelectOption[] = [
-  { value: "gold", label: "Dourado" },
-  { value: "green", label: "Verde" },
-  { value: "rose", label: "Rosa fiscal" },
-  { value: "cream", label: "Creme" },
+const folderColorSwatches: ColorSwatch[] = [
+  { label: "Dourado Flora", value: "#b9924d" },
+  { label: "Dourado escuro", value: "#96763f" },
+  { label: "Verde profundo", value: "#0f2812" },
+  { label: "Verde médio", value: "#21351d" },
+  { label: "Rosa fiscal", value: "#d8766e" },
+  { label: "Creme", value: "#f2ecdf" },
+  { label: "Texto suave", value: "#5e584b" },
 ];
+
+const legacyFolderColors: Record<string, string> = {
+  gold: "#b9924d",
+  green: "#21351d",
+  rose: "#d8766e",
+  cream: "#f2ecdf",
+};
+
+function resolveFolderColor(value: string | null | undefined) {
+  if (!value) return "#b9924d";
+  return legacyFolderColors[value] ?? value;
+}
+
+function readableColorLabel(value: string | null | undefined) {
+  const resolved = resolveFolderColor(value).toLowerCase();
+  return folderColorSwatches.find((swatch) => swatch.value.toLowerCase() === resolved)?.label ?? resolved;
+}
+
+function folderHref(folderId: string) {
+  return `/backoffice/notas-fiscais/cofre?folder=${encodeURIComponent(folderId)}#cofre`;
+}
 
 function folderOptions(folders: VaultFolderManagerRow[], currentId?: string): GlassSelectOption[] {
   return [
@@ -68,6 +94,7 @@ function FolderForm({
   onCancel?: () => void;
 }) {
   const action = folder ? updateVaultFolder.bind(null, folder.id) : createVaultFolder;
+  const [color, setColor] = useState(resolveFolderColor(folder?.color));
   return (
     <form action={action} style={formStyle}>
       <Field label="Nome da pasta">
@@ -82,9 +109,16 @@ function FolderForm({
       <Field label="Acesso">
         <GlassSelect name="access_level" options={accessOptions} defaultValue={folder?.accessLevel ?? "internal"} inlineMenu />
       </Field>
-      <Field label="Cor">
-        <GlassSelect name="color" options={colorOptions} defaultValue={folder?.color ?? "gold"} inlineMenu />
-      </Field>
+      <input type="hidden" name="color" value={color} />
+      <div style={{ gridColumn: "span 2", minWidth: 0 }}>
+        <ColorPickerField
+          label="Cor da pasta"
+          value={color}
+          onChange={setColor}
+          allowClear={false}
+          swatches={folderColorSwatches}
+        />
+      </div>
       <Field label="Ícone">
         <input name="icon" defaultValue={folder?.icon ?? "pasta"} className="input" style={inputStyle} placeholder="pasta, guia, xml..." />
       </Field>
@@ -161,11 +195,17 @@ export function VaultFolderManager({ folders }: { folders: VaultFolderManagerRow
       ) : (
         <div style={folderGridStyle}>
           {folders.map((folder) => (
-            <article key={folder.id} style={folderCardStyle}>
+            <article key={folder.id} style={folderCardStyle(folder.color)}>
               <div>
-                <span className={`fiscal-chip fiscal-chip-${folder.archivedAt ? "warn" : "ok"}`}>
-                  {folder.archivedAt ? "Arquivada" : "Ativa"}
-                </span>
+                <div style={folderHeaderLineStyle}>
+                  <span className={`fiscal-chip fiscal-chip-${folder.archivedAt ? "warn" : "ok"}`}>
+                    {folder.archivedAt ? "Arquivada" : "Ativa"}
+                  </span>
+                  <span style={folderColorBadgeStyle(folder.color)}>
+                    <span style={folderColorDotStyle(folder.color)} />
+                    {readableColorLabel(folder.color)}
+                  </span>
+                </div>
                 <h4 style={folderTitleStyle}>{folder.name}</h4>
                 <p className="muted" style={{ margin: "5px 0 0", lineHeight: 1.45 }}>{folder.description ?? "Sem descrição."}</p>
               </div>
@@ -176,6 +216,7 @@ export function VaultFolderManager({ folders }: { folders: VaultFolderManagerRow
                 <span>{folder.retentionRule ?? "sem retenção"}</span>
               </div>
               <div style={buttonRowStyle}>
+                <Link href={folderHref(folder.id)} className="btn btn-gold" style={buttonStyle}>Abrir pasta</Link>
                 <button type="button" className="btn btn-ghost" style={buttonStyle} onClick={() => setEditingId(folder.id)}>Editar</button>
                 <button type="button" className="btn btn-ghost" style={buttonStyle} onClick={() => archive(folder)} disabled={pending || Boolean(folder.archivedAt)}>Arquivar</button>
                 <button type="button" className="btn btn-ghost" style={dangerButtonStyle} onClick={() => remove(folder)} disabled={pending}>Excluir</button>
@@ -284,14 +325,55 @@ const folderGridStyle: CSSProperties = {
   gap: 10,
 };
 
-const folderCardStyle: CSSProperties = {
+function folderCardStyle(color: string | null | undefined): CSSProperties {
+  const resolved = resolveFolderColor(color);
+  return {
   display: "grid",
   gap: 12,
-  border: "1px solid var(--glass-border)",
+    border: `1px solid color-mix(in srgb, ${resolved} 55%, rgba(242, 236, 223, 0.18))`,
   borderRadius: 14,
-  background: "rgba(10, 22, 11, 0.48)",
+    background: `linear-gradient(135deg, color-mix(in srgb, ${resolved} 15%, rgba(10, 22, 11, 0.62)), rgba(10, 22, 11, 0.48))`,
+    boxShadow: `inset 3px 0 0 ${resolved}, 0 14px 34px rgba(0, 0, 0, 0.18)`,
   padding: 14,
+  };
+}
+
+const folderHeaderLineStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+  flexWrap: "wrap",
 };
+
+function folderColorBadgeStyle(color: string | null | undefined): CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    border: "1px solid var(--glass-border)",
+    borderRadius: 999,
+    padding: "4px 9px",
+    color: "var(--cream-dim)",
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    background: `color-mix(in srgb, ${resolveFolderColor(color)} 18%, rgba(10, 22, 11, 0.45))`,
+  };
+}
+
+function folderColorDotStyle(color: string | null | undefined): CSSProperties {
+  const resolved = resolveFolderColor(color);
+  return {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    background: resolved,
+    boxShadow: `0 0 14px ${resolved}`,
+    flex: "0 0 auto",
+  };
+}
 
 const folderTitleStyle: CSSProperties = {
   color: "var(--cream)",

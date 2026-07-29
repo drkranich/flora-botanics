@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { GlassDateInput } from "@/components/GlassDateInput";
 import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import {
-  archiveVaultDocument,
   deleteVaultDocument,
   registerVaultDocumentShare,
   updateVaultDocument,
@@ -243,6 +242,7 @@ export function VaultDocumentControls({
   document: VaultControlDocument;
   folders?: VaultFolderControlOption[];
 }) {
+  const router = useRouter();
   const [mode, setMode] = useState<"idle" | "edit" | "details" | "archive" | "delete">("idle");
   const [shareMessage, setShareMessage] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState(document.folderId ?? folders[0]?.value ?? "");
@@ -270,11 +270,19 @@ export function VaultDocumentControls({
     if (!confirm(`Arquivar "${document.name}" no cofre fiscal?`)) return;
     setShareMessage("");
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set("reason", "Arquivamento rápido pelo cofre fiscal.");
-      await archiveVaultDocument(document.id, formData);
+      const res = await fetch(adminApiPath(`/api/fiscal-vault-documents/${document.id}/archive`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Arquivamento rápido pelo cofre fiscal." }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setShareMessage(data?.error ?? "Não foi possível arquivar o documento.");
+        return;
+      }
       setMode("idle");
       setShareMessage("Documento arquivado.");
+      router.refresh();
     });
   }
 

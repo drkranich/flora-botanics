@@ -96,6 +96,24 @@ function booleanValue(formData: FormData, key: string) {
   return value === "on" || value === "true" || value === "1";
 }
 
+function slugPath(value: string | null | undefined) {
+  return (value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function uploadFolderFromPath(path: string | null) {
+  if (!path) return null;
+  const parts = path.split("/").filter(Boolean);
+  const kindIndex = parts.indexOf("cofre");
+  if (kindIndex < 0 || kindIndex >= parts.length - 2) return null;
+  return parts.slice(kindIndex + 1, -1).join("/");
+}
+
 async function ensureDefaultVaultFolder(
   supabase: Awaited<ReturnType<typeof createClient>>,
   staff: NonNullable<Awaited<ReturnType<typeof currentStaff>>>
@@ -127,6 +145,30 @@ async function ensureDefaultVaultFolder(
 
   if (error || !data?.id) throw new Error(`Não foi possível criar a pasta padrão do cofre: ${error?.message ?? "sem retorno"}.`);
   return data.id as string;
+}
+
+async function resolveVaultFolderId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  staff: NonNullable<Awaited<ReturnType<typeof currentStaff>>>,
+  formData: FormData,
+  storagePath: string | null
+) {
+  const selectedFolderId = text(formData, "folder_id");
+  if (selectedFolderId) return selectedFolderId;
+
+  const uploadFolder = uploadFolderFromPath(storagePath);
+  if (uploadFolder) {
+    const { data: folders } = await supabase
+      .from("document_vault_folders")
+      .select("id, name")
+      .eq("tenant_id", staff.tenantId)
+      .is("deleted_at", null);
+
+    const matched = (folders ?? []).find((folder) => slugPath(folder.name) === uploadFolder);
+    if (matched?.id) return matched.id as string;
+  }
+
+  return ensureDefaultVaultFolder(supabase, staff);
 }
 
 function paymentStatusForFinancialControl(status: string | null) {
@@ -887,7 +929,7 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
   const financialNature = text(formData, "financial_nature") ?? (cents(formData, "value") > 0 ? "needs_review" : "not_applicable");
   const paymentStatus = text(formData, "payment_status") ?? (financialNature === "not_applicable" ? "not_applicable" : "open");
   const valueCents = cents(formData, "value");
-  const folderId = text(formData, "folder_id") ?? await ensureDefaultVaultFolder(supabase, staff);
+  const folderId = await resolveVaultFolderId(supabase, staff, formData, storagePath);
   const payload = {
     tenant_id: staff.tenantId,
     folder_id: folderId,
@@ -1082,7 +1124,7 @@ export async function updateVaultDocument(vaultDocumentId: string, formData: For
   const storagePath = text(formData, "storage_path");
   const valueCents = cents(formData, "value");
   const paymentStatus = text(formData, "payment_status");
-  const folderId = text(formData, "folder_id") ?? await ensureDefaultVaultFolder(supabase, staff);
+  const folderId = await resolveVaultFolderId(supabase, staff, formData, storagePath);
 
   const payload = {
     folder_id: folderId,
