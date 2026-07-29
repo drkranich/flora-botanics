@@ -6,7 +6,7 @@ import { money } from "@/lib/format";
 import { FISCAL_GOVERNMENT_PROVIDERS } from "@/lib/fiscal/government-providers";
 import { createDraftNfe, cancelNfeDraft } from "./actions";
 import { FiscalGovernmentPanel } from "./FiscalGovernmentPanel";
-import { InternationalTradeCenter } from "./InternationalTradeCenter";
+import { InternationalTradeCenter, type InternationalTradeModuleId } from "./InternationalTradeCenter";
 import {
   AccountantProfileForm,
   AccountantRequestForm,
@@ -545,9 +545,11 @@ function sortDate(value: string | null | undefined) {
 
 export async function FiscalCenterPage({
   activeSection,
+  activeInternationalModule,
   searchParams,
 }: {
   activeSection: FiscalSectionId;
+  activeInternationalModule?: InternationalTradeModuleId;
   searchParams?: FiscalSearchParams;
 }) {
   const staff = await currentStaff();
@@ -1457,7 +1459,7 @@ export async function FiscalCenterPage({
         )}
       </section>
 
-      {show("comercio-exterior") ? <InternationalTradeCenter /> : null}
+      {show("comercio-exterior") ? <InternationalTradeCenter activeModule={activeInternationalModule} /> : null}
 
       <section id="relatorios" className={sectionClass("relatorios", "glass")} style={cardStyle}>
         <SectionTitle eyebrow="Relatórios" title="Exportação fiscal, documental e contábil">

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import { useFormStatus } from "react-dom";
 import { GlassDateInput } from "@/components/GlassDateInput";
 import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import {
@@ -218,10 +219,17 @@ function FormShell({
 export function SeedInternationalTradeButton() {
   return (
     <form action={seedInternationalTradeCenter}>
-      <button className="btn btn-gold" style={{ padding: "10px 16px", fontSize: 10 }}>
-        Instalar pacotes iniciais
-      </button>
+      <SeedSubmitButton />
     </form>
+  );
+}
+
+function SeedSubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className="btn btn-gold" style={{ padding: "10px 16px", fontSize: 10 }}>
+      {pending ? "Instalando..." : "Instalar pacotes iniciais"}
+    </button>
   );
 }
 

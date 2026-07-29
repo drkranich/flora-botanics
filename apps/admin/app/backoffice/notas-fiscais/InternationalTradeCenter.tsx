@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { money } from "@/lib/format";
@@ -10,38 +11,55 @@ import {
   InternationalShippingForm,
   SeedInternationalTradeButton,
 } from "./InternationalTradeForms";
+import { reviewJurisdictionPackage, runInternationalProviderAction } from "./international-actions";
 
 const SUBSECTIONS = [
-  "Visão geral",
-  "Simulador internacional",
-  "Calculadora de landed cost",
-  "Operações de exportação",
-  "NF-e de exportação",
-  "DU-E",
-  "Documentos internacionais",
-  "Commercial Invoice",
-  "Pro Forma Invoice",
-  "Packing List",
-  "Declarações aduaneiras",
-  "Classificação fiscal",
-  "NCM, HS Code e códigos locais",
-  "Jurisdições",
-  "Regras tributárias",
-  "IVA, VAT, GST e Sales Tax",
-  "Tarifas aduaneiras",
-  "Incoterms",
-  "Frete internacional",
-  "Seguro",
-  "Câmbio",
-  "Comissões",
-  "Marketplaces internacionais",
-  "Registros fiscais",
-  "Produtos e conformidade",
-  "Cofre internacional",
-  "Relatórios",
-  "Integrações",
-  "Configurações",
-];
+  { id: "visao-geral", label: "Visão geral", description: "Mapa operacional, pacotes, alertas e estado do centro internacional." },
+  { id: "simulador-internacional", label: "Simulador internacional", description: "Cenários por país, canal, Incoterm, moeda, imposto, frete e margem." },
+  { id: "calculadora-de-landed-cost", label: "Calculadora de landed cost", description: "Memória de cálculo, custo no destino, DDP/DAP e preço recomendado." },
+  { id: "operacoes-de-exportacao", label: "Operações de exportação", description: "Pedidos internacionais, responsáveis, importador, destino e histórico." },
+  { id: "nfe-de-exportacao", label: "NF-e de exportação", description: "Preparação fiscal brasileira, vínculo com operação e documentos oficiais." },
+  { id: "du-e", label: "DU-E", description: "Protocolo, Portal Único, LPCO e documentos de despacho." },
+  { id: "documentos-internacionais", label: "Documentos internacionais", description: "Commercial Invoice, Pro Forma, Packing List, certificados e relatórios." },
+  { id: "commercial-invoice", label: "Commercial Invoice", description: "Documento comercial internacional com itens, valores, Incoterm e comprador." },
+  { id: "pro-forma-invoice", label: "Pro Forma Invoice", description: "Proposta comercial internacional antes da cobrança ou envio." },
+  { id: "packing-list", label: "Packing List", description: "Volumes, pesos, caixas, lote, SKU, dimensões e embalagem." },
+  { id: "declaracoes-aduaneiras", label: "Declarações aduaneiras", description: "Declarações, certificados, LPCO e anexos regulatórios." },
+  { id: "classificacao-fiscal", label: "Classificação fiscal", description: "NCM, HS Code, códigos locais, fonte e confiança." },
+  { id: "ncm-hs-code-e-codigos-locais", label: "NCM, HS Code e códigos locais", description: "Tabela de códigos por jurisdição e produto." },
+  { id: "jurisdicoes", label: "Jurisdições", description: "Pacotes por país/bloco com fonte, versão, revisão e validação." },
+  { id: "regras-tributarias", label: "Regras tributárias", description: "Regras versionadas por produto, canal, cliente, Incoterm e vigência." },
+  { id: "iva-vat-gst-e-sales-tax", label: "IVA, VAT, GST e Sales Tax", description: "Tributos do destino separados da NF-e brasileira." },
+  { id: "tarifas-aduaneiras", label: "Tarifas aduaneiras", description: "Duty, HTS, TARIC, UKGT, CBSA e custos de importação." },
+  { id: "incoterms", label: "Incoterms", description: "Responsabilidades, riscos, documentos e custo por modalidade." },
+  { id: "frete-internacional", label: "Frete internacional", description: "Cotações, provedores, modais, tracking e SLA." },
+  { id: "seguro", label: "Seguro", description: "Seguro internacional, avaria, extravio, cobertura e custo." },
+  { id: "cambio", label: "Câmbio", description: "Moedas, fonte da taxa, data, spread e impacto no landed cost." },
+  { id: "comissoes", label: "Comissões", description: "Representantes, marketplaces, afiliados e taxas por canal." },
+  { id: "marketplaces-internacionais", label: "Marketplaces internacionais", description: "Pedidos, facilitador fiscal, comissões e regras de destino." },
+  { id: "registros-fiscais", label: "Registros fiscais", description: "EORI, IOSS, OSS, VAT/GST/Sales Tax e inscrições locais." },
+  { id: "produtos-e-conformidade", label: "Produtos e conformidade", description: "Cosméticos, ingredientes, rótulo, idioma, dossiê e mercado aprovado." },
+  { id: "cofre-internacional", label: "Cofre internacional", description: "Pastas, documentos, versões, hash, retenção e permissões." },
+  { id: "relatorios", label: "Relatórios", description: "Exportações, impostos, frete, landed cost, margem e documentos." },
+  { id: "integracoes", label: "Integrações", description: "Providers desacoplados, credenciais, testes e sincronização." },
+  { id: "configuracoes", label: "Configurações", description: "Parâmetros, revisões, fontes confiáveis e regras de operação." },
+] as const;
+
+export type InternationalTradeModuleId = (typeof SUBSECTIONS)[number]["id"];
+
+export function isInternationalTradeModuleId(value: string): value is InternationalTradeModuleId {
+  return SUBSECTIONS.some((item) => item.id === value);
+}
+
+function internationalModuleHref(id: InternationalTradeModuleId) {
+  return id === "visao-geral"
+    ? "/backoffice/notas-fiscais/comercio-exterior"
+    : `/backoffice/notas-fiscais/comercio-exterior/${id}`;
+}
+
+function showModule(activeModule: InternationalTradeModuleId, modules: InternationalTradeModuleId[]) {
+  return activeModule === "visao-geral" || modules.includes(activeModule);
+}
 
 const DOC_MATRIX = [
   ["NF-e de exportação", "Brasil", "Obrigatório quando aplicável", "Não é invoice estrangeira."],
@@ -79,6 +97,7 @@ type JurisdictionRow = {
   alerts: string[] | null;
   version: string;
   last_reviewed_at: string | null;
+  next_review_at: string | null;
 };
 
 type OperationRow = {
@@ -255,7 +274,11 @@ function Empty({ title, text }: { title: string; text: string }) {
   );
 }
 
-export async function InternationalTradeCenter() {
+export async function InternationalTradeCenter({
+  activeModule = "visao-geral",
+}: {
+  activeModule?: InternationalTradeModuleId;
+}) {
   const staff = await currentStaff();
   if (!staff) return null;
   const supabase = await createClient();
@@ -272,7 +295,7 @@ export async function InternationalTradeCenter() {
   ] = await Promise.all([
     supabase
       .from("jurisdictions")
-      .select("id, code, name, scope, currency, package_status, confidence_status, tax_system, official_sources, alerts, version, last_reviewed_at")
+      .select("id, code, name, scope, currency, package_status, confidence_status, tax_system, official_sources, alerts, version, last_reviewed_at, next_review_at")
       .eq("tenant_id", staff.tenantId)
       .order("code"),
     supabase
@@ -368,19 +391,37 @@ export async function InternationalTradeCenter() {
         <p className="eyebrow" style={{ marginBottom: 12 }}>Subseções do módulo</p>
         <div style={subsectionGridStyle}>
           {SUBSECTIONS.map((item) => (
-            <a key={item} href="#comercio-exterior" className="btn btn-ghost" style={subsectionButtonStyle}>{item}</a>
+            <Link
+              key={item.id}
+              href={internationalModuleHref(item.id)}
+              className={activeModule === item.id ? "btn btn-gold" : "btn btn-ghost"}
+              style={subsectionButtonStyle}
+              title={item.description}
+            >
+              {item.label}
+            </Link>
           ))}
         </div>
       </div>
 
-      <div style={kpiGridStyle}>
+      {activeModule !== "visao-geral" ? (
+        <div className="glass" style={activeModuleIntroStyle}>
+          <p className="eyebrow" style={{ marginBottom: 6 }}>Módulo aberto</p>
+          <h3 style={{ margin: 0, fontSize: 24 }}>{SUBSECTIONS.find((item) => item.id === activeModule)?.label}</h3>
+          <p className="muted" style={{ margin: "6px 0 0", lineHeight: 1.6 }}>
+            {SUBSECTIONS.find((item) => item.id === activeModule)?.description}
+          </p>
+        </div>
+      ) : null}
+
+      <div style={activeModule === "visao-geral" ? kpiGridStyle : hiddenStyle}>
         <Kpi label="Pacotes de jurisdição" value={String(jurisdictions.length)} note="Brasil, UE, Reino Unido, EUA, Canadá e próximos mercados versionados." />
         <Kpi label="Operações de exportação" value={String(operations.length)} note="Rascunhos, simulações, cotações, documentos e remessas." />
         <Kpi label="Documentos e obrigações" value={String(documents.length)} note={`${docsPending} com obrigatoriedade ou confirmação pendente.`} />
         <Kpi label="Alertas críticos" value={String(openAlerts)} note="Margem, câmbio, Incoterm, compliance, impostos e documentos." />
       </div>
 
-      <div className="glass" style={noticeStyle}>
+      <div className="glass" style={activeModule === "visao-geral" ? noticeStyle : hiddenStyle}>
         <p className="eyebrow" style={{ marginBottom: 8 }}>Escopo documental</p>
         <p style={paragraphStyle}>
           O Brasil emite NF-e de exportação e eventos fiscais brasileiros. Documentos como Commercial Invoice, Pro Forma Invoice e Packing List são
@@ -389,25 +430,76 @@ export async function InternationalTradeCenter() {
         </p>
       </div>
 
-      <section style={twoColumnStyle}>
+      <section
+        style={
+          showModule(activeModule, [
+            "jurisdicoes",
+            "classificacao-fiscal",
+            "ncm-hs-code-e-codigos-locais",
+            "simulador-internacional",
+            "calculadora-de-landed-cost",
+          ])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
         <div className="glass" style={cardStyle}>
           <SectionTitle eyebrow="Pacotes de jurisdição" title="Mercados, vigência, fonte e confiança" />
           {jurisdictions.length === 0 ? (
             <Empty title="Nenhum pacote instalado" text="Use o botão de instalação para criar Brasil, União Europeia, Reino Unido, Estados Unidos e Canadá como base editável." />
           ) : (
-            <div style={rowGridStyle}>
+            <div style={jurisdictionGridStyle}>
               {jurisdictions.map((item) => (
-                <article key={item.id} style={rowStyle}>
-                  <div>
-                    <strong>{item.code} · {item.name}</strong>
-                    <small>{item.scope} · {item.currency} · versão {item.version} · revisão {formatDate(item.last_reviewed_at)}</small>
-                    <small>{item.tax_system ?? "Sistema tributário em estruturação."}</small>
-                    <small>Fontes: {(item.official_sources ?? []).join(", ") || "não informadas"}</small>
+                <article key={item.id} style={jurisdictionCardStyle}>
+                  <div style={jurisdictionHeaderStyle}>
+                    <span style={marketAvatarStyle}>{item.code}</span>
+                    <div style={rowContentStyle}>
+                      <strong style={jurisdictionTitleStyle}>{item.code} · {item.name}</strong>
+                      <span style={jurisdictionMetaStyle}>
+                        <span>{statusLabel(item.scope)}</span>
+                        <span>{item.currency}</span>
+                        <span>Versão {item.version}</span>
+                        <span>Revisão {formatDate(item.last_reviewed_at)}</span>
+                        <span>Próxima {formatDate(item.next_review_at)}</span>
+                      </span>
+                    </div>
+                    <span style={statusStackStyle}>
+                      <Chip value={item.package_status} />
+                      <Chip value={item.confidence_status} />
+                    </span>
                   </div>
-                  <span style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    <Chip value={item.package_status} />
-                    <Chip value={item.confidence_status} />
-                  </span>
+
+                  <p style={providerDescriptionStyle}>{item.tax_system ?? "Sistema tributário em estruturação."}</p>
+
+                  <div style={folderGridStyle}>
+                    {(item.official_sources ?? []).length ? (
+                      (item.official_sources ?? []).map((source) => (
+                        <span key={source} className="fiscal-chip fiscal-chip-draft">{source}</span>
+                      ))
+                    ) : (
+                      <span className="fiscal-chip fiscal-chip-warn">Fonte não informada</span>
+                    )}
+                  </div>
+
+                  {(item.alerts ?? []).length ? (
+                    <div style={alertGridStyle}>
+                      {(item.alerts ?? []).map((alert) => (
+                        <span key={alert} style={alertLineStyle}>{alert}</span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div style={jurisdictionActionsStyle}>
+                    <form action={reviewJurisdictionPackage.bind(null, item.id, "review")}>
+                      <button type="submit" className="btn btn-ghost" style={miniButtonStyle}>Revisar agora</button>
+                    </form>
+                    <form action={reviewJurisdictionPackage.bind(null, item.id, "validate")}>
+                      <button type="submit" className="btn btn-gold" style={miniButtonStyle}>Validar pacote</button>
+                    </form>
+                    <form action={reviewJurisdictionPackage.bind(null, item.id, "draft")}>
+                      <button type="submit" className="btn btn-ghost" style={miniButtonStyle}>Voltar a rascunho</button>
+                    </form>
+                  </div>
                 </article>
               ))}
             </div>
@@ -443,19 +535,70 @@ export async function InternationalTradeCenter() {
         </div>
       </section>
 
-      <InternationalOperationForm jurisdictions={jurisdictionOptions} />
+      {showModule(activeModule, ["simulador-internacional", "calculadora-de-landed-cost", "operacoes-de-exportacao"]) ? (
+        <InternationalOperationForm jurisdictions={jurisdictionOptions} />
+      ) : null}
 
-      <section style={twoColumnStyle}>
+      <section
+        style={
+          showModule(activeModule, [
+            "regras-tributarias",
+            "iva-vat-gst-e-sales-tax",
+            "tarifas-aduaneiras",
+            "classificacao-fiscal",
+            "ncm-hs-code-e-codigos-locais",
+            "documentos-internacionais",
+            "nfe-de-exportacao",
+            "du-e",
+            "commercial-invoice",
+            "pro-forma-invoice",
+            "packing-list",
+            "declaracoes-aduaneiras",
+          ])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
         <InternationalRuleForm jurisdictions={jurisdictionOptions} />
         <InternationalDocumentForm operations={operationOptions} />
       </section>
 
-      <section style={twoColumnStyle}>
+      <section
+        style={
+          showModule(activeModule, [
+            "frete-internacional",
+            "seguro",
+            "produtos-e-conformidade",
+            "classificacao-fiscal",
+            "operacoes-de-exportacao",
+          ])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
         <InternationalShippingForm operations={operationOptions} />
         <ExportComplianceForm jurisdictions={jurisdictionOptions} operations={operationOptions} />
       </section>
 
-      <section style={twoColumnStyle}>
+      <section
+        style={
+          showModule(activeModule, [
+            "operacoes-de-exportacao",
+            "simulador-internacional",
+            "calculadora-de-landed-cost",
+            "regras-tributarias",
+            "iva-vat-gst-e-sales-tax",
+            "tarifas-aduaneiras",
+            "cambio",
+            "comissoes",
+            "marketplaces-internacionais",
+            "registros-fiscais",
+            "configuracoes",
+          ])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
         <div className="glass" style={cardStyle}>
           <SectionTitle eyebrow="Operações de exportação" title="Pedidos, simulações e responsabilidades" />
           {operations.length === 0 ? (
@@ -497,7 +640,23 @@ export async function InternationalTradeCenter() {
         </div>
       </section>
 
-      <section className="glass" style={cardStyle}>
+      <section
+        className="glass"
+        style={
+          showModule(activeModule, [
+            "documentos-internacionais",
+            "nfe-de-exportacao",
+            "du-e",
+            "commercial-invoice",
+            "pro-forma-invoice",
+            "packing-list",
+            "declaracoes-aduaneiras",
+            "relatorios",
+          ])
+            ? cardStyle
+            : hiddenStyle
+        }
+      >
         <SectionTitle eyebrow="Matriz documental" title="Brasil, comércio internacional e tributos do destino" />
         <div style={{ overflowX: "auto" }}>
           <table className="fiscal-table">
@@ -523,7 +682,24 @@ export async function InternationalTradeCenter() {
         </div>
       </section>
 
-      <section style={twoColumnStyle}>
+      <section
+        style={
+          showModule(activeModule, [
+            "documentos-internacionais",
+            "nfe-de-exportacao",
+            "du-e",
+            "commercial-invoice",
+            "pro-forma-invoice",
+            "packing-list",
+            "declaracoes-aduaneiras",
+            "cofre-internacional",
+            "frete-internacional",
+            "seguro",
+          ])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
         <div className="glass" style={cardStyle}>
           <SectionTitle eyebrow="Documentos internacionais" title="Invoices, packing list, DU-E e cofre" />
           {documents.length === 0 ? (
@@ -568,7 +744,17 @@ export async function InternationalTradeCenter() {
         </div>
       </section>
 
-      <section style={twoColumnStyle}>
+      <section
+        style={
+          showModule(activeModule, [
+            "produtos-e-conformidade",
+            "classificacao-fiscal",
+            "relatorios",
+          ])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
         <div className="glass" style={cardStyle}>
           <SectionTitle eyebrow="Produtos cosméticos e conformidade" title="Mercado aprovado não depende só de imposto" />
           {complianceChecks.length === 0 ? (
@@ -615,7 +801,19 @@ export async function InternationalTradeCenter() {
         </div>
       </section>
 
-      <section style={twoColumnStyle}>
+      <section
+        style={
+          showModule(activeModule, [
+            "cofre-internacional",
+            "integracoes",
+            "configuracoes",
+            "marketplaces-internacionais",
+            "registros-fiscais",
+          ])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
         <div className="glass" style={cardStyle}>
           <SectionTitle eyebrow="Cofre internacional" title="Pastas documentais automáticas" />
           <div style={folderGridStyle}>
@@ -655,8 +853,12 @@ export async function InternationalTradeCenter() {
                 </div>
                 <div style={providerActionsStyle}>
                   <Chip value="waiting_review" />
-                  <a href="#comercio-exterior" className="btn btn-ghost" style={miniButtonStyle}>Configurar</a>
-                  <a href="#comercio-exterior" className="btn btn-ghost" style={miniButtonStyle}>Sincronizar</a>
+                  <form action={runInternationalProviderAction.bind(null, name, "configure")}>
+                    <button type="submit" className="btn btn-ghost" style={miniButtonStyle}>Configurar</button>
+                  </form>
+                  <form action={runInternationalProviderAction.bind(null, name, "sync")}>
+                    <button type="submit" className="btn btn-gold" style={miniButtonStyle}>Sincronizar</button>
+                  </form>
                 </div>
               </article>
             ))}
@@ -685,6 +887,17 @@ const cardStyle: CSSProperties = {
 const noticeStyle: CSSProperties = {
   padding: 18,
   borderRadius: 16,
+};
+
+const activeModuleIntroStyle: CSSProperties = {
+  padding: 18,
+  borderRadius: 16,
+  borderColor: "rgba(217, 184, 122, 0.26)",
+  background: "linear-gradient(135deg, rgba(185, 146, 77, 0.1), rgba(10, 22, 11, 0.2))",
+};
+
+const hiddenStyle: CSSProperties = {
+  display: "none",
 };
 
 const paragraphStyle: CSSProperties = {
@@ -721,6 +934,84 @@ const twoColumnStyle: CSSProperties = {
 const rowGridStyle: CSSProperties = {
   display: "grid",
   gap: 10,
+};
+
+const jurisdictionGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: 12,
+};
+
+const jurisdictionCardStyle: CSSProperties = {
+  display: "grid",
+  gap: 12,
+  padding: 16,
+  borderRadius: 16,
+  border: "1px solid var(--glass-border)",
+  background: "linear-gradient(135deg, rgba(242, 236, 223, 0.075), rgba(10, 22, 11, 0.24))",
+  boxShadow: "0 12px 34px rgba(0, 0, 0, 0.24)",
+};
+
+const jurisdictionHeaderStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "42px minmax(0, 1fr) auto",
+  alignItems: "flex-start",
+  gap: 12,
+};
+
+const marketAvatarStyle: CSSProperties = {
+  width: 42,
+  height: 42,
+  borderRadius: 14,
+  display: "grid",
+  placeItems: "center",
+  background: "rgba(185, 146, 77, 0.16)",
+  border: "1px solid rgba(217, 184, 122, 0.34)",
+  color: "var(--gold-light)",
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: 1,
+};
+
+const jurisdictionTitleStyle: CSSProperties = {
+  color: "var(--cream)",
+  fontSize: 17,
+  lineHeight: 1.18,
+};
+
+const jurisdictionMetaStyle: CSSProperties = {
+  display: "flex",
+  gap: 6,
+  flexWrap: "wrap",
+  color: "var(--cream-dim)",
+  fontSize: 11,
+};
+
+const statusStackStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-end",
+  gap: 6,
+};
+
+const alertGridStyle: CSSProperties = {
+  display: "grid",
+  gap: 6,
+};
+
+const alertLineStyle: CSSProperties = {
+  borderLeft: "2px solid rgba(232, 160, 160, 0.6)",
+  paddingLeft: 10,
+  color: "var(--cream-dim)",
+  fontSize: 12,
+  lineHeight: 1.5,
+};
+
+const jurisdictionActionsStyle: CSSProperties = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  alignItems: "center",
 };
 
 const rowStyle: CSSProperties = {

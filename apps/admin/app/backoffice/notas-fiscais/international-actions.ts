@@ -6,6 +6,7 @@ import { currentStaff } from "@/lib/auth";
 import { calculateLandedCost, type CostResponsibility } from "@/lib/international/landed-cost";
 
 const FISCAL_PATH = "/backoffice/notas-fiscais";
+const INTERNATIONAL_PATH = `${FISCAL_PATH}/comercio-exterior`;
 
 function text(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
@@ -146,7 +147,7 @@ export async function seedInternationalTradeCenter(): Promise<void> {
     },
   ];
 
-  await supabase.from("jurisdictions").upsert(
+  const { error: packagesError } = await supabase.from("jurisdictions").upsert(
     packages.map((pkg) => ({
       tenant_id: staff.tenantId,
       ...pkg,
@@ -156,6 +157,7 @@ export async function seedInternationalTradeCenter(): Promise<void> {
     })),
     { onConflict: "tenant_id,code" }
   );
+  if (packagesError) throw new Error(`Falha ao instalar pacotes de jurisdição: ${packagesError.message}`);
 
   const incoterms = [
     ["EXW", "Ex Works", "Comprador assume coleta, exportação, frete, seguro e importação."],
@@ -171,7 +173,7 @@ export async function seedInternationalTradeCenter(): Promise<void> {
     ["CIF", "Cost, Insurance and Freight", "Uso marítimo; vendedor paga frete e seguro."],
   ];
 
-  await supabase.from("incoterms").upsert(
+  const { error: incotermsError } = await supabase.from("incoterms").upsert(
     incoterms.map(([code, name, warning]) => ({
       tenant_id: staff.tenantId,
       code,
@@ -184,6 +186,7 @@ export async function seedInternationalTradeCenter(): Promise<void> {
     })),
     { onConflict: "tenant_id,code" }
   );
+  if (incotermsError) throw new Error(`Falha ao instalar Incoterms: ${incotermsError.message}`);
 
   await audit({
     action: "seeded_international_trade_center",
@@ -191,6 +194,116 @@ export async function seedInternationalTradeCenter(): Promise<void> {
     nextValue: { packages: packages.map((pkg) => pkg.code), incoterms: incoterms.map(([code]) => code) },
   });
   revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+}
+
+export async function reviewJurisdictionPackage(
+  jurisdictionId: string,
+  intent: "review" | "validate" | "draft"
+): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+
+  const now = new Date();
+  const nextReview = new Date(now);
+  nextReview.setDate(nextReview.getDate() + 90);
+
+  const statusByIntent = {
+    review: {
+      package_status: "needs_review",
+      confidence_status: "waiting_review",
+      validated_by: null,
+    },
+    validate: {
+      package_status: "operational",
+      confidence_status: "specialist_validated",
+      validated_by: staff.id,
+    },
+    draft: {
+      package_status: "draft",
+      confidence_status: "simulation",
+      validated_by: null,
+    },
+  } satisfies Record<string, Record<string, string | null>>;
+
+  const payload = {
+    ...statusByIntent[intent],
+    last_reviewed_at: now.toISOString(),
+    next_review_at: nextReview.toISOString(),
+    updated_at: now.toISOString(),
+  };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("jurisdictions")
+    .update(payload)
+    .eq("id", jurisdictionId)
+    .eq("tenant_id", staff.tenantId)
+    .select("id, code, name")
+    .maybeSingle();
+
+  if (error) throw new Error(`Falha ao atualizar jurisdição: ${error.message}`);
+  if (!data) throw new Error("Pacote de jurisdição não encontrado.");
+
+  await audit({
+    action: `reviewed_jurisdiction_${intent}`,
+    entityType: "jurisdiction",
+    entityId: data.id,
+    nextValue: {
+      code: data.code,
+      name: data.name,
+      ...payload,
+    },
+  });
+
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+}
+
+export async function runInternationalProviderAction(
+  providerKey: string,
+  intent: "configure" | "sync"
+): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  const action = intent === "configure" ? "configured_international_provider" : "synced_international_provider";
+  const title =
+    intent === "configure"
+      ? `Provider ${providerKey} marcado para configuração`
+      : `Sincronização solicitada para ${providerKey}`;
+
+  await supabase.from("export_alerts").insert({
+    tenant_id: staff.tenantId,
+    severity: intent === "sync" ? "info" : "warning",
+    title,
+    description:
+      intent === "sync"
+        ? "Solicitação registrada no centro de comércio exterior. A execução real depende das credenciais e do adapter oficial do provider."
+        : "Cadastro operacional registrado. Vincule credenciais seguras e ambiente antes de habilitar transmissão automática.",
+    entity_type: "international_provider",
+    entity_id: null,
+    status: "open",
+    created_by: staff.id,
+  });
+
+  await audit({
+    action,
+    entityType: "international_provider",
+    entityId: null,
+    nextValue: {
+      providerKey,
+      intent,
+      requestedAt: now,
+      source: "cms_comercio_exterior",
+    },
+  });
+
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+  revalidatePath(`${INTERNATIONAL_PATH}/integracoes`);
 }
 
 export async function createInternationalTaxRule(formData: FormData): Promise<void> {
