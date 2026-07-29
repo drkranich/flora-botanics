@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { GlassDateInput } from "@/components/GlassDateInput";
 import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import {
@@ -18,6 +18,10 @@ import {
   upsertAccountantProfile,
 } from "./actions";
 import { FiscalFileUpload } from "./FiscalFileUpload";
+
+export type VaultFolderSelectOption = GlassSelectOption & {
+  uploadPath: string;
+};
 
 const documentTypes: GlassSelectOption[] = [
   { value: "nfe_sale", label: "NF-e de venda" },
@@ -325,12 +329,21 @@ export function FiscalObligationForm() {
   );
 }
 
-export function FiscalVaultForm() {
+export function FiscalVaultForm({ folders = [] }: { folders?: VaultFolderSelectOption[] }) {
+  const folderOptions = folders.length
+    ? folders
+    : [{ value: "", label: "Entrada geral", uploadPath: "entrada-geral" }];
+  const [folderId, setFolderId] = useState(folderOptions[0]?.value ?? "");
+  const uploadFolder = folderOptions.find((folder) => folder.value === folderId)?.uploadPath ?? "entrada-geral";
+
   return (
     <FormShell eyebrow="Cofre fiscal" title="Arquivar documento" action={createFiscalVaultDocument} buttonLabel="Guardar no cofre">
       <Field label="Nome"><TextInput name="name" placeholder="DANFE NF-e 123 ou deixe o arquivo nomear" /></Field>
       <Field label="Tipo"><TextInput name="document_type" placeholder="XML, DANFE, DARF, contrato..." /></Field>
       <Field label="Categoria"><TextInput name="category" placeholder="Nota, guia, comprovante..." /></Field>
+      <Field label="Pasta do cofre">
+        <GlassSelect name="folder_id" value={folderId} options={folderOptions} onChange={setFolderId} inlineMenu />
+      </Field>
       <Field label="Departamento"><GlassSelect name="department" options={departments} defaultValue="fiscal" inlineMenu /></Field>
       <Field label="Competência"><TextInput name="competence" placeholder="2026-07" /></Field>
       <Field label="Emissão"><GlassDateInput name="issued_at" placeholder="Data de emissão" inlinePopover /></Field>
@@ -350,7 +363,7 @@ export function FiscalVaultForm() {
       <Field label="Origem"><TextInput name="origin" placeholder="upload, contador, órgão..." /></Field>
       <Field label="Status do cofre"><GlassSelect name="status" options={vaultStatusOptions} defaultValue="received" inlineMenu /></Field>
       <Field label="Arquivo privado">
-        <FiscalFileUpload name="storage_path" label="Enviar arquivo" kind="cofre" />
+        <FiscalFileUpload name="storage_path" label="Enviar arquivo" kind="cofre" folder={uploadFolder} />
       </Field>
       <Field label="Tags"><TextInput name="tags" placeholder="DCTFWeb, julho, pago" /></Field>
       <Field label="Observações"><TextArea name="notes" placeholder="Relações, retenção e conferência." /></Field>

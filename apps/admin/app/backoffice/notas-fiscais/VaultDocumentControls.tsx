@@ -14,6 +14,8 @@ import { FiscalFileUpload } from "./FiscalFileUpload";
 
 type VaultControlDocument = {
   id: string;
+  folderId: string | null;
+  folderName: string | null;
   name: string;
   documentType: string;
   category: string | null;
@@ -34,6 +36,10 @@ type VaultControlDocument = {
   storagePath: string | null;
   tags: string[];
   notes: string | null;
+};
+
+export type VaultFolderControlOption = GlassSelectOption & {
+  uploadPath: string;
 };
 
 const viewOptions: GlassSelectOption[] = [
@@ -143,9 +149,11 @@ function setParam(params: URLSearchParams, key: string, value: string) {
 export function VaultToolbar({
   total,
   filtered,
+  folders = [],
 }: {
   total: number;
   filtered: number;
+  folders?: VaultFolderControlOption[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -154,6 +162,7 @@ export function VaultToolbar({
   const view = searchParams.get("vaultView") ?? "lista";
   const status = searchParams.get("status") ?? "todos";
   const department = searchParams.get("department") ?? "todos";
+  const folder = searchParams.get("folder") ?? "todos";
   const sort = searchParams.get("sort") ?? "recentes";
 
   function update(next: Record<string, string>) {
@@ -201,6 +210,15 @@ export function VaultToolbar({
           <GlassSelect value={department} options={departmentOptions} onChange={(value) => update({ department: value })} inlineMenu />
         </label>
         <label style={fieldStyle}>
+          <span style={labelStyle}>Pasta</span>
+          <GlassSelect
+            value={folder}
+            options={[{ value: "todos", label: "Todas as pastas" }, { value: "sem-pasta", label: "Sem pasta" }, ...folders]}
+            onChange={(value) => update({ folder: value })}
+            inlineMenu
+          />
+        </label>
+        <label style={fieldStyle}>
           <span style={labelStyle}>Ordenar</span>
           <GlassSelect value={sort} options={sortOptions} onChange={(value) => update({ sort: value })} inlineMenu />
         </label>
@@ -220,11 +238,14 @@ export function VaultToolbar({
 
 export function VaultDocumentControls({
   document,
+  folders = [],
 }: {
   document: VaultControlDocument;
+  folders?: VaultFolderControlOption[];
 }) {
   const [mode, setMode] = useState<"idle" | "edit" | "details" | "archive" | "delete">("idle");
   const [shareMessage, setShareMessage] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState(document.folderId ?? folders[0]?.value ?? "");
   const [pending, startTransition] = useTransition();
   const fileHref = document.storagePath
     ? adminApiPath(`/api/fiscal-files?path=${encodeURIComponent(document.storagePath)}`)
@@ -279,6 +300,7 @@ export function VaultDocumentControls({
           <dl style={detailsGridStyle}>
             <Meta label="Nome" value={document.name} />
             <Meta label="Tipo" value={document.documentType} />
+            <Meta label="Pasta" value={document.folderName ?? "Entrada geral"} />
             <Meta label="Categoria" value={document.category} />
             <Meta label="Departamento" value={document.department} />
             <Meta label="Competência" value={document.competence} />
@@ -301,6 +323,15 @@ export function VaultDocumentControls({
             <Field label="Nome"><input name="name" required defaultValue={document.name} className="input" style={inputStyle} /></Field>
             <Field label="Tipo"><input name="document_type" required defaultValue={document.documentType} className="input" style={inputStyle} /></Field>
             <Field label="Categoria"><input name="category" defaultValue={document.category ?? ""} className="input" style={inputStyle} /></Field>
+            <Field label="Pasta do cofre">
+              <GlassSelect
+                name="folder_id"
+                options={folders.length ? folders : [{ value: "", label: "Entrada geral" }]}
+                value={selectedFolderId}
+                onChange={setSelectedFolderId}
+                inlineMenu
+              />
+            </Field>
             <Field label="Departamento"><GlassSelect name="department" options={departmentOptions.filter((item) => item.value !== "todos")} defaultValue={document.department ?? "fiscal"} inlineMenu /></Field>
             <Field label="Competência"><input name="competence" defaultValue={document.competence ?? ""} className="input" style={inputStyle} /></Field>
             <Field label="Emissão"><GlassDateInput name="issued_at" defaultValue={document.issuedAt ?? ""} placeholder="Data de emissão" inlinePopover /></Field>
@@ -318,7 +349,14 @@ export function VaultDocumentControls({
             <Field label="Origem"><input name="origin" defaultValue={document.origin} className="input" style={inputStyle} /></Field>
             <Field label="Tags"><input name="tags" defaultValue={tags} className="input" style={inputStyle} /></Field>
             <Field label="Substituir arquivo">
-              <FiscalFileUpload name="storage_path" label="Enviar novo arquivo" kind="cofre" defaultPath={document.storagePath} compact />
+              <FiscalFileUpload
+                name="storage_path"
+                label="Enviar novo arquivo"
+                kind="cofre"
+                folder={folders.find((folder) => folder.value === selectedFolderId)?.uploadPath ?? "entrada-geral"}
+                defaultPath={document.storagePath}
+                compact
+              />
             </Field>
             <Field label="Observações"><textarea name="notes" rows={3} defaultValue={document.notes ?? ""} className="input" style={{ ...inputStyle, resize: "vertical" }} /></Field>
           </div>

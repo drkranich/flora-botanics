@@ -96,6 +96,39 @@ function booleanValue(formData: FormData, key: string) {
   return value === "on" || value === "true" || value === "1";
 }
 
+async function ensureDefaultVaultFolder(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  staff: NonNullable<Awaited<ReturnType<typeof currentStaff>>>
+) {
+  const { data: existing } = await supabase
+    .from("document_vault_folders")
+    .select("id")
+    .eq("tenant_id", staff.tenantId)
+    .eq("name", "Entrada geral")
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (existing?.id) return existing.id as string;
+
+  const { data, error } = await supabase
+    .from("document_vault_folders")
+    .insert({
+      tenant_id: staff.tenantId,
+      name: "Entrada geral",
+      description: "Pasta padrão para documentos enviados antes de uma classificação específica.",
+      icon: "arquivo",
+      color: "gold",
+      department: "fiscal",
+      access_level: "internal",
+      created_by: staff.id,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) throw new Error(`Não foi possível criar a pasta padrão do cofre: ${error?.message ?? "sem retorno"}.`);
+  return data.id as string;
+}
+
 function paymentStatusForFinancialControl(status: string | null) {
   if (!status) return "open";
   const map: Record<string, string> = {
@@ -710,6 +743,141 @@ export async function registerFiscalGuidePayment(guideId: string, formData: Form
   revalidateFiscalCenter();
 }
 
+export async function createVaultFolder(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const name = requiredText(formData, "name", "Nome da pasta");
+  const payload = {
+    tenant_id: staff.tenantId,
+    parent_id: text(formData, "parent_id"),
+    name,
+    description: text(formData, "description"),
+    icon: text(formData, "icon") ?? "pasta",
+    color: text(formData, "color") ?? "gold",
+    department: text(formData, "department") ?? "fiscal",
+    retention_rule: text(formData, "retention_rule"),
+    access_level: text(formData, "access_level") ?? "internal",
+    tags: jsonArray(formData, "tags"),
+    created_by: staff.id,
+  };
+
+  const { data, error } = await supabase.from("document_vault_folders").insert(payload).select("id").single();
+  if (error || !data?.id) throw new Error(`Não foi possível criar a pasta: ${error?.message ?? "registro não retornado"}.`);
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    folder_id: data.id,
+    action: "folder_created",
+    new_value: payload,
+    actor_id: staff.id,
+  });
+
+  revalidateFiscalCenter();
+}
+
+export async function updateVaultFolder(folderId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const payload = {
+    parent_id: text(formData, "parent_id"),
+    name: requiredText(formData, "name", "Nome da pasta"),
+    description: text(formData, "description"),
+    icon: text(formData, "icon") ?? "pasta",
+    color: text(formData, "color") ?? "gold",
+    department: text(formData, "department") ?? "fiscal",
+    retention_rule: text(formData, "retention_rule"),
+    access_level: text(formData, "access_level") ?? "internal",
+    tags: jsonArray(formData, "tags"),
+  };
+
+  const { data, error } = await supabase
+    .from("document_vault_folders")
+    .update(payload)
+    .eq("id", folderId)
+    .eq("tenant_id", staff.tenantId)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(`Não foi possível editar a pasta: ${error.message}.`);
+  if (!data) throw new Error("Pasta não encontrada ou sem permissão para editar.");
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    folder_id: folderId,
+    action: "folder_updated",
+    new_value: payload,
+    actor_id: staff.id,
+  });
+
+  revalidateFiscalCenter();
+}
+
+export async function archiveVaultFolder(folderId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const reason = text(formData, "reason") ?? "Pasta arquivada no cofre fiscal.";
+
+  const { data, error } = await supabase
+    .from("document_vault_folders")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", folderId)
+    .eq("tenant_id", staff.tenantId)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(`Não foi possível arquivar a pasta: ${error.message}.`);
+  if (!data) throw new Error("Pasta não encontrada ou sem permissão para arquivar.");
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    folder_id: folderId,
+    action: "folder_archived",
+    reason,
+    actor_id: staff.id,
+  });
+
+  revalidateFiscalCenter();
+}
+
+export async function deleteVaultFolder(folderId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const reason = text(formData, "reason") ?? "Pasta excluída do cofre fiscal.";
+
+  const { data, error } = await supabase
+    .from("document_vault_folders")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", folderId)
+    .eq("tenant_id", staff.tenantId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(`Não foi possível excluir a pasta: ${error.message}.`);
+  if (!data) throw new Error("Pasta não encontrada ou sem permissão para excluir.");
+
+  await supabase
+    .from("fiscal_vault_documents")
+    .update({ folder_id: null })
+    .eq("tenant_id", staff.tenantId)
+    .eq("folder_id", folderId);
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    folder_id: folderId,
+    action: "folder_deleted",
+    reason,
+    actor_id: staff.id,
+  });
+
+  revalidateFiscalCenter();
+}
+
 export async function createFiscalVaultDocument(formData: FormData): Promise<void> {
   const staff = await currentStaff();
   if (!staff) return;
@@ -719,8 +887,10 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
   const financialNature = text(formData, "financial_nature") ?? (cents(formData, "value") > 0 ? "needs_review" : "not_applicable");
   const paymentStatus = text(formData, "payment_status") ?? (financialNature === "not_applicable" ? "not_applicable" : "open");
   const valueCents = cents(formData, "value");
+  const folderId = text(formData, "folder_id") ?? await ensureDefaultVaultFolder(supabase, staff);
   const payload = {
     tenant_id: staff.tenantId,
+    folder_id: folderId,
     name: text(formData, "name") ?? inferredName ?? "Documento fiscal importado",
     document_type: text(formData, "document_type") ?? fileTypeFromPath(storagePath) ?? "Arquivo fiscal",
     category: text(formData, "category"),
@@ -912,8 +1082,10 @@ export async function updateVaultDocument(vaultDocumentId: string, formData: For
   const storagePath = text(formData, "storage_path");
   const valueCents = cents(formData, "value");
   const paymentStatus = text(formData, "payment_status");
+  const folderId = text(formData, "folder_id") ?? await ensureDefaultVaultFolder(supabase, staff);
 
   const payload = {
+    folder_id: folderId,
     name: requiredText(formData, "name", "Nome"),
     document_type: requiredText(formData, "document_type", "Tipo"),
     category: text(formData, "category"),
@@ -938,7 +1110,7 @@ export async function updateVaultDocument(vaultDocumentId: string, formData: For
 
   const { data: previous } = await supabase
     .from("fiscal_vault_documents")
-    .select("id, storage_path, financial_control_id")
+    .select("id, storage_path, financial_control_id, folder_id")
     .eq("id", vaultDocumentId)
     .eq("tenant_id", staff.tenantId)
     .is("deleted_at", null)

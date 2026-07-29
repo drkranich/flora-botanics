@@ -41,6 +41,7 @@ export function FiscalFileUpload({
   name,
   label,
   kind,
+  folder = "",
   accept = ".pdf,.xml,.png,.jpg,.jpeg,.webp,.csv,.xls,.xlsx,.doc,.docx,.txt",
   compact = false,
   defaultPath = "",
@@ -48,6 +49,7 @@ export function FiscalFileUpload({
   name: string;
   label: string;
   kind: string;
+  folder?: string;
   accept?: string;
   compact?: boolean;
   defaultPath?: string | null;
@@ -63,6 +65,7 @@ export function FiscalFileUpload({
     const body = new FormData();
     body.set("file", file);
     body.set("kind", kind);
+    if (folder) body.set("folder", folder);
 
     const res = await fetch(apiPath("/api/fiscal-files"), { method: "POST", body });
     const data = await readJson<{ file?: { path: string; name: string }; error?: string }>(res);

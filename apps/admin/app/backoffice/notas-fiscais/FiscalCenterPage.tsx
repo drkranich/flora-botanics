@@ -22,6 +22,7 @@ import {
   MonthlyClosingForm,
 } from "./FiscalForms";
 import { VaultDocumentControls, VaultToolbar } from "./VaultDocumentControls";
+import { VaultFolderManager, type VaultFolderManagerRow } from "./VaultFolderManager";
 
 const NFE_STATUS_LABELS: Record<string, string> = {
   rascunho: "Rascunho",
@@ -320,6 +321,7 @@ type FiscalObligationRow = {
 
 type VaultRow = {
   id: string;
+  folder_id: string | null;
   name: string;
   document_type: string;
   category: string | null;
@@ -344,6 +346,20 @@ type VaultRow = {
   tags: string[] | null;
   notes: string | null;
   updated_at: string;
+};
+
+type VaultFolderRow = {
+  id: string;
+  parent_id: string | null;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  department: string | null;
+  retention_rule: string | null;
+  access_level: string;
+  tags: string[] | null;
+  archived_at: string | null;
 };
 
 type VaultControlRow = {
@@ -514,6 +530,13 @@ function normalizeFilter(value: string | null | undefined) {
     .trim();
 }
 
+function slugPath(value: string | null | undefined) {
+  return normalizeFilter(value)
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "entrada-geral";
+}
+
 function sortDate(value: string | null | undefined) {
   if (!value) return 0;
   const time = new Date(value).getTime();
@@ -539,6 +562,7 @@ export async function FiscalCenterPage({
     fiscalDocsRes,
     guidesRes,
     obligationsRes,
+    foldersRes,
     vaultRes,
     eventsRes,
     rejectionsRes,
@@ -590,8 +614,15 @@ export async function FiscalCenterPage({
       .order("due_date", { ascending: true, nullsFirst: false })
       .limit(80),
     supabase
+      .from("document_vault_folders")
+      .select("id, parent_id, name, description, icon, color, department, retention_rule, access_level, tags, archived_at")
+      .eq("tenant_id", staff.tenantId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .limit(120),
+    supabase
       .from("fiscal_vault_documents")
-      .select("id, name, document_type, category, department, competence, issued_at, due_date, value_cents, cnpj, cpf, access_key, number, series, status, verification_status, visibility_status, origin, storage_path, financial_control_id, archived_at, favorite, tags, notes, updated_at")
+      .select("id, folder_id, name, document_type, category, department, competence, issued_at, due_date, value_cents, cnpj, cpf, access_key, number, series, status, verification_status, visibility_status, origin, storage_path, financial_control_id, archived_at, favorite, tags, notes, updated_at")
       .eq("tenant_id", staff.tenantId)
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
@@ -677,6 +708,7 @@ export async function FiscalCenterPage({
     { label: "Documentos fiscais", error: fiscalDocsRes.error },
     { label: "Guias e pagamentos", error: guidesRes.error },
     { label: "Obrigações", error: obligationsRes.error },
+    { label: "Pastas do cofre", error: foldersRes.error },
     { label: "Cofre fiscal", error: vaultRes.error },
     { label: "Sincronizações", error: syncRunsRes.error },
     { label: "Auditoria fiscal", error: fiscalAuditRes.error },
@@ -686,6 +718,7 @@ export async function FiscalCenterPage({
   const fiscalDocs = (fiscalDocsRes.data ?? []) as unknown as FiscalDocumentRow[];
   const guides = (guidesRes.data ?? []) as unknown as FiscalGuideRow[];
   const obligations = (obligationsRes.data ?? []) as unknown as FiscalObligationRow[];
+  const folders = (foldersRes.data ?? []) as unknown as VaultFolderRow[];
   const vaultDocs = (vaultRes.data ?? []) as unknown as VaultRow[];
   const events = (eventsRes.data ?? []) as unknown as EventRow[];
   const rejections = (rejectionsRes.data ?? []) as unknown as RejectionRow[];
@@ -712,10 +745,37 @@ export async function FiscalCenterPage({
       .filter((control) => control.source_id)
       .map((control) => [control.source_id as string, control])
   );
+  const folderCount = new Map<string, number>();
+  for (const doc of vaultDocs) {
+    if (doc.folder_id) folderCount.set(doc.folder_id, (folderCount.get(doc.folder_id) ?? 0) + 1);
+  }
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+  const vaultFolderOptions = folders
+    .filter((folder) => !folder.archived_at)
+    .map((folder) => ({
+      value: folder.id,
+      label: folder.name,
+      uploadPath: slugPath(folder.name),
+    }));
+  const folderManagerRows: VaultFolderManagerRow[] = folders.map((folder) => ({
+    id: folder.id,
+    parentId: folder.parent_id,
+    name: folder.name,
+    description: folder.description,
+    icon: folder.icon,
+    color: folder.color,
+    department: folder.department,
+    retentionRule: folder.retention_rule,
+    accessLevel: folder.access_level,
+    tags: folder.tags ?? [],
+    archivedAt: folder.archived_at,
+    documentCount: folderCount.get(folder.id) ?? 0,
+  }));
   const vaultView = searchValue(searchParams, "vaultView") ?? "lista";
   const vaultQuery = normalizeFilter(searchValue(searchParams, "q"));
   const vaultStatus = searchValue(searchParams, "status") ?? "todos";
   const vaultDepartment = searchValue(searchParams, "department") ?? "todos";
+  const vaultFolder = searchValue(searchParams, "folder") ?? "todos";
   const vaultSort = searchValue(searchParams, "sort") ?? "recentes";
   const filteredVaultDocs = [...vaultDocs]
     .filter((doc) => {
@@ -734,7 +794,10 @@ export async function FiscalCenterPage({
       const matchesQuery = !vaultQuery || haystack.includes(vaultQuery);
       const matchesStatus = vaultStatus === "todos" || doc.status === vaultStatus;
       const matchesDepartment = vaultDepartment === "todos" || doc.department === vaultDepartment;
-      return matchesQuery && matchesStatus && matchesDepartment;
+      const matchesFolder =
+        vaultFolder === "todos" ||
+        (vaultFolder === "sem-pasta" ? !doc.folder_id : doc.folder_id === vaultFolder);
+      return matchesQuery && matchesStatus && matchesDepartment && matchesFolder;
     })
     .sort((a, b) => {
       if (vaultSort === "vencimento") return sortDate(a.due_date) - sortDate(b.due_date);
@@ -1214,7 +1277,9 @@ export async function FiscalCenterPage({
       <section id="cofre" className={sectionClass("cofre")} style={vaultSectionStyle}>
         <div className="glass" style={{ ...cardStyle, minWidth: 0, overflow: "visible" }}>
           <SectionTitle eyebrow="Cofre fiscal" title="Arquivo permanente e documentos de competência" />
-          <VaultToolbar total={vaultDocs.length} filtered={filteredVaultDocs.length} />
+          <VaultFolderManager folders={folderManagerRows} />
+          <div style={{ height: 14 }} />
+          <VaultToolbar total={vaultDocs.length} filtered={filteredVaultDocs.length} folders={vaultFolderOptions} />
           {vaultDocs.length === 0 ? (
             <EmptyState title="Cofre vazio" action="Arquive XML, DANFE, DARF, DAS, comprovantes, contratos, licenças, certidões e documentos do contador." />
           ) : filteredVaultDocs.length === 0 ? (
@@ -1231,9 +1296,12 @@ export async function FiscalCenterPage({
             >
               {filteredVaultDocs.map((doc) => {
                 const control = vaultControls.get(doc.id);
+                const folder = doc.folder_id ? folderById.get(doc.folder_id) : null;
                 const tags = Array.isArray(doc.tags) ? doc.tags : [];
                 const documentControl = {
                   id: doc.id,
+                  folderId: doc.folder_id,
+                  folderName: folder?.name ?? null,
                   name: doc.name,
                   documentType: doc.document_type,
                   category: doc.category,
@@ -1272,7 +1340,7 @@ export async function FiscalCenterPage({
                       <div>
                         <strong>{doc.favorite ? "★ " : ""}{doc.name}</strong>
                         <small>
-                          {doc.document_type} · {doc.department ?? "sem departamento"} · {doc.competence ?? "permanente"} · {formatBRL(doc.value_cents)}
+                          {doc.document_type} · {folder?.name ?? "sem pasta"} · {doc.department ?? "sem departamento"} · {doc.competence ?? "permanente"} · {formatBRL(doc.value_cents)}
                         </small>
                         <small>
                           {doc.archived_at ? `Arquivado em ${formatDate(doc.archived_at)}` : "Documento ativo no cofre"} · origem {doc.origin}
@@ -1308,14 +1376,14 @@ export async function FiscalCenterPage({
                         </small>
                       ) : null}
                     </div>
-                    <VaultDocumentControls document={documentControl} />
+                    <VaultDocumentControls document={documentControl} folders={vaultFolderOptions} />
                   </div>
                 );
               })}
             </div>
           )}
         </div>
-        <FiscalVaultForm />
+        <FiscalVaultForm folders={vaultFolderOptions} />
       </section>
 
       <section id="contador" className={sectionClass("contador")} style={twoColumnStyle}>

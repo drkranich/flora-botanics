@@ -56,6 +56,16 @@ function sanitizeKind(value: FormDataEntryValue | null) {
   return kind || "documentos";
 }
 
+function sanitizeFolder(value: FormDataEntryValue | null) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  return raw
+    .split("/")
+    .map(cleanSegment)
+    .filter(Boolean)
+    .join("/");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const staff = await currentStaff();
@@ -64,6 +74,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file");
     const kind = sanitizeKind(formData.get("kind"));
+    const folder = sanitizeFolder(formData.get("folder"));
 
     if (!isUploadFile(file)) return jsonError("Arquivo obrigatório.", 400);
     if (file.size > MAX_BYTES) return jsonError("Arquivo acima do limite de 20 MB.", 413);
@@ -77,7 +88,7 @@ export async function POST(req: NextRequest) {
     const supabase = admin ?? (await createClient());
 
     const safeName = cleanSegment(file.name) || `arquivo.${ext}`;
-    const path = `${staff.tenantId}/${kind}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+    const path = `${staff.tenantId}/${kind}/${folder ? `${folder}/` : ""}${Date.now()}-${crypto.randomUUID()}-${safeName}`;
     const bytes = await file.arrayBuffer();
 
     const { error } = await supabase.storage.from(BUCKET).upload(path, bytes, {
