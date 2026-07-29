@@ -170,7 +170,7 @@ export default async function MarketingTemplatesPage() {
                 <EmailTemplatePreview template={template} installed={installed} />
                 <form action={installMarketingTemplateBlueprint} style={{ marginTop: "auto", paddingTop: 16 }}>
                   <input type="hidden" name="blueprint_id" value={template.id} />
-                  <button className={installed ? "btn btn-ghost" : "btn btn-gold"} style={smallButtonStyle}>
+                  <button className={installed ? "btn btn-ghost" : "btn btn-gold"} style={fullWidthButtonStyle}>
                     {installed ? "Atualizar modelo" : "Instalar modelo"}
                   </button>
                 </form>
@@ -272,6 +272,9 @@ export default async function MarketingTemplatesPage() {
                   <p className="muted" style={{ margin: 0, lineHeight: 1.55, fontSize: 12.5 }}>
                     {template.subject ?? template.preview ?? "Modelo pronto para editar no Studio visual."}
                   </p>
+                  <Link href="/backoffice/mensagens" className="btn btn-ghost" style={{ ...fullWidthButtonStyle, marginTop: "auto" }}>
+                    Editar modelo
+                  </Link>
                 </article>
               ))}
             </div>
@@ -327,15 +330,17 @@ function EmailTemplatePreview({ template, installed }: { template: BlueprintRow;
         </span>
         <span className="muted" style={{ fontSize: 11 }}>{channelLabel(template.channel)}</span>
       </div>
-      <h3 style={{ margin: "12px 0 8px", fontSize: 20 }}>{template.name}</h3>
-      <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{template.description}</p>
+      <h3 style={templateTitleStyle}>{template.name}</h3>
+      <p className="muted" style={templateDescriptionStyle}>{template.description}</p>
       {variables.length ? (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+        <div style={templateVariableRowStyle}>
           {variables.map((variable) => (
             <span key={variable} style={variableStyle}>{variableLabel(variable)}</span>
           ))}
         </div>
-      ) : null}
+      ) : (
+        <div style={templateVariableRowStyle} aria-hidden="true" />
+      )}
     </>
   );
 }
@@ -367,9 +372,9 @@ function LandingTemplateCard({
         </div>
       </div>
       <span className="chip chip-draft" style={{ width: "fit-content" }}>{preset.category}</span>
-      <h3 style={{ margin: "12px 0 8px", fontSize: 20 }}>{preset.title}</h3>
-      <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{preset.intro}</p>
-      <form action={createMarketingLandingPage} style={{ marginTop: 16 }}>
+      <h3 style={landingTitleStyle}>{preset.title}</h3>
+      <p className="muted" style={landingDescriptionStyle}>{preset.intro}</p>
+      <form action={createMarketingLandingPage} style={{ marginTop: "auto", paddingTop: 16 }}>
         <input type="hidden" name="title" value={preset.title} />
         <input type="hidden" name="slug" value={slug} />
         <input type="hidden" name="status" value="draft" />
@@ -388,7 +393,10 @@ function LandingTemplateCard({
         <input type="hidden" name="testimonial_text" value="Inclua avaliação, garantia, ingrediente ou argumento de confiança." />
         <input type="hidden" name="seo_title" value={preset.title} />
         <input type="hidden" name="seo_description" value={preset.intro} />
-        <button className="btn btn-gold" style={smallButtonStyle}>Criar landing editável</button>
+        <div style={cardActionRowStyle}>
+          <button className="btn btn-gold" style={fullWidthButtonStyle}>Criar landing editável</button>
+          <Link href="/marketing/landing-pages" className="btn btn-ghost" style={fullWidthButtonStyle}>Editar landings</Link>
+        </div>
       </form>
     </article>
   );
@@ -409,10 +417,15 @@ function ctaLabelForTemplate(category: string) {
     "pedido expedido": "Rastrear pedido",
     "pedido aprovado": "Acompanhar pedido",
     aniversário: "Escolher presente",
+    "boas-vindas": "Acessar conta",
+    assinatura: "Gerenciar assinatura",
+    avaliação: "Avaliar agora",
+    lançamento: "Ver novidade",
+    remarketing: "Finalizar compra",
     b2b: "Ver proposta",
     orçamento: "Aprovar orçamento",
   };
-  return labels[category.toLowerCase()] ?? "Editar modelo";
+  return labels[category.toLowerCase()] ?? "Ver mensagem";
 }
 
 function variableLabel(variable: string) {
@@ -501,9 +514,32 @@ const templateCardStyle: CSSProperties = {
   borderRadius: 14,
   padding: 16,
   background: "linear-gradient(145deg, rgba(255,248,234,0.075), rgba(10,22,11,0.34))",
-  minHeight: 460,
+  minHeight: 560,
   display: "flex",
   flexDirection: "column",
+};
+
+const templateTitleStyle: CSSProperties = {
+  margin: "12px 0 8px",
+  minHeight: 50,
+  fontSize: 20,
+  lineHeight: 1.2,
+};
+
+const templateDescriptionStyle: CSSProperties = {
+  margin: 0,
+  minHeight: 62,
+  lineHeight: 1.65,
+  fontSize: 12.5,
+};
+
+const templateVariableRowStyle: CSSProperties = {
+  display: "flex",
+  gap: 6,
+  flexWrap: "wrap",
+  alignContent: "flex-start",
+  minHeight: 74,
+  marginTop: 14,
 };
 
 const variableStyle: CSSProperties = {
@@ -588,7 +624,21 @@ const landingGridStyle: CSSProperties = {
 
 const landingCardStyle: CSSProperties = {
   ...templateCardStyle,
-  minHeight: 420,
+  minHeight: 490,
+};
+
+const landingTitleStyle: CSSProperties = {
+  margin: "12px 0 8px",
+  minHeight: 48,
+  fontSize: 20,
+  lineHeight: 1.2,
+};
+
+const landingDescriptionStyle: CSSProperties = {
+  margin: 0,
+  minHeight: 68,
+  lineHeight: 1.65,
+  fontSize: 12.5,
 };
 
 const landingPreviewStyle: CSSProperties = {
@@ -638,7 +688,10 @@ const installedTemplateStyle: CSSProperties = {
   borderRadius: 14,
   padding: 14,
   background: "rgba(255,248,234,0.045)",
-  minHeight: 230,
+  minHeight: 310,
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
 };
 
 const miniMailStyle: CSSProperties = {
@@ -733,6 +786,17 @@ const smallButtonStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
+};
+
+const fullWidthButtonStyle: CSSProperties = {
+  ...smallButtonStyle,
+  width: "100%",
+};
+
+const cardActionRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: 8,
 };
 
 const rowStyle: CSSProperties = {

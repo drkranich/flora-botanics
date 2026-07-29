@@ -434,6 +434,8 @@ export async function createMarketingLandingPage(formData: FormData) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/marketing");
+  revalidatePath("/marketing/landing-pages");
+  redirect("/marketing/landing-pages");
 }
 
 export async function recordMarketingConsent(formData: FormData) {
@@ -976,6 +978,7 @@ export async function installMarketingTemplateBlueprint(formData: FormData) {
   revalidatePath("/marketing");
   revalidatePath("/marketing/templates");
   revalidatePath("/backoffice/mensagens");
+  redirect("/backoffice/mensagens");
 }
 
 export async function installAllMarketingTemplateBlueprints() {
