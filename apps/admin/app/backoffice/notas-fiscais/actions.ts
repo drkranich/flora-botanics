@@ -303,6 +303,8 @@ export async function createFiscalGuide(formData: FormData): Promise<void> {
     digitable_line: text(formData, "digitable_line"),
     qr_code: text(formData, "qr_code"),
     official_identifier: text(formData, "official_identifier"),
+    guide_path: text(formData, "guide_path"),
+    receipt_path: text(formData, "receipt_path"),
     notes: text(formData, "notes"),
     created_by: staff.id,
   };

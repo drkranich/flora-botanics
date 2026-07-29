@@ -899,6 +899,30 @@ select option:focus {
   transform: translateY(-1px);
 }
 
+.fiscal-file-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 5px 10px;
+  border: 1px solid rgba(var(--gold-rgb), 0.35);
+  border-radius: 999px;
+  background: rgba(var(--gold-rgb), 0.10);
+  color: var(--gold-light);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.fiscal-file-link:hover {
+  border-color: rgba(var(--gold-rgb), 0.65);
+  background: rgba(var(--gold-rgb), 0.18);
+  color: var(--cream);
+}
+
 .fiscal-kpi {
   padding: 18px;
   min-height: 122px;

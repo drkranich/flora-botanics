@@ -17,6 +17,7 @@ import {
   registerFiscalGuidePayment,
   upsertAccountantProfile,
 } from "./actions";
+import { FiscalFileUpload } from "./FiscalFileUpload";
 
 const documentTypes: GlassSelectOption[] = [
   { value: "nfe_sale", label: "NF-e de venda" },
@@ -236,6 +237,12 @@ export function FiscalGuideForm() {
       <Field label="Linha digitável"><TextInput name="digitable_line" placeholder="Linha oficial" /></Field>
       <Field label="QR Code"><TextInput name="qr_code" placeholder="Texto ou URL do QR Code" /></Field>
       <Field label="Identificador"><TextInput name="official_identifier" placeholder="Número oficial" /></Field>
+      <Field label="Arquivo da guia">
+        <FiscalFileUpload name="guide_path" label="Enviar guia" kind="guias" />
+      </Field>
+      <Field label="Comprovante">
+        <FiscalFileUpload name="receipt_path" label="Enviar comprovante" kind="comprovantes" />
+      </Field>
       <Field label="Observações"><TextArea name="notes" placeholder="Fonte, regra, vínculo contábil..." /></Field>
     </FormShell>
   );
@@ -249,7 +256,7 @@ export function GuidePaymentForm({ guideId }: { guideId: string }) {
       <input name="paid" placeholder="Valor pago" className="input" style={inputStyle} />
       <input name="bank_account" placeholder="Banco ou conta" className="input" style={inputStyle} />
       <input name="payment_method" placeholder="PIX, boleto, débito..." className="input" style={inputStyle} />
-      <input name="receipt_path" placeholder="Comprovante no cofre" className="input" style={inputStyle} />
+      <FiscalFileUpload name="receipt_path" label="Comprovante" kind="comprovantes" compact />
       <button className="btn btn-gold" style={{ padding: "8px 12px", fontSize: 9 }}>Registrar pagamento</button>
     </form>
   );
@@ -294,7 +301,9 @@ export function FiscalVaultForm() {
       <Field label="Série"><TextInput name="series" placeholder="Série" /></Field>
       <Field label="Origem"><TextInput name="origin" placeholder="upload, contador, órgão..." /></Field>
       <Field label="Status"><GlassSelect name="status" options={statusOptions} defaultValue="open" inlineMenu /></Field>
-      <Field label="Caminho privado"><TextInput name="storage_path" placeholder="storage privado ou referência" /></Field>
+      <Field label="Arquivo privado">
+        <FiscalFileUpload name="storage_path" label="Enviar arquivo" kind="cofre" />
+      </Field>
       <Field label="Tags"><TextInput name="tags" placeholder="DCTFWeb, julho, pago" /></Field>
       <Field label="Observações"><TextArea name="notes" placeholder="Relações, retenção e conferência." /></Field>
     </FormShell>

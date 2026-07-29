@@ -160,6 +160,25 @@ function StatusChip({ status }: { status: string | null | undefined }) {
   return <span className={`fiscal-chip fiscal-chip-${tone}`}>{label(STATUS_LABELS, status)}</span>;
 }
 
+function adminApiPath(path: string) {
+  const base = process.env.NEXT_PUBLIC_ADMIN_BASE_PATH?.replace(/\/+$/, "");
+  return `${base || "/admin"}${path}`;
+}
+
+function FileLink({ path, children }: { path: string | null | undefined; children: ReactNode }) {
+  if (!path) return null;
+  return (
+    <a
+      href={adminApiPath(`/api/fiscal-files?path=${encodeURIComponent(path)}`)}
+      target="_blank"
+      rel="noreferrer"
+      className="fiscal-file-link"
+    >
+      {children}
+    </a>
+  );
+}
+
 function SectionTitle({ eyebrow, title, children }: { eyebrow: string; title: string; children?: ReactNode }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
@@ -254,6 +273,8 @@ type FiscalGuideRow = {
   verification_status: string;
   digitable_line: string | null;
   barcode: string | null;
+  guide_path: string | null;
+  receipt_path: string | null;
 };
 
 type FiscalObligationRow = {
@@ -280,6 +301,7 @@ type VaultRow = {
   verification_status: string;
   visibility_status: string;
   origin: string;
+  storage_path: string | null;
 };
 
 type EventRow = {
@@ -423,7 +445,7 @@ export default async function NotasFiscaisPage() {
       .limit(100),
     supabase
       .from("fiscal_guides")
-      .select("id, guide_type, document_name, competence, due_date, original_cents, updated_cents, paid_cents, payment_status, verification_status, digitable_line, barcode")
+      .select("id, guide_type, document_name, competence, due_date, original_cents, updated_cents, paid_cents, payment_status, verification_status, digitable_line, barcode, guide_path, receipt_path")
       .eq("tenant_id", staff.tenantId)
       .order("due_date", { ascending: true, nullsFirst: false })
       .limit(80),
@@ -435,7 +457,7 @@ export default async function NotasFiscaisPage() {
       .limit(80),
     supabase
       .from("fiscal_vault_documents")
-      .select("id, name, document_type, category, department, competence, due_date, value_cents, status, verification_status, visibility_status, origin")
+      .select("id, name, document_type, category, department, competence, due_date, value_cents, status, verification_status, visibility_status, origin, storage_path")
       .eq("tenant_id", staff.tenantId)
       .order("updated_at", { ascending: false })
       .limit(80),
@@ -809,6 +831,10 @@ export default async function NotasFiscaisPage() {
                       <strong>{label(GUIDE_TYPE_LABELS, guide.guide_type)}</strong>
                       <span>{guide.document_name}</span>
                       {guide.digitable_line ? <span>{guide.digitable_line.slice(0, 24)}...</span> : null}
+                      <span style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                        <FileLink path={guide.guide_path}>Abrir guia</FileLink>
+                        <FileLink path={guide.receipt_path}>Abrir comprovante</FileLink>
+                      </span>
                     </td>
                     <td>{guide.competence ?? "—"}</td>
                     <td>{formatDate(guide.due_date)}</td>
@@ -909,6 +935,7 @@ export default async function NotasFiscaisPage() {
                   <span>
                     <strong>{doc.name}</strong>
                     <small>{doc.document_type} · {doc.department ?? "sem departamento"} · {doc.competence ?? "permanente"} · {formatBRL(doc.value_cents)}</small>
+                    <FileLink path={doc.storage_path}>Abrir arquivo</FileLink>
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <StatusChip status={doc.visibility_status} />
