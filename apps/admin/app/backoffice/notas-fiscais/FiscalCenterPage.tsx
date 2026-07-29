@@ -21,7 +21,7 @@ import {
   GuidePaymentForm,
   MonthlyClosingForm,
 } from "./FiscalForms";
-import { VaultDocumentActions } from "./VaultDocumentActions";
+import { VaultDocumentControls, VaultToolbar } from "./VaultDocumentControls";
 
 const NFE_STATUS_LABELS: Record<string, string> = {
   rascunho: "Rascunho",
@@ -325,8 +325,14 @@ type VaultRow = {
   category: string | null;
   department: string | null;
   competence: string | null;
+  issued_at: string | null;
   due_date: string | null;
   value_cents: number;
+  cnpj: string | null;
+  cpf: string | null;
+  access_key: string | null;
+  number: string | null;
+  series: string | null;
   status: string;
   verification_status: string;
   visibility_status: string;
@@ -335,6 +341,9 @@ type VaultRow = {
   financial_control_id: string | null;
   archived_at: string | null;
   favorite: boolean | null;
+  tags: string[] | null;
+  notes: string | null;
+  updated_at: string;
 };
 
 type VaultControlRow = {
@@ -451,10 +460,33 @@ function isSchemaMissingError(error: QueryErrorItem["error"]) {
   return /schema cache|could not find|does not exist|relation .* does not exist|column .* does not exist/i.test(message);
 }
 
+type FiscalSearchParams = Record<string, string | string[] | undefined>;
+
+function searchValue(searchParams: FiscalSearchParams | undefined, key: string) {
+  const value = searchParams?.[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeFilter(value: string | null | undefined) {
+  return (value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function sortDate(value: string | null | undefined) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
 export async function FiscalCenterPage({
   activeSection,
+  searchParams,
 }: {
   activeSection: FiscalSectionId;
+  searchParams?: FiscalSearchParams;
 }) {
   const staff = await currentStaff();
   if (!staff) return null;
@@ -517,7 +549,7 @@ export async function FiscalCenterPage({
       .limit(80),
     supabase
       .from("fiscal_vault_documents")
-      .select("id, name, document_type, category, department, competence, due_date, value_cents, status, verification_status, visibility_status, origin, storage_path, financial_control_id, archived_at, favorite")
+      .select("id, name, document_type, category, department, competence, issued_at, due_date, value_cents, cnpj, cpf, access_key, number, series, status, verification_status, visibility_status, origin, storage_path, financial_control_id, archived_at, favorite, tags, notes, updated_at")
       .eq("tenant_id", staff.tenantId)
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
@@ -613,6 +645,37 @@ export async function FiscalCenterPage({
       .filter((control) => control.source_id)
       .map((control) => [control.source_id as string, control])
   );
+  const vaultView = searchValue(searchParams, "vaultView") ?? "lista";
+  const vaultQuery = normalizeFilter(searchValue(searchParams, "q"));
+  const vaultStatus = searchValue(searchParams, "status") ?? "todos";
+  const vaultDepartment = searchValue(searchParams, "department") ?? "todos";
+  const vaultSort = searchValue(searchParams, "sort") ?? "recentes";
+  const filteredVaultDocs = [...vaultDocs]
+    .filter((doc) => {
+      const tags = Array.isArray(doc.tags) ? doc.tags.join(" ") : "";
+      const haystack = normalizeFilter([
+        doc.name,
+        doc.document_type,
+        doc.category,
+        doc.department,
+        doc.competence,
+        doc.origin,
+        fileNameFromPath(doc.storage_path),
+        tags,
+        doc.notes,
+      ].filter(Boolean).join(" "));
+      const matchesQuery = !vaultQuery || haystack.includes(vaultQuery);
+      const matchesStatus = vaultStatus === "todos" || doc.status === vaultStatus;
+      const matchesDepartment = vaultDepartment === "todos" || doc.department === vaultDepartment;
+      return matchesQuery && matchesStatus && matchesDepartment;
+    })
+    .sort((a, b) => {
+      if (vaultSort === "vencimento") return sortDate(a.due_date) - sortDate(b.due_date);
+      if (vaultSort === "competencia") return String(b.competence ?? "").localeCompare(String(a.competence ?? ""));
+      if (vaultSort === "valor") return Number(b.value_cents ?? 0) - Number(a.value_cents ?? 0);
+      if (vaultSort === "nome") return a.name.localeCompare(b.name, "pt-BR");
+      return sortDate(b.updated_at) - sortDate(a.updated_at);
+    });
 
   const ordersWithNfe = new Set(nfes.map((n) => n.order_id).filter(Boolean));
   const pendingOrders = orders.filter((o) => !ordersWithNfe.has(o.id));
@@ -1029,14 +1092,60 @@ export async function FiscalCenterPage({
       <section id="cofre" className={sectionClass("cofre")} style={twoColumnStyle}>
         <div className="glass" style={cardStyle}>
           <SectionTitle eyebrow="Cofre fiscal" title="Arquivo permanente e documentos de competência" />
+          <VaultToolbar total={vaultDocs.length} filtered={filteredVaultDocs.length} />
           {vaultDocs.length === 0 ? (
             <EmptyState title="Cofre vazio" action="Arquive XML, DANFE, DARF, DAS, comprovantes, contratos, licenças, certidões e documentos do contador." />
+          ) : filteredVaultDocs.length === 0 ? (
+            <EmptyState title="Nenhum documento encontrado" action="Ajuste busca, status ou departamento para visualizar outros arquivos do cofre." />
           ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {vaultDocs.map((doc) => {
+            <div
+              style={
+                vaultView === "grade"
+                  ? vaultGridStyle
+                  : vaultView === "compacto"
+                    ? vaultCompactListStyle
+                    : vaultListStyle
+              }
+            >
+              {filteredVaultDocs.map((doc) => {
                 const control = vaultControls.get(doc.id);
+                const tags = Array.isArray(doc.tags) ? doc.tags : [];
+                const documentControl = {
+                  id: doc.id,
+                  name: doc.name,
+                  documentType: doc.document_type,
+                  category: doc.category,
+                  department: doc.department,
+                  competence: doc.competence,
+                  issuedAt: doc.issued_at,
+                  dueDate: doc.due_date,
+                  value: formatBRL(doc.value_cents),
+                  cnpj: doc.cnpj,
+                  cpf: doc.cpf,
+                  accessKey: doc.access_key,
+                  number: doc.number,
+                  series: doc.series,
+                  origin: doc.origin,
+                  status: doc.status,
+                  verificationStatus: doc.verification_status,
+                  visibilityStatus: doc.visibility_status,
+                  storagePath: doc.storage_path,
+                  tags,
+                  notes: doc.notes,
+                };
                 return (
-                  <div key={doc.id} style={vaultRowStyle}>
+                  <div
+                    key={doc.id}
+                    style={
+                      vaultView === "grade"
+                        ? vaultCardStyle
+                        : vaultView === "compacto"
+                          ? vaultCompactRowStyle
+                          : vaultView === "detalhes"
+                            ? vaultDetailRowStyle
+                            : vaultRowStyle
+                    }
+                  >
                     <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
                       <div>
                         <strong>{doc.favorite ? "★ " : ""}{doc.name}</strong>
@@ -1060,13 +1169,24 @@ export async function FiscalCenterPage({
                           {doc.financial_control_id ? "Financeiro vinculado" : "Classificar financeiro"}
                         </span>
                       </div>
+                      {vaultView === "detalhes" ? (
+                        <div style={vaultDetailsInlineStyle}>
+                          <span>Emissão: {formatDate(doc.issued_at)}</span>
+                          <span>Vencimento: {formatDate(doc.due_date)}</span>
+                          <span>Número: {doc.number ?? "—"}</span>
+                          <span>Série: {doc.series ?? "—"}</span>
+                          <span>CNPJ/CPF: {doc.cnpj ?? doc.cpf ?? "—"}</span>
+                          <span>Chave: {doc.access_key ?? "—"}</span>
+                          <span>Tags: {tags.join(", ") || "—"}</span>
+                        </div>
+                      ) : null}
                       {control ? (
                         <small>
                           Financeiro: pago {formatBRL(control.paid_cents)} · saldo {formatBRL(control.remaining_cents)} · vencimento {formatDate(control.due_date)} · comprovante {label(STATUS_LABELS, control.proof_status)}
                         </small>
                       ) : null}
                     </div>
-                    <VaultDocumentActions documentId={doc.id} compact />
+                    <VaultDocumentControls document={documentControl} />
                   </div>
                 );
               })}
@@ -1249,6 +1369,63 @@ const vaultRowStyle: CSSProperties = {
   background: "rgba(242, 236, 223, 0.055)",
   backdropFilter: "blur(18px) saturate(1.18)",
   WebkitBackdropFilter: "blur(18px) saturate(1.18)",
+};
+
+const vaultListStyle: CSSProperties = {
+  display: "grid",
+  gap: 10,
+  marginTop: 14,
+};
+
+const vaultCompactListStyle: CSSProperties = {
+  display: "grid",
+  gap: 8,
+  marginTop: 14,
+};
+
+const vaultGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 12,
+  marginTop: 14,
+};
+
+const vaultCardStyle: CSSProperties = {
+  display: "grid",
+  gap: 14,
+  alignItems: "start",
+  padding: 16,
+  border: "1px solid var(--glass-border)",
+  borderRadius: 16,
+  background: "rgba(242, 236, 223, 0.06)",
+  backdropFilter: "blur(20px) saturate(1.2)",
+  WebkitBackdropFilter: "blur(20px) saturate(1.2)",
+};
+
+const vaultCompactRowStyle: CSSProperties = {
+  ...vaultRowStyle,
+  gridTemplateColumns: "minmax(220px, 1fr) minmax(260px, 360px)",
+  padding: 10,
+  borderRadius: 12,
+};
+
+const vaultDetailRowStyle: CSSProperties = {
+  ...vaultRowStyle,
+  gridTemplateColumns: "minmax(280px, 1fr) minmax(320px, 460px)",
+  padding: 16,
+};
+
+const vaultDetailsInlineStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 8,
+  padding: 12,
+  border: "1px solid rgba(242, 236, 223, 0.10)",
+  borderRadius: 12,
+  background: "rgba(10, 22, 11, 0.38)",
+  color: "var(--cream-dim)",
+  fontSize: 11,
+  lineHeight: 1.45,
 };
 
 const emptyStateStyle: CSSProperties = {

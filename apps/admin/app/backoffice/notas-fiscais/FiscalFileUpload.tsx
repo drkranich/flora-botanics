@@ -43,16 +43,20 @@ export function FiscalFileUpload({
   kind,
   accept = ".pdf,.xml,.png,.jpg,.jpeg,.webp,.csv,.xls,.xlsx,.doc,.docx,.txt",
   compact = false,
+  defaultPath = "",
 }: {
   name: string;
   label: string;
   kind: string;
   accept?: string;
   compact?: boolean;
+  defaultPath?: string | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [path, setPath] = useState("");
-  const [state, setState] = useState<UploadState>({ status: "idle", message: null });
+  const [path, setPath] = useState(defaultPath ?? "");
+  const [state, setState] = useState<UploadState>(
+    defaultPath ? { status: "done", message: fileLabel(defaultPath) } : { status: "idle", message: null }
+  );
 
   async function upload(file: File) {
     setState({ status: "uploading", message: "Enviando arquivo..." });

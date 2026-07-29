@@ -905,6 +905,136 @@ export async function registerVaultDocumentPayment(vaultDocumentId: string, form
   revalidateFiscalCenter();
 }
 
+export async function updateVaultDocument(vaultDocumentId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const storagePath = text(formData, "storage_path");
+  const valueCents = cents(formData, "value");
+  const paymentStatus = text(formData, "payment_status");
+
+  const payload = {
+    name: requiredText(formData, "name", "Nome"),
+    document_type: requiredText(formData, "document_type", "Tipo"),
+    category: text(formData, "category"),
+    department: text(formData, "department"),
+    competence: text(formData, "competence"),
+    issued_at: dateValue(formData, "issued_at"),
+    due_date: dateValue(formData, "due_date"),
+    value_cents: valueCents,
+    cnpj: text(formData, "cnpj"),
+    cpf: text(formData, "cpf"),
+    access_key: text(formData, "access_key"),
+    number: text(formData, "number"),
+    series: text(formData, "series"),
+    origin: text(formData, "origin") ?? "manual",
+    status: requiredText(formData, "status", "Status do cofre"),
+    verification_status: requiredText(formData, "verification_status", "Verificação"),
+    visibility_status: text(formData, "visibility_status") ?? "unread",
+    storage_path: storagePath,
+    tags: jsonArray(formData, "tags"),
+    notes: text(formData, "notes"),
+  };
+
+  const { data: previous } = await supabase
+    .from("fiscal_vault_documents")
+    .select("id, storage_path, financial_control_id")
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!previous) return;
+
+  const { error } = await supabase
+    .from("fiscal_vault_documents")
+    .update(payload)
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) throw new Error(`Não foi possível editar o documento: ${error.message}.`);
+
+  if (previous.financial_control_id) {
+    await supabase
+      .from("document_financial_controls")
+      .update({
+        document_name: payload.name,
+        document_category: payload.category ?? payload.document_type,
+        counterparty_document: payload.cnpj ?? payload.cpf,
+        document_number: payload.number,
+        competence: payload.competence,
+        issued_at: payload.issued_at,
+        due_date: payload.due_date,
+        original_cents: valueCents,
+        updated_cents: valueCents,
+        remaining_cents: valueCents,
+        payment_status: paymentStatusForFinancialControl(paymentStatus),
+        department: payload.department,
+        storage_path: payload.storage_path,
+        notes: payload.notes,
+      })
+      .eq("id", previous.financial_control_id)
+      .eq("tenant_id", staff.tenantId);
+  }
+
+  if (storagePath && storagePath !== previous.storage_path) {
+    const { data: latestVersion } = await supabase
+      .from("document_vault_versions")
+      .select("version")
+      .eq("tenant_id", staff.tenantId)
+      .eq("vault_document_id", vaultDocumentId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    await supabase.from("document_vault_versions").insert({
+      tenant_id: staff.tenantId,
+      vault_document_id: vaultDocumentId,
+      version: Number(latestVersion?.version ?? 0) + 1,
+      storage_path: storagePath,
+      file_name: fileTitleFromPath(storagePath) ?? payload.name,
+      reason: "Arquivo substituído no cofre fiscal",
+      notes: payload.notes,
+      created_by: staff.id,
+    });
+  }
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    vault_document_id: vaultDocumentId,
+    action: "updated",
+    new_value: payload,
+    actor_id: staff.id,
+  });
+
+  await audit(supabase, {
+    tenantId: staff.tenantId,
+    actorId: staff.id,
+    action: "updated_vault_document",
+    entityType: "fiscal_vault_document",
+    entityId: vaultDocumentId,
+    afterData: payload,
+  });
+
+  revalidateFiscalCenter();
+}
+
+export async function registerVaultDocumentShare(vaultDocumentId: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    vault_document_id: vaultDocumentId,
+    action: "shared_internal_link",
+    reason: "Link interno protegido copiado no cofre fiscal.",
+    actor_id: staff.id,
+  });
+
+  revalidateFiscalCenter();
+}
+
 export async function archiveVaultDocument(vaultDocumentId: string, formData: FormData): Promise<void> {
   const staff = await currentStaff();
   if (!staff) return;
@@ -922,6 +1052,42 @@ export async function archiveVaultDocument(vaultDocumentId: string, formData: Fo
     reason,
     actor_id: staff.id,
   });
+  revalidateFiscalCenter();
+}
+
+export async function deleteVaultDocument(vaultDocumentId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const reason = text(formData, "reason") ?? "Exclusão lógica solicitada no cofre fiscal.";
+
+  await supabase
+    .from("fiscal_vault_documents")
+    .update({
+      deleted_at: new Date().toISOString(),
+      status: "archived",
+      visibility_status: "deleted",
+    })
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId);
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    vault_document_id: vaultDocumentId,
+    action: "soft_deleted",
+    reason,
+    actor_id: staff.id,
+  });
+
+  await audit(supabase, {
+    tenantId: staff.tenantId,
+    actorId: staff.id,
+    action: "soft_deleted_vault_document",
+    entityType: "fiscal_vault_document",
+    entityId: vaultDocumentId,
+    justification: reason,
+  });
+
   revalidateFiscalCenter();
 }
 
