@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
+import {
+  FISCAL_GOVERNMENT_PROVIDERS,
+  fiscalGovernmentProvider,
+  type FiscalGovernmentProviderKey,
+} from "@/lib/fiscal/government-providers";
 
 const FISCAL_PATH = "/backoffice/notas-fiscais";
 
@@ -43,6 +48,24 @@ function jsonArray(formData: FormData, key: string) {
     .filter(Boolean);
 }
 
+function booleanValue(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "");
+  return value === "on" || value === "true" || value === "1";
+}
+
+function publicCredentialsPreview(formData: FormData) {
+  return {
+    cnpj: text(formData, "cnpj"),
+    inscricao_estadual: text(formData, "state_registration"),
+    inscricao_municipal: text(formData, "municipal_registration"),
+    municipio: text(formData, "city"),
+    uf: text(formData, "state"),
+    certificado_ref: text(formData, "certificate_ref"),
+    procuracao_ref: text(formData, "proxy_ref"),
+    segredo_ref: text(formData, "credentials_ref"),
+  };
+}
+
 async function audit(
   supabase: Awaited<ReturnType<typeof createClient>>,
   input: {
@@ -64,6 +87,219 @@ async function audit(
     after_data: input.afterData ?? {},
     justification: input.justification,
   });
+}
+
+export async function configureFiscalGovernmentConnection(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) return;
+
+  const providerKey = requiredText(formData, "provider_key", "Provedor") as FiscalGovernmentProviderKey;
+  const provider = fiscalGovernmentProvider(providerKey);
+  if (!provider) throw new Error("Provedor fiscal inválido.");
+
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  const credentialsRef = text(formData, "credentials_ref");
+  const certificateRef = text(formData, "certificate_ref");
+  const proxyRef = text(formData, "proxy_ref");
+
+  const payload = {
+    tenant_id: staff.tenantId,
+    provider_key: provider.key,
+    display_name: provider.title,
+    environment: requiredText(formData, "environment", "Ambiente"),
+    status: credentialsRef || certificateRef || proxyRef ? "pending_auth" : "offline",
+    credentials_status: credentialsRef || certificateRef || proxyRef ? "stored" : "missing",
+    credentials_ref: credentialsRef,
+    credentials_preview: publicCredentialsPreview(formData),
+    settings: {
+      fiscal_scope: provider.scope,
+      cnpj: text(formData, "cnpj"),
+      state_registration: text(formData, "state_registration"),
+      municipal_registration: text(formData, "municipal_registration"),
+      city: text(formData, "city"),
+      state: text(formData, "state"),
+      certificate_ref: certificateRef,
+      proxy_ref: proxyRef,
+      auto_create_guides: booleanValue(formData, "auto_create_guides"),
+      sync_window_days: Number(text(formData, "sync_window_days") ?? 45),
+      notes: text(formData, "notes"),
+      required_access: provider.requiredAccess,
+      guide_types: provider.guideTypes,
+    },
+    auto_sync_enabled: booleanValue(formData, "auto_sync_enabled"),
+    sync_interval_minutes: Number(text(formData, "sync_interval_minutes") ?? 360),
+    last_error: null,
+    updated_at: now,
+    created_by: staff.id,
+  };
+
+  const { data, error } = await supabase
+    .from("integration_connections")
+    .upsert(payload, { onConflict: "tenant_id,provider_key,environment" })
+    .select("id")
+    .single();
+
+  if (!error && data) {
+    await audit(supabase, {
+      tenantId: staff.tenantId,
+      actorId: staff.id,
+      action: "configured_government_fiscal_connection",
+      entityType: "integration_connection",
+      entityId: data.id,
+      afterData: {
+        provider_key: provider.key,
+        environment: payload.environment,
+        auto_sync_enabled: payload.auto_sync_enabled,
+        credentials_status: payload.credentials_status,
+      },
+    });
+  }
+
+  revalidatePath(FISCAL_PATH);
+}
+
+export async function requestFiscalGovernmentSync(providerKey: FiscalGovernmentProviderKey): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) return;
+
+  const provider = fiscalGovernmentProvider(providerKey);
+  if (!provider) return;
+
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+
+  const { data: connection } = await supabase
+    .from("integration_connections")
+    .select("id, credentials_status, status")
+    .eq("tenant_id", staff.tenantId)
+    .eq("provider_key", provider.key)
+    .eq("environment", "production")
+    .maybeSingle();
+
+  const idempotencyKey = `fiscal_gov_sync:${staff.tenantId}:${provider.key}:${new Date().toISOString().slice(0, 10)}`;
+  const configured = connection?.credentials_status === "stored";
+
+  await supabase.from("integration_sync_runs").insert({
+    tenant_id: staff.tenantId,
+    connection_id: connection?.id ?? null,
+    provider_key: provider.key,
+    action: provider.syncAction,
+    trigger: "manual",
+    status: configured ? "queued" : "failed",
+    records_in: 0,
+    records_out: 0,
+    request_payload: {
+      provider_key: provider.key,
+      expected_guides: provider.guideTypes,
+      source: "fiscal_center",
+    },
+    response_payload: configured
+      ? {
+          next_step: "Executor oficial deve consultar o provedor e gravar fiscal_guides com provider_key/external_id.",
+        }
+      : null,
+    error: configured
+      ? null
+      : "Credenciais/certificado/procuração ainda não configurados para este provedor.",
+    created_by: staff.id,
+    started_at: configured ? null : now,
+    finished_at: configured ? null : now,
+  });
+
+  await supabase.from("fiscal_queue_jobs").upsert(
+    {
+      tenant_id: staff.tenantId,
+      job_type: provider.syncAction,
+      entity_type: "integration_connection",
+      entity_id: connection?.id ?? null,
+      status: configured ? "queued" : "failed",
+      priority: configured ? 80 : 30,
+      idempotency_key: idempotencyKey,
+      payload: {
+        provider_key: provider.key,
+        provider_title: provider.title,
+        guide_types: provider.guideTypes,
+        requires: provider.requiredAccess,
+        official_docs_url: provider.docsUrl,
+        outcome:
+          "Quando o adaptador oficial estiver com acesso válido, as guias retornadas serão criadas/atualizadas em fiscal_guides.",
+      },
+      last_error: configured ? null : "Configuração incompleta: informe referência segura, certificado ou procuração.",
+      next_attempt_at: now,
+      max_attempts: 5,
+    },
+    { onConflict: "tenant_id,idempotency_key" }
+  );
+
+  await supabase
+    .from("integration_connections")
+    .update({
+      status: configured ? "pending_auth" : "error",
+      last_sync_at: now,
+      last_error: configured
+        ? "Sincronização enfileirada. Aguardando executor oficial do provedor fiscal."
+        : "Credenciais/certificado/procuração ausentes.",
+      updated_at: now,
+    })
+    .eq("tenant_id", staff.tenantId)
+    .eq("provider_key", provider.key)
+    .eq("environment", "production");
+
+  await audit(supabase, {
+    tenantId: staff.tenantId,
+    actorId: staff.id,
+    action: "requested_government_fiscal_sync",
+    entityType: "integration_connection",
+    entityId: connection?.id ?? null,
+    afterData: {
+      provider_key: provider.key,
+      queued: configured,
+      idempotency_key: idempotencyKey,
+    },
+  });
+
+  revalidatePath(FISCAL_PATH);
+}
+
+export async function seedFiscalGovernmentConnections(): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) return;
+
+  const supabase = await createClient();
+  const rows = FISCAL_GOVERNMENT_PROVIDERS.map((provider) => ({
+    tenant_id: staff.tenantId,
+    provider_key: provider.key,
+    display_name: provider.title,
+    environment: "production",
+    status: "offline",
+    credentials_status: "missing",
+    settings: {
+      fiscal_scope: provider.scope,
+      auto_create_guides: true,
+      required_access: provider.requiredAccess,
+      guide_types: provider.guideTypes,
+    },
+    sync_interval_minutes: 360,
+    created_by: staff.id,
+  }));
+
+  await supabase
+    .from("integration_connections")
+    .upsert(rows, { onConflict: "tenant_id,provider_key,environment" });
+
+  await audit(supabase, {
+    tenantId: staff.tenantId,
+    actorId: staff.id,
+    action: "seeded_government_fiscal_connections",
+    entityType: "integration_connections",
+    afterData: { providers: rows.map((row) => row.provider_key) },
+  });
+
+  revalidatePath(FISCAL_PATH);
 }
 
 /**

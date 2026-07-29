@@ -3,7 +3,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { money } from "@/lib/format";
+import { FISCAL_GOVERNMENT_PROVIDERS } from "@/lib/fiscal/government-providers";
 import { createDraftNfe, cancelNfeDraft } from "./actions";
+import { FiscalGovernmentPanel } from "./FiscalGovernmentPanel";
 import {
   AccountantProfileForm,
   AccountantRequestForm,
@@ -102,6 +104,7 @@ const GUIDE_TYPE_LABELS: Record<string, string> = {
 
 const SUBSECTIONS = [
   ["Visão geral", "#visao-geral"],
+  ["Conexão Governo", "#governo"],
   ["Documentos fiscais", "#documentos"],
   ["Emissão de NF-e", "#emissao"],
   ["Pedidos sem nota", "#pedidos-sem-nota"],
@@ -391,6 +394,10 @@ type IntegrationRow = {
   environment: string;
   status: string;
   credentials_status: string;
+  credentials_ref: string | null;
+  settings: Record<string, unknown> | null;
+  auto_sync_enabled: boolean;
+  sync_interval_minutes: number;
   last_sync_at: string | null;
   last_error: string | null;
 };
@@ -510,10 +517,10 @@ export default async function NotasFiscaisPage() {
       .limit(24),
     supabase
       .from("integration_connections")
-      .select("provider_key, display_name, environment, status, credentials_status, last_sync_at, last_error")
+      .select("provider_key, display_name, environment, status, credentials_status, credentials_ref, settings, auto_sync_enabled, sync_interval_minutes, last_sync_at, last_error")
       .eq("tenant_id", staff.tenantId)
-      .eq("provider_key", "sefaz")
-      .limit(4),
+      .in("provider_key", FISCAL_GOVERNMENT_PROVIDERS.map((provider) => provider.key))
+      .limit(20),
   ]);
 
   const fiscal = fiscalRes.data as FiscalConfigRow | null;
@@ -597,6 +604,8 @@ export default async function NotasFiscaisPage() {
         <Kpi label="Solicitações ao contador" value={`${openRequests.length}`} note={accountant?.office_name ?? "escritório ainda não configurado"} tone={openRequests.length ? "warn" : "neutral"} />
         <Kpi label="Fila fiscal" value={`${queue.length}`} note={`${queueProblems.length} com falha ou dead-letter`} tone={queueProblems.length ? "danger" : "neutral"} />
       </section>
+
+      <FiscalGovernmentPanel connections={integrations} />
 
       <section id="integracoes" className="glass" style={noticeStyle}>
         <SectionTitle eyebrow="Integrações oficiais" title="Ambiente fiscal e SEFAZ">
