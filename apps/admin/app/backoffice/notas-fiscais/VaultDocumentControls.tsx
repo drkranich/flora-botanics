@@ -30,6 +30,7 @@ type VaultControlDocument = {
   series: string | null;
   origin: string;
   status: string;
+  archivedAt: string | null;
   verificationStatus: string;
   visibilityStatus: string;
   storagePath: string | null;
@@ -247,6 +248,7 @@ export function VaultDocumentControls({
   const [shareMessage, setShareMessage] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState(document.folderId ?? folders[0]?.value ?? "");
   const [pending, startTransition] = useTransition();
+  const isArchived = Boolean(document.archivedAt || document.status === "archived");
   const fileHref = document.storagePath
     ? adminApiPath(`/api/fiscal-files?path=${encodeURIComponent(document.storagePath)}`)
     : "";
@@ -266,22 +268,23 @@ export function VaultDocumentControls({
     });
   }
 
-  function archiveNow() {
-    if (!confirm(`Arquivar "${document.name}" no cofre fiscal?`)) return;
+  function toggleArchive() {
+    const nextAction = isArchived ? "desarquivar" : "arquivar";
+    if (!confirm(`${isArchived ? "Desarquivar" : "Arquivar"} "${document.name}" no cofre fiscal?`)) return;
     setShareMessage("");
     startTransition(async () => {
       const res = await fetch(adminApiPath(`/api/fiscal-vault-documents/${document.id}/archive`), {
-        method: "POST",
+        method: isArchived ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "Arquivamento rápido pelo cofre fiscal." }),
+        body: JSON.stringify({ reason: `${isArchived ? "Desarquivamento" : "Arquivamento"} rápido pelo cofre fiscal.` }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        setShareMessage(data?.error ?? "Não foi possível arquivar o documento.");
+        setShareMessage(data?.error ?? `Não foi possível ${nextAction} o documento.`);
         return;
       }
       setMode("idle");
-      setShareMessage("Documento arquivado.");
+      setShareMessage(isArchived ? "Documento desarquivado." : "Documento arquivado.");
       router.refresh();
     });
   }
@@ -297,7 +300,9 @@ export function VaultDocumentControls({
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={() => setMode(mode === "details" ? "idle" : "details")}>Detalhes</button>
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={() => setMode(mode === "edit" ? "idle" : "edit")}>Editar</button>
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={share} disabled={pending}>Compartilhar</button>
-        <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={archiveNow} disabled={pending}>Arquivar</button>
+        <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={toggleArchive} disabled={pending}>
+          {isArchived ? "Desarquivar" : "Arquivar"}
+        </button>
         <button type="button" className="btn btn-ghost" style={dangerButtonStyle} onClick={() => setMode(mode === "delete" ? "idle" : "delete")}>Excluir</button>
       </div>
       {shareMessage ? <span style={hintStyle}>{shareMessage}</span> : null}

@@ -26,43 +26,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const { id } = await params;
     const body = (await req.json().catch(() => ({}))) as { reason?: string };
-    const reason = body.reason?.trim() || "Arquivamento solicitado no cofre fiscal.";
+    const reason = body.reason?.trim() || "Pasta arquivada no cofre fiscal.";
     const supabase = await createClient();
     const now = new Date().toISOString();
 
     const { data: archived, error: archiveError } = await supabase
-      .from("fiscal_vault_documents")
-      .update({ archived_at: now, status: "archived" })
+      .from("document_vault_folders")
+      .update({ archived_at: now })
       .eq("id", id)
       .eq("tenant_id", staff.tenantId)
+      .is("deleted_at", null)
       .select("id")
       .maybeSingle();
 
-    if (archiveError) return jsonError(`Falha ao arquivar documento: ${archiveError.message}`, 400);
-    if (!archived) return jsonError("Documento não encontrado ou sem permissão para arquivar.", 404);
+    if (archiveError) return jsonError(`Falha ao arquivar pasta: ${archiveError.message}`, 400);
+    if (!archived) return jsonError("Pasta não encontrada ou sem permissão para arquivar.", 404);
 
     await supabase.from("document_vault_audit_events").insert({
       tenant_id: staff.tenantId,
-      vault_document_id: id,
-      action: "archived",
+      folder_id: id,
+      action: "folder_archived",
       reason,
       actor_id: staff.id,
-    });
-
-    await supabase.from("fiscal_audit_events").insert({
-      tenant_id: staff.tenantId,
-      actor_id: staff.id,
-      action: "archived_vault_document",
-      entity_type: "fiscal_vault_document",
-      entity_id: id,
-      after_data: { archived_at: now, status: "archived" },
-      justification: reason,
     });
 
     revalidateFiscalVault();
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return jsonError(err instanceof Error ? err.message : "Falha ao arquivar documento.");
+    return jsonError(err instanceof Error ? err.message : "Falha ao arquivar pasta.");
   }
 }
 
@@ -73,41 +64,32 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     const { id } = await params;
     const body = (await req.json().catch(() => ({}))) as { reason?: string };
-    const reason = body.reason?.trim() || "Desarquivamento solicitado no cofre fiscal.";
+    const reason = body.reason?.trim() || "Pasta desarquivada no cofre fiscal.";
     const supabase = await createClient();
 
     const { data: restored, error: restoreError } = await supabase
-      .from("fiscal_vault_documents")
-      .update({ archived_at: null, status: "received" })
+      .from("document_vault_folders")
+      .update({ archived_at: null })
       .eq("id", id)
       .eq("tenant_id", staff.tenantId)
+      .is("deleted_at", null)
       .select("id")
       .maybeSingle();
 
-    if (restoreError) return jsonError(`Falha ao desarquivar documento: ${restoreError.message}`, 400);
-    if (!restored) return jsonError("Documento não encontrado ou sem permissão para desarquivar.", 404);
+    if (restoreError) return jsonError(`Falha ao desarquivar pasta: ${restoreError.message}`, 400);
+    if (!restored) return jsonError("Pasta não encontrada ou sem permissão para desarquivar.", 404);
 
     await supabase.from("document_vault_audit_events").insert({
       tenant_id: staff.tenantId,
-      vault_document_id: id,
-      action: "unarchived",
+      folder_id: id,
+      action: "folder_unarchived",
       reason,
       actor_id: staff.id,
-    });
-
-    await supabase.from("fiscal_audit_events").insert({
-      tenant_id: staff.tenantId,
-      actor_id: staff.id,
-      action: "unarchived_vault_document",
-      entity_type: "fiscal_vault_document",
-      entity_id: id,
-      after_data: { archived_at: null, status: "received" },
-      justification: reason,
     });
 
     revalidateFiscalVault();
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return jsonError(err instanceof Error ? err.message : "Falha ao desarquivar documento.");
+    return jsonError(err instanceof Error ? err.message : "Falha ao desarquivar pasta.");
   }
 }

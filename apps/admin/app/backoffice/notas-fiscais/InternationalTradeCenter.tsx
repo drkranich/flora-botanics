@@ -648,12 +648,16 @@ export async function InternationalTradeCenter() {
           <SectionTitle eyebrow="Integrações preparadas" title="Providers desacoplados e auditáveis" />
           <div style={rowGridStyle}>
             {INTEGRATIONS.map(([name, description]) => (
-              <article key={name} style={rowStyle}>
-                <div>
-                  <strong>{name}</strong>
-                  <small>{description}</small>
+              <article key={name} style={providerRowStyle}>
+                <div style={rowContentStyle}>
+                  <strong style={providerTitleStyle}>{name}</strong>
+                  <small style={providerDescriptionStyle}>{description}</small>
                 </div>
-                <Chip value="waiting_review" />
+                <div style={providerActionsStyle}>
+                  <Chip value="waiting_review" />
+                  <a href="#comercio-exterior" className="btn btn-ghost" style={miniButtonStyle}>Configurar</a>
+                  <a href="#comercio-exterior" className="btn btn-ghost" style={miniButtonStyle}>Sincronizar</a>
+                </div>
               </article>
             ))}
           </div>
@@ -729,6 +733,43 @@ const rowStyle: CSSProperties = {
   border: "1px solid var(--glass-border)",
   background: "rgba(242, 236, 223, 0.055)",
   minWidth: 0,
+};
+
+const providerRowStyle: CSSProperties = {
+  ...rowStyle,
+  alignItems: "center",
+};
+
+const rowContentStyle: CSSProperties = {
+  display: "grid",
+  gap: 4,
+  minWidth: 0,
+};
+
+const providerTitleStyle: CSSProperties = {
+  color: "var(--cream)",
+  fontSize: 15,
+  lineHeight: 1.2,
+};
+
+const providerDescriptionStyle: CSSProperties = {
+  color: "var(--cream-dim)",
+  fontSize: 12,
+  lineHeight: 1.45,
+};
+
+const providerActionsStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const miniButtonStyle: CSSProperties = {
+  minHeight: 30,
+  padding: "6px 10px",
+  fontSize: 8.5,
 };
 
 const emptyStyle: CSSProperties = {

@@ -886,6 +886,35 @@ export async function archiveVaultFolder(folderId: string, formData: FormData): 
   revalidateFiscalCenter();
 }
 
+export async function unarchiveVaultFolder(folderId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const reason = text(formData, "reason") ?? "Pasta desarquivada no cofre fiscal.";
+
+  const { data, error } = await supabase
+    .from("document_vault_folders")
+    .update({ archived_at: null })
+    .eq("id", folderId)
+    .eq("tenant_id", staff.tenantId)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(`Não foi possível desarquivar a pasta: ${error.message}.`);
+  if (!data) throw new Error("Pasta não encontrada ou sem permissão para desarquivar.");
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    folder_id: folderId,
+    action: "folder_unarchived",
+    reason,
+    actor_id: staff.id,
+  });
+
+  revalidateFiscalCenter();
+}
+
 export async function deleteVaultFolder(folderId: string, formData: FormData): Promise<void> {
   const staff = await currentStaff();
   if (!staff) return;
@@ -1256,7 +1285,7 @@ export async function archiveVaultDocument(vaultDocumentId: string, formData: Fo
   const reason = text(formData, "reason") ?? "Arquivamento solicitado no cofre fiscal.";
   const { data: archived, error: archiveError } = await supabase
     .from("fiscal_vault_documents")
-    .update({ archived_at: new Date().toISOString(), archived_by: staff.id, status: "archived" })
+    .update({ archived_at: new Date().toISOString(), status: "archived" })
     .eq("id", vaultDocumentId)
     .eq("tenant_id", staff.tenantId)
     .select("id")
@@ -1269,6 +1298,32 @@ export async function archiveVaultDocument(vaultDocumentId: string, formData: Fo
     tenant_id: staff.tenantId,
     vault_document_id: vaultDocumentId,
     action: "archived",
+    reason,
+    actor_id: staff.id,
+  });
+  revalidateFiscalCenter();
+}
+
+export async function unarchiveVaultDocument(vaultDocumentId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const reason = text(formData, "reason") ?? "Desarquivamento solicitado no cofre fiscal.";
+  const { data: restored, error: restoreError } = await supabase
+    .from("fiscal_vault_documents")
+    .update({ archived_at: null, status: "received" })
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId)
+    .select("id")
+    .maybeSingle();
+
+  if (restoreError) throw new Error(`Falha ao desarquivar documento: ${restoreError.message}`);
+  if (!restored) throw new Error("Documento não encontrado ou sem permissão para desarquivar.");
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    vault_document_id: vaultDocumentId,
+    action: "unarchived",
     reason,
     actor_id: staff.id,
   });

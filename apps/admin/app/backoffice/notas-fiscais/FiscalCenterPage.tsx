@@ -1317,6 +1317,7 @@ export async function FiscalCenterPage({
                   series: doc.series,
                   origin: doc.origin,
                   status: doc.status,
+                  archivedAt: doc.archived_at,
                   verificationStatus: doc.verification_status,
                   visibilityStatus: doc.visibility_status,
                   storagePath: doc.storage_path,

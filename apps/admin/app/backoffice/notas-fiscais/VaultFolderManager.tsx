@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { ColorPickerField, type ColorSwatch } from "@/components/ColorPickerField";
 import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import {
-  archiveVaultFolder,
   createVaultFolder,
   deleteVaultFolder,
   updateVaultFolder,
@@ -75,6 +75,13 @@ function folderHref(folderId: string) {
   return `/backoffice/notas-fiscais/cofre?folder=${encodeURIComponent(folderId)}#cofre`;
 }
 
+function adminApiPath(path: string) {
+  const configuredBase = process.env.NEXT_PUBLIC_ADMIN_BASE_PATH?.replace(/\/+$/, "");
+  if (configuredBase) return `${configuredBase}${path}`;
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) return `/admin${path}`;
+  return path;
+}
+
 function folderOptions(folders: VaultFolderManagerRow[], currentId?: string): GlassSelectOption[] {
   return [
     { value: "", label: "Sem pasta superior" },
@@ -140,17 +147,31 @@ function FolderForm({
 }
 
 export function VaultFolderManager({ folders }: { folders: VaultFolderManagerRow[] }) {
+  const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(folders.length === 0);
+  const [actionMessage, setActionMessage] = useState("");
   const [pending, startTransition] = useTransition();
   const editing = folders.find((folder) => folder.id === editingId);
 
-  function archive(folder: VaultFolderManagerRow) {
-    if (!confirm(`Arquivar a pasta "${folder.name}"? Os documentos continuam preservados.`)) return;
+  function toggleArchive(folder: VaultFolderManagerRow) {
+    const isArchived = Boolean(folder.archivedAt);
+    const verb = isArchived ? "desarquivar" : "arquivar";
+    if (!confirm(`${isArchived ? "Desarquivar" : "Arquivar"} a pasta "${folder.name}"? Os documentos continuam preservados.`)) return;
+    setActionMessage("");
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set("reason", "Arquivamento solicitado no gerenciador do cofre.");
-      await archiveVaultFolder(folder.id, formData);
+      const res = await fetch(adminApiPath(`/api/fiscal-vault-folders/${folder.id}/archive`), {
+        method: isArchived ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: `${isArchived ? "Desarquivamento" : "Arquivamento"} solicitado no gerenciador do cofre.` }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setActionMessage(data?.error ?? `Não foi possível ${verb} a pasta.`);
+        return;
+      }
+      setActionMessage(isArchived ? "Pasta desarquivada." : "Pasta arquivada.");
+      router.refresh();
     });
   }
 
@@ -183,6 +204,8 @@ export function VaultFolderManager({ folders }: { folders: VaultFolderManagerRow
           <FolderForm folders={folders} onCancel={() => setShowCreate(false)} />
         </div>
       ) : null}
+
+      {actionMessage ? <span style={hintStyle}>{actionMessage}</span> : null}
 
       {editing ? (
         <div style={panelStyle}>
@@ -218,7 +241,9 @@ export function VaultFolderManager({ folders }: { folders: VaultFolderManagerRow
               <div style={buttonRowStyle}>
                 <Link href={folderHref(folder.id)} className="btn btn-gold" style={buttonStyle}>Abrir pasta</Link>
                 <button type="button" className="btn btn-ghost" style={buttonStyle} onClick={() => setEditingId(folder.id)}>Editar</button>
-                <button type="button" className="btn btn-ghost" style={buttonStyle} onClick={() => archive(folder)} disabled={pending || Boolean(folder.archivedAt)}>Arquivar</button>
+                <button type="button" className="btn btn-ghost" style={buttonStyle} onClick={() => toggleArchive(folder)} disabled={pending}>
+                  {folder.archivedAt ? "Desarquivar" : "Arquivar"}
+                </button>
                 <button type="button" className="btn btn-ghost" style={dangerButtonStyle} onClick={() => remove(folder)} disabled={pending}>Excluir</button>
               </div>
             </article>
@@ -388,4 +413,9 @@ const metaGridStyle: CSSProperties = {
   color: "var(--cream-dim)",
   fontSize: 11,
   lineHeight: 1.45,
+};
+
+const hintStyle: CSSProperties = {
+  color: "var(--cream-dim)",
+  fontSize: 11,
 };
