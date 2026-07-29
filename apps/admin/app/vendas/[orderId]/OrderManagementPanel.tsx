@@ -36,7 +36,8 @@ const PAYMENT_STATUS = [
 const PAYMENT_METHODS = [
   { value: "manual", label: "Manual" },
   { value: "pix", label: "PIX" },
-  { value: "card", label: "Cartão" },
+  { value: "credit_card", label: "Cartão de crédito" },
+  { value: "debit_card", label: "Cartão de débito" },
   { value: "boleto", label: "Boleto" },
   { value: "transfer", label: "Transferência" },
   { value: "cash", label: "Dinheiro" },

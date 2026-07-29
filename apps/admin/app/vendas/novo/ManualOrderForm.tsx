@@ -67,7 +67,8 @@ const PAYMENT_STATUS: GlassSelectOption[] = [
 
 const PAYMENT_METHODS: GlassSelectOption[] = [
   { value: "pix", label: "PIX" },
-  { value: "card", label: "Cartão" },
+  { value: "credit_card", label: "Cartão de crédito" },
+  { value: "debit_card", label: "Cartão de débito" },
   { value: "boleto", label: "Boleto" },
   { value: "cash", label: "Dinheiro" },
   { value: "transfer", label: "Transferência" },

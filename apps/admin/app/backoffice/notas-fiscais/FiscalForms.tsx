@@ -297,7 +297,7 @@ export function GuidePaymentForm({ guideId }: { guideId: string }) {
       <GlassDateInput name="payment_date" placeholder="Data do pagamento" inlinePopover />
       <input name="paid" placeholder="Valor pago" className="input" style={inputStyle} />
       <input name="bank_account" placeholder="Banco ou conta" className="input" style={inputStyle} />
-      <input name="payment_method" placeholder="PIX, boleto, débito..." className="input" style={inputStyle} />
+      <input name="payment_method" placeholder="PIX, boleto, cartão de crédito, cartão de débito..." className="input" style={inputStyle} />
       <FiscalFileUpload name="receipt_path" label="Comprovante" kind="comprovantes" compact />
       <button className="btn btn-gold" style={{ padding: "8px 12px", fontSize: 9 }}>Registrar pagamento</button>
     </form>

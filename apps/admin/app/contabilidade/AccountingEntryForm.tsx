@@ -184,7 +184,7 @@ export function AccountingEntryForm() {
             </label>
             <label className="field">
               <span>Forma de pagamento</span>
-              <input className="input" name="payment_method" placeholder="PIX, cartão, boleto..." />
+              <input className="input" name="payment_method" placeholder="PIX, cartão de crédito, cartão de débito, boleto..." />
             </label>
             <label className="field">
               <span>Centro de custo</span>

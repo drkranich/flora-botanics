@@ -30,7 +30,7 @@ export function VaultDocumentActions({
         <GlassSelect name="payment_status" options={paymentStatuses} defaultValue="paid" inlineMenu />
         <GlassDateInput name="payment_date" placeholder="Data" inlinePopover />
         <input name="paid" placeholder="Valor" className="input" style={inputStyle} />
-        <input name="payment_method" placeholder="PIX, boleto, cartão..." className="input" style={inputStyle} />
+        <input name="payment_method" placeholder="PIX, boleto, cartão de crédito, cartão de débito..." className="input" style={inputStyle} />
         <input name="bank_account" placeholder="Banco ou conta" className="input" style={inputStyle} />
         <FiscalFileUpload name="receipt_path" label="Comprovante" kind="comprovantes" compact />
         <textarea
