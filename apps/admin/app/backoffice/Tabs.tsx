@@ -9,7 +9,7 @@ const TABS = [
   { href: "/backoffice/clientes", label: "Clientes" },
   { href: "/backoffice/pedidos", label: "Pedidos" },
   { href: "/backoffice/logistica", label: "Logística" },
-  { href: "/backoffice/notas-fiscais", label: "Notas Fiscais" },
+  { href: "/backoffice/notas-fiscais", label: "Fiscal e Tributário" },
   { href: "/backoffice/marketplaces", label: "Marketplaces" },
   { href: "/backoffice/mensagens", label: "Mensagens" },
   { href: "/backoffice/logs", label: "Logs" },
