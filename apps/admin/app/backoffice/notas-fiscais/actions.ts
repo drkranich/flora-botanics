@@ -1040,11 +1040,17 @@ export async function archiveVaultDocument(vaultDocumentId: string, formData: Fo
   if (!staff) return;
   const supabase = await createClient();
   const reason = text(formData, "reason") ?? "Arquivamento solicitado no cofre fiscal.";
-  await supabase
+  const { data: archived, error: archiveError } = await supabase
     .from("fiscal_vault_documents")
-    .update({ archived_at: new Date().toISOString(), status: "archived" })
+    .update({ archived_at: new Date().toISOString(), archived_by: staff.id, status: "archived" })
     .eq("id", vaultDocumentId)
-    .eq("tenant_id", staff.tenantId);
+    .eq("tenant_id", staff.tenantId)
+    .select("id")
+    .maybeSingle();
+
+  if (archiveError) throw new Error(`Falha ao arquivar documento: ${archiveError.message}`);
+  if (!archived) throw new Error("Documento não encontrado ou sem permissão para arquivar.");
+
   await supabase.from("document_vault_audit_events").insert({
     tenant_id: staff.tenantId,
     vault_document_id: vaultDocumentId,

@@ -245,6 +245,18 @@ export function VaultDocumentControls({
     });
   }
 
+  function archiveNow() {
+    if (!confirm(`Arquivar "${document.name}" no cofre fiscal?`)) return;
+    setShareMessage("");
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("reason", "Arquivamento rápido pelo cofre fiscal.");
+      await archiveVaultDocument(document.id, formData);
+      setMode("idle");
+      setShareMessage("Documento arquivado.");
+    });
+  }
+
   return (
     <div style={actionsShellStyle}>
       <div style={buttonRailStyle}>
@@ -256,7 +268,7 @@ export function VaultDocumentControls({
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={() => setMode(mode === "details" ? "idle" : "details")}>Detalhes</button>
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={() => setMode(mode === "edit" ? "idle" : "edit")}>Editar</button>
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={share} disabled={pending}>Compartilhar</button>
-        <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={() => setMode(mode === "archive" ? "idle" : "archive")}>Arquivar</button>
+        <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={archiveNow} disabled={pending}>Arquivar</button>
         <button type="button" className="btn btn-ghost" style={dangerButtonStyle} onClick={() => setMode(mode === "delete" ? "idle" : "delete")}>Excluir</button>
       </div>
       {shareMessage ? <span style={hintStyle}>{shareMessage}</span> : null}
@@ -317,17 +329,6 @@ export function VaultDocumentControls({
         </form>
       ) : null}
 
-      {mode === "archive" ? (
-        <form action={archiveVaultDocument.bind(null, document.id)} style={panelStyle}>
-          <p className="eyebrow" style={{ marginBottom: 8 }}>Arquivar documento</p>
-          <input name="reason" className="input" style={inputStyle} placeholder="Motivo do arquivamento" />
-          <div style={formActionsStyle}>
-            <button className="btn btn-gold" style={smallButtonStyle}>Confirmar arquivo</button>
-            <button type="button" className="btn btn-ghost" style={smallButtonStyle} onClick={() => setMode("idle")}>Cancelar</button>
-          </div>
-        </form>
-      ) : null}
-
       {mode === "delete" ? (
         <form
           action={deleteVaultDocument.bind(null, document.id)}
@@ -372,13 +373,16 @@ const toolbarStyle: CSSProperties = {
   display: "grid",
   gap: 16,
   padding: 18,
+  minWidth: 0,
+  overflow: "visible",
 };
 
 const toolbarGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(220px, 1.5fr) repeat(4, minmax(150px, 1fr)) auto",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
   gap: 10,
   alignItems: "end",
+  minWidth: 0,
 };
 
 const actionsShellStyle: CSSProperties = {
@@ -392,6 +396,8 @@ const buttonRailStyle: CSSProperties = {
   gap: 7,
   flexWrap: "wrap",
   alignItems: "center",
+  justifyContent: "flex-start",
+  minWidth: 0,
 };
 
 const panelStyle: CSSProperties = {

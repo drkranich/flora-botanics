@@ -1211,8 +1211,8 @@ export async function FiscalCenterPage({
         )}
       </section>
 
-      <section id="cofre" className={sectionClass("cofre")} style={twoColumnStyle}>
-        <div className="glass" style={cardStyle}>
+      <section id="cofre" className={sectionClass("cofre")} style={vaultSectionStyle}>
+        <div className="glass" style={{ ...cardStyle, minWidth: 0, overflow: "visible" }}>
           <SectionTitle eyebrow="Cofre fiscal" title="Arquivo permanente e documentos de competência" />
           <VaultToolbar total={vaultDocs.length} filtered={filteredVaultDocs.length} />
           {vaultDocs.length === 0 ? (
@@ -1499,6 +1499,14 @@ const twoColumnStyle: CSSProperties = {
   alignItems: "start",
 };
 
+const vaultSectionStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1.15fr) minmax(360px, 0.85fr)",
+  gap: 16,
+  alignItems: "start",
+  overflow: "visible",
+};
+
 const integrationGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "minmax(280px, 1.2fr) minmax(280px, 0.8fr)",
@@ -1555,7 +1563,7 @@ const auditListStyle: CSSProperties = {
 
 const vaultRowStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(240px, 1fr) minmax(280px, 420px)",
+  gridTemplateColumns: "minmax(0, 1fr)",
   gap: 16,
   alignItems: "start",
   padding: "14px",
@@ -1599,14 +1607,14 @@ const vaultCardStyle: CSSProperties = {
 
 const vaultCompactRowStyle: CSSProperties = {
   ...vaultRowStyle,
-  gridTemplateColumns: "minmax(220px, 1fr) minmax(260px, 360px)",
+  gridTemplateColumns: "minmax(0, 1fr)",
   padding: 10,
   borderRadius: 12,
 };
 
 const vaultDetailRowStyle: CSSProperties = {
   ...vaultRowStyle,
-  gridTemplateColumns: "minmax(280px, 1fr) minmax(320px, 460px)",
+  gridTemplateColumns: "minmax(0, 1fr)",
   padding: 16,
 };
 
