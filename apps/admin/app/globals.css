@@ -899,7 +899,8 @@ select option:focus {
   transform: translateY(-1px);
 }
 
-.fiscal-subsection-link-active {
+.fiscal-subsection-link-active,
+.finance-subsection-link-active {
   color: var(--forest-950);
   border-color: rgba(var(--gold-rgb), 0.78);
   background: linear-gradient(135deg, var(--gold-light), var(--gold));
