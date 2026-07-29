@@ -75,7 +75,7 @@ function csvLine(values: (string | number | null | undefined)[]) {
 
 function dateTime(value: string | null | undefined) {
   if (!value) return "";
-  return new Date(value).toLocaleString("pt-BR");
+  return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 function pdfText(value: string) {
@@ -257,7 +257,7 @@ export async function GET(request: NextRequest) {
   if (format === "pdf") {
     const lines = [
       "Flora Botanics - Marketing e Relacionamento",
-      `Emitido em: ${new Date().toLocaleString("pt-BR")}`,
+      `Emitido em: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
       "",
       `Campanhas: ${campaigns.length}`,
       `Mensagens enviadas: ${sent}`,
@@ -284,7 +284,7 @@ export async function GET(request: NextRequest) {
 
   const csv = [
     csvLine(["Flora Botanics - Marketing e Relacionamento"]),
-    csvLine(["Emitido em", new Date().toLocaleString("pt-BR")]),
+    csvLine(["Emitido em", new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })]),
     csvLine([]),
     csvLine(["Resumo"]),
     csvLine(["Campanhas", campaigns.length]),

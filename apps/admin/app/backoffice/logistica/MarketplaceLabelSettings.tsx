@@ -73,7 +73,7 @@ const formatOptions = [
 
 function formatDate(iso: string | null) {
   if (!iso) return "Nunca";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 }
 
 export function MarketplaceLabelSettings({

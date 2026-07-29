@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
         "Custo total": (row.totals?.totalCostCents ?? 0) / 100,
         "Lucro líquido": (row.totals?.netProfitCents ?? 0) / 100,
         "Margem %": Number(row.totals?.netMarginPercent ?? 0),
-        "Criado em": new Date(row.created_at).toLocaleString("pt-BR"),
+        "Criado em": new Date(row.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
       }))),
       "Cenários"
     );
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
         Empresa: row.company_name ?? "",
         Canal: row.channel ?? "",
         Valor: (row.totals?.netRevenueCents ?? 0) / 100,
-        "Criado em": new Date(row.created_at).toLocaleString("pt-BR"),
+        "Criado em": new Date(row.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
       }))),
       "Documentos"
     );
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
   if (format === "pdf") {
     const lines = [
       "Flora Botanics - Financeiro, Precificação e Orçamentos",
-      `Emitido em: ${new Date().toLocaleString("pt-BR")}`,
+      `Emitido em: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
       "",
       "Cenários salvos:",
       ...calcRows.slice(0, 18).map((row) => {
@@ -232,7 +232,7 @@ export async function GET(request: NextRequest) {
         money(totals.totalCostCents ?? 0),
         money(totals.netProfitCents ?? 0),
         `${Number(totals.netMarginPercent ?? 0).toFixed(1)}%`,
-        new Date(row.created_at).toLocaleString("pt-BR"),
+        new Date(row.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
       ]);
     }),
     csvLine([]),
@@ -246,7 +246,7 @@ export async function GET(request: NextRequest) {
       row.company_name,
       row.channel,
       money(row.totals?.netRevenueCents ?? 0),
-      new Date(row.created_at).toLocaleString("pt-BR"),
+      new Date(row.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
     ])),
     csvLine([]),
     csvLine(["Tabelas de preço"]),

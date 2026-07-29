@@ -157,14 +157,14 @@ function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(date);
 }
 
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(date);
 }
 
 function label(map: Record<string, string>, value: string | null | undefined) {
@@ -1487,6 +1487,7 @@ export async function FiscalCenterPage({
         <SectionTitle eyebrow="Auditoria fiscal" title="Trilha obrigatória de operação">
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link href="/backoffice/notas-fiscais/exportar?format=csv" className="btn btn-ghost" style={smallButtonStyle}>Exportar CSV</Link>
+            <Link href="/backoffice/notas-fiscais/exportar?format=pdf" className="btn btn-gold" style={smallButtonStyle}>Gerar PDF</Link>
             <Link href="/backoffice/notas-fiscais/filas" className="btn btn-gold" style={smallButtonStyle}>Revisar filas</Link>
           </div>
         </SectionTitle>

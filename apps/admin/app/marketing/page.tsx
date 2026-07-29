@@ -1774,7 +1774,7 @@ function eventTypeLabel(value: string) {
 
 function formatDateTime(value: string | null) {
   if (!value) return "Sem data";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
 }
 
 const pageStyle: CSSProperties = {

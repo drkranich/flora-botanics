@@ -10,7 +10,7 @@ const STATUSES = ["pending", "paid", "processing", "shipped", "delivered", "canc
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 }
 
 function paymentLabel(status: string | null) {

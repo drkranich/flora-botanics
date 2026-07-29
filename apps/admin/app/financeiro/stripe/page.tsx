@@ -184,7 +184,7 @@ function fallbackLookupKey(row: ProductCandidate) {
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 }
 
 function stripeDashboardUrl(environment: string, productId: string | null) {

@@ -29,7 +29,7 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 }
 
 function dateLabel(iso: string) {
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 }
 
 function stars(value: number) {

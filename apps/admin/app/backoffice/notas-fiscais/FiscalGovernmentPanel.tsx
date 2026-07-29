@@ -32,7 +32,7 @@ function formatDateTime(iso: string | null) {
   if (!iso) return "Nunca";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "Nunca";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(date);
 }
 
 function connectionTone(connection: ConnectionRow | undefined) {

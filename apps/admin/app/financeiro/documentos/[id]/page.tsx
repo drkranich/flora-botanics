@@ -90,7 +90,7 @@ export default async function CommercialDocumentPage({
 
   const row = quote as QuoteRow;
   const totals = row.totals ?? {};
-  const createdAt = new Date(row.created_at).toLocaleString("pt-BR");
+  const createdAt = new Date(row.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
   const validUntil = row.valid_until
     ? new Date(`${row.valid_until}T12:00:00`).toLocaleDateString("pt-BR")
     : "Sem validade definida";
@@ -195,7 +195,7 @@ export default async function CommercialDocumentPage({
 
 function formatDateTime(value: string | null) {
   if (!value) return null;
-  return new Date(value).toLocaleString("pt-BR");
+  return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 function Detail({ label, value }: { label: string; value: string | null }) {

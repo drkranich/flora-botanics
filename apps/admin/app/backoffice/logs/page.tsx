@@ -18,7 +18,7 @@ const RESOLVED_FILTERS = [
 ] as const;
 
 function formatDateTime(iso: string): string {
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 }
 
 function levelBadgeStyle(level: string): React.CSSProperties {

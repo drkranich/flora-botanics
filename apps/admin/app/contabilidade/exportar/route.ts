@@ -39,7 +39,7 @@ function buildCsv(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
         entry.description,
         entry.cost_center ?? "",
         `${entry.type === "income" ? "+" : "-"} ${money(entry.amount_cents, entry.currency)}`,
-        new Date(entry.occurred_at).toLocaleString("pt-BR"),
+        new Date(entry.occurred_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
       ])
     ),
     csvLine([]),
@@ -54,7 +54,7 @@ function buildCsv(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
         money(order.discount_cents, order.currency),
         money(order.shipping_cents, order.currency),
         money(order.total_cents, order.currency),
-        new Date(order.created_at).toLocaleString("pt-BR"),
+        new Date(order.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
       ])
     ),
   ];

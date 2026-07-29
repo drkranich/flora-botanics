@@ -96,7 +96,7 @@ export function TransferOwnership({
       `Eu, ${fullName || email} (${email}), transfiro a propriedade desta marca para ` +
       `${successor.full_name || successor.email} (${successor.email}) e estou ciente de que ` +
       `deixarei de ser proprietário(a), passando ao papel de Administrador(a). ` +
-      `Assinatura eletrônica registrada em ${new Date().toLocaleString("pt-BR")}.`
+      `Assinatura eletrônica registrada em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`
     );
   }
 
@@ -219,7 +219,7 @@ export function TransferOwnership({
         <p className="eyebrow" style={{ marginBottom: 8 }}>Transferência de propriedade</p>
         <p style={{ fontSize: 13, lineHeight: 1.7 }}>
           Seu pedido está <strong>aguardando a assinatura</strong> da pessoa escolhida
-          (solicitado em {new Date(outgoing.requested_at).toLocaleString("pt-BR")}).
+          (solicitado em {new Date(outgoing.requested_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}).
         </p>
         {err ? <p style={{ color: "#e8a0a0", fontSize: 12, marginTop: 10 }}>{err}</p> : null}
         {msg ? <p style={{ color: "var(--gold-light)", fontSize: 12, marginTop: 10 }}>{msg}</p> : null}

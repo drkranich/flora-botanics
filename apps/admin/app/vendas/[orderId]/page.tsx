@@ -299,7 +299,7 @@ function stringValue(summary: Record<string, unknown> | null | undefined, key: s
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 }
 
 function paymentLabel(status: string) {

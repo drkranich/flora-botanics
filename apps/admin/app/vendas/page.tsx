@@ -88,7 +88,7 @@ export default async function OrdersPage() {
                   <strong style={{ fontSize: 15 }}>Pedido #{o.number}</strong>
                   <p className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
                     {customer?.full_name ?? customer?.email ?? "—"} ·{" "}
-                    {new Date(o.created_at).toLocaleString("pt-BR")}
+                    {new Date(o.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                   </p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
