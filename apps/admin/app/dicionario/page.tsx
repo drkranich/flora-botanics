@@ -122,28 +122,28 @@ export default async function DicionarioPage({
             </p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+          <div style={acronymGridStyle}>
             {entries.map((entry) => (
-              <article key={`${entry.category}-${entry.acronym}`} className="glass glass-hover" style={{ padding: 18, minHeight: 250, display: "grid", gap: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                  <div>
+              <article key={`${entry.category}-${entry.acronym}`} className="glass glass-hover" style={acronymCardStyle}>
+                <div style={acronymHeaderStyle}>
+                  <div style={{ minWidth: 0 }}>
                     <p className="eyebrow" style={{ marginBottom: 6 }}>{entry.category}</p>
-                    <h2 className="display" style={{ fontSize: 34, lineHeight: 1 }}>
+                    <h2 className="display" style={{ fontSize: 32, lineHeight: 1, overflowWrap: "anywhere" }}>
                       {entry.acronym}
                     </h2>
                   </div>
-                  <span className="chip chip-live" style={{ whiteSpace: "nowrap" }}>Glossário</span>
+                  <span className="chip chip-live" style={headerChipStyle}>Glossário</span>
                 </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 16, lineHeight: 1.25 }}>{entry.meaning}</h3>
-                  <p className="muted" style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.58 }}>
+                <div style={acronymBodyStyle}>
+                  <h3 style={acronymMeaningStyle}>{entry.meaning}</h3>
+                  <p className="muted" style={acronymTextStyle}>
                     {entry.explanation}
                   </p>
                 </div>
-                <div style={{ display: "grid", gap: 8, alignSelf: "end" }}>
+                <div style={acronymFooterStyle}>
                   <div>
                     <p className="field-label" style={{ marginBottom: 6 }}>Onde aparece</p>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <div style={chipRowStyle}>
                       {entry.appearsIn.map((area) => (
                         <span key={area} className="chip chip-draft">{area}</span>
                       ))}
@@ -152,7 +152,7 @@ export default async function DicionarioPage({
                   {entry.related?.length ? (
                     <div>
                       <p className="field-label" style={{ marginBottom: 6 }}>Relacionadas</p>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <div style={chipRowStyle}>
                         {entry.related.map((related) => (
                           <span key={related} className="chip">{related}</span>
                         ))}
@@ -171,7 +171,7 @@ export default async function DicionarioPage({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glass" style={{ padding: "16px 18px" }}>
+    <div className="glass" style={{ padding: "16px 18px", minHeight: 104, display: "grid", alignContent: "space-between" }}>
       <p className="display" style={{ fontSize: 28, color: "var(--gold-light)" }}>{value}</p>
       <p className="muted" style={{ marginTop: 4, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>
         {label}
@@ -185,9 +185,78 @@ function FilterChip({ href, active, children }: { href: string; active: boolean;
     <Link
       href={href}
       className={active ? "btn btn-gold" : "btn btn-ghost"}
-      style={{ minHeight: 34, padding: "8px 14px", fontSize: 9.5 }}
+      style={{ minHeight: 36, padding: "8px 14px", fontSize: 9.5, display: "inline-flex", alignItems: "center" }}
     >
       {children}
     </Link>
   );
 }
+
+const acronymGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+  gap: 14,
+  alignItems: "stretch",
+};
+
+const acronymCardStyle: React.CSSProperties = {
+  padding: 18,
+  minHeight: 334,
+  height: "100%",
+  display: "grid",
+  gridTemplateRows: "auto minmax(132px, 1fr) auto",
+  gap: 14,
+};
+
+const acronymHeaderStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
+  gap: 10,
+  alignItems: "start",
+  minHeight: 76,
+};
+
+const headerChipStyle: React.CSSProperties = {
+  minHeight: 30,
+  whiteSpace: "nowrap",
+  alignSelf: "start",
+  display: "inline-flex",
+  alignItems: "center",
+};
+
+const acronymBodyStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateRows: "auto 1fr",
+  alignContent: "start",
+  gap: 8,
+  minHeight: 132,
+};
+
+const acronymMeaningStyle: React.CSSProperties = {
+  margin: 0,
+  minHeight: 42,
+  fontSize: 16,
+  lineHeight: 1.3,
+};
+
+const acronymTextStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 13,
+  lineHeight: 1.58,
+};
+
+const acronymFooterStyle: React.CSSProperties = {
+  display: "grid",
+  gap: 10,
+  alignSelf: "end",
+  minHeight: 104,
+  paddingTop: 10,
+  borderTop: "1px solid rgba(242, 236, 223, 0.08)",
+};
+
+const chipRowStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 6,
+  flexWrap: "wrap",
+  alignItems: "center",
+};
