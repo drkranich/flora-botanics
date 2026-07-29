@@ -1262,6 +1262,72 @@ export async function updateVaultDocument(vaultDocumentId: string, formData: For
   revalidateFiscalCenter();
 }
 
+export async function moveVaultDocumentToFolder(vaultDocumentId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const selectedFolderId = text(formData, "folder_id");
+  const folderId = selectedFolderId === "__entrada_geral__"
+    ? await ensureDefaultVaultFolder(supabase, staff)
+    : selectedFolderId;
+
+  if (!folderId) throw new Error("Escolha uma pasta para mover o documento.");
+
+  const { data: previous } = await supabase
+    .from("fiscal_vault_documents")
+    .select("id, folder_id, name")
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!previous) throw new Error("Documento não encontrado no cofre fiscal.");
+
+  const { data: folder } = await supabase
+    .from("document_vault_folders")
+    .select("id, name")
+    .eq("id", folderId)
+    .eq("tenant_id", staff.tenantId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!folder) throw new Error("Pasta de destino não encontrada.");
+
+  const { error } = await supabase
+    .from("fiscal_vault_documents")
+    .update({ folder_id: folder.id })
+    .eq("id", vaultDocumentId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) throw new Error(`Não foi possível mover o documento: ${error.message}.`);
+
+  await supabase.from("document_vault_audit_events").insert({
+    tenant_id: staff.tenantId,
+    vault_document_id: vaultDocumentId,
+    folder_id: folder.id,
+    action: "moved_to_folder",
+    previous_value: { folder_id: previous.folder_id },
+    new_value: { folder_id: folder.id, folder_name: folder.name },
+    reason: text(formData, "reason") ?? "Movido pelo cofre fiscal.",
+    actor_id: staff.id,
+  });
+
+  await audit(supabase, {
+    tenantId: staff.tenantId,
+    actorId: staff.id,
+    action: "moved_vault_document_to_folder",
+    entityType: "fiscal_vault_document",
+    entityId: vaultDocumentId,
+    afterData: {
+      previous_folder_id: previous.folder_id,
+      folder_id: folder.id,
+      folder_name: folder.name,
+    },
+  });
+
+  revalidateFiscalCenter();
+}
+
 export async function registerVaultDocumentShare(vaultDocumentId: string): Promise<void> {
   const staff = await currentStaff();
   if (!staff) return;

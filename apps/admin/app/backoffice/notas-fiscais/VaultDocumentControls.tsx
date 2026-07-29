@@ -6,6 +6,7 @@ import { GlassDateInput } from "@/components/GlassDateInput";
 import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import {
   deleteVaultDocument,
+  moveVaultDocumentToFolder,
   registerVaultDocumentShare,
   updateVaultDocument,
 } from "./actions";
@@ -244,7 +245,7 @@ export function VaultDocumentControls({
   folders?: VaultFolderControlOption[];
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"idle" | "edit" | "details" | "archive" | "delete">("idle");
+  const [mode, setMode] = useState<"idle" | "edit" | "details" | "move" | "archive" | "delete">("idle");
   const [shareMessage, setShareMessage] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState(document.folderId ?? folders[0]?.value ?? "");
   const [pending, startTransition] = useTransition();
@@ -254,6 +255,10 @@ export function VaultDocumentControls({
     : "";
 
   const tags = useMemo(() => document.tags.join(", "), [document.tags]);
+  const moveFolderOptions = useMemo<GlassSelectOption[]>(() => {
+    const hasDefaultFolder = folders.some((folder) => folder.label === "Entrada geral");
+    return hasDefaultFolder ? folders : [{ value: "__entrada_geral__", label: "Entrada geral" }, ...folders];
+  }, [folders]);
 
   async function share() {
     if (!fileHref) {
@@ -299,6 +304,7 @@ export function VaultDocumentControls({
         ) : null}
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={() => setMode(mode === "details" ? "idle" : "details")}>Detalhes</button>
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={() => setMode(mode === "edit" ? "idle" : "edit")}>Editar</button>
+        <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={() => setMode(mode === "move" ? "idle" : "move")}>Mover para pasta</button>
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={share} disabled={pending}>Compartilhar</button>
         <button type="button" className="btn btn-ghost" style={actionButtonStyle} onClick={toggleArchive} disabled={pending}>
           {isArchived ? "Desarquivar" : "Arquivar"}
@@ -327,6 +333,29 @@ export function VaultDocumentControls({
           </dl>
           {document.notes ? <p style={notesStyle}>{document.notes}</p> : null}
         </div>
+      ) : null}
+
+      {mode === "move" ? (
+        <form action={moveVaultDocumentToFolder.bind(null, document.id)} style={panelStyle}>
+          <p className="eyebrow" style={{ marginBottom: 8 }}>Mover documento para pasta</p>
+          <div style={editGridStyle}>
+            <Field label="Documento"><input value={document.name} className="input" style={inputStyle} readOnly /></Field>
+            <Field label="Pasta atual"><input value={document.folderName ?? "Entrada geral"} className="input" style={inputStyle} readOnly /></Field>
+            <Field label="Nova pasta">
+              <GlassSelect
+                name="folder_id"
+                options={moveFolderOptions}
+                defaultValue={document.folderId ?? moveFolderOptions[0]?.value ?? "__entrada_geral__"}
+                inlineMenu
+              />
+            </Field>
+            <Field label="Motivo"><input name="reason" className="input" style={inputStyle} placeholder="Competência, contador, pagamento..." /></Field>
+          </div>
+          <div style={formActionsStyle}>
+            <button className="btn btn-gold" style={smallButtonStyle}>Mover documento</button>
+            <button type="button" className="btn btn-ghost" style={smallButtonStyle} onClick={() => setMode("idle")}>Cancelar</button>
+          </div>
+        </form>
       ) : null}
 
       {mode === "edit" ? (
