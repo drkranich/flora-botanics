@@ -952,9 +952,8 @@ export async function FiscalCenterPage({
         )}
       </section>
 
-      <div className="fiscal-form-grid">
+      <div className={sectionClass("guias", "fiscal-form-grid")}>
         <FiscalGuideForm />
-        <FiscalObligationForm />
       </div>
 
       <section id="agenda" className={sectionClass("agenda")} style={twoColumnStyle}>
@@ -999,8 +998,12 @@ export async function FiscalCenterPage({
         </div>
       </section>
 
-      <div className="fiscal-form-grid">
+      <div className={sectionClass("agenda", "fiscal-form-grid")}>
         <MonthlyClosingForm />
+        <FiscalObligationForm />
+      </div>
+
+      <div className={sectionClass("certificados", "fiscal-form-grid")}>
         <FiscalCertificateForm />
       </div>
 

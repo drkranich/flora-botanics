@@ -10,6 +10,31 @@ import {
 } from "@/lib/fiscal/government-providers";
 
 const FISCAL_PATH = "/backoffice/notas-fiscais";
+const FISCAL_REVALIDATE_PATHS = [
+  FISCAL_PATH,
+  `${FISCAL_PATH}/governo`,
+  `${FISCAL_PATH}/comercio-exterior`,
+  `${FISCAL_PATH}/documentos`,
+  `${FISCAL_PATH}/emissao`,
+  `${FISCAL_PATH}/eventos`,
+  `${FISCAL_PATH}/rejeicoes`,
+  `${FISCAL_PATH}/apuracao`,
+  `${FISCAL_PATH}/guias`,
+  `${FISCAL_PATH}/agenda`,
+  `${FISCAL_PATH}/certificados`,
+  `${FISCAL_PATH}/cofre`,
+  `${FISCAL_PATH}/contador`,
+  `${FISCAL_PATH}/aprovacoes`,
+  `${FISCAL_PATH}/filas`,
+  `${FISCAL_PATH}/relatorios`,
+  `${FISCAL_PATH}/auditoria`,
+];
+
+function revalidateFiscalCenter() {
+  for (const path of FISCAL_REVALIDATE_PATHS) {
+    revalidatePath(path);
+  }
+}
 
 export type FiscalActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -81,9 +106,25 @@ function paymentStatusForFinancialControl(status: string | null) {
     overdue: "overdue",
     partial: "partial",
     paid: "paid",
+    paid_with_interest: "paid_with_interest",
+    paid_with_discount: "paid_with_discount",
     compensated: "compensated",
     cancelled: "cancelled",
     disputed: "disputed",
+    not_applicable: "not_applicable",
+    unclassified: "unclassified",
+    unpaid: "unpaid",
+    waiting_approval: "waiting_approval",
+    approved_for_payment: "approved_for_payment",
+    due_today: "due_today",
+    installment: "installment",
+    suspended: "suspended",
+    reversed: "reversed",
+    refunded: "refunded",
+    reconciled: "reconciled",
+    divergent: "divergent",
+    waiting_receipt: "waiting_receipt",
+    receipt_review: "receipt_review",
   };
   return map[status] ?? status;
 }
@@ -192,7 +233,7 @@ export async function configureFiscalGovernmentConnection(formData: FormData): P
     });
   }
 
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function requestFiscalGovernmentSync(providerKey: FiscalGovernmentProviderKey): Promise<void> {
@@ -296,7 +337,7 @@ export async function requestFiscalGovernmentSync(providerKey: FiscalGovernmentP
     },
   });
 
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function seedFiscalGovernmentConnections(): Promise<void> {
@@ -334,7 +375,7 @@ export async function seedFiscalGovernmentConnections(): Promise<void> {
     afterData: { providers: rows.map((row) => row.provider_key) },
   });
 
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 /**
@@ -382,7 +423,7 @@ export async function createDraftNfe(orderId: string): Promise<void> {
     .maybeSingle();
 
   if (existing?.id) {
-    revalidatePath("/backoffice/notas-fiscais");
+    revalidateFiscalCenter();
     return;
   }
 
@@ -453,7 +494,7 @@ export async function createDraftNfe(orderId: string): Promise<void> {
     afterData: { number: fiscal.proximo_numero_nfe, series: fiscal.serie_nfe, environment: fiscal.ambiente },
   });
 
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function cancelNfeDraft(nfeId: string) {
@@ -477,7 +518,7 @@ export async function cancelNfeDraft(nfeId: string) {
     justification: "Cancelamento de rascunho antes de transmissão.",
   });
 
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createManualFiscalDocument(formData: FormData): Promise<void> {
@@ -521,7 +562,7 @@ export async function createManualFiscalDocument(formData: FormData): Promise<vo
       afterData: payload,
     });
   }
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createFiscalObligation(formData: FormData): Promise<void> {
@@ -547,7 +588,7 @@ export async function createFiscalObligation(formData: FormData): Promise<void> 
   };
   const { data, error } = await supabase.from("fiscal_obligations").insert(payload).select("id").single();
   if (!error && data) await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_obligation", entityType: "fiscal_obligation", entityId: data.id, afterData: payload });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createFiscalGuide(formData: FormData): Promise<void> {
@@ -610,7 +651,7 @@ export async function createFiscalGuide(formData: FormData): Promise<void> {
     });
     await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_fiscal_guide", entityType: "fiscal_guide", entityId: data.id, afterData: payload });
   }
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function registerFiscalGuidePayment(guideId: string, formData: FormData): Promise<void> {
@@ -666,7 +707,7 @@ export async function registerFiscalGuidePayment(guideId: string, formData: Form
     });
   }
   await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "registered_guide_payment", entityType: "fiscal_guide", entityId: guideId, afterData: payload });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createFiscalVaultDocument(formData: FormData): Promise<void> {
@@ -770,7 +811,7 @@ export async function createFiscalVaultDocument(formData: FormData): Promise<voi
 
     await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_vault_document", entityType: "fiscal_vault_document", entityId: data.id, afterData: payload });
   }
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function registerVaultDocumentPayment(vaultDocumentId: string, formData: FormData): Promise<void> {
@@ -861,7 +902,7 @@ export async function registerVaultDocumentPayment(vaultDocumentId: string, form
     actor_id: staff.id,
   });
 
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function archiveVaultDocument(vaultDocumentId: string, formData: FormData): Promise<void> {
@@ -881,7 +922,7 @@ export async function archiveVaultDocument(vaultDocumentId: string, formData: Fo
     reason,
     actor_id: staff.id,
   });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createFiscalDocumentEvent(formData: FormData): Promise<void> {
@@ -903,7 +944,7 @@ export async function createFiscalDocumentEvent(formData: FormData): Promise<voi
   };
   const { data, error } = await supabase.from("fiscal_document_events").insert(payload).select("id").single();
   if (!error && data) await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_fiscal_event", entityType: "fiscal_document_event", entityId: data.id, afterData: payload, justification: payload.justification });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createAccountantRequest(formData: FormData): Promise<void> {
@@ -924,7 +965,7 @@ export async function createAccountantRequest(formData: FormData): Promise<void>
   };
   const { data, error } = await supabase.from("accountant_requests").insert(payload).select("id").single();
   if (!error && data) await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_accountant_request", entityType: "accountant_request", entityId: data.id, afterData: payload });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function upsertAccountantProfile(formData: FormData): Promise<void> {
@@ -959,7 +1000,7 @@ export async function upsertAccountantProfile(formData: FormData): Promise<void>
   };
   await supabase.from("accountant_profiles").upsert(payload, { onConflict: "tenant_id" });
   await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "upserted_accountant_profile", entityType: "accountant_profile", afterData: payload });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createFiscalCertificate(formData: FormData): Promise<void> {
@@ -983,7 +1024,7 @@ export async function createFiscalCertificate(formData: FormData): Promise<void>
   };
   const { data, error } = await supabase.from("fiscal_certificates").insert(payload).select("id").single();
   if (!error && data) await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_certificate_metadata", entityType: "fiscal_certificate", entityId: data.id, afterData: { ...payload, secure_secret_ref: payload.secure_secret_ref ? "[referência segura]" : null } });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createFiscalProductRule(formData: FormData): Promise<void> {
@@ -1021,7 +1062,7 @@ export async function createFiscalProductRule(formData: FormData): Promise<void>
   };
   const { data, error } = await supabase.from("fiscal_product_rules").insert(payload).select("id").single();
   if (!error && data) await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_product_fiscal_rule", entityType: "fiscal_product_rule", entityId: data.id, afterData: payload });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createFiscalAssessment(formData: FormData): Promise<void> {
@@ -1048,7 +1089,7 @@ export async function createFiscalAssessment(formData: FormData): Promise<void> 
   };
   const { data, error } = await supabase.from("fiscal_tax_assessments").insert(payload).select("id").single();
   if (!error && data) await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "created_tax_assessment", entityType: "fiscal_tax_assessment", entityId: data.id, afterData: payload });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
 
 export async function createMonthlyClosing(formData: FormData): Promise<void> {
@@ -1078,5 +1119,5 @@ export async function createMonthlyClosing(formData: FormData): Promise<void> {
   };
   const { data, error } = await supabase.from("fiscal_monthly_closings").upsert(payload, { onConflict: "tenant_id,competence" }).select("id").single();
   if (!error && data) await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "upserted_monthly_closing", entityType: "fiscal_monthly_closing", entityId: data.id, afterData: payload });
-  revalidatePath(FISCAL_PATH);
+  revalidateFiscalCenter();
 }
