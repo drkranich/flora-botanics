@@ -441,6 +441,16 @@ type IntegrationRow = {
   last_error: string | null;
 };
 
+type QueryErrorItem = {
+  label: string;
+  error: { message?: string | null; code?: string | null } | null | undefined;
+};
+
+function isSchemaMissingError(error: QueryErrorItem["error"]) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""}`;
+  return /schema cache|could not find|does not exist|relation .* does not exist|column .* does not exist/i.test(message);
+}
+
 export async function FiscalCenterPage({
   activeSection,
 }: {
@@ -570,7 +580,13 @@ export async function FiscalCenterPage({
   const fiscal = fiscalRes.data as FiscalConfigRow | null;
   const nfes = (nfeRes.data ?? []) as unknown as NfeRow[];
   const orders = (ordersRes.data ?? []) as OrderRow[];
-  const migrationPending = Boolean(fiscalDocsRes.error || guidesRes.error || obligationsRes.error || vaultRes.error);
+  const fiscalCenterErrors = ([
+    { label: "Documentos fiscais", error: fiscalDocsRes.error },
+    { label: "Guias e pagamentos", error: guidesRes.error },
+    { label: "Obrigações", error: obligationsRes.error },
+    { label: "Cofre fiscal", error: vaultRes.error },
+  ] satisfies QueryErrorItem[]).filter((item) => item.error);
+  const migrationPending = fiscalCenterErrors.some((item) => isSchemaMissingError(item.error));
   const fiscalDocs = (fiscalDocsRes.data ?? []) as unknown as FiscalDocumentRow[];
   const guides = (guidesRes.data ?? []) as unknown as FiscalGuideRow[];
   const obligations = (obligationsRes.data ?? []) as unknown as FiscalObligationRow[];
@@ -639,8 +655,17 @@ export async function FiscalCenterPage({
         <section className="glass" style={{ ...noticeStyle, borderColor: "rgba(232,160,160,0.45)" }}>
           <p className="eyebrow" style={{ color: "#e8a0a0", marginBottom: 8 }}>Migration pendente</p>
           <p className="muted" style={{ margin: 0, lineHeight: 1.7 }}>
-            Aplique `supabase/migrations/20260729003359_fiscal_tax_center_foundation.sql` no Supabase para liberar guias,
-            cofre, contador, obrigações e apurações. A tela antiga de NF-e continua funcionando, mas o centro completo depende dessa migration.
+            A estrutura fiscal publicada ainda não responde a todos os campos usados pelo CMS. Aplique as migrations
+            <code> supabase/migrations/20260729010031_fiscal_tax_center_foundation.sql</code> e
+            <code> supabase/migrations/20260729121500_manual_orders_document_finance_foundation.sql</code> para liberar
+            guias, cofre, contador, obrigações e apurações.
+          </p>
+        </section>
+      ) : fiscalCenterErrors.length ? (
+        <section className="glass" style={{ ...noticeStyle, borderColor: "rgba(232,160,160,0.45)" }}>
+          <p className="eyebrow" style={{ color: "#e8a0a0", marginBottom: 8 }}>Erro ao carregar centro fiscal</p>
+          <p className="muted" style={{ margin: 0, lineHeight: 1.7 }}>
+            {fiscalCenterErrors.map((item) => `${item.label}: ${item.error?.message ?? "erro sem detalhe"}`).join(" | ")}
           </p>
         </section>
       ) : null}
