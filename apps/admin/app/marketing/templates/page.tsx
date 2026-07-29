@@ -506,7 +506,9 @@ const sectionHeaderStyle: CSSProperties = {
 const blueprintGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gridAutoRows: "1fr",
   gap: 14,
+  alignItems: "stretch",
 };
 
 const templateCardStyle: CSSProperties = {
@@ -515,6 +517,8 @@ const templateCardStyle: CSSProperties = {
   padding: 16,
   background: "linear-gradient(145deg, rgba(255,248,234,0.075), rgba(10,22,11,0.34))",
   minHeight: 560,
+  height: "100%",
+  boxSizing: "border-box",
   display: "flex",
   flexDirection: "column",
 };
@@ -558,6 +562,9 @@ const emailPreviewShellStyle: CSSProperties = {
   border: "1px solid rgba(242,236,223,0.18)",
   background: "#f4efe5",
   boxShadow: "0 18px 36px rgba(0,0,0,0.24)",
+  minHeight: 294,
+  display: "grid",
+  gridTemplateRows: "auto 1fr",
 };
 
 const emailPreviewHeaderStyle: CSSProperties = {
@@ -574,7 +581,10 @@ const emailPreviewHeaderStyle: CSSProperties = {
 
 const emailPreviewBodyStyle: CSSProperties = {
   padding: 20,
-  minHeight: 188,
+  minHeight: 224,
+  display: "grid",
+  gridTemplateRows: "auto minmax(58px, auto) minmax(58px, 1fr) auto",
+  alignContent: "start",
 };
 
 const emailPreviewEyebrowStyle: CSSProperties = {
@@ -592,6 +602,7 @@ const emailPreviewTitleStyle: CSSProperties = {
   fontSize: 24,
   lineHeight: 1.1,
   fontFamily: "serif",
+  minHeight: 58,
 };
 
 const emailPreviewTextStyle: CSSProperties = {
@@ -599,12 +610,15 @@ const emailPreviewTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.55,
   margin: "0 0 18px",
+  minHeight: 58,
 };
 
 const emailPreviewCtaStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
+  alignSelf: "end",
+  width: "fit-content",
   minHeight: 34,
   borderRadius: 999,
   padding: "0 18px",
@@ -619,7 +633,9 @@ const emailPreviewCtaStyle: CSSProperties = {
 const landingGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gridAutoRows: "1fr",
   gap: 14,
+  alignItems: "stretch",
 };
 
 const landingCardStyle: CSSProperties = {
@@ -642,6 +658,7 @@ const landingDescriptionStyle: CSSProperties = {
 };
 
 const landingPreviewStyle: CSSProperties = {
+  height: 220,
   minHeight: 220,
   borderRadius: 18,
   overflow: "hidden",
@@ -667,6 +684,9 @@ const landingNavStyle: CSSProperties = {
 
 const landingHeroStyle: CSSProperties = {
   padding: "26px 20px",
+  display: "grid",
+  gridTemplateRows: "auto minmax(54px, auto) 1fr",
+  alignContent: "start",
 };
 
 const buttonClusterStyle: CSSProperties = {
@@ -680,7 +700,9 @@ const buttonClusterStyle: CSSProperties = {
 const installedGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gridAutoRows: "1fr",
   gap: 12,
+  alignItems: "stretch",
 };
 
 const installedTemplateStyle: CSSProperties = {
@@ -689,6 +711,8 @@ const installedTemplateStyle: CSSProperties = {
   padding: 14,
   background: "rgba(255,248,234,0.045)",
   minHeight: 310,
+  height: "100%",
+  boxSizing: "border-box",
   display: "flex",
   flexDirection: "column",
   gap: 10,
