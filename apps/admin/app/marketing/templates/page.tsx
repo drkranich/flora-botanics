@@ -4,7 +4,12 @@ import { redirect } from "next/navigation";
 import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
-import { createMarketingTemplate, installMarketingTemplateBlueprint } from "../actions";
+import {
+  createMarketingLandingPage,
+  createMarketingTemplate,
+  installAllMarketingTemplateBlueprints,
+  installMarketingTemplateBlueprint,
+} from "../actions";
 
 type BlueprintRow = {
   id: string;
@@ -40,6 +45,49 @@ const STATUS_OPTIONS: GlassSelectOption[] = [
   { value: "active", label: "Ativo" },
   { value: "paused", label: "Pausado" },
   { value: "archived", label: "Arquivado" },
+];
+
+const LANDING_TEMPLATE_PRESETS = [
+  {
+    key: "lancamento-editorial",
+    category: "Lançamento",
+    title: "Lançamento editorial",
+    eyebrow: "Nova campanha Flora",
+    headline: "Uma rotina apresentada como editorial de marca",
+    intro: "Página com narrativa premium, benefício principal, produto em destaque e CTA para compra.",
+    cta: "Conhecer campanha",
+    tone: "editorial",
+  },
+  {
+    key: "captacao-leads",
+    category: "Leads",
+    title: "Captação de leads",
+    eyebrow: "Lista de espera",
+    headline: "Receba acesso antecipado",
+    intro: "Modelo para lançamento, newsletter, lista VIP, campanha paga ou conteúdo de skincare.",
+    cta: "Entrar na lista",
+    tone: "lead",
+  },
+  {
+    key: "b2b-proposta",
+    category: "B2B",
+    title: "Proposta para parceiros",
+    eyebrow: "Flora para empresas",
+    headline: "Uma proposta comercial com cuidado e rastreabilidade",
+    intro: "Página para lojas, clínicas, hotéis, farmácias, eventos e presentes corporativos.",
+    cta: "Solicitar proposta",
+    tone: "b2b",
+  },
+  {
+    key: "carrinho-retorno",
+    category: "Remarketing",
+    title: "Retorno ao carrinho",
+    eyebrow: "Seu ritual ficou salvo",
+    headline: "Volte para concluir sua compra",
+    intro: "Modelo curto para recuperar carrinhos com benefício, prova social e botão direto.",
+    cta: "Voltar ao carrinho",
+    tone: "remarketing",
+  },
 ];
 
 export default async function MarketingTemplatesPage() {
@@ -82,6 +130,7 @@ export default async function MarketingTemplatesPage() {
   const templateRows = (templates ?? []) as TemplateRow[];
   const installedNames = new Set(templateRows.map((template) => template.name));
   const categories = Array.from(new Set(blueprintRows.map((template) => template.category)));
+  const slugSuffix = Date.now().toString(36);
 
   return (
     <main style={pageStyle}>
@@ -97,10 +146,20 @@ export default async function MarketingTemplatesPage() {
       <section className="glass rise rise-1" style={cardStyle}>
         <div style={sectionHeaderStyle}>
           <div>
-            <p className="eyebrow" style={{ marginBottom: 8 }}>Biblioteca completa de modelos</p>
-            <h2 style={{ margin: 0, fontSize: 28 }}>Instalar modelos prontos da Flora</h2>
+            <p className="eyebrow" style={{ marginBottom: 8 }}>Biblioteca editorial</p>
+            <h2 style={{ margin: 0, fontSize: 30 }}>Modelos prontos com prévia real</h2>
+            <p className="muted" style={{ margin: "8px 0 0", lineHeight: 1.7, maxWidth: 760 }}>
+              Instale modelos de e-mail, SMS, WhatsApp e mensagens transacionais já estruturados para
+              Resend e para o editor visual. Nada de montar corpo técnico na mão.
+            </p>
           </div>
-          <Link href="../marketing" className="btn btn-ghost" style={smallButtonStyle}>Voltar ao Marketing</Link>
+          <div style={buttonClusterStyle}>
+            <form action={installAllMarketingTemplateBlueprints}>
+              <button className="btn btn-gold" style={smallButtonStyle}>Instalar todos</button>
+            </form>
+            <Link href="../backoffice/mensagens" className="btn btn-ghost" style={smallButtonStyle}>Editor visual</Link>
+            <Link href="../marketing" className="btn btn-ghost" style={smallButtonStyle}>Voltar</Link>
+          </div>
         </div>
 
         <div style={blueprintGridStyle}>
@@ -108,28 +167,34 @@ export default async function MarketingTemplatesPage() {
             const installed = installedNames.has(template.name);
             return (
               <article key={template.id} style={templateCardStyle}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                  <span className={installed ? "chip chip-live" : "chip chip-draft"}>
-                    {installed ? "Instalado" : template.category}
-                  </span>
-                  <span className="muted" style={{ fontSize: 11 }}>{channelLabel(template.channel)}</span>
-                </div>
-                <h3 style={{ margin: "12px 0 8px", fontSize: 20 }}>{template.name}</h3>
-                <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{template.description}</p>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
-                  {template.variables.slice(0, 5).map((variable) => (
-                    <span key={variable} style={variableStyle}>{`{{${variable}}}`}</span>
-                  ))}
-                </div>
+                <EmailTemplatePreview template={template} installed={installed} />
                 <form action={installMarketingTemplateBlueprint} style={{ marginTop: 16 }}>
                   <input type="hidden" name="blueprint_id" value={template.id} />
                   <button className={installed ? "btn btn-ghost" : "btn btn-gold"} style={smallButtonStyle}>
-                    {installed ? "Atualizar modelo" : "Instalar no tenant"}
+                    {installed ? "Atualizar modelo" : "Instalar modelo"}
                   </button>
                 </form>
               </article>
             );
           })}
+        </div>
+      </section>
+
+      <section className="glass rise rise-2" style={cardStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <p className="eyebrow" style={{ marginBottom: 8 }}>Landing pages prontas</p>
+            <h2 style={{ margin: 0, fontSize: 28 }}>Modelos publicáveis para campanhas</h2>
+            <p className="muted" style={{ margin: "8px 0 0", lineHeight: 1.7, maxWidth: 760 }}>
+              Crie páginas editáveis para lançamento, captura de leads, B2B e remarketing usando a
+              mesma base de landing pages do Marketing.
+            </p>
+          </div>
+        </div>
+        <div style={landingGridStyle}>
+          {LANDING_TEMPLATE_PRESETS.map((preset) => (
+            <LandingTemplateCard key={preset.key} preset={preset} slugSuffix={slugSuffix} />
+          ))}
         </div>
       </section>
 
@@ -191,16 +256,23 @@ export default async function MarketingTemplatesPage() {
               Nenhum template salvo. Instale um modelo Flora ou crie um modelo próprio.
             </p>
           ) : (
-            <div style={{ display: "grid", gap: 10 }}>
+            <div style={installedGridStyle}>
               {templateRows.slice(0, 20).map((template) => (
-                <div key={template.id} style={rowStyle}>
-                  <span className="chip chip-draft">{template.category ?? channelLabel(template.channel)}</span>
-                  <strong>{template.name}</strong>
-                  <span className="muted">{template.subject ?? template.preview ?? "Sem assunto"}</span>
-                  <span className="muted" style={{ fontSize: 11 }}>
-                    {(template.variables ?? []).slice(0, 4).map((item) => `{{${item}}}`).join(" · ") || "Sem variáveis"}
+                <article key={template.id} style={installedTemplateStyle}>
+                  <div style={miniMailStyle}>
+                    <div style={miniMailHeaderStyle}>{template.name.slice(0, 2).toUpperCase()}</div>
+                    <div style={miniLineStyle} />
+                    <div style={{ ...miniLineStyle, width: "72%" }} />
+                    <div style={miniButtonStyle} />
+                  </div>
+                  <span className="chip chip-draft" style={{ width: "fit-content" }}>
+                    {template.category ?? channelLabel(template.channel)}
                   </span>
-                </div>
+                  <h3 style={{ margin: "10px 0 6px", fontSize: 18 }}>{template.name}</h3>
+                  <p className="muted" style={{ margin: 0, lineHeight: 1.55, fontSize: 12.5 }}>
+                    {template.subject ?? template.preview ?? "Modelo pronto para editar no Studio visual."}
+                  </p>
+                </article>
               ))}
             </div>
           )}
@@ -233,6 +305,91 @@ function Kpi({ label, value, note }: { label: string; value: string; note: strin
   );
 }
 
+function EmailTemplatePreview({ template, installed }: { template: BlueprintRow; installed: boolean }) {
+  return (
+    <>
+      <div style={emailPreviewShellStyle}>
+        <div style={emailPreviewHeaderStyle}>
+          <span>Flora Botanics</span>
+        </div>
+        <div style={emailPreviewBodyStyle}>
+          <p style={emailPreviewEyebrowStyle}>{template.category}</p>
+          <h3 style={emailPreviewTitleStyle}>{template.subject ?? template.name}</h3>
+          <p style={emailPreviewTextStyle}>{template.description}</p>
+          <span style={emailPreviewCtaStyle}>{ctaLabelForTemplate(template.category)}</span>
+        </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginTop: 14 }}>
+        <span className={installed ? "chip chip-live" : "chip chip-draft"}>
+          {installed ? "Instalado" : template.category}
+        </span>
+        <span className="muted" style={{ fontSize: 11 }}>{channelLabel(template.channel)}</span>
+      </div>
+      <h3 style={{ margin: "12px 0 8px", fontSize: 20 }}>{template.name}</h3>
+      <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{template.description}</p>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+        {template.variables.slice(0, 4).map((variable) => (
+          <span key={variable} style={variableStyle}>{variableLabel(variable)}</span>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function LandingTemplateCard({
+  preset,
+  slugSuffix,
+}: {
+  preset: (typeof LANDING_TEMPLATE_PRESETS)[number];
+  slugSuffix: string;
+}) {
+  const slug = `${preset.key}-${slugSuffix}`;
+
+  return (
+    <article style={landingCardStyle}>
+      <div style={landingPreviewStyle}>
+        <div style={landingNavStyle}>
+          <span>FLORA</span>
+          <span style={{ opacity: 0.65 }}>Campanha</span>
+        </div>
+        <div style={landingHeroStyle}>
+          <p style={emailPreviewEyebrowStyle}>{preset.eyebrow}</p>
+          <h3 style={{ margin: "8px 0", fontSize: 23, lineHeight: 1.05, color: "#fff8ea" }}>
+            {preset.headline}
+          </h3>
+          <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: "rgba(255,248,234,0.70)" }}>
+            {preset.intro}
+          </p>
+        </div>
+      </div>
+      <span className="chip chip-draft" style={{ width: "fit-content" }}>{preset.category}</span>
+      <h3 style={{ margin: "12px 0 8px", fontSize: 20 }}>{preset.title}</h3>
+      <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{preset.intro}</p>
+      <form action={createMarketingLandingPage} style={{ marginTop: 16 }}>
+        <input type="hidden" name="title" value={preset.title} />
+        <input type="hidden" name="slug" value={slug} />
+        <input type="hidden" name="status" value="draft" />
+        <input type="hidden" name="template_key" value={preset.key} />
+        <input type="hidden" name="eyebrow" value={preset.eyebrow} />
+        <input type="hidden" name="headline" value={preset.headline} />
+        <input type="hidden" name="intro" value={preset.intro} />
+        <input type="hidden" name="body" value={landingBodyFor(preset.tone)} />
+        <input type="hidden" name="cta_label" value={preset.cta} />
+        <input type="hidden" name="cta_url" value="/produtos" />
+        <input type="hidden" name="benefit_title" value="Benefício principal" />
+        <input type="hidden" name="benefit_text" value="Explique o benefício comercial ou editorial desta campanha." />
+        <input type="hidden" name="product_title" value="Produto ou kit em destaque" />
+        <input type="hidden" name="product_text" value="Conecte a campanha ao produto, kit, coleção ou oferta." />
+        <input type="hidden" name="testimonial_title" value="Prova social" />
+        <input type="hidden" name="testimonial_text" value="Inclua avaliação, garantia, ingrediente ou argumento de confiança." />
+        <input type="hidden" name="seo_title" value={preset.title} />
+        <input type="hidden" name="seo_description" value={preset.intro} />
+        <button className="btn btn-gold" style={smallButtonStyle}>Criar landing editável</button>
+      </form>
+    </article>
+  );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
@@ -240,6 +397,46 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+function ctaLabelForTemplate(category: string) {
+  const labels: Record<string, string> = {
+    "carrinho abandonado": "Finalizar compra",
+    "pedido expedido": "Rastrear pedido",
+    "pedido aprovado": "Acompanhar pedido",
+    aniversário: "Escolher presente",
+    b2b: "Ver proposta",
+    orçamento: "Aprovar orçamento",
+  };
+  return labels[category.toLowerCase()] ?? "Editar modelo";
+}
+
+function variableLabel(variable: string) {
+  const labels: Record<string, string> = {
+    "customer.first_name": "Nome do cliente",
+    "customer.name": "Cliente",
+    "order.number": "Pedido",
+    "shipment.tracking_code": "Rastreio",
+    "shipment.tracking_url": "Link de rastreio",
+    "coupon.code": "Cupom",
+    "cart.url": "Carrinho",
+    "cart.link": "Carrinho",
+    "review.url": "Avaliação",
+    "review.link": "Avaliação",
+    "quote.number": "Orçamento",
+    "cta.url": "Botão",
+  };
+  return labels[variable] ?? variable.replaceAll("_", " ").replaceAll(".", " ");
+}
+
+function landingBodyFor(tone: string) {
+  const bodies: Record<string, string> = {
+    editorial: "Apresente a história da campanha, destaque a promessa principal e conduza o visitante para o produto ou kit central.",
+    lead: "Explique o benefício de entrar na lista, o que será enviado e quando o contato receberá novidades.",
+    b2b: "Descreva a oportunidade comercial, as condições, a personalização e o próximo passo para falar com a equipe.",
+    remarketing: "Relembre o valor do carrinho salvo, mostre o benefício de voltar agora e reduza fricção para concluir a compra.",
+  };
+  return bodies[tone] ?? "Edite esta página com a narrativa e o CTA da campanha.";
 }
 
 function channelLabel(value: string) {
@@ -282,11 +479,12 @@ const sectionHeaderStyle: CSSProperties = {
   alignItems: "flex-start",
   gap: 16,
   marginBottom: 18,
+  flexWrap: "wrap",
 };
 
 const blueprintGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
   gap: 14,
 };
 
@@ -294,19 +492,182 @@ const templateCardStyle: CSSProperties = {
   border: "1px solid var(--glass-border)",
   borderRadius: 14,
   padding: 16,
-  background: "rgba(255,248,234,0.045)",
-  minHeight: 230,
+  background: "linear-gradient(145deg, rgba(255,248,234,0.075), rgba(10,22,11,0.34))",
+  minHeight: 460,
   display: "flex",
   flexDirection: "column",
 };
 
 const variableStyle: CSSProperties = {
-  border: "1px solid var(--glass-border)",
+  border: "1px solid rgba(217, 184, 122, 0.34)",
   borderRadius: 999,
-  padding: "5px 9px",
+  padding: "5px 10px",
   fontSize: 10,
-  color: "var(--cream-dim)",
-  background: "rgba(10,22,11,0.38)",
+  color: "var(--gold-light)",
+  background: "rgba(185,146,77,0.10)",
+  fontWeight: 800,
+};
+
+const emailPreviewShellStyle: CSSProperties = {
+  borderRadius: 18,
+  overflow: "hidden",
+  border: "1px solid rgba(242,236,223,0.18)",
+  background: "#f4efe5",
+  boxShadow: "0 18px 36px rgba(0,0,0,0.24)",
+};
+
+const emailPreviewHeaderStyle: CSSProperties = {
+  padding: "16px 18px",
+  textAlign: "center",
+  background: "#172b17",
+  color: "#f2ecdf",
+  fontFamily: "serif",
+  fontWeight: 800,
+  letterSpacing: 3,
+  textTransform: "uppercase",
+  fontSize: 14,
+};
+
+const emailPreviewBodyStyle: CSSProperties = {
+  padding: 20,
+  minHeight: 188,
+};
+
+const emailPreviewEyebrowStyle: CSSProperties = {
+  margin: 0,
+  color: "#b9924d",
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: 1.6,
+  textTransform: "uppercase",
+};
+
+const emailPreviewTitleStyle: CSSProperties = {
+  margin: "10px 0",
+  color: "#172b17",
+  fontSize: 24,
+  lineHeight: 1.1,
+  fontFamily: "serif",
+};
+
+const emailPreviewTextStyle: CSSProperties = {
+  color: "#4c5b4c",
+  fontSize: 12,
+  lineHeight: 1.55,
+  margin: "0 0 18px",
+};
+
+const emailPreviewCtaStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: 34,
+  borderRadius: 999,
+  padding: "0 18px",
+  background: "#172b17",
+  color: "#f2ecdf",
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: 1.5,
+  textTransform: "uppercase",
+};
+
+const landingGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 14,
+};
+
+const landingCardStyle: CSSProperties = {
+  ...templateCardStyle,
+  minHeight: 420,
+};
+
+const landingPreviewStyle: CSSProperties = {
+  minHeight: 220,
+  borderRadius: 18,
+  overflow: "hidden",
+  border: "1px solid rgba(242,236,223,0.18)",
+  background: "radial-gradient(circle at 85% 20%, rgba(185,146,77,0.35), transparent 32%), linear-gradient(135deg, #0f2812, #1b351d)",
+  boxShadow: "0 18px 36px rgba(0,0,0,0.24)",
+  marginBottom: 14,
+};
+
+const landingNavStyle: CSSProperties = {
+  minHeight: 46,
+  padding: "0 16px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  color: "#fff8ea",
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: 1.4,
+  textTransform: "uppercase",
+  borderBottom: "1px solid rgba(242,236,223,0.12)",
+};
+
+const landingHeroStyle: CSSProperties = {
+  padding: "26px 20px",
+};
+
+const buttonClusterStyle: CSSProperties = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+  alignItems: "center",
+};
+
+const installedGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 12,
+};
+
+const installedTemplateStyle: CSSProperties = {
+  border: "1px solid var(--glass-border)",
+  borderRadius: 14,
+  padding: 14,
+  background: "rgba(255,248,234,0.045)",
+  minHeight: 230,
+};
+
+const miniMailStyle: CSSProperties = {
+  borderRadius: 12,
+  background: "#f4efe5",
+  padding: 10,
+  marginBottom: 12,
+  minHeight: 96,
+};
+
+const miniMailHeaderStyle: CSSProperties = {
+  height: 24,
+  borderRadius: "8px 8px 0 0",
+  background: "#172b17",
+  color: "#f2ecdf",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: 2,
+};
+
+const miniLineStyle: CSSProperties = {
+  height: 7,
+  borderRadius: 999,
+  background: "#d8d0c3",
+  width: "88%",
+  marginTop: 10,
+};
+
+const miniButtonStyle: CSSProperties = {
+  height: 18,
+  width: 86,
+  borderRadius: 999,
+  background: "#b9924d",
+  marginTop: 12,
 };
 
 const twoColumnStyle: CSSProperties = {
@@ -357,9 +718,13 @@ const buttonStyle: CSSProperties = {
 };
 
 const smallButtonStyle: CSSProperties = {
-  padding: "8px 14px",
+  minHeight: 38,
+  padding: "0 16px",
   fontSize: 10,
   whiteSpace: "nowrap",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 const rowStyle: CSSProperties = {

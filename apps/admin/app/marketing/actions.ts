@@ -866,6 +866,49 @@ export async function installMarketingTemplateBlueprint(formData: FormData) {
   revalidatePath("/backoffice/mensagens");
 }
 
+export async function installAllMarketingTemplateBlueprints() {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { data: blueprints, error: blueprintError } = await supabase
+    .from("marketing_template_blueprints")
+    .select("id, name, channel, category, subject, description, variables, blocks");
+
+  if (blueprintError) throw new Error(blueprintError.message);
+
+  const rows = (blueprints ?? []).map((blueprint) => {
+    const blocks = Array.isArray(blueprint.blocks) ? blueprint.blocks : [];
+    return {
+      tenant_id: tenantId,
+      name: blueprint.name,
+      channel: blueprint.channel,
+      category: blueprint.category,
+      subject: blueprint.subject,
+      body: JSON.stringify({ blocks }),
+      variables: blueprint.variables ?? [],
+      status: "draft",
+      language: "pt-BR",
+      preview: blueprint.description,
+      blocks,
+      metadata: {
+        source: "marketing_template_blueprints",
+        blueprint_id: blueprint.id,
+      },
+    };
+  });
+
+  if (rows.length) {
+    const { error } = await supabase
+      .from("message_templates")
+      .upsert(rows, { onConflict: "tenant_id,name", ignoreDuplicates: false });
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath("/marketing");
+  revalidatePath("/marketing/templates");
+  revalidatePath("/backoffice/mensagens");
+}
+
 export async function createMarketingTemplate(formData: FormData) {
   const { tenantId } = await requireMarketingAdmin();
   const supabase = await supabaseServer();

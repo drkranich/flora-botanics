@@ -673,13 +673,18 @@ export default async function MarketingPage() {
             Modelos Flora prontos para lançamento, promoção, boas-vindas, rastreamento,
             carrinho abandonado, pós-venda, B2B, orçamento e datas comemorativas.
           </p>
-          <div style={{ display: "grid", gap: 10 }}>
+          <div style={readyTemplateGridStyle}>
             {blueprints.slice(0, 10).map((template) => (
-              <div key={template.id} style={rowStyle}>
-                <span className="chip chip-draft">{template.category}</span>
-                <strong>{template.name}</strong>
-                <span className="muted">{template.variables.slice(0, 4).join(", ") || "Sem variáveis"}</span>
-              </div>
+              <article key={template.id} style={{ ...readyTemplateCardStyle, minHeight: 220 }}>
+                <span className="chip chip-draft" style={{ width: "fit-content" }}>{template.category}</span>
+                <h3 style={{ margin: "14px 0 8px", fontSize: 20 }}>{template.name}</h3>
+                <p className="muted" style={{ margin: 0, lineHeight: 1.65, fontSize: 12.5 }}>{template.description}</p>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+                  {template.variables.slice(0, 3).map((variable) => (
+                    <span key={variable} style={variablePillStyle}>{variable.replaceAll(".", " ")}</span>
+                  ))}
+                </div>
+              </article>
             ))}
           </div>
         </Panel>

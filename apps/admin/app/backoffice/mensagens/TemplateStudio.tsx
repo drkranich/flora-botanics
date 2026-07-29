@@ -379,7 +379,8 @@ export function TemplateStudio({
   }
 
   const tabBtnS = (active: boolean): CSSProperties => ({
-    padding: "7px 16px",
+    minHeight: 38,
+    padding: "0 16px",
     borderRadius: 999,
     border: "none",
     fontSize: 11,
@@ -389,10 +390,14 @@ export function TemplateStudio({
     background: active ? "var(--gold)" : "rgba(255,248,234,0.08)",
     color: active ? "var(--forest-950)" : "var(--cream-dim)",
     transition: "all 0.15s",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    whiteSpace: "nowrap",
   });
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 20, minHeight: "70vh" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20, minHeight: "70vh" }}>
       {/* ── sidebar: template list ── */}
       <aside style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -401,7 +406,7 @@ export function TemplateStudio({
             type="button"
             className="btn btn-ghost"
             onClick={() => setCreating((v) => !v)}
-            style={{ padding: "5px 12px", fontSize: 10 }}
+            style={{ minHeight: 34, padding: "0 14px", fontSize: 10 }}
           >
             + Novo
           </button>
@@ -417,8 +422,8 @@ export function TemplateStudio({
               style={{ ...inputS, fontSize: 12 }}
             />
             <div style={{ display: "flex", gap: 6 }}>
-              <button type="submit" className="btn btn-gold" style={{ padding: "6px 14px", fontSize: 10, flex: 1 }}>Criar</button>
-              <button type="button" className="btn btn-ghost" onClick={() => setCreating(false)} style={{ padding: "6px 12px", fontSize: 10 }}>Cancelar</button>
+              <button type="submit" className="btn btn-gold" style={{ minHeight: 36, padding: "0 14px", fontSize: 10, flex: 1 }}>Criar</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setCreating(false)} style={{ minHeight: 36, padding: "0 12px", fontSize: 10 }}>Cancelar</button>
             </div>
           </form>
         )}
@@ -432,10 +437,12 @@ export function TemplateStudio({
               onClick={() => selectTemplate(t)}
               style={{
                 textAlign: "left",
-                padding: "12px 14px",
+                padding: 14,
                 borderRadius: 12,
                 border: active ? "1px solid var(--gold)" : "1px solid var(--glass-border)",
-                background: active ? "rgba(185,146,77,0.12)" : "rgba(10,22,11,0.35)",
+                background: active
+                  ? "linear-gradient(145deg, rgba(185,146,77,0.18), rgba(10,22,11,0.42))"
+                  : "rgba(10,22,11,0.35)",
                 cursor: "pointer",
                 backdropFilter: "blur(8px)",
                 transition: "all 0.15s",
@@ -485,7 +492,7 @@ export function TemplateStudio({
           <div
             className="glass"
             style={{
-              padding: "10px 16px",
+              padding: "12px 16px",
               borderRadius: 12,
               display: "flex",
               justifyContent: "space-between",
@@ -503,7 +510,7 @@ export function TemplateStudio({
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {msg && <span style={{ fontSize: 12, color: msg.startsWith("✓") ? "#8fd486" : "#e8a0a0" }}>{msg}</span>}
-              <button type="button" className="btn btn-ghost" onClick={handleSave} style={{ padding: "7px 18px", fontSize: 11 }}>
+              <button type="button" className="btn btn-ghost" onClick={handleSave} style={{ minHeight: 38, padding: "0 18px", fontSize: 11 }}>
                 Salvar
               </button>
             </div>
@@ -561,7 +568,7 @@ export function TemplateStudio({
                       type="button"
                       className="btn btn-ghost"
                       onClick={() => addBlock(type)}
-                      style={{ padding: "7px 14px", fontSize: 10 }}
+                      style={{ minHeight: 36, padding: "0 14px", fontSize: 10 }}
                     >
                       {type === "image" && "📷 Imagem"}
                       {type === "heading" && "📝 Título"}
