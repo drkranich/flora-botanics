@@ -37,8 +37,8 @@ export async function GET() {
   }
 
   const url = sandbox
-    ? "https://sandbox.melhorenvio.com.br/api/v2/me"
-    : "https://www.melhorenvio.com.br/api/v2/me";
+    ? "https://sandbox.melhorenvio.com.br/api/v2/me/shipment/companies"
+    : "https://www.melhorenvio.com.br/api/v2/me/shipment/companies";
 
   try {
     const res = await fetch(url, {
