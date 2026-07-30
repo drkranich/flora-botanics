@@ -133,7 +133,6 @@ async function refreshAccessToken(kv: KVStore | null, cfEnv: CFEnv | null): Prom
     }
   }
 
-  console.info("[ME refresh] Token renovado com sucesso.");
   return data.access_token;
 }
 
@@ -241,20 +240,17 @@ export async function POST(req: NextRequest) {
 
     let meRes = await callME(token);
 
-    // ── Auto-refresh: token expirado → tenta renovar e repete ──────────────────
+    // Auto-refresh: token expirado → renova e repete uma vez
     if (meRes.status === 401 || meRes.status === 403) {
-      console.info("[ME] Token expirado, tentando refresh…");
       const newToken = await refreshAccessToken(kv, cfEnv);
       if (newToken) {
         token = newToken;
         meRes = await callME(token);
       }
     }
-    // ───────────────────────────────────────────────────────────────────────────
 
     if (!meRes.ok) {
       const errText = await meRes.text().catch(() => "");
-      console.error("[ME] Erro após refresh:", meRes.status, errText);
 
       if (meRes.status === 401 || meRes.status === 403) {
         return NextResponse.json(
