@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createStripeCheckoutSession, createStripeCoupon } from "@flora/core";
+import { createStripeCheckoutSession, createStripeCoupon, stripeRequest } from "@flora/core";
+import type { StripeCheckoutSession } from "@flora/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getServerSupabase,
@@ -8,10 +9,16 @@ import {
 } from "@/lib/server-runtime";
 import { currentTenant, db } from "@/lib/tenant";
 
+type PaymentMethodType = "pix" | "card" | "pix_card" | "card2" | "card3";
+
 interface CheckoutPayload {
   session_id?: string;
   coupon_code?: string;
   notes?: string;
+  /** Método de pagamento escolhido pelo cliente */
+  payment_method?: PaymentMethodType;
+  /** Valores em centavos por cartão (somente para card2 / card3) */
+  card_splits?: number[];
   customer?: {
     email?: string;
     name?: string;
@@ -59,6 +66,73 @@ type StripePriceRow = {
   currency: string;
   billing_type: string;
 };
+
+/** Cria uma Checkout Session Stripe para uma parcela de split (usa price_data inline) */
+async function createSplitSession({
+  apiKey,
+  orderId,
+  tenantId,
+  customerEmail,
+  amountCents,
+  cardIndex,
+  numCards,
+  successUrl,
+  cancelUrl,
+  idempotencyKey,
+}: {
+  apiKey: string;
+  orderId: string;
+  tenantId: string;
+  customerEmail: string | null;
+  amountCents: number;
+  cardIndex: number; // 1-based
+  numCards: number;
+  successUrl: string;
+  cancelUrl: string;
+  idempotencyKey: string;
+}) {
+  return stripeRequest<StripeCheckoutSession>({
+    apiKey,
+    method: "POST",
+    path: "/v1/checkout/sessions",
+    idempotencyKey,
+    params: {
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "brl",
+            unit_amount: amountCents,
+            product_data: {
+              name: `Flora Botanics — Pagamento ${cardIndex} de ${numCards}`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      ...(customerEmail ? { customer_email: customerEmail } : {}),
+      client_reference_id: orderId,
+      payment_intent_data: {
+        metadata: {
+          order_id: orderId,
+          tenant_id: tenantId,
+          split_card_index: String(cardIndex),
+          split_total_cards: String(numCards),
+        },
+      },
+      metadata: {
+        order_id: orderId,
+        tenant_id: tenantId,
+        split_card_index: String(cardIndex),
+        split_total_cards: String(numCards),
+        source: "storefront_split",
+      },
+    },
+  });
+}
 
 function requestOrigin(req: NextRequest) {
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
@@ -198,6 +272,81 @@ export async function POST(req: NextRequest) {
     }
 
     const service = await getServerSupabase();
+    const origin = requestOrigin(req);
+    const paymentMethod = (body.payment_method ?? "card") as PaymentMethodType;
+    const cardSplits = (body.card_splits ?? []) as number[];
+
+    // ── Split entre múltiplos cartões (card2 / card3) ──────────────────────
+    if ((paymentMethod === "card2" || paymentMethod === "card3") && cardSplits.length >= 2) {
+      const numCards = cardSplits.length;
+      const cancelUrl = `${origin}/checkout?cancelado=1&pedido=${orderId}`;
+      const customerEmail = body.customer?.email ?? null;
+
+      // Cria sessões em ordem reversa para poder encadear success_url
+      const sessions: Array<{ id: string; url: string }> = [];
+
+      for (let i = numCards - 1; i >= 0; i--) {
+        const isLast = i === numCards - 1;
+        const successUrl = isLast
+          ? `${origin}/checkout/sucesso?pedido=${orderId}&session_id={CHECKOUT_SESSION_ID}`
+          : `${origin}/checkout/proximo?pedido=${orderId}&url=${encodeURIComponent(sessions[0].url)}`;
+
+        const splitResult = await createSplitSession({
+          apiKey,
+          orderId,
+          tenantId: tenant.tenantId,
+          customerEmail,
+          amountCents: cardSplits[i],
+          cardIndex: i + 1,
+          numCards,
+          successUrl,
+          cancelUrl,
+          idempotencyKey: `flora:split:${tenant.tenantId}:${orderId}:c${i + 1}:${cardSplits[i]}`,
+        });
+
+        if (!splitResult.ok || !splitResult.data.url) {
+          throw new Error(
+            `Falha ao criar sessão Stripe para cartão ${i + 1}: ${splitResult.ok ? "sem URL" : splitResult.error}`
+          );
+        }
+
+        sessions.unshift({ id: splitResult.data.id, url: splitResult.data.url });
+      }
+
+      // Salva registro de cada parcela no banco
+      for (let i = 0; i < numCards; i++) {
+        await service.from("payments").upsert({
+          tenant_id: tenant.tenantId,
+          order_id: orderId,
+          provider: "stripe",
+          provider_payment_id: sessions[i].id,
+          status: "pending",
+          amount_cents: cardSplits[i],
+          raw: {
+            checkout_session_id: sessions[i].id,
+            checkout_url: sessions[i].url,
+            environment,
+            mode: "payment",
+            split_card_index: i + 1,
+            split_total_cards: numCards,
+          },
+        }, { onConflict: "provider,provider_payment_id" });
+      }
+
+      return NextResponse.json({
+        ...result,
+        stripe_environment: environment,
+        checkout_session_id: sessions[0].id,
+        checkout_url: sessions[0].url,
+      });
+    }
+
+    // ── Pagamento único (PIX, cartão ou PIX+cartão) ─────────────────────────
+    let paymentMethodTypes: string[] | undefined;
+    if (paymentMethod === "pix")      paymentMethodTypes = ["pix"];
+    else if (paymentMethod === "pix_card") paymentMethodTypes = ["card", "pix"];
+    // "card" → undefined (Stripe usa padrão da conta)
+
     const { lineItems, mode } = await buildStripeLineItems({
       service,
       tenantId: tenant.tenantId,
@@ -205,7 +354,6 @@ export async function POST(req: NextRequest) {
       environment,
     });
     const couponId = await createDiscountCoupon({ apiKey, result, tenantId: tenant.tenantId });
-    const origin = requestOrigin(req);
     const checkout = await createStripeCheckoutSession(apiKey, {
       mode,
       lineItems,
@@ -217,13 +365,15 @@ export async function POST(req: NextRequest) {
       shippingAmountCents: result.shipping_cents ?? 0,
       shippingCurrency: result.currency ?? "BRL",
       shippingLabel: "Frete Flora Botanics",
-      idempotencyKey: `flora:checkout:${tenant.tenantId}:${orderId}`,
+      paymentMethodTypes,
+      idempotencyKey: `flora:checkout:${tenant.tenantId}:${orderId}:${paymentMethod}`,
       metadata: {
         tenant_id: tenant.tenantId,
         tenant_slug: tenant.slug,
         order_id: orderId,
         order_number: result.order_number ? String(result.order_number) : null,
         customer_email: body.customer?.email ?? null,
+        payment_method: paymentMethod,
         source: "storefront",
       },
     });
@@ -247,6 +397,7 @@ export async function POST(req: NextRequest) {
         checkout_url: checkout.data.url,
         environment,
         mode,
+        payment_method: paymentMethod,
       },
     }, { onConflict: "provider,provider_payment_id" });
 

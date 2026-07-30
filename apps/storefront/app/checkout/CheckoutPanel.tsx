@@ -92,6 +92,12 @@ export function CheckoutPanel() {
   const [couponResult, setCouponResult] = useState<CouponResult | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
 
+  // Forma de pagamento
+  type PayMethod = "pix" | "card" | "pix_card" | "card2" | "card3";
+  const [payMethod, setPayMethod] = useState<PayMethod>("card");
+  // Valores em R$ digitados por cartão (somente para card2/card3)
+  const [cardAmt, setCardAmt] = useState<[string, string, string]>(["", "", ""]);
+
   // Notes / Order result
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -245,13 +251,47 @@ export function CheckoutPanel() {
     goTo("payment");
   }
 
+  /** Retorna array de centavos por cartão para split (card2 / card3) */
+  function getSplitCents(): number[] {
+    const numCards = payMethod === "card3" ? 3 : 2;
+    const result: number[] = [];
+    let remaining = total;
+    for (let i = 0; i < numCards; i++) {
+      if (i === numCards - 1) {
+        result.push(Math.max(remaining, 0));
+      } else {
+        const raw = parseFloat((cardAmt[i] || "0").replace(",", "."));
+        const cents = Math.max(Math.round(raw * 100), 0);
+        result.push(cents);
+        remaining -= cents;
+      }
+    }
+    return result;
+  }
+
   function submitPayment(e: FormEvent) {
     e.preventDefault();
     setError("");
+
+    // Validação de split antes de prosseguir
+    if (payMethod === "card2" || payMethod === "card3") {
+      const splits = getSplitCents();
+      const sum = splits.reduce((a, b) => a + b, 0);
+      if (splits.some((v) => v <= 0)) {
+        setError("Informe o valor de cada cartão (maior que zero).");
+        return;
+      }
+      if (Math.abs(sum - total) > 1) {
+        setError(`A soma dos cartões (${money(sum)}) não bate com o total (${money(total)}).`);
+        return;
+      }
+    }
+
     startTransition(async () => {
       const synced = await syncCart({ customer_email: email, customer_name: name });
       if (Array.isArray(synced)) setItems(synced);
 
+      const isSplit = payMethod === "card2" || payMethod === "card3";
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -259,6 +299,8 @@ export function CheckoutPanel() {
           session_id: sessionId || getSessionId(),
           coupon_code: couponResult?.ok ? couponCode.trim().toUpperCase() : null,
           notes: notes.trim() || null,
+          payment_method: payMethod,
+          ...(isSplit ? { card_splits: getSplitCents() } : {}),
           customer: { email, name, phone: phone.replace(/\D/g, ""), accepts_marketing: acceptsMarketing },
           shipping_address: {
             recipient: recipient || name,
@@ -520,6 +562,86 @@ export function CheckoutPanel() {
           <form onSubmit={submitPayment} className="checkout-form">
             <h2 className="checkout-section-title">Finalizar pedido</h2>
 
+            {/* Seletor de forma de pagamento */}
+            <div>
+              <p className="checkout-card-split-title" style={{ marginBottom: 10 }}>Forma de pagamento</p>
+              <div className="checkout-payment-methods">
+                {([
+                  { id: "card",     icon: "💳",   label: "Cartão\nde crédito" },
+                  { id: "pix",      icon: "⚡",    label: "PIX\nIntegral" },
+                  { id: "pix_card", icon: "⚡💳",  label: "PIX +\nCartão" },
+                  { id: "card2",    icon: "💳💳",  label: "2 Cartões" },
+                  { id: "card3",    icon: "💳💳💳", label: "3 Cartões" },
+                ] as { id: PayMethod; icon: string; label: string }[]).map((pm) => (
+                  <button
+                    key={pm.id}
+                    type="button"
+                    className={`checkout-pm-option${payMethod === pm.id ? " is-active" : ""}`}
+                    onClick={() => setPayMethod(pm.id)}
+                  >
+                    <span className="checkout-pm-icon">{pm.icon}</span>
+                    <span className="checkout-pm-label">{pm.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Divisão de valores para 2 ou 3 cartões */}
+            {(payMethod === "card2" || payMethod === "card3") && (() => {
+              const numCards = payMethod === "card3" ? 3 : 2;
+              const defaultSplit = (total / numCards / 100).toFixed(2);
+              const splits = getSplitCents();
+              const sumSplits = splits.reduce((a, b) => a + b, 0);
+              const ok = Math.abs(sumSplits - total) <= 1;
+
+              return (
+                <div className="checkout-card-split">
+                  <p className="checkout-card-split-title">Divisão entre os cartões</p>
+                  {Array.from({ length: numCards }).map((_, i) => {
+                    const isLast = i === numCards - 1;
+                    return (
+                      <div key={i} className="checkout-card-split-row">
+                        <span className="checkout-card-split-label">Cartão {i + 1}</span>
+                        {isLast ? (
+                          <input
+                            className="checkout-field"
+                            style={{ padding: "8px 12px", fontSize: 13 }}
+                            readOnly
+                            value={`R$ ${(Math.max(total - splits.slice(0, -1).reduce((a, b) => a + b, 0), 0) / 100).toFixed(2)}`}
+                            tabIndex={-1}
+                          />
+                        ) : (
+                          <input
+                            className="checkout-field"
+                            style={{ padding: "8px 12px", fontSize: 13 }}
+                            type="number"
+                            min="0.01"
+                            max={(total / 100).toFixed(2)}
+                            step="0.01"
+                            value={cardAmt[i]}
+                            onChange={(e) => {
+                              const next = [...cardAmt] as [string, string, string];
+                              next[i] = e.target.value;
+                              setCardAmt(next);
+                            }}
+                            placeholder={`R$ ${defaultSplit}`}
+                          />
+                        )}
+                        <span className="checkout-card-split-note">
+                          {money(splits[i])}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <p className={`checkout-card-split-total${ok ? " is-ok" : " is-err"}`}>
+                    {ok
+                      ? `✓ Total correto: ${money(total)}`
+                      : `Faltam ${money(Math.abs(total - sumSplits))} · total deve ser ${money(total)}`}
+                  </p>
+                </div>
+              );
+            })()}
+
             {/* Cupom */}
             <div className="checkout-section">
               <label className="checkout-field">
@@ -555,13 +677,42 @@ export function CheckoutPanel() {
                 placeholder="Alguma instrução especial?" />
             </label>
 
-            <div className="checkout-payment-notice">
-              <span className="checkout-payment-icon">💳</span>
-              <div>
-                <strong>Pagamento via Stripe</strong>
-                <p>Após criar o pedido você será direcionado para a página segura de pagamento — cartão de crédito ou PIX.</p>
+            {payMethod === "pix" && (
+              <div className="checkout-payment-notice">
+                <span className="checkout-payment-icon">⚡</span>
+                <div>
+                  <strong>PIX — pagamento instantâneo</strong>
+                  <p>Você será redirecionado para o Stripe e poderá pagar via QR Code ou chave PIX. Aprovação em segundos.</p>
+                </div>
               </div>
-            </div>
+            )}
+            {payMethod === "pix_card" && (
+              <div className="checkout-payment-notice">
+                <span className="checkout-payment-icon">⚡💳</span>
+                <div>
+                  <strong>PIX ou Cartão — você escolhe</strong>
+                  <p>Na próxima tela você seleciona se prefere pagar com PIX ou cartão de crédito.</p>
+                </div>
+              </div>
+            )}
+            {(payMethod === "card2" || payMethod === "card3") && (
+              <div className="checkout-payment-notice">
+                <span className="checkout-payment-icon">💳</span>
+                <div>
+                  <strong>{payMethod === "card3" ? "3 cartões" : "2 cartões"} — pagamento sequencial</strong>
+                  <p>Você será redirecionado para pagar no cartão 1, depois no cartão 2{payMethod === "card3" ? " e no cartão 3" : ""}. Cada etapa abre uma tela segura do Stripe.</p>
+                </div>
+              </div>
+            )}
+            {payMethod === "card" && (
+              <div className="checkout-payment-notice">
+                <span className="checkout-payment-icon">💳</span>
+                <div>
+                  <strong>Cartão de crédito</strong>
+                  <p>Você será direcionado para a página segura de pagamento do Stripe.</p>
+                </div>
+              </div>
+            )}
 
             {error && <p className="checkout-error" role="alert">{error}</p>}
             <div className="checkout-btn-row">

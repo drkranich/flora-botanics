@@ -269,6 +269,9 @@ export function createStripeCheckoutSession(apiKey: string, input: {
   shippingCurrency?: string;
   shippingLabel?: string;
   metadata?: Record<string, string | null | undefined>;
+  /** Métodos de pagamento aceitos, ex: ["card"], ["pix"], ["card","pix"].
+   *  Se omitido, Stripe usa o padrão da conta (cartão de crédito). */
+  paymentMethodTypes?: string[];
   idempotencyKey: string;
 }) {
   const metadata = cleanMetadata(input.metadata);
@@ -285,6 +288,7 @@ export function createStripeCheckoutSession(apiKey: string, input: {
       ...(input.customerEmail ? { customer_email: input.customerEmail } : {}),
       ...(input.clientReferenceId ? { client_reference_id: input.clientReferenceId } : {}),
       ...(input.discounts?.length ? { discounts: input.discounts } : {}),
+      ...(input.paymentMethodTypes?.length ? { payment_method_types: input.paymentMethodTypes } : {}),
       ...(input.mode === "payment" ? { payment_intent_data: { metadata } } : {}),
       ...(input.mode === "subscription" ? { subscription_data: { metadata } } : {}),
       ...(input.shippingAmountCents && input.shippingAmountCents > 0
