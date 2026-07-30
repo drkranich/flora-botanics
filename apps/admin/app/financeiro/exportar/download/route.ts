@@ -52,7 +52,7 @@ function csvLine(values: (string | number | null | undefined)[]) {
 function pdfText(value: string) {
   return value
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^\x20-\x7E]/g, "-")
     .replace(/\\/g, "\\\\")
     .replace(/\(/g, "\\(")
@@ -271,12 +271,10 @@ export async function GET(request: NextRequest) {
     ])),
   ].join("\r\n");
 
-  return new Response(`\uFEFF${csv}`, {
+  return new Response(`﻿${csv}`, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": "attachment; filename=\"flora-financeiro.csv\"",
     },
   });
 }
-
-

@@ -35,7 +35,8 @@ export default function ExportarPage() {
       if (!inclTabelas)    params.set("no_tabelas",    "1");
       if (!inclDocumentos) params.set("no_documentos", "1");
 
-      const res = await fetch(`/financeiro/exportar?${params.toString()}`);
+      // URL relativa — funciona independente do basePath (/admin)
+      const res = await fetch(`./download?${params.toString()}`);
       if (!res.ok) { alert("Erro ao gerar exportação. Tente novamente."); return; }
 
       const blob = await res.blob();
