@@ -76,12 +76,12 @@ export default async function ContabilidadePage({ searchParams }: { searchParams
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <PeriodLinks current={range.period} />
-            <Link href={exportHref(exportBase, "csv")} className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 10 }}>
+            <a href={exportHref(exportBase, "csv")} className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 10 }}>
               CSV
-            </Link>
-            <Link href={exportHref(exportBase, "pdf")} className="btn btn-gold" style={{ padding: "8px 16px", fontSize: 10 }}>
+            </a>
+            <a href={exportHref(exportBase, "pdf")} className="btn btn-gold" style={{ padding: "8px 16px", fontSize: 10 }}>
               PDF
-            </Link>
+            </a>
           </div>
         </div>
       </header>

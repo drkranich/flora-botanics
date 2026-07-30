@@ -34,7 +34,8 @@ export async function signNFe(
 
   // { strict: false, parseAllBytes: false } — ignora bytes residuais no DER
   // (node-forge v1.3+ mantém parseAllBytes: true por padrão mesmo com strict: false)
-  const pfxAsn1 = forge.asn1.fromDer(pfxBytes, { strict: false, parseAllBytes: false } as Parameters<typeof forge.asn1.fromDer>[1]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pfxAsn1 = forge.asn1.fromDer(pfxBytes, { strict: false, parseAllBytes: false } as unknown as any);
 
   // strict: false — não falha se a verificação MAC do PFX divergir
   const pfx = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, false, pfxPassword);

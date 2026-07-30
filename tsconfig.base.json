@@ -9,6 +9,10 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@flora/core": ["../../packages/core/src/index.ts"],
+      "@flora/db": ["../../packages/db/src/index.ts"]
+    }
   }
 }

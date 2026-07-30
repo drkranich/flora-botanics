@@ -1551,15 +1551,15 @@ export async function MarketingCenterPage({
 
         <Panel title="Exportações" eyebrow="PDF / CSV / XLSX">
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-            <Link href="/marketing/exportar?format=pdf" className="btn btn-gold" style={{ padding: "8px 14px", fontSize: 10 }}>
+            <a href="/marketing/exportar?format=pdf" className="btn btn-gold" style={{ padding: "8px 14px", fontSize: 10 }}>
               Baixar PDF
-            </Link>
-            <Link href="/marketing/exportar?format=csv" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
+            </a>
+            <a href="/marketing/exportar?format=csv" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
               Baixar CSV
-            </Link>
-            <Link href="/marketing/exportar?format=xlsx" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
+            </a>
+            <a href="/marketing/exportar?format=xlsx" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }}>
               Baixar XLSX
-            </Link>
+            </a>
           </div>
           <form action={createMarketingReportExport} style={formGridStyle}>
             <Field label="Relatório">
