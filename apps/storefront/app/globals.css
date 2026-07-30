@@ -5189,3 +5189,43 @@ a { color: inherit; text-decoration: none; }
 }
 .checkout-card-split-total.is-ok  { color: #2e7846; }
 .checkout-card-split-total.is-err { color: #e87a7a; }
+
+/* Input glassmórfico para divisão de cartões — mesmo visual dos outros inputs do checkout */
+.checkout-split-input {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--text, #28251d);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(185, 146, 77, 0.28);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+  outline: none;
+}
+.checkout-split-input:focus {
+  border-color: rgba(185, 146, 77, 0.70);
+  box-shadow: 0 0 0 3px rgba(185, 146, 77, 0.10), inset 0 1px 0 rgba(255,255,255,0.07);
+}
+.checkout-split-input[readonly] {
+  opacity: 0.72;
+  cursor: default;
+  background: rgba(255, 255, 255, 0.03);
+}
+.checkout-split-input::-webkit-inner-spin-button,
+.checkout-split-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* Coluna de label fixa + input uniforme + nota alinhada à direita */
+.checkout-card-split-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: center;
+  gap: 10px;
+}
+.checkout-card-split-note { font-size: 11px; color: var(--muted, #8a7a65); white-space: nowrap; text-align: right; }

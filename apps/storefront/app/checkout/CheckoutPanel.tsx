@@ -251,7 +251,8 @@ export function CheckoutPanel() {
     goTo("payment");
   }
 
-  /** Retorna array de centavos por cartão para split (card2 / card3) */
+  /** Retorna array de centavos por cartão para split (card2 / card3).
+   *  Quando um campo está vazio, assume divisão igual como padrão. */
   function getSplitCents(): number[] {
     const numCards = payMethod === "card3" ? 3 : 2;
     const result: number[] = [];
@@ -260,8 +261,11 @@ export function CheckoutPanel() {
       if (i === numCards - 1) {
         result.push(Math.max(remaining, 0));
       } else {
-        const raw = parseFloat((cardAmt[i] || "0").replace(",", "."));
-        const cents = Math.max(Math.round(raw * 100), 0);
+        const raw = parseFloat((cardAmt[i] || "").replace(",", "."));
+        // Campo vazio → divisão igualitária como padrão visual
+        const cents = (!cardAmt[i] || isNaN(raw))
+          ? Math.round(total / numCards)
+          : Math.max(Math.round(raw * 100), 0);
         result.push(cents);
         remaining -= cents;
       }
@@ -589,7 +593,6 @@ export function CheckoutPanel() {
             {/* Divisão de valores para 2 ou 3 cartões */}
             {(payMethod === "card2" || payMethod === "card3") && (() => {
               const numCards = payMethod === "card3" ? 3 : 2;
-              const defaultSplit = (total / numCards / 100).toFixed(2);
               const splits = getSplitCents();
               const sumSplits = splits.reduce((a, b) => a + b, 0);
               const ok = Math.abs(sumSplits - total) <= 1;
@@ -604,27 +607,22 @@ export function CheckoutPanel() {
                         <span className="checkout-card-split-label">Cartão {i + 1}</span>
                         {isLast ? (
                           <input
-                            className="checkout-field"
-                            style={{ padding: "8px 12px", fontSize: 13 }}
+                            className="checkout-split-input"
                             readOnly
-                            value={`R$ ${(Math.max(total - splits.slice(0, -1).reduce((a, b) => a + b, 0), 0) / 100).toFixed(2)}`}
+                            value={`R$ ${(Math.max(total - splits.slice(0, -1).reduce((a, b) => a + b, 0), 0) / 100).toFixed(2).replace(".", ",")}`}
                             tabIndex={-1}
                           />
                         ) : (
                           <input
-                            className="checkout-field"
-                            style={{ padding: "8px 12px", fontSize: 13 }}
-                            type="number"
-                            min="0.01"
-                            max={(total / 100).toFixed(2)}
-                            step="0.01"
+                            className="checkout-split-input"
+                            inputMode="decimal"
                             value={cardAmt[i]}
                             onChange={(e) => {
                               const next = [...cardAmt] as [string, string, string];
                               next[i] = e.target.value;
                               setCardAmt(next);
                             }}
-                            placeholder={`R$ ${defaultSplit}`}
+                            placeholder={`R$ ${(total / numCards / 100).toFixed(2).replace(".", ",")}`}
                           />
                         )}
                         <span className="checkout-card-split-note">

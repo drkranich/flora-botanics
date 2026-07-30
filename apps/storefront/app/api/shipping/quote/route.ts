@@ -123,15 +123,28 @@ export async function POST(req: NextRequest) {
     if (!meRes.ok) {
       const errText = await meRes.text().catch(() => "");
       console.error("Melhor Envio error:", meRes.status, errText);
-      // Devolve o detalhe para facilitar debug em produção
+
+      // 401 / 403 → token inválido ou expirado (Melhor Envio retorna {"message":"Unauthenticated."})
+      if (meRes.status === 401 || meRes.status === 403) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Não foi possível calcular o frete agora. Tente novamente em instantes ou entre em contato com o suporte.",
+          },
+          { status: 502, headers: corsHeaders() }
+        );
+      }
+
       let errorMsg = "Erro ao calcular frete. Tente novamente.";
       try {
         const errJson = JSON.parse(errText);
-        if (errJson?.message) errorMsg = errJson.message;
-        else if (typeof errJson === "string") errorMsg = errJson;
+        // Nunca expor erros técnicos internos ao usuário
+        if (errJson?.errors) errorMsg = "Endereço de destino inválido. Verifique o CEP informado.";
+        else if (errJson?.message && errJson.message !== "Unauthenticated.")
+          errorMsg = "Erro ao calcular frete. Tente novamente.";
       } catch { /* manter mensagem genérica */ }
       return NextResponse.json(
-        { ok: false, error: errorMsg, detail: errText.slice(0, 300), status: meRes.status },
+        { ok: false, error: errorMsg, status: meRes.status },
         { status: 502, headers: corsHeaders() }
       );
     }
