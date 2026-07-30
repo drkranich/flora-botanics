@@ -109,11 +109,11 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
     });
 
     if (!response.ok) {
-      return {
-        ok: false,
-        chNFe,
-        error: `SEFAZ retornou HTTP ${response.status}: ${response.statusText}`,
-      };
+      const statusMsg =
+        response.status === 525
+          ? "Falha SSL no servidor SEFAZ (HTTP 525). Causa provável: endpoint da sua UF exige mTLS ou tem certificado SSL inválido no momento. Tente novamente em alguns minutos ou configure uma UF diferente."
+          : `SEFAZ retornou HTTP ${response.status}: ${response.statusText || "(sem mensagem)"}`;
+      return { ok: false, chNFe, error: statusMsg };
     }
 
     // 6. Parse do retorno

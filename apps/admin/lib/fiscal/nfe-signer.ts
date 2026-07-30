@@ -25,13 +25,26 @@ export async function signNFe(
   pfxPassword: string
 ): Promise<string> {
   // 1. Parse PFX
-  const pfxBytes = forge.util.decode64(pfxBase64);
-  const pfxAsn1  = forge.asn1.fromDer(pfxBytes, false);
-  const pfx      = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, true, pfxPassword);
+  // Limpa a string base64: remove prefixo data URL e espaços/quebras que corrompem o decode
+  const cleanBase64 = pfxBase64
+    .replace(/^data:[^;]+;base64,/, "")
+    .replace(/[\s\r\n\t]/g, "");
 
-  // 2. Extrai chave privada
-  const keyBags = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
-  const keyBag  = (keyBags[forge.pki.oids.pkcs8ShroudedKeyBag] ?? [])[0];
+  const pfxBytes = forge.util.decode64(cleanBase64);
+
+  // { strict: false, parseAllBytes: false } — ignora bytes residuais no DER
+  // (node-forge v1.3+ mantém parseAllBytes: true por padrão mesmo com strict: false)
+  const pfxAsn1 = forge.asn1.fromDer(pfxBytes, { strict: false, parseAllBytes: false } as Parameters<typeof forge.asn1.fromDer>[1]);
+
+  // strict: false — não falha se a verificação MAC do PFX divergir
+  const pfx = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, false, pfxPassword);
+
+  // 2. Extrai chave privada (tenta pkcs8ShroudedKeyBag e keyBag)
+  const shroudedBags = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+  const keyBags2     = pfx.getBags({ bagType: forge.pki.oids.keyBag });
+  const keyBag =
+    (shroudedBags[forge.pki.oids.pkcs8ShroudedKeyBag] ?? [])[0] ??
+    (keyBags2[forge.pki.oids.keyBag] ?? [])[0];
   if (!keyBag?.key) throw new Error("Chave privada não encontrada no certificado A1.");
   const privateKey = keyBag.key as forge.pki.rsa.PrivateKey;
 
