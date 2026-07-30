@@ -5,6 +5,7 @@ import { currentStaff } from "@/lib/auth";
 import { money } from "@/lib/format";
 import { FISCAL_GOVERNMENT_PROVIDERS } from "@/lib/fiscal/government-providers";
 import { createDraftNfe, cancelNfeDraft } from "./actions";
+import { emitirNFeAction } from "./emitir-action";
 import { FiscalGovernmentPanel } from "./FiscalGovernmentPanel";
 import { InternationalTradeCenter, type InternationalTradeModuleId } from "./InternationalTradeCenter";
 import {
@@ -1018,9 +1019,19 @@ export async function FiscalCenterPage({
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span className={`fiscal-chip fiscal-chip-${statusTone(nfe.status)}`}>{NFE_STATUS_LABELS[nfe.status] ?? nfe.status}</span>
                     {nfe.status === "rascunho" ? (
-                      <form action={cancelNfeDraft.bind(null, nfe.id)}>
-                        <button className="btn btn-ghost" style={smallButtonStyle}>Cancelar</button>
-                      </form>
+                      <>
+                        <form action={emitirNFeAction.bind(null, nfe.id)}>
+                          <button className="btn btn-gold" style={smallButtonStyle} title="Assina e transmite para o SEFAZ">Emitir</button>
+                        </form>
+                        <form action={cancelNfeDraft.bind(null, nfe.id)}>
+                          <button className="btn btn-ghost" style={smallButtonStyle}>Cancelar</button>
+                        </form>
+                      </>
+                    ) : null}
+                    {nfe.status === "autorizada" && (nfe as { chave_acesso?: string }).chave_acesso ? (
+                      <span style={{ fontSize: 11, color: "var(--color-success, #4caf50)" }} title={(nfe as { chave_acesso?: string }).chave_acesso}>
+                        ✓ Autorizada
+                      </span>
                     ) : null}
                   </span>
                 </div>
