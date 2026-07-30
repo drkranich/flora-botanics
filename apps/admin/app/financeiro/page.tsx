@@ -97,7 +97,7 @@ export default async function FinanceiroHubPage() {
       badge: null,
     },
     {
-      href: "/financeiro/exportar?format=xlsx",
+      href: "/financeiro/exportar",
       emoji: "📤",
       title: "Exportar Relatórios",
       desc: "Exporte cenários, margens e documentos em CSV, PDF ou XLSX.",

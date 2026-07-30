@@ -286,67 +286,71 @@ export function FinanceCalculatorForm() {
         ))}
       </section>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.3fr) minmax(280px, 0.8fr)", gap: 16 }}>
-        <section style={{ display: "grid", gap: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <p className="eyebrow">Componentes ilimitados</p>
-            <button type="button" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }} onClick={() => addRow()}>
-              + adicionar custo
+      {/* Painel de resultado — aparece acima dos componentes, fora do contexto overflow do glass */}
+      <div className="glass" style={{ padding: 18, background: "rgba(255,248,234,0.06)", borderRadius: 14 }}>
+        <p className="eyebrow" style={{ marginBottom: 12 }}>Resultado em tempo real</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0 24px" }}>
+          <div>
+            <ResultLine label="Linhas do pedido"   value={`${result.itemCount}`} />
+            <ResultLine label="Unidades totais"     value={`${result.totalUnits}`} />
+            <ResultLine label="Receita bruta"       value={money(result.grossRevenueCents)} />
+            <ResultLine label="Descontos"           value={`- ${money(result.discountCents)}`} muted />
+            <ResultLine label="Receita líquida"     value={money(result.netRevenueCents)} strong />
+            <ResultLine label="Custo total"         value={money(result.totalCostCents)} />
+          </div>
+          <div>
+            <ResultLine label="Lucro líquido"       value={money(result.netProfitCents)} strong tone={result.netProfitCents < 0 ? "danger" : "gold"} />
+            <ResultLine label="Margem líquida"      value={`${result.netMarginPercent.toFixed(1)}%`} />
+            <ResultLine label="Markup"              value={`${result.markupPercent.toFixed(1)}%`} />
+            <ResultLine label="Preço mínimo"        value={money(result.minimumPriceCents)} />
+            <ResultLine label="Preço recomendado"   value={money(result.recommendedPriceCents)} strong tone="gold" />
+            <ResultLine label="Capital necessário"  value={money(result.capitalNeededCents)} />
+          </div>
+        </div>
+        {result.alerts.length ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+            {result.alerts.map((alert) => (
+              <span key={alert.message} className={alert.tone === "danger" ? "chip" : "chip chip-draft"} style={{ color: alert.tone === "danger" ? "#e8a0a0" : undefined }}>
+                {alert.message}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <section style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <p className="eyebrow">Componentes ilimitados</p>
+          <button type="button" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 10 }} onClick={() => addRow()}>
+            + adicionar custo
+          </button>
+        </div>
+        {rows.map((row) => (
+          <div key={row.id} className="glass" style={{ padding: 12, display: "grid", gridTemplateColumns: "180px minmax(180px, 1fr) 140px auto", gap: 10, alignItems: "end", background: "rgba(255,248,234,0.04)" }}>
+            <label className="field">
+              <span>Grupo</span>
+              <GlassSelect
+                value={row.group}
+                onChange={(value) => updateRow(row.id, { group: value as FinanceComponentGroup })}
+                options={GROUP_OPTIONS}
+                ariaLabel="Grupo de custo"
+                inlineMenu
+              />
+            </label>
+            <label className="field">
+              <span>Descrição</span>
+              <input className="input" value={row.label} onChange={(e) => updateRow(row.id, { label: e.target.value })} />
+            </label>
+            <label className="field">
+              <span>Valor</span>
+              <input className="input" inputMode="decimal" value={row.amount} onChange={(e) => updateRow(row.id, { amount: e.target.value })} />
+            </label>
+            <button type="button" className="btn btn-ghost" style={{ padding: "10px 12px", fontSize: 10 }} onClick={() => removeRow(row.id)}>
+              Remover
             </button>
           </div>
-          {rows.map((row) => (
-            <div key={row.id} className="glass" style={{ padding: 12, display: "grid", gridTemplateColumns: "180px minmax(180px, 1fr) 140px auto", gap: 10, alignItems: "end", background: "rgba(255,248,234,0.04)" }}>
-              <label className="field">
-                <span>Grupo</span>
-                <GlassSelect
-                  value={row.group}
-                  onChange={(value) => updateRow(row.id, { group: value as FinanceComponentGroup })}
-                  options={GROUP_OPTIONS}
-                  ariaLabel="Grupo de custo"
-                  inlineMenu
-                />
-              </label>
-              <label className="field">
-                <span>Descrição</span>
-                <input className="input" value={row.label} onChange={(e) => updateRow(row.id, { label: e.target.value })} />
-              </label>
-              <label className="field">
-                <span>Valor</span>
-                <input className="input" inputMode="decimal" value={row.amount} onChange={(e) => updateRow(row.id, { amount: e.target.value })} />
-              </label>
-              <button type="button" className="btn btn-ghost" style={{ padding: "10px 12px", fontSize: 10 }} onClick={() => removeRow(row.id)}>
-                Remover
-              </button>
-            </div>
-          ))}
-        </section>
-
-        <aside className="glass" style={{ padding: 18, position: "sticky", top: 20, alignSelf: "start", background: "rgba(255,248,234,0.06)" }}>
-          <p className="eyebrow" style={{ marginBottom: 12 }}>Resultado em tempo real</p>
-          <ResultLine label="Linhas do pedido" value={`${result.itemCount}`} />
-          <ResultLine label="Unidades totais" value={`${result.totalUnits}`} />
-          <ResultLine label="Receita bruta" value={money(result.grossRevenueCents)} />
-          <ResultLine label="Descontos" value={`- ${money(result.discountCents)}`} muted />
-          <ResultLine label="Receita líquida" value={money(result.netRevenueCents)} strong />
-          <ResultLine label="Custo total" value={money(result.totalCostCents)} />
-          <ResultLine label="Lucro líquido" value={money(result.netProfitCents)} strong tone={result.netProfitCents < 0 ? "danger" : "gold"} />
-          <ResultLine label="Margem líquida" value={`${result.netMarginPercent.toFixed(1)}%`} />
-          <ResultLine label="Markup" value={`${result.markupPercent.toFixed(1)}%`} />
-          <ResultLine label="Preço mínimo" value={money(result.minimumPriceCents)} />
-          <ResultLine label="Preço recomendado" value={money(result.recommendedPriceCents)} strong tone="gold" />
-          <ResultLine label="Capital necessário" value={money(result.capitalNeededCents)} />
-
-          {result.alerts.length ? (
-            <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
-              {result.alerts.map((alert) => (
-                <span key={alert.message} className={alert.tone === "danger" ? "chip" : "chip chip-draft"} style={{ color: alert.tone === "danger" ? "#e8a0a0" : undefined }}>
-                  {alert.message}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </aside>
-      </div>
+        ))}
+      </section>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
         <label className="field">

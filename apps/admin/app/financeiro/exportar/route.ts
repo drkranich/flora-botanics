@@ -122,10 +122,15 @@ export async function GET(request: NextRequest) {
       .limit(200),
   ]);
 
-  const calcRows = (calculations ?? []) as unknown as CalcRow[];
-  const quoteRows = (quotes ?? []) as unknown as QuoteRow[];
-  const priceRows = (priceTables ?? []) as unknown as PriceTableRow[];
-  const format = new URL(request.url).searchParams.get("format") ?? "csv";
+  const url    = new URL(request.url);
+  const format = url.searchParams.get("format") ?? "csv";
+  const noCenarios   = url.searchParams.get("no_cenarios")   === "1";
+  const noTabelas    = url.searchParams.get("no_tabelas")    === "1";
+  const noDocumentos = url.searchParams.get("no_documentos") === "1";
+
+  const calcRows  = noCenarios   ? [] : (calculations ?? []) as unknown as CalcRow[];
+  const quoteRows = noDocumentos ? [] : (quotes ?? [])        as unknown as QuoteRow[];
+  const priceRows = noTabelas    ? [] : (priceTables ?? [])   as unknown as PriceTableRow[];
 
   if (format === "xlsx") {
     const workbook = XLSX.utils.book_new();
