@@ -333,6 +333,7 @@ export async function InternationalTradeCenter({
     incotermsRes,
     exchangeRatesRes,
     fiscalRegsRes,
+    intSettingsRes,
   ] = await Promise.all([
     supabase
       .from("jurisdictions")
@@ -398,9 +399,54 @@ export async function InternationalTradeCenter({
       .eq("tenant_id", staff.tenantId)
       .order("created_at", { ascending: false })
       .limit(30),
+    supabase
+      .from("site_settings")
+      .select("key, value")
+      .eq("tenant_id", staff.tenantId)
+      .in("key", ["integration_sefaz", "integration_stripe", "integration_melhor_envio"]),
   ]);
 
   const migrationPending = Boolean(jurisdictionsRes.error || operationsRes.error || calculationsRes.error);
+
+  // ─── Status real de cada integração ──────────────────────────────────────────
+  const intSettings = new Map(
+    ((intSettingsRes.data ?? []) as Array<{ key: string; value: Record<string, string> }>)
+      .map((s) => [s.key, s.value ?? {}])
+  );
+
+  function providerChip(name: string): { label: string; tone: "ok" | "warn" | "draft" } {
+    if (name === "SEFAZ") {
+      const s = intSettings.get("integration_sefaz") ?? {};
+      if (s.cnpj && s.certificate_pfx_base64) return { label: "Configurado", tone: "ok" };
+      if (s.cnpj || s.razao_social) return { label: "Incompleto", tone: "warn" };
+      return { label: "Não configurado", tone: "draft" };
+    }
+    if (name === "Stripe") {
+      const s = intSettings.get("integration_stripe") ?? {};
+      if (Object.keys(s).length > 0) return { label: "Configurado", tone: "ok" };
+      return { label: "Não configurado", tone: "draft" };
+    }
+    if (name === "Couriers e freight forwarders") {
+      const s = intSettings.get("integration_melhor_envio") ?? {};
+      if (Object.keys(s).length > 0) return { label: "Configurado", tone: "ok" };
+      return { label: "Não configurado", tone: "draft" };
+    }
+    if (name === "Cofre documental") return { label: "Disponível", tone: "ok" };
+    if (name === "Marketplaces") return { label: "Ver canais", tone: "draft" };
+    return { label: "Aguardando revisão", tone: "draft" };
+  }
+
+  const PROVIDER_CONFIG_URLS: Record<string, string> = {
+    "Portal Único Siscomex": "/admin/config/integracoes",
+    "SEFAZ":                 "/admin/config/integracoes",
+    "Classif":               "/admin/backoffice/notas-fiscais/comercio-exterior/configuracoes",
+    "Fontes tarifárias":     "/admin/backoffice/notas-fiscais/comercio-exterior/configuracoes",
+    "Provedores VAT/GST/Sales Tax": "/admin/backoffice/notas-fiscais/comercio-exterior/registros-fiscais",
+    "Couriers e freight forwarders": "/admin/config/integracoes",
+    "Stripe":                "/admin/config/integracoes",
+    "Marketplaces":          "/admin/backoffice/marketplaces",
+    "Cofre documental":      "/admin/backoffice/notas-fiscais/cofre",
+  };
   const jurisdictions = (jurisdictionsRes.data ?? []) as unknown as JurisdictionRow[];
   const operations = (operationsRes.data ?? []) as unknown as OperationRow[];
   const calculations = (calculationsRes.data ?? []) as unknown as CalculationRow[];
@@ -1045,23 +1091,27 @@ export async function InternationalTradeCenter({
         <div className="glass" style={cardStyle}>
           <SectionTitle eyebrow="Integrações preparadas" title="Providers desacoplados e auditáveis" />
           <div style={rowGridStyle}>
-            {INTEGRATIONS.map(([name, description]) => (
-              <article key={name} style={providerRowStyle}>
-                <div style={rowContentStyle}>
-                  <strong style={providerTitleStyle}>{name}</strong>
-                  <small style={providerDescriptionStyle}>{description}</small>
-                </div>
-                <div style={providerActionsStyle}>
-                  <Chip value="waiting_review" />
-                  <form action={runInternationalProviderAction.bind(null, name, "configure")}>
-                    <button type="submit" className="btn btn-ghost" style={miniButtonStyle}>Configurar</button>
-                  </form>
-                  <form action={runInternationalProviderAction.bind(null, name, "sync")}>
-                    <button type="submit" className="btn btn-gold" style={miniButtonStyle}>Sincronizar</button>
-                  </form>
-                </div>
-              </article>
-            ))}
+            {INTEGRATIONS.map(([name, description]) => {
+              const chip = providerChip(name);
+              const configUrl = PROVIDER_CONFIG_URLS[name] ?? "/admin/config/integracoes";
+              return (
+                <article key={name} style={providerRowStyle}>
+                  <div style={rowContentStyle}>
+                    <strong style={providerTitleStyle}>{name}</strong>
+                    <small style={providerDescriptionStyle}>{description}</small>
+                  </div>
+                  <div style={providerActionsStyle}>
+                    <span className={`fiscal-chip fiscal-chip-${chip.tone}`}>{chip.label}</span>
+                    <Link href={configUrl} className="btn btn-ghost" style={miniButtonStyle}>
+                      Configurar
+                    </Link>
+                    <form action={runInternationalProviderAction.bind(null, name, "sync")}>
+                      <button type="submit" className="btn btn-gold" style={miniButtonStyle}>Sincronizar</button>
+                    </form>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>

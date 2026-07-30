@@ -1414,9 +1414,6 @@ export async function MarketingCenterPage({
                     </span>
                   ))}
                 </div>
-                <button hidden aria-hidden="true" className={provider.status === "online" ? "btn btn-gold" : "btn btn-ghost"} style={{ ...buttonStyle, marginTop: 16 }}>
-                  Salvar conexão
-                </button>
               </form>
               );
             })}
