@@ -324,3 +324,90 @@ export async function emitirNFeTesteAction(): Promise<void> {
 
   revalidateFiscal();
 }
+
+// ─── Excluir NF-e ─────────────────────────────────────────────────────────────
+
+/**
+ * Exclui permanentemente uma NF-e em estado rascunho ou rejeitada.
+ * NF-e autorizadas em produção não podem ser excluídas (obrigação fiscal).
+ */
+export async function deleteNfeAction(nfeDocumentId: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) return;
+
+  const supabase = await createClient();
+
+  const { data: nfe } = await supabase
+    .from("nfe_documents")
+    .select("id, status, ambiente")
+    .eq("id", nfeDocumentId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!nfe) return;
+
+  // NF-e autorizada em produção: não pode excluir (obrigação fiscal — apenas arquivar)
+  if (nfe.status === "autorizada" && nfe.ambiente === "producao") return;
+
+  await supabase
+    .from("nfe_documents")
+    .delete()
+    .eq("id", nfeDocumentId)
+    .eq("tenant_id", staff.tenantId);
+
+  revalidateFiscal();
+}
+
+// ─── Arquivar / Desarquivar NF-e ──────────────────────────────────────────────
+
+export async function archiveNfeAction(nfeDocumentId: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("nfe_documents")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", nfeDocumentId)
+    .eq("tenant_id", staff.tenantId)
+    .is("archived_at", null);
+
+  revalidateFiscal();
+}
+
+export async function unarchiveNfeAction(nfeDocumentId: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("nfe_documents")
+    .update({ archived_at: null })
+    .eq("id", nfeDocumentId)
+    .eq("tenant_id", staff.tenantId);
+
+  revalidateFiscal();
+}
+
+// ─── Editar rascunho (número / série) ─────────────────────────────────────────
+
+export async function editNfeDraftAction(nfeDocumentId: string, formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+
+  const supabase = await createClient();
+  const numero = formData.get("numero") ? Number(formData.get("numero")) : undefined;
+  const serie  = formData.get("serie")  ? Number(formData.get("serie"))  : undefined;
+
+  if (!numero) return;
+
+  await supabase
+    .from("nfe_documents")
+    .update({ ...(numero && { numero }), ...(serie && { serie }) })
+    .eq("id", nfeDocumentId)
+    .eq("tenant_id", staff.tenantId)
+    .eq("status", "rascunho");
+
+  revalidateFiscal();
+}
