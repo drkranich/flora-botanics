@@ -259,6 +259,9 @@ type NfeRow = {
   ambiente: string;
   status: string;
   valor_total_cents: number | null;
+  chave_acesso: string | null;
+  protocolo: string | null;
+  motivo_status: string | null;
   emitida_at: string | null;
   created_at: string;
   orders: { number: string } | null;
@@ -587,7 +590,7 @@ export async function FiscalCenterPage({
       .maybeSingle(),
     supabase
       .from("nfe_documents")
-      .select("id, order_id, numero, serie, ambiente, status, valor_total_cents, emitida_at, created_at, orders(number)")
+      .select("id, order_id, numero, serie, ambiente, status, valor_total_cents, chave_acesso, protocolo, motivo_status, emitida_at, created_at, orders(number)")
       .eq("tenant_id", staff.tenantId)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -1038,9 +1041,14 @@ export async function FiscalCenterPage({
                         </form>
                       </>
                     ) : null}
-                    {nfe.status === "autorizada" && (nfe as { chave_acesso?: string }).chave_acesso ? (
-                      <span style={{ fontSize: 11, color: "var(--color-success, #4caf50)" }} title={(nfe as { chave_acesso?: string }).chave_acesso}>
-                        ✓ Autorizada
+                    {nfe.status === "autorizada" && nfe.chave_acesso ? (
+                      <span style={{ fontSize: 11, color: "var(--color-success, #4caf50)" }} title={nfe.chave_acesso}>
+                        ✓ Autorizada · chave {nfe.chave_acesso.slice(-8)}
+                      </span>
+                    ) : null}
+                    {nfe.status === "rejeitada" && nfe.motivo_status ? (
+                      <span style={{ fontSize: 11, color: "rgba(232,160,160,0.9)" }} title={nfe.motivo_status}>
+                        ✗ {nfe.motivo_status.length > 60 ? nfe.motivo_status.slice(0, 60) + "…" : nfe.motivo_status}
                       </span>
                     ) : null}
                   </span>

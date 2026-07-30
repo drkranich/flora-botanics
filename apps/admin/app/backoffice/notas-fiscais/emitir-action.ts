@@ -12,7 +12,7 @@ import {
   type NFeConfig,
 } from "@/lib/fiscal/nfe-service";
 
-// form actions devem retornar void — erros ficam em nfe_documents.ultimo_erro
+// form actions devem retornar void — erros ficam em nfe_documents.motivo_status
 
 function revalidateFiscal() {
   revalidatePath("/backoffice/notas-fiscais");
@@ -64,7 +64,7 @@ function buildEmitente(sefaz: Record<string, string>): NFeEmitente {
 
 /**
  * Emite uma NF-e a partir de um rascunho já criado (status "rascunho").
- * Erros de validação e rejeições SEFAZ ficam gravados em nfe_documents.ultimo_erro.
+ * Erros de validação e rejeições SEFAZ ficam gravados em nfe_documents.motivo_status.
  */
 export async function emitirNFeAction(nfeDocumentId: string): Promise<void> {
   const staff = await currentStaff();
@@ -76,7 +76,7 @@ export async function emitirNFeAction(nfeDocumentId: string): Promise<void> {
   async function rejectWith(erro: string) {
     await supabase
       .from("nfe_documents")
-      .update({ status: "rejeitada", ultimo_erro: erro })
+      .update({ status: "rejeitada", motivo_status: erro })
       .eq("id", nfeDocumentId)
       .eq("tenant_id", staff!.tenantId);
     revalidateFiscal();
@@ -213,14 +213,14 @@ export async function emitirNFeAction(nfeDocumentId: string): Promise<void> {
   if (result.ok && result.nProt) {
     await supabase.from("nfe_documents").update({
       status: "autorizada", chave_acesso: result.chNFe, protocolo: result.nProt,
-      xml_autorizado: result.xmlAutorizado, emitido_em: new Date().toISOString(),
+      xml_url: result.xmlAutorizado, emitida_at: new Date().toISOString(),
     }).eq("id", nfeDocumentId).eq("tenant_id", staff.tenantId);
 
     await supabase.from("fiscal_documents").upsert({
       tenant_id: staff.tenantId, order_id: nfeDoc.order_id,
       document_type: "nfe_sale", direction: "out",
       number: String(nfeDoc.numero), series: String((nfeDoc.serie as number) ?? 1),
-      status: "authorized", environment: ambiente === "1" ? "production" : "sandbox",
+      status: "authorized", environment: ambiente === "1" ? "producao" : "homologacao",
       access_key: result.chNFe, protocol: result.nProt,
       total_cents: order.total_cents as number, payment_status: "open",
       verification_status: "verified", origin: "order",
@@ -229,7 +229,7 @@ export async function emitirNFeAction(nfeDocumentId: string): Promise<void> {
     }, { onConflict: "tenant_id,access_key" });
   } else {
     await supabase.from("nfe_documents")
-      .update({ status: "rejeitada", ultimo_erro: result.error })
+      .update({ status: "rejeitada", motivo_status: result.error })
       .eq("id", nfeDocumentId).eq("tenant_id", staff.tenantId);
   }
 
@@ -260,7 +260,7 @@ export async function emitirNFeTesteAction(): Promise<void> {
     await supabase.from("nfe_documents").insert({
       tenant_id: staff.tenantId, order_id: null, numero: 0, serie: 1,
       ambiente: "homologacao", status: "rejeitada", valor_total_cents: 100,
-      ultimo_erro: "Credenciais SEFAZ incompletas — verifique Integrações → SEFAZ (CNPJ, UF, Razão Social, IE, Código IBGE, Certificado A1).",
+      motivo_status: "Credenciais SEFAZ incompletas — verifique Integrações → SEFAZ (CNPJ, UF, Razão Social, IE, Código IBGE, Certificado A1).",
     });
     revalidateFiscal();
     return;
@@ -311,14 +311,14 @@ export async function emitirNFeTesteAction(): Promise<void> {
       tenant_id: staff.tenantId, order_id: null, numero: nNF, serie,
       ambiente: "homologacao", status: "autorizada",
       chave_acesso: result.chNFe, protocolo: result.nProt,
-      xml_autorizado: result.xmlAutorizado, valor_total_cents: 100,
-      emitido_em: now.toISOString(),
+      xml_url: result.xmlAutorizado, valor_total_cents: 100,
+      emitida_at: now.toISOString(),
     });
   } else {
     await supabase.from("nfe_documents").insert({
       tenant_id: staff.tenantId, order_id: null, numero: nNF, serie,
       ambiente: "homologacao", status: "rejeitada", valor_total_cents: 100,
-      ultimo_erro: result.error ?? "Rejeitada pelo SEFAZ.",
+      motivo_status: result.error ?? "Rejeitada pelo SEFAZ.",
     });
   }
 
