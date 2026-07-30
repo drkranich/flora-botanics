@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { money } from "@/lib/format";
 import {
+  ExchangeRateForm,
   ExportComplianceForm,
+  FiscalRegistrationForm,
   InternationalDocumentForm,
   InternationalOperationForm,
   InternationalRuleForm,
@@ -187,6 +189,42 @@ type AlertRow = {
   created_at: string;
 };
 
+type IncotermsRow = {
+  id: string;
+  code: string;
+  name: string;
+  risk_transfer_point: string | null;
+  seller_responsibilities: string[] | null;
+  buyer_responsibilities: string[] | null;
+  required_documents: string[] | null;
+  review_warning: string | null;
+};
+
+type ExchangeRateRow = {
+  id: string;
+  base_currency: string;
+  quote_currency: string;
+  rate: number;
+  commercial_rate: number | null;
+  spread_percent: number;
+  source: string | null;
+  rate_date: string;
+  scenario: string;
+  locked_until: string | null;
+};
+
+type FiscalRegRow = {
+  id: string;
+  registration_kind: string;
+  registration_number: string | null;
+  authority: string | null;
+  status: string;
+  effective_from: string | null;
+  effective_until: string | null;
+  renewal_due_at: string | null;
+  jurisdictions: { name: string; code: string } | null;
+};
+
 function formatDate(iso: string | null | undefined) {
   if (!iso) return "—";
   const date = new Date(iso);
@@ -292,6 +330,9 @@ export async function InternationalTradeCenter({
     shippingRes,
     complianceRes,
     alertsRes,
+    incotermsRes,
+    exchangeRatesRes,
+    fiscalRegsRes,
   ] = await Promise.all([
     supabase
       .from("jurisdictions")
@@ -340,6 +381,23 @@ export async function InternationalTradeCenter({
       .eq("tenant_id", staff.tenantId)
       .order("created_at", { ascending: false })
       .limit(30),
+    supabase
+      .from("incoterms")
+      .select("id, code, name, risk_transfer_point, seller_responsibilities, buyer_responsibilities, required_documents, review_warning")
+      .eq("tenant_id", staff.tenantId)
+      .order("code"),
+    supabase
+      .from("exchange_rates")
+      .select("id, base_currency, quote_currency, rate, commercial_rate, spread_percent, source, rate_date, scenario, locked_until")
+      .eq("tenant_id", staff.tenantId)
+      .order("rate_date", { ascending: false })
+      .limit(30),
+    supabase
+      .from("fiscal_registrations")
+      .select("id, registration_kind, registration_number, authority, status, effective_from, effective_until, renewal_due_at, jurisdictions(name, code)")
+      .eq("tenant_id", staff.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(30),
   ]);
 
   const migrationPending = Boolean(jurisdictionsRes.error || operationsRes.error || calculationsRes.error);
@@ -351,6 +409,9 @@ export async function InternationalTradeCenter({
   const shippingQuotes = (shippingRes.data ?? []) as unknown as ShippingRow[];
   const complianceChecks = (complianceRes.data ?? []) as unknown as ComplianceRow[];
   const alerts = (alertsRes.data ?? []) as unknown as AlertRow[];
+  const incotermsData = (incotermsRes.data ?? []) as unknown as IncotermsRow[];
+  const exchangeRates = (exchangeRatesRes.data ?? []) as unknown as ExchangeRateRow[];
+  const fiscalRegs = (fiscalRegsRes.data ?? []) as unknown as FiscalRegRow[];
 
   const jurisdictionOptions = jurisdictions.map((item) => ({
     value: item.id,
@@ -801,6 +862,135 @@ export async function InternationalTradeCenter({
         </div>
       </section>
 
+      {/* ── Incoterms ─────────────────────────────────────────────────── */}
+      <section
+        style={
+          showModule(activeModule, ["incoterms", "frete-internacional", "simulador-internacional", "configuracoes"])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
+        <div className="glass" style={cardStyle}>
+          <SectionTitle
+            eyebrow="Incoterms 2020"
+            title="Responsabilidades, riscos e documentos"
+            note="Cada Incoterm define quem paga o frete, o seguro, os tributos no destino e o ponto de transferência de risco. Use o simulador para calcular o impacto no preço."
+          />
+          {incotermsData.length === 0 ? (
+            <Empty title="Nenhum Incoterm instalado" text='Clique em "Instalar pacotes iniciais" para criar os 11 Incoterms 2020 como base editável.' />
+          ) : (
+            <div style={incotermsGridStyle}>
+              {incotermsData.map((inc) => (
+                <article key={inc.id} style={incotermsCardStyle}>
+                  <div style={incotermsHeaderStyle}>
+                    <span style={incotermsCodeStyle}>{inc.code}</span>
+                    <div>
+                      <strong style={{ color: "var(--cream)", fontSize: 15, lineHeight: 1.2 }}>{inc.name}</strong>
+                      {inc.risk_transfer_point ? (
+                        <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--cream-dim)", lineHeight: 1.4 }}>
+                          Risco: {inc.risk_transfer_point}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  {inc.review_warning ? (
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--cream-dim)", lineHeight: 1.5, borderLeft: "2px solid rgba(217,184,122,0.4)", paddingLeft: 10 }}>
+                      {inc.review_warning}
+                    </p>
+                  ) : null}
+                  <div style={incotermsRespStyle}>
+                    {(inc.seller_responsibilities ?? []).length ? (
+                      <div>
+                        <p style={incotermsLabelStyle}>Vendedor</p>
+                        {(inc.seller_responsibilities ?? []).map((r) => (
+                          <span key={r} style={incotermsRespItemStyle}>· {r}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {(inc.buyer_responsibilities ?? []).length ? (
+                      <div>
+                        <p style={incotermsLabelStyle}>Comprador</p>
+                        {(inc.buyer_responsibilities ?? []).map((r) => (
+                          <span key={r} style={incotermsRespItemStyle}>· {r}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  {(inc.required_documents ?? []).length ? (
+                    <div style={folderGridStyle}>
+                      {(inc.required_documents ?? []).map((doc) => (
+                        <span key={doc} className="fiscal-chip fiscal-chip-draft">{doc}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="glass" style={cardStyle}>
+          <SectionTitle eyebrow="Câmbio" title="Taxas de referência por operação" />
+          {exchangeRates.length === 0 ? (
+            <Empty title="Nenhuma taxa registrada" text="Registre taxas de referência por moeda, data e cenário para o simulador de landed cost." />
+          ) : (
+            <div style={rowGridStyle}>
+              {exchangeRates.map((rate) => (
+                <article key={rate.id} style={rowStyle}>
+                  <div>
+                    <strong style={{ color: "var(--cream)" }}>{rate.base_currency} → {rate.quote_currency}: {Number(rate.rate).toFixed(4)}</strong>
+                    <small>{rate.scenario} · {rate.source ?? "fonte não informada"} · {formatDate(rate.rate_date)}</small>
+                    {rate.commercial_rate ? <small>Taxa comercial: {Number(rate.commercial_rate).toFixed(4)} · spread {Number(rate.spread_percent).toFixed(2)}%</small> : null}
+                    {rate.locked_until ? <small>Travado até {formatDate(rate.locked_until)}</small> : null}
+                  </div>
+                  <span className={`fiscal-chip fiscal-chip-${rate.locked_until ? "ok" : "draft"}`}>
+                    {rate.locked_until ? "Travado" : rate.scenario}
+                  </span>
+                </article>
+              ))}
+            </div>
+          )}
+          <ExchangeRateForm />
+        </div>
+      </section>
+
+      {/* ── Registros fiscais ──────────────────────────────────────────── */}
+      <section
+        style={
+          showModule(activeModule, ["registros-fiscais", "iva-vat-gst-e-sales-tax", "configuracoes"])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
+        <div className="glass" style={cardStyle}>
+          <SectionTitle
+            eyebrow="Registros fiscais internacionais"
+            title="EORI, IOSS, OSS, VAT, GST, Sales Tax"
+            note="Cada mercado exige registros específicos. Não confundir com obrigações brasileiras. Valide com representante fiscal local."
+          />
+          {fiscalRegs.length === 0 ? (
+            <Empty title="Nenhum registro cadastrado" text="Adicione EORI (UE), IOSS (vendas à distância UE), OSS, VAT/GST (quando obrigatório) e Sales Tax nos estados onde há nexo." />
+          ) : (
+            <div style={rowGridStyle}>
+              {fiscalRegs.map((reg) => (
+                <article key={reg.id} style={rowStyle}>
+                  <div>
+                    <strong style={{ color: "var(--cream)" }}>{reg.registration_kind} {reg.registration_number ? `· ${reg.registration_number}` : ""}</strong>
+                    <small>{(reg.jurisdictions as { name: string; code: string } | null)?.name ?? "jurisdição não vinculada"} · {reg.authority ?? "autoridade não informada"}</small>
+                    <small>Vigência {formatDate(reg.effective_from)} a {formatDate(reg.effective_until)}</small>
+                    {reg.renewal_due_at ? <small>Renovação: {formatDate(reg.renewal_due_at)}</small> : null}
+                  </div>
+                  <Chip value={reg.status} />
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <FiscalRegistrationForm jurisdictions={jurisdictionOptions} />
+      </section>
+
+      {/* ── Cofre + Integrações ────────────────────────────────────────── */}
       <section
         style={
           showModule(activeModule, [
@@ -808,7 +998,6 @@ export async function InternationalTradeCenter({
             "integracoes",
             "configuracoes",
             "marketplaces-internacionais",
-            "registros-fiscais",
           ])
             ? twoColumnStyle
             : hiddenStyle
@@ -816,28 +1005,39 @@ export async function InternationalTradeCenter({
       >
         <div className="glass" style={cardStyle}>
           <SectionTitle eyebrow="Cofre internacional" title="Pastas documentais automáticas" />
+          <p className="muted" style={{ margin: "0 0 14px", fontSize: 12, lineHeight: 1.6 }}>
+            Clique em uma pasta para abrir o cofre documental filtrado. Cada pasta centraliza os documentos da operação correspondente.
+          </p>
           <div style={folderGridStyle}>
             {[
-              "Comércio Exterior",
-              "Operações",
-              "NF-e de exportação",
-              "DU-E",
-              "Commercial Invoices",
-              "Pro Forma Invoices",
-              "Packing Lists",
-              "Certificados de origem",
-              "LPCO",
-              "Documentos sanitários",
-              "Fretes",
-              "Seguros",
-              "Câmbio",
-              "Impostos no destino",
-              "Comprovantes",
-              "Registros fiscais",
-              "Importadores",
-              "Marketplaces",
-            ].map((folder) => (
-              <span key={folder} className="fiscal-chip fiscal-chip-draft">{folder}</span>
+              { label: "Comércio Exterior", folder: "comercio-exterior" },
+              { label: "Operações", folder: "operacoes" },
+              { label: "NF-e de exportação", folder: "nfe-exportacao" },
+              { label: "DU-E", folder: "due" },
+              { label: "Commercial Invoices", folder: "commercial-invoices" },
+              { label: "Pro Forma Invoices", folder: "proforma-invoices" },
+              { label: "Packing Lists", folder: "packing-lists" },
+              { label: "Certificados de origem", folder: "certificados-origem" },
+              { label: "LPCO", folder: "lpco" },
+              { label: "Documentos sanitários", folder: "sanitarios" },
+              { label: "Fretes", folder: "fretes" },
+              { label: "Seguros", folder: "seguros" },
+              { label: "Câmbio", folder: "cambio" },
+              { label: "Impostos no destino", folder: "impostos-destino" },
+              { label: "Comprovantes", folder: "comprovantes" },
+              { label: "Registros fiscais", folder: "registros-fiscais" },
+              { label: "Importadores", folder: "importadores" },
+              { label: "Marketplaces", folder: "marketplaces" },
+            ].map(({ label, folder }) => (
+              <Link
+                key={folder}
+                href={`/backoffice/documentos?pasta=${folder}`}
+                className="fiscal-chip fiscal-chip-draft"
+                style={{ cursor: "pointer", textDecoration: "none" }}
+                title={`Abrir pasta ${label} no cofre`}
+              >
+                {label}
+              </Link>
             ))}
           </div>
         </div>
@@ -1082,4 +1282,62 @@ const folderGridStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
   gap: 8,
+};
+
+const incotermsGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 12,
+};
+
+const incotermsCardStyle: CSSProperties = {
+  display: "grid",
+  gap: 10,
+  padding: 14,
+  borderRadius: 14,
+  border: "1px solid var(--glass-border)",
+  background: "linear-gradient(135deg, rgba(242,236,223,0.06), rgba(10,22,11,0.22))",
+};
+
+const incotermsHeaderStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "44px 1fr",
+  alignItems: "flex-start",
+  gap: 12,
+};
+
+const incotermsCodeStyle: CSSProperties = {
+  width: 44,
+  height: 44,
+  borderRadius: 12,
+  display: "grid",
+  placeItems: "center",
+  background: "rgba(185,146,77,0.18)",
+  border: "1px solid rgba(217,184,122,0.36)",
+  color: "var(--gold-light)",
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: 0.5,
+};
+
+const incotermsRespStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 10,
+};
+
+const incotermsLabelStyle: CSSProperties = {
+  margin: "0 0 4px",
+  fontSize: 9,
+  fontWeight: 800,
+  letterSpacing: 1.4,
+  textTransform: "uppercase",
+  color: "var(--cream-dim)",
+};
+
+const incotermsRespItemStyle: CSSProperties = {
+  display: "block",
+  fontSize: 10,
+  color: "var(--cream-dim)",
+  lineHeight: 1.5,
 };

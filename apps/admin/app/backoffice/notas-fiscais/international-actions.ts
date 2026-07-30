@@ -584,6 +584,58 @@ export async function createInternationalShippingQuote(formData: FormData): Prom
   revalidatePath(FISCAL_PATH);
 }
 
+export async function createExchangeRate(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const payload = {
+    tenant_id: staff.tenantId,
+    base_currency: requiredText(formData, "base_currency", "Moeda base"),
+    quote_currency: requiredText(formData, "quote_currency", "Moeda cotada"),
+    rate: decimal(formData, "rate") || 1,
+    commercial_rate: decimal(formData, "commercial_rate") || null,
+    spread_percent: decimal(formData, "spread_percent"),
+    fee_cents: cents(formData, "fee"),
+    source: text(formData, "source"),
+    rate_date: dateValue(formData, "rate_date") ?? new Date().toISOString().slice(0, 10),
+    scenario: text(formData, "scenario") ?? "current",
+    locked_until: dateValue(formData, "locked_until"),
+    notes: text(formData, "notes"),
+    created_by: staff.id,
+  };
+  await supabase.from("exchange_rates").upsert(payload, { onConflict: "tenant_id,base_currency,quote_currency,rate_date,scenario" });
+  await audit({ action: "created_exchange_rate", entityType: "exchange_rate", nextValue: payload });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+  revalidatePath(`${INTERNATIONAL_PATH}/cambio`);
+}
+
+export async function createFiscalRegistration(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const payload = {
+    tenant_id: staff.tenantId,
+    jurisdiction_id: text(formData, "jurisdiction_id"),
+    registration_kind: requiredText(formData, "registration_kind", "Tipo de registro"),
+    registration_number: text(formData, "registration_number"),
+    authority: text(formData, "authority"),
+    responsible_party: text(formData, "responsible_party"),
+    status: requiredText(formData, "status", "Status"),
+    effective_from: dateValue(formData, "effective_from"),
+    effective_until: dateValue(formData, "effective_until"),
+    renewal_due_at: dateValue(formData, "renewal_due_at"),
+    credentials_ref: text(formData, "credentials_ref"),
+    notes: text(formData, "notes"),
+    created_by: staff.id,
+  };
+  const { data } = await supabase.from("fiscal_registrations").insert(payload).select("id").single();
+  await audit({ action: "created_fiscal_registration", entityType: "fiscal_registration", entityId: data?.id, nextValue: payload });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+  revalidatePath(`${INTERNATIONAL_PATH}/registros-fiscais`);
+}
+
 export async function createExportComplianceCheck(formData: FormData): Promise<void> {
   const staff = await currentStaff();
   if (!staff) return;

@@ -7,6 +7,8 @@ import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import {
   createExportComplianceCheck,
   createExportOperation,
+  createExchangeRate,
+  createFiscalRegistration,
   createInternationalDocument,
   createInternationalShippingQuote,
   createInternationalTaxRule,
@@ -633,6 +635,118 @@ export function ExportComplianceForm({
       </Field>
       <Field label="Detalhes">
         <TextArea name="details" placeholder="Fórmula, alegações, requisitos de rotulagem, restrições..." />
+      </Field>
+    </FormShell>
+  );
+}
+
+const registrationKinds: GlassSelectOption[] = [
+  { value: "EORI", label: "EORI (União Europeia)" },
+  { value: "IOSS", label: "IOSS (vendas distância UE)" },
+  { value: "OSS", label: "OSS (regime One Stop Shop)" },
+  { value: "VAT", label: "VAT (Europa / Reino Unido)" },
+  { value: "GST", label: "GST (Canadá / Austrália)" },
+  { value: "Sales Tax", label: "Sales Tax (EUA)" },
+  { value: "QST", label: "QST (Quebec)" },
+  { value: "PST", label: "PST (BC / Saskatchewan)" },
+  { value: "HST", label: "HST (Ontario / Atlantic)" },
+  { value: "CNPJ", label: "CNPJ (Brasil)" },
+  { value: "IE", label: "IE (Inscrição Estadual)" },
+  { value: "Outros", label: "Outros" },
+];
+
+const registrationStatuses: GlassSelectOption[] = [
+  { value: "not_started", label: "Não iniciado" },
+  { value: "in_progress", label: "Em andamento" },
+  { value: "pending_review", label: "Aguardando revisão" },
+  { value: "active", label: "Ativo" },
+  { value: "expired", label: "Vencido" },
+  { value: "cancelled", label: "Cancelado" },
+];
+
+const scenarios: GlassSelectOption[] = [
+  { value: "current", label: "Taxa atual" },
+  { value: "contracted", label: "Taxa contratada" },
+  { value: "projected", label: "Projeção" },
+  { value: "historical", label: "Histórico" },
+];
+
+export function ExchangeRateForm() {
+  return (
+    <FormShell eyebrow="Câmbio" title="Registrar taxa de câmbio" action={createExchangeRate} buttonLabel="Salvar taxa">
+      <Field label="Moeda base">
+        <GlassSelect name="base_currency" options={currencies} defaultValue="USD" inlineMenu />
+      </Field>
+      <Field label="Moeda cotada">
+        <GlassSelect name="quote_currency" options={currencies} defaultValue="BRL" inlineMenu />
+      </Field>
+      <Field label="Taxa (ex: 5,45 por 1 USD)">
+        <TextInput name="rate" placeholder="5,4500" required />
+      </Field>
+      <Field label="Taxa comercial">
+        <TextInput name="commercial_rate" placeholder="5,4200" />
+      </Field>
+      <Field label="Spread %">
+        <TextInput name="spread_percent" placeholder="0,50" />
+      </Field>
+      <Field label="Taxa fixa">
+        <TextInput name="fee" placeholder="0,00" />
+      </Field>
+      <Field label="Fonte">
+        <TextInput name="source" placeholder="Banco, contrato, Banco Central..." />
+      </Field>
+      <Field label="Data da taxa">
+        <GlassDateInput name="rate_date" placeholder="Data de referência" inlinePopover />
+      </Field>
+      <Field label="Cenário">
+        <GlassSelect name="scenario" options={scenarios} defaultValue="current" inlineMenu />
+      </Field>
+      <Field label="Travado até">
+        <GlassDateInput name="locked_until" placeholder="Data de travamento" inlinePopover />
+      </Field>
+      <Field label="Observações">
+        <TextArea name="notes" placeholder="Contrato, hedge, variação esperada..." />
+      </Field>
+    </FormShell>
+  );
+}
+
+export function FiscalRegistrationForm({ jurisdictions }: { jurisdictions: GlassSelectOption[] }) {
+  const jurisdictionOptions = jurisdictions.length ? jurisdictions : [{ value: "", label: "Instale os pacotes iniciais" }];
+  return (
+    <FormShell eyebrow="Registros fiscais" title="Cadastrar EORI, IOSS, OSS, VAT, GST ou Sales Tax" action={createFiscalRegistration} buttonLabel="Salvar registro">
+      <Field label="Jurisdição">
+        <GlassSelect name="jurisdiction_id" options={[{ value: "", label: "Sem jurisdição vinculada" }, ...jurisdictionOptions]} inlineMenu />
+      </Field>
+      <Field label="Tipo de registro">
+        <GlassSelect name="registration_kind" options={registrationKinds} defaultValue="EORI" inlineMenu />
+      </Field>
+      <Field label="Número / ID">
+        <TextInput name="registration_number" placeholder="EU1234567890, GB123456789..." />
+      </Field>
+      <Field label="Autoridade / órgão">
+        <TextInput name="authority" placeholder="HMRC, autoridade tributária local..." />
+      </Field>
+      <Field label="Responsável">
+        <TextInput name="responsible_party" placeholder="Representante fiscal, empresa..." />
+      </Field>
+      <Field label="Status">
+        <GlassSelect name="status" options={registrationStatuses} defaultValue="not_started" inlineMenu />
+      </Field>
+      <Field label="Vigência inicial">
+        <GlassDateInput name="effective_from" placeholder="Data inicial" inlinePopover />
+      </Field>
+      <Field label="Vigência final">
+        <GlassDateInput name="effective_until" placeholder="Data final" inlinePopover />
+      </Field>
+      <Field label="Renovação prevista">
+        <GlassDateInput name="renewal_due_at" placeholder="Data de renovação" inlinePopover />
+      </Field>
+      <Field label="Referência de credenciais">
+        <TextInput name="credentials_ref" placeholder="Cofre, pasta ou referência interna" />
+      </Field>
+      <Field label="Observações">
+        <TextArea name="notes" placeholder="Limite de faturamento, condições, renovação automática..." />
       </Field>
     </FormShell>
   );
