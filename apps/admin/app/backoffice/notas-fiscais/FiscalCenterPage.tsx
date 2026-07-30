@@ -820,6 +820,8 @@ export async function FiscalCenterPage({
 
   const ordersWithNfe = new Set(nfes.map((n) => n.order_id).filter(Boolean));
   const pendingOrders = orders.filter((o) => !ordersWithNfe.has(o.id));
+  const activeNfes = nfes.filter((n) => !n.archived_at);
+  const archivedNfesCount = nfes.length - activeNfes.length;
   const docsForSelect = fiscalDocs.map((doc) => ({
     value: doc.id,
     label: `${label(DOC_TYPE_LABELS, doc.document_type)} ${doc.number ?? "sem número"} - ${doc.party_name ?? "sem parte"}`,
@@ -1023,105 +1025,106 @@ export async function FiscalCenterPage({
         </section>
 
         <section className="glass" style={cardStyle}>
-          {(() => {
-            const activeNfes = nfes.filter((n) => !n.archived_at);
-            const archivedCount = nfes.filter((n) => n.archived_at).length;
-            return (
-              <>
-                <SectionTitle eyebrow="Rascunhos e NF-e" title="Notas vinculadas a pedidos">
-                  {archivedCount > 0 && (
-                    <span style={{ fontSize: 11, opacity: 0.6 }}>{archivedCount} arquivada{archivedCount !== 1 ? "s" : ""}</span>
-                  )}
-                </SectionTitle>
-                {activeNfes.length === 0 ? (
-                  <EmptyState title="Nenhuma NF-e criada" action="Use pedidos pagos, importação XML ou cadastro manual para iniciar o histórico fiscal." />
-                ) : (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    {activeNfes.slice(0, 20).map((nfe) => {
-                      const isProducao = nfe.ambiente === "producao";
-                      return (
-                        <div key={nfe.id} style={compactRowStyle}>
-                          <span>
-                            <strong>{nfe.numero ?? "—"}{nfe.serie ? ` / série ${nfe.serie}` : ""}</strong>
-                            <small>
-                              Pedido {nfe.orders?.number ? `#${nfe.orders.number}` : "—"} · {formatBRL(nfe.valor_total_cents)} · {formatDateTime(nfe.created_at)}
-                              {!isProducao && <> · <span style={{ color: "var(--color-warning, #e8a020)", fontWeight: 600 }}>homologação</span></>}
-                            </small>
+          <SectionTitle eyebrow="Rascunhos e NF-e" title="Notas vinculadas a pedidos">
+            {archivedNfesCount > 0 && (
+              <span style={{ fontSize: 11, opacity: 0.6 }}>{archivedNfesCount} arquivada{archivedNfesCount !== 1 ? "s" : ""}</span>
+            )}
+          </SectionTitle>
+          {activeNfes.length === 0 ? (
+            <EmptyState title="Nenhuma NF-e criada" action="Use pedidos pagos, importação XML ou cadastro manual para iniciar o histórico fiscal." />
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {activeNfes.slice(0, 20).map((nfe) => {
+                const isProducao = nfe.ambiente === "producao";
+                return (
+                  <div key={nfe.id} style={compactRowStyle}>
+                    <span>
+                      <strong>{nfe.numero ?? "—"}{nfe.serie ? ` / série ${nfe.serie}` : ""}</strong>
+                      <small>
+                        {"Pedido "}
+                        {nfe.orders?.number ? `#${nfe.orders.number}` : "—"}
+                        {" · "}
+                        {formatBRL(nfe.valor_total_cents)}
+                        {" · "}
+                        {formatDateTime(nfe.created_at)}
+                        {!isProducao && (
+                          <span style={{ color: "var(--color-warning, #e8a020)", fontWeight: 600 }}>{" · homologação"}</span>
+                        )}
+                      </small>
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <span className={`fiscal-chip fiscal-chip-${statusTone(nfe.status)}`}>{NFE_STATUS_LABELS[nfe.status] ?? nfe.status}</span>
+
+                      {/* rascunho: Emitir + Editar + Cancelar + Excluir */}
+                      {nfe.status === "rascunho" && (
+                        <>
+                          <form action={emitirNFeAction.bind(null, nfe.id)}>
+                            <button className="btn btn-gold" style={smallButtonStyle} title="Assina e transmite para o SEFAZ">Emitir</button>
+                          </form>
+                          <NfeEditButton nfeId={nfe.id} numero={nfe.numero} serie={nfe.serie} />
+                          <form action={cancelNfeDraft.bind(null, nfe.id)}>
+                            <button className="btn btn-ghost" style={smallButtonStyle}>Cancelar</button>
+                          </form>
+                          <form action={deleteNfeAction.bind(null, nfe.id)}>
+                            <button className="btn btn-ghost" style={{ ...smallButtonStyle, color: "rgba(232,160,160,0.9)" }} title="Excluir rascunho">Excluir</button>
+                          </form>
+                        </>
+                      )}
+
+                      {/* autorizada: badge chave + Compartilhar + Arquivar + Excluir (só homologação) */}
+                      {nfe.status === "autorizada" && nfe.chave_acesso ? (
+                        <>
+                          <span style={{ fontSize: 11, color: "var(--color-success, #4caf50)" }} title={nfe.chave_acesso}>
+                            {"✓ chave "}
+                            {nfe.chave_acesso.slice(-8)}
                           </span>
-                          <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                            <span className={`fiscal-chip fiscal-chip-${statusTone(nfe.status)}`}>{NFE_STATUS_LABELS[nfe.status] ?? nfe.status}</span>
+                          <NfeCopyButton chaveAcesso={nfe.chave_acesso} />
+                          <form action={archiveNfeAction.bind(null, nfe.id)}>
+                            <button className="btn btn-ghost" style={smallButtonStyle}>Arquivar</button>
+                          </form>
+                          {!isProducao && (
+                            <form action={deleteNfeAction.bind(null, nfe.id)}>
+                              <button className="btn btn-ghost" style={{ ...smallButtonStyle, color: "rgba(232,160,160,0.9)" }} title="Excluir (homologação)">Excluir</button>
+                            </form>
+                          )}
+                        </>
+                      ) : null}
 
-                            {/* rascunho: Emitir + Editar + Excluir */}
-                            {nfe.status === "rascunho" && (
-                              <>
-                                <form action={emitirNFeAction.bind(null, nfe.id)}>
-                                  <button className="btn btn-gold" style={smallButtonStyle} title="Assina e transmite para o SEFAZ">Emitir</button>
-                                </form>
-                                <NfeEditButton nfeId={nfe.id} numero={nfe.numero} serie={nfe.serie} />
-                                <form action={cancelNfeDraft.bind(null, nfe.id)}>
-                                  <button className="btn btn-ghost" style={smallButtonStyle}>Cancelar</button>
-                                </form>
-                                <form action={deleteNfeAction.bind(null, nfe.id)}>
-                                  <button className="btn btn-ghost" style={{ ...smallButtonStyle, color: "rgba(232,160,160,0.9)" }} title="Excluir rascunho">Excluir</button>
-                                </form>
-                              </>
-                            )}
+                      {/* rejeitada: motivo + Excluir + Arquivar */}
+                      {nfe.status === "rejeitada" ? (
+                        <>
+                          {nfe.motivo_status ? (
+                            <span style={{ fontSize: 11, color: "rgba(232,160,160,0.9)" }} title={nfe.motivo_status}>
+                              {"✗ "}
+                              {nfe.motivo_status.length > 50 ? nfe.motivo_status.slice(0, 50) + "…" : nfe.motivo_status}
+                            </span>
+                          ) : null}
+                          <form action={deleteNfeAction.bind(null, nfe.id)}>
+                            <button className="btn btn-ghost" style={{ ...smallButtonStyle, color: "rgba(232,160,160,0.9)" }}>Excluir</button>
+                          </form>
+                          <form action={archiveNfeAction.bind(null, nfe.id)}>
+                            <button className="btn btn-ghost" style={smallButtonStyle}>Arquivar</button>
+                          </form>
+                        </>
+                      ) : null}
 
-                            {/* autorizada: badge + Compartilhar + Arquivar + Excluir (só homologação) */}
-                            {nfe.status === "autorizada" && nfe.chave_acesso && (
-                              <>
-                                <span style={{ fontSize: 11, color: "var(--color-success, #4caf50)" }} title={nfe.chave_acesso}>
-                                  ✓ chave {nfe.chave_acesso.slice(-8)}
-                                </span>
-                                <NfeCopyButton chaveAcesso={nfe.chave_acesso} />
-                                <form action={archiveNfeAction.bind(null, nfe.id)}>
-                                  <button className="btn btn-ghost" style={smallButtonStyle} title="Arquivar NF-e">Arquivar</button>
-                                </form>
-                                {!isProducao && (
-                                  <form action={deleteNfeAction.bind(null, nfe.id)}>
-                                    <button className="btn btn-ghost" style={{ ...smallButtonStyle, color: "rgba(232,160,160,0.9)" }} title="Excluir (somente homologação)">Excluir</button>
-                                  </form>
-                                )}
-                              </>
-                            )}
-
-                            {/* rejeitada: motivo + Tentar novamente + Excluir + Arquivar */}
-                            {nfe.status === "rejeitada" && (
-                              <>
-                                {nfe.motivo_status && (
-                                  <span style={{ fontSize: 11, color: "rgba(232,160,160,0.9)" }} title={nfe.motivo_status}>
-                                    ✗ {nfe.motivo_status.length > 50 ? nfe.motivo_status.slice(0, 50) + "…" : nfe.motivo_status}
-                                  </span>
-                                )}
-                                <form action={deleteNfeAction.bind(null, nfe.id)}>
-                                  <button className="btn btn-ghost" style={{ ...smallButtonStyle, color: "rgba(232,160,160,0.9)" }}>Excluir</button>
-                                </form>
-                                <form action={archiveNfeAction.bind(null, nfe.id)}>
-                                  <button className="btn btn-ghost" style={smallButtonStyle}>Arquivar</button>
-                                </form>
-                              </>
-                            )}
-
-                            {/* cancelada / inutilizada: Excluir + Arquivar */}
-                            {(nfe.status === "cancelada" || nfe.status === "inutilizada") && (
-                              <>
-                                <form action={deleteNfeAction.bind(null, nfe.id)}>
-                                  <button className="btn btn-ghost" style={{ ...smallButtonStyle, color: "rgba(232,160,160,0.9)" }}>Excluir</button>
-                                </form>
-                                <form action={archiveNfeAction.bind(null, nfe.id)}>
-                                  <button className="btn btn-ghost" style={smallButtonStyle}>Arquivar</button>
-                                </form>
-                              </>
-                            )}
-                          </span>
-                        </div>
-                      );
-                    })}
+                      {/* cancelada / inutilizada: Excluir + Arquivar */}
+                      {(nfe.status === "cancelada" || nfe.status === "inutilizada") ? (
+                        <>
+                          <form action={deleteNfeAction.bind(null, nfe.id)}>
+                            <button className="btn btn-ghost" style={{ ...smallButtonStyle, color: "rgba(232,160,160,0.9)" }}>Excluir</button>
+                          </form>
+                          <form action={archiveNfeAction.bind(null, nfe.id)}>
+                            <button className="btn btn-ghost" style={smallButtonStyle}>Arquivar</button>
+                          </form>
+                        </>
+                      ) : null}
+                    </span>
                   </div>
-                )}
-              </>
-            );
-          })()}
+                );
+              })}
+            </div>
+          )}
         </section>
       </section>
 
