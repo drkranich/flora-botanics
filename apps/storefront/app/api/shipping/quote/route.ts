@@ -83,35 +83,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Melhor Envio aceita um array de produtos por pacote
+  // Melhor Envio: usar APENAS products (não misturar com package)
   const products = items.map((item) => ({
     id: crypto.randomUUID(),
-    width: Math.max(item.width_cm ?? 10, 1),
-    height: Math.max(item.height_cm ?? 5, 1),
-    length: Math.max(item.depth_cm ?? 10, 1),
-    weight: Math.max((item.weight_g ?? 200) / 1000, 0.1), // kg
+    width:  Math.max(item.width_cm  ?? 12, 1),
+    height: Math.max(item.height_cm ?? 6,  1),
+    length: Math.max(item.depth_cm  ?? 12, 1),
+    weight: Math.max((item.weight_g ?? 300) / 1000, 0.1), // kg
     insurance_value: 0,
     quantity: item.quantity ?? 1,
   }));
 
+  // services omitido = todos os serviços; invoice omitido = sem nota
   const payload = {
     from: { postal_code: fromCep },
-    to: { postal_code: zipTo },
-    package: {
-      weight: products.reduce((sum, p) => sum + p.weight * p.quantity, 0),
-      width: Math.max(...products.map((p) => p.width)),
-      height: Math.max(...products.map((p) => p.height)),
-      length: Math.max(...products.map((p) => p.length)),
-    },
+    to:   { postal_code: zipTo },
     products,
     options: {
-      receipt: false,
-      own_hand: false,
-      reverse: false,
-      non_commercial: false,
-      invoice: { key: "" },
+      receipt:        false,
+      own_hand:       false,
+      reverse:        false,
+      non_commercial: true,
     },
-    services: "", // vazio = todos os serviços disponíveis
   };
 
   try {
@@ -128,10 +121,17 @@ export async function POST(req: NextRequest) {
     });
 
     if (!meRes.ok) {
-      const err = await meRes.text().catch(() => "");
-      console.error("Melhor Envio error:", meRes.status, err);
+      const errText = await meRes.text().catch(() => "");
+      console.error("Melhor Envio error:", meRes.status, errText);
+      // Devolve o detalhe para facilitar debug em produção
+      let errorMsg = "Erro ao calcular frete. Tente novamente.";
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson?.message) errorMsg = errJson.message;
+        else if (typeof errJson === "string") errorMsg = errJson;
+      } catch { /* manter mensagem genérica */ }
       return NextResponse.json(
-        { ok: false, error: "Erro ao calcular frete. Tente novamente." },
+        { ok: false, error: errorMsg, detail: errText.slice(0, 300), status: meRes.status },
         { status: 502, headers: corsHeaders() }
       );
     }

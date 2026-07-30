@@ -174,11 +174,12 @@ Deno.serve(async (req: Request) => {
     if (pfxBase64 && pfxSenha) {
       try {
         const { certChain, privateKey } = extractPemFromPfx(pfxBase64, pfxSenha);
+        // NÃO passar caCerts: [] — isso zeraria o trust store e quebraria
+        // a verificação do servidor SEFAZ (causa HandshakeFailure).
+        // Sem caCerts, Deno usa o bundle padrão (inclui CAs gov.br comuns).
         httpClient = Deno.createHttpClient({
           certChain,
           privateKey,
-          // Permite CAs gov.br / ICP-Brasil não presentes no bundle padrão
-          caCerts: [],
         });
         fetchOptions = { ...fetchOptions, client: httpClient };
       } catch (certErr) {
