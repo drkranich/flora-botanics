@@ -617,6 +617,24 @@ const INTEGRATIONS: Integration[] = [
         hint: "CNPJ da empresa emitente das notas fiscais. Somente números.",
       },
       {
+        name: "razao_social",
+        label: "Razão Social",
+        placeholder: "FLORA BOTANICS COMERCIO DE PLANTAS LTDA",
+        hint: "Razão social exata conforme Receita Federal (máx. 60 caracteres).",
+      },
+      {
+        name: "nome_fantasia",
+        label: "Nome Fantasia",
+        placeholder: "Flora Botanics",
+        hint: "Nome fantasia da empresa (opcional, máx. 60 caracteres).",
+      },
+      {
+        name: "inscricao_estadual",
+        label: "Inscrição Estadual",
+        placeholder: "123456789012",
+        hint: "IE da empresa. Somente números.",
+      },
+      {
         name: "uf",
         label: "UF (estado fiscal)",
         placeholder: "SP",
@@ -627,6 +645,48 @@ const INTEGRATIONS: Integration[] = [
         label: "Código de Regime Tributário",
         placeholder: "1",
         hint: "1 = Simples Nacional | 2 = Simples Nacional – excesso | 3 = Regime Normal.",
+      },
+      {
+        name: "cep",
+        label: "CEP do emitente",
+        placeholder: "75900000",
+        hint: "CEP sem pontuação.",
+      },
+      {
+        name: "logradouro",
+        label: "Logradouro",
+        placeholder: "Rua das Flores",
+        hint: "Rua, Av. ou Travessa — sem número.",
+      },
+      {
+        name: "numero_endereco",
+        label: "Número",
+        placeholder: "100",
+        hint: "Número do endereço ou S/N.",
+      },
+      {
+        name: "complemento",
+        label: "Complemento",
+        placeholder: "Sala 2",
+        hint: "Complemento do endereço (opcional).",
+      },
+      {
+        name: "bairro",
+        label: "Bairro",
+        placeholder: "Centro",
+        hint: "Nome do bairro.",
+      },
+      {
+        name: "municipio",
+        label: "Município",
+        placeholder: "Catalão",
+        hint: "Nome do município por extenso.",
+      },
+      {
+        name: "codigo_ibge_municipio",
+        label: "Código IBGE do Município",
+        placeholder: "5204508",
+        hint: "Código IBGE de 7 dígitos do município. Consulte: ibge.gov.br/cidades",
       },
       {
         name: "certificate_pfx_base64",

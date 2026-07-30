@@ -5,11 +5,25 @@
  * Retorna cotações do Melhor Envio (Correios, Azul, J&T, Loggi, etc.)
  *
  * Vars necessárias (Cloudflare Secrets / .dev.vars):
- *   MELHOR_ENVIO_TOKEN   — Bearer token da conta Melhor Envio
+ *   MELHOR_ENVIO_TOKEN    — Bearer token da conta Melhor Envio
  *   MELHOR_ENVIO_FROM_CEP — CEP de origem do remetente (ex: "75900000")
  *   MELHOR_ENVIO_FROM_NAME — Nome do remetente
+ *   MELHOR_ENVIO_SANDBOX  — "true" para usar o sandbox do Melhor Envio
  */
 import { NextRequest, NextResponse } from "next/server";
+
+/** Lê variável de ambiente via Cloudflare Workers context (com fallback para process.env) */
+async function getEnv(key: string): Promise<string | undefined> {
+  try {
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const { env } = await getCloudflareContext({ async: true });
+    const val = (env as Record<string, string | undefined>)[key];
+    if (val !== undefined) return val;
+  } catch {
+    // fora do ambiente CF Workers (dev local)
+  }
+  return process.env[key];
+}
 
 const ME_API = "https://www.melhorenvio.com.br/api/v2/me/shipment/calculate";
 const ME_SANDBOX = "https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate";
@@ -40,10 +54,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  const token = process.env.MELHOR_ENVIO_TOKEN;
-  const fromCep = (process.env.MELHOR_ENVIO_FROM_CEP ?? "").replace(/\D/g, "");
-  const fromName = process.env.MELHOR_ENVIO_FROM_NAME ?? "Flora Botanics";
-  const sandbox = process.env.MELHOR_ENVIO_SANDBOX === "true";
+  const token   = await getEnv("MELHOR_ENVIO_TOKEN");
+  const fromCep = ((await getEnv("MELHOR_ENVIO_FROM_CEP")) ?? "").replace(/\D/g, "");
+  const fromName = (await getEnv("MELHOR_ENVIO_FROM_NAME")) ?? "Flora Botanics";
+  const sandbox  = (await getEnv("MELHOR_ENVIO_SANDBOX")) === "true";
 
   if (!token || !fromCep) {
     return NextResponse.json(
