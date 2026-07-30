@@ -632,8 +632,8 @@ const INTEGRATIONS: Integration[] = [
         name: "certificate_pfx_base64",
         label: "Certificado A1 (base64)",
         placeholder: "MIIKvAIBAzCCCn…",
-        type: "password",
-        hint: "Conteúdo do .pfx convertido para base64. No PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes('cert.pfx'))",
+        type: "textarea",
+        hint: "Conteúdo do .pfx convertido para base64. No PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes('cert.pfx')) | Set-Clipboard",
       },
       {
         name: "certificate_password",
