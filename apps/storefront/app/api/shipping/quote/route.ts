@@ -262,7 +262,12 @@ export async function POST(req: NextRequest) {
       let errorMsg = "Erro ao calcular frete. Tente novamente.";
       try {
         const errJson = JSON.parse(errText);
-        if (errJson?.errors) errorMsg = "Endereço de destino inválido. Verifique o CEP informado.";
+        if (errJson?.errors) {
+          const keys = Object.keys(errJson.errors).join(" ");
+          if (/\bto\b/.test(keys)) errorMsg = "CEP de destino inválido. Verifique o CEP informado.";
+          else if (/\bfrom\b/.test(keys)) errorMsg = "CEP de origem não configurado corretamente. Contate o suporte.";
+          else errorMsg = "Erro ao calcular frete: " + Object.values(errJson.errors).flat().join(", ");
+        }
       } catch { /* manter mensagem genérica */ }
       return NextResponse.json(
         { ok: false, error: errorMsg },

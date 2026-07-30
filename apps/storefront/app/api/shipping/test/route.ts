@@ -27,6 +27,7 @@ export async function GET() {
     token_prefix:    token ? token.slice(0, 6) + "…" : null,
     token_length:    token?.length ?? 0,
     from_cep_set:    !!fromCep,
+    from_cep_value:  fromCep ? fromCep.replace(/\D/g, "").slice(0, 5) + "…" : null,
     sandbox:         sandbox,
     client_id:       clientId ?? null,
     has_refresh_token: hasRefresh,
