@@ -30,5 +30,12 @@
   },
   "vars": {
     "NEXT_PRIVATE_MINIMAL_MODE": "1"
-  }
+  },
+  "kv_namespaces": [
+    {
+      // Armazena o access_token renovado do Melhor Envio (auto-refresh via refresh_token)
+      "binding": "ME_TOKEN_STORE",
+      "id": "78b934dcb8dc404d80574e115a9a953c"
+    }
+  ]
 }
