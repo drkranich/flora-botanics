@@ -35,6 +35,8 @@ interface IntegrationRunRow {
 }
 
 const INTEGRATIONS: Integration[] = [
+
+  // ─── COMUNICAÇÃO ─────────────────────────────────────────────────────────
   {
     key: "integration_resend",
     providerKey: "resend",
@@ -44,17 +46,24 @@ const INTEGRATIONS: Integration[] = [
     docsUrl: "https://resend.com/docs",
     fields: [
       {
+        name: "api_key",
+        label: "API Key",
+        placeholder: "re_xxxxxxxxxxxxxxxxx",
+        type: "password",
+        hint: "Encontre em resend.com → API Keys. Começa com re_.",
+      },
+      {
         name: "from_email",
         label: "Remetente padrão",
         placeholder: "Flora Botanics <contato@florabotanics.com.br>",
-        hint: "Use o domínio já verificado no Resend. A chave RESEND_API_KEY continua como secret do Worker.",
+        hint: "Formato: Nome <email@domínio>. Domínio deve estar verificado no Resend.",
       },
       {
-        name: "webhook_secret_ref",
-        label: "Referência do webhook",
-        placeholder: "RESEND_WEBHOOK_SECRET",
+        name: "webhook_secret",
+        label: "Webhook Secret",
+        placeholder: "whsec_xxxxxxxxx",
         type: "password",
-        hint: "Não cole secrets rastreáveis no git. Use apenas uma referência operacional.",
+        hint: "Gerado em Resend → Webhooks. Valida eventos recebidos.",
         required: false,
       },
     ],
@@ -68,27 +77,82 @@ const INTEGRATIONS: Integration[] = [
     docsUrl: "https://developers.facebook.com/docs/whatsapp/cloud-api/get-started",
     fields: [
       {
-        name: "api_url",
-        label: "URL da API",
-        placeholder: "https://graph.facebook.com/v19.0",
-        type: "url",
-        hint: "URL base da Cloud API do WhatsApp. Geralmente https://graph.facebook.com/v19.0",
-      },
-      {
         name: "phone_number_id",
         label: "Phone Number ID",
         placeholder: "123456789012345",
-        hint: "ID do número de telefone no Meta for Developers → WhatsApp → API Setup.",
+        hint: "ID do número de telefone. Meta for Developers → WhatsApp → API Setup.",
+      },
+      {
+        name: "waba_id",
+        label: "WhatsApp Business Account ID (WABA)",
+        placeholder: "102290129340398",
+        hint: "ID da conta comercial. Diferente do Phone Number ID — encontrado em Meta Business Suite.",
       },
       {
         name: "access_token",
         label: "Access Token permanente",
         placeholder: "EAAx…",
         type: "password",
-        hint: "Token de acesso permanente do seu App de negócios Meta.",
+        hint: "Token de acesso permanente do App Meta Business. Meta for Developers → Ferramentas → Tokens.",
+      },
+      {
+        name: "webhook_verify_token",
+        label: "Webhook Verify Token",
+        placeholder: "flora_wh_secret_2024",
+        type: "password",
+        hint: "Segredo que você define. Deve ser idêntico ao configurado em Meta for Developers → Webhooks.",
+      },
+      {
+        name: "api_url",
+        label: "URL base da API",
+        placeholder: "https://graph.facebook.com/v19.0",
+        type: "url",
+        hint: "Normalmente https://graph.facebook.com/v19.0. Altere apenas se usar outra versão.",
+        required: false,
       },
     ],
   },
+
+  // ─── PAGAMENTO ───────────────────────────────────────────────────────────
+  {
+    key: "integration_stripe",
+    providerKey: "stripe",
+    icon: "₿",
+    title: "Stripe",
+    description: "Checkout, assinaturas, split de pagamento e webhooks.",
+    docsUrl: "https://stripe.com/docs/api",
+    fields: [
+      {
+        name: "environment",
+        label: "Ambiente",
+        placeholder: "test",
+        hint: "Use test para homologação e live para produção.",
+      },
+      {
+        name: "publishable_key",
+        label: "Publishable Key",
+        placeholder: "pk_test_xxxx ou pk_live_xxxx",
+        hint: "Chave pública (segura para o frontend). Dashboard Stripe → Developers → API Keys.",
+      },
+      {
+        name: "secret_key",
+        label: "Secret Key",
+        placeholder: "sk_test_xxxx ou sk_live_xxxx",
+        type: "password",
+        hint: "Chave secreta do Stripe. Nunca exponha no frontend.",
+      },
+      {
+        name: "webhook_secret",
+        label: "Webhook Secret",
+        placeholder: "whsec_xxxx",
+        type: "password",
+        hint: "Gerado em Stripe → Developers → Webhooks ao cadastrar o endpoint.",
+        required: false,
+      },
+    ],
+  },
+
+  // ─── MARKETPLACES ────────────────────────────────────────────────────────
   {
     key: "integration_mercadolivre",
     providerKey: "mercado_livre",
@@ -115,7 +179,23 @@ const INTEGRATIONS: Integration[] = [
         label: "Redirect URI",
         placeholder: "https://florabotanics.com.br/admin/config/integracoes",
         type: "url",
-        hint: "URL de redirecionamento cadastrada no app do Mercado Livre.",
+        hint: "URL cadastrada no app do ML para receber o código OAuth.",
+        required: false,
+      },
+      {
+        name: "access_token",
+        label: "Access Token",
+        placeholder: "APP_USR-xxxx",
+        type: "password",
+        hint: "Obtido após o fluxo OAuth. Expira em 6 horas — o sistema usa refresh_token para renovar.",
+        required: false,
+      },
+      {
+        name: "refresh_token",
+        label: "Refresh Token",
+        placeholder: "TG-xxxx",
+        type: "password",
+        hint: "Token de longa duração para renovar o access_token automaticamente.",
         required: false,
       },
     ],
@@ -145,7 +225,7 @@ const INTEGRATIONS: Integration[] = [
         name: "shop_id",
         label: "Shop ID",
         placeholder: "987654",
-        hint: "ID da sua loja Shopee (obtido após autorização OAuth).",
+        hint: "ID da loja Shopee — obtido após o fluxo OAuth.",
         required: false,
       },
       {
@@ -153,7 +233,15 @@ const INTEGRATIONS: Integration[] = [
         label: "Access Token",
         placeholder: "shopee_access_token…",
         type: "password",
-        hint: "Token de acesso obtido após o fluxo OAuth da Shopee.",
+        hint: "Token OAuth da Shopee. Expira em 4 horas.",
+        required: false,
+      },
+      {
+        name: "refresh_token",
+        label: "Refresh Token",
+        placeholder: "shopee_refresh_token…",
+        type: "password",
+        hint: "Token para renovar o access_token. Expira em 30 dias.",
         required: false,
       },
     ],
@@ -181,9 +269,15 @@ const INTEGRATIONS: Integration[] = [
       },
       {
         name: "page_id",
-        label: "Instagram Page ID",
+        label: "Facebook Page ID",
+        placeholder: "234567890123456",
+        hint: "ID da Página do Facebook vinculada à conta Instagram.",
+      },
+      {
+        name: "instagram_account_id",
+        label: "Instagram Business Account ID",
         placeholder: "17841400000000000",
-        hint: "ID da conta profissional do Instagram (pode ser encontrado nas Configurações).",
+        hint: "ID da conta profissional Instagram. Diferente do Page ID — obtido via GET /me/accounts na Graph API.",
       },
       {
         name: "access_token",
@@ -212,7 +306,7 @@ const INTEGRATIONS: Integration[] = [
         name: "marketplace_id",
         label: "Marketplace ID",
         placeholder: "A2Q3Y263D00KWC",
-        hint: "ID do marketplace. Brasil = A2Q3Y263D00KWC",
+        hint: "ID do marketplace. Brasil = A2Q3Y263D00KWC.",
       },
       {
         name: "client_id",
@@ -225,7 +319,7 @@ const INTEGRATIONS: Integration[] = [
         label: "LWA Client Secret",
         placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         type: "password",
-        hint: "Client Secret do seu app LWA (Login with Amazon).",
+        hint: "Client Secret do app LWA (Login with Amazon).",
       },
       {
         name: "refresh_token",
@@ -262,14 +356,22 @@ const INTEGRATIONS: Integration[] = [
         label: "Shop Access Token",
         placeholder: "TikTokAT_…",
         type: "password",
-        hint: "Access Token obtido após o OAuth do lojista com o app.",
+        hint: "Access Token obtido após o OAuth do lojista. Expira em 24 horas.",
+        required: false,
+      },
+      {
+        name: "refresh_token",
+        label: "Refresh Token",
+        placeholder: "TikTokRT_…",
+        type: "password",
+        hint: "Refresh Token para renovar o access_token. Expira em 30 dias.",
         required: false,
       },
       {
         name: "shop_id",
         label: "Shop ID",
         placeholder: "123456789",
-        hint: "ID da loja TikTok Shop (obtido após OAuth).",
+        hint: "ID da loja TikTok Shop — obtido após o fluxo OAuth.",
         required: false,
       },
     ],
@@ -286,7 +388,19 @@ const INTEGRATIONS: Integration[] = [
         name: "merchant_id",
         label: "Merchant Center ID",
         placeholder: "123456789",
-        hint: "ID da conta no Google Merchant Center. Aparece no canto superior direito do Merchant Center.",
+        hint: "ID da conta no Google Merchant Center — canto superior direito.",
+      },
+      {
+        name: "target_country",
+        label: "País alvo",
+        placeholder: "BR",
+        hint: "Código ISO 3166-1 alpha-2 do país onde os produtos são vendidos.",
+      },
+      {
+        name: "content_language",
+        label: "Idioma",
+        placeholder: "pt",
+        hint: "Código ISO 639-1 do idioma dos produtos (pt para português).",
       },
       {
         name: "credentials_json",
@@ -294,6 +408,65 @@ const INTEGRATIONS: Integration[] = [
         placeholder: '{"type": "service_account", "project_id": "…", …}',
         type: "textarea",
         hint: "JSON completo da conta de serviço com permissão Content API for Shopping. Gere em Google Cloud Console → IAM → Service Accounts.",
+      },
+    ],
+  },
+
+  // ─── LOGÍSTICA ───────────────────────────────────────────────────────────
+  {
+    key: "integration_melhor_envio",
+    providerKey: "melhor_envio",
+    icon: "ME",
+    title: "Melhor Envio",
+    description: "Gateway logístico para cotação, etiquetas e múltiplas transportadoras.",
+    docsUrl: "https://docs.melhorenvio.com.br",
+    fields: [
+      {
+        name: "client_id",
+        label: "Client ID",
+        placeholder: "me_client_id",
+        hint: "Client ID do seu app em Melhor Envio → Gerenciar apps.",
+      },
+      {
+        name: "client_secret",
+        label: "Client Secret",
+        placeholder: "me_client_secret…",
+        type: "password",
+        hint: "Client Secret gerado junto com o Client ID.",
+      },
+      {
+        name: "access_token",
+        label: "Access Token",
+        placeholder: "eyJ…",
+        type: "password",
+        hint: "Token Bearer OAuth 2.0 obtido após autorização. Cole o token completo.",
+        required: false,
+      },
+      {
+        name: "refresh_token",
+        label: "Refresh Token",
+        placeholder: "def50200…",
+        type: "password",
+        hint: "Token para renovar o access_token automaticamente quando expirar.",
+        required: false,
+      },
+      {
+        name: "from_cep",
+        label: "CEP de origem",
+        placeholder: "01310100",
+        hint: "CEP do endereço de despacho dos pedidos. Somente números.",
+      },
+      {
+        name: "from_name",
+        label: "Nome do remetente",
+        placeholder: "Flora Botanics",
+        hint: "Nome exibido nas etiquetas como remetente.",
+      },
+      {
+        name: "sandbox",
+        label: "Modo sandbox",
+        placeholder: "false",
+        hint: "true = ambiente de testes (sandbox.melhorenvio.com.br) | false = produção.",
       },
     ],
   },
@@ -305,9 +478,32 @@ const INTEGRATIONS: Integration[] = [
     description: "Cotação, etiquetas, prazos, postagem e rastreamento nacional.",
     docsUrl: "https://www.correios.com.br",
     fields: [
-      { name: "contract_code", label: "Código do contrato", placeholder: "1234567890" },
-      { name: "postcard", label: "Cartão de postagem", placeholder: "0067599079", required: false },
-      { name: "api_token_ref", label: "Referência do token", placeholder: "CORREIOS_API_TOKEN", type: "password" },
+      {
+        name: "cnpj_cpf",
+        label: "CNPJ / CPF do contratante",
+        placeholder: "00000000000000",
+        hint: "CNPJ ou CPF cadastrado na conta Meu Correios. Somente números.",
+      },
+      {
+        name: "password",
+        label: "Senha Meu Correios",
+        placeholder: "sua_senha",
+        type: "password",
+        hint: "Senha de acesso ao Meu Correios. A API gera o hash internamente.",
+      },
+      {
+        name: "contract_code",
+        label: "Código do contrato",
+        placeholder: "1234567890",
+        hint: "Número do contrato de postagem dos Correios.",
+      },
+      {
+        name: "postcard",
+        label: "Cartão de postagem",
+        placeholder: "0067599079",
+        hint: "Número do cartão de postagem vinculado ao contrato.",
+        required: false,
+      },
     ],
   },
   {
@@ -318,8 +514,25 @@ const INTEGRATIONS: Integration[] = [
     description: "Cotação, coleta, etiqueta e rastreamento para cargas expressas.",
     docsUrl: "https://www.azulcargoexpress.com.br",
     fields: [
-      { name: "account_code", label: "Código da conta", placeholder: "AZUL-123" },
-      { name: "api_token_ref", label: "Referência do token", placeholder: "AZUL_CARGO_TOKEN", type: "password" },
+      {
+        name: "cnpj",
+        label: "CNPJ do cliente",
+        placeholder: "00000000000000",
+        hint: "CNPJ da empresa cadastrado na Azul Cargo. Somente números.",
+      },
+      {
+        name: "account_code",
+        label: "Código da conta",
+        placeholder: "AZUL-123",
+        hint: "Código de conta fornecido pela Azul Cargo ao firmar contrato.",
+      },
+      {
+        name: "api_token",
+        label: "API Token",
+        placeholder: "azul_token_xxxx",
+        type: "password",
+        hint: "Token de acesso à API da Azul Cargo. Obtido no painel do cliente.",
+      },
     ],
   },
   {
@@ -330,8 +543,26 @@ const INTEGRATIONS: Integration[] = [
     description: "Coletas urbanas, cotação, etiqueta e rastreamento.",
     docsUrl: "https://docs.api.loggi.com",
     fields: [
-      { name: "company_id", label: "Company ID", placeholder: "123456" },
-      { name: "api_token_ref", label: "Referência do token", placeholder: "LOGGI_API_TOKEN", type: "password" },
+      {
+        name: "email",
+        label: "E-mail da conta Loggi",
+        placeholder: "contato@florabotanics.com.br",
+        hint: "E-mail de login da conta Loggi Business.",
+      },
+      {
+        name: "api_key",
+        label: "API Key",
+        placeholder: "loggi_live_xxxx",
+        type: "password",
+        hint: "Gerada em Loggi Business → Integrações → API Keys.",
+      },
+      {
+        name: "company_id",
+        label: "Company ID",
+        placeholder: "123456",
+        hint: "ID da empresa na Loggi — encontrado em Configurações da conta.",
+        required: false,
+      },
     ],
   },
   {
@@ -342,23 +573,30 @@ const INTEGRATIONS: Integration[] = [
     description: "Remessas, etiquetas, rastreamento e atualização de status.",
     docsUrl: "https://www.jtexpress.com.br",
     fields: [
-      { name: "customer_code", label: "Código do cliente", placeholder: "JT-CLIENTE" },
-      { name: "api_token_ref", label: "Referência do token", placeholder: "JT_EXPRESS_TOKEN", type: "password" },
+      {
+        name: "customer_code",
+        label: "Código do cliente",
+        placeholder: "JT-CLIENTE",
+        hint: "Código de cliente fornecido pela J&T Express ao firmar contrato.",
+      },
+      {
+        name: "api_key",
+        label: "API Key",
+        placeholder: "jt_api_key_xxxx",
+        type: "password",
+        hint: "Chave de acesso à API da J&T Express.",
+      },
+      {
+        name: "api_secret",
+        label: "API Secret",
+        placeholder: "jt_secret_xxxx",
+        type: "password",
+        hint: "Secret para assinar as requisições à API da J&T.",
+      },
     ],
   },
-  {
-    key: "integration_melhor_envio",
-    providerKey: "melhor_envio",
-    icon: "ME",
-    title: "Melhor Envio",
-    description: "Gateway logístico para cotação, etiquetas e múltiplas transportadoras.",
-    docsUrl: "https://docs.melhorenvio.com.br",
-    fields: [
-      { name: "client_id", label: "Client ID", placeholder: "me_client_id" },
-      { name: "client_secret_ref", label: "Referência do secret", placeholder: "MELHOR_ENVIO_SECRET", type: "password" },
-      { name: "access_token_ref", label: "Referência do access token", placeholder: "MELHOR_ENVIO_TOKEN", type: "password", required: false },
-    ],
-  },
+
+  // ─── FISCAL ──────────────────────────────────────────────────────────────
   {
     key: "integration_sefaz",
     providerKey: "sefaz",
@@ -366,11 +604,48 @@ const INTEGRATIONS: Integration[] = [
     title: "SEFAZ / NF-e",
     description: "Emissão fiscal, XML, DANFE, cancelamento, inutilização e carta de correção.",
     fields: [
-      { name: "environment", label: "Ambiente fiscal", placeholder: "homologação ou produção" },
-      { name: "certificate_ref", label: "Referência do certificado A1", placeholder: "SEFAZ_CERTIFICATE_PFX", type: "password" },
-      { name: "certificate_password_ref", label: "Referência da senha do certificado", placeholder: "SEFAZ_CERTIFICATE_PASSWORD", type: "password" },
+      {
+        name: "environment",
+        label: "Ambiente fiscal",
+        placeholder: "homologacao",
+        hint: "homologacao para testes | producao para emissão real.",
+      },
+      {
+        name: "cnpj",
+        label: "CNPJ do emitente",
+        placeholder: "00000000000000",
+        hint: "CNPJ da empresa emitente das notas fiscais. Somente números.",
+      },
+      {
+        name: "uf",
+        label: "UF (estado fiscal)",
+        placeholder: "SP",
+        hint: "Sigla do estado onde a empresa está inscrita (ex: SP, RJ, MG).",
+      },
+      {
+        name: "crt",
+        label: "Código de Regime Tributário",
+        placeholder: "1",
+        hint: "1 = Simples Nacional | 2 = Simples Nacional – excesso | 3 = Regime Normal.",
+      },
+      {
+        name: "certificate_pfx_base64",
+        label: "Certificado A1 (base64)",
+        placeholder: "MIIKvAIBAzCCCn…",
+        type: "password",
+        hint: "Conteúdo do .pfx convertido para base64. No PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes('cert.pfx'))",
+      },
+      {
+        name: "certificate_password",
+        label: "Senha do certificado A1",
+        placeholder: "senha_do_pfx",
+        type: "password",
+        hint: "Senha definida ao exportar o certificado A1 da ICP-Brasil.",
+      },
     ],
   },
+
+  // ─── HUB E-COMMERCE ──────────────────────────────────────────────────────
   {
     key: "integration_shopify",
     providerKey: "shopify",
@@ -379,8 +654,27 @@ const INTEGRATIONS: Integration[] = [
     description: "Catálogo, estoque, preços, pedidos e webhooks.",
     docsUrl: "https://shopify.dev/docs/api",
     fields: [
-      { name: "shop_domain", label: "Domínio da loja", placeholder: "flora.myshopify.com", type: "url" },
-      { name: "access_token_ref", label: "Referência do token", placeholder: "SHOPIFY_ACCESS_TOKEN", type: "password" },
+      {
+        name: "shop_domain",
+        label: "Domínio da loja",
+        placeholder: "flora.myshopify.com",
+        hint: "Subdomínio .myshopify.com (sem https://).",
+      },
+      {
+        name: "access_token",
+        label: "Access Token",
+        placeholder: "shpat_xxxx",
+        type: "password",
+        hint: "Token do app privado ou OAuth. Shopify Admin → Apps → Develop apps.",
+      },
+      {
+        name: "webhook_secret",
+        label: "Webhook Secret",
+        placeholder: "shpss_xxxx",
+        type: "password",
+        hint: "Secret para validar os webhooks enviados pelo Shopify.",
+        required: false,
+      },
     ],
   },
   {
@@ -391,9 +685,27 @@ const INTEGRATIONS: Integration[] = [
     description: "Catálogo, estoque e pedidos via REST API.",
     docsUrl: "https://woocommerce.github.io/woocommerce-rest-api-docs",
     fields: [
-      { name: "store_url", label: "URL da loja", placeholder: "https://loja.com.br", type: "url" },
-      { name: "consumer_key_ref", label: "Referência Consumer Key", placeholder: "WOO_CONSUMER_KEY", type: "password" },
-      { name: "consumer_secret_ref", label: "Referência Consumer Secret", placeholder: "WOO_CONSUMER_SECRET", type: "password" },
+      {
+        name: "store_url",
+        label: "URL da loja",
+        placeholder: "https://loja.com.br",
+        type: "url",
+        hint: "URL raiz da loja WooCommerce (sem barra no final).",
+      },
+      {
+        name: "consumer_key",
+        label: "Consumer Key",
+        placeholder: "ck_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        type: "password",
+        hint: "Gerada em WooCommerce → Configurações → Avançado → API REST → Adicionar chave.",
+      },
+      {
+        name: "consumer_secret",
+        label: "Consumer Secret",
+        placeholder: "cs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        type: "password",
+        hint: "Gerada junto com a Consumer Key.",
+      },
     ],
   },
   {
@@ -404,8 +716,19 @@ const INTEGRATIONS: Integration[] = [
     description: "Catálogo, estoque, preços, pedidos e webhooks.",
     docsUrl: "https://tiendanube.github.io/api-documentation",
     fields: [
-      { name: "store_id", label: "Store ID", placeholder: "123456" },
-      { name: "access_token_ref", label: "Referência do token", placeholder: "NUVEMSHOP_ACCESS_TOKEN", type: "password" },
+      {
+        name: "store_id",
+        label: "Store ID",
+        placeholder: "123456",
+        hint: "ID da loja na Nuvemshop. Encontrado em Configurações → Dados da loja.",
+      },
+      {
+        name: "access_token",
+        label: "Access Token",
+        placeholder: "9b4ff3c50de90200xxxx",
+        type: "password",
+        hint: "Token obtido via OAuth ou em Nuvemshop → Parceiros → Apps.",
+      },
     ],
   },
   {
@@ -415,8 +738,35 @@ const INTEGRATIONS: Integration[] = [
     title: "Tray",
     description: "Catálogo, estoque, preços e pedidos centralizados.",
     fields: [
-      { name: "store_url", label: "URL da loja", placeholder: "https://minhaloja.commercesuite.com.br", type: "url" },
-      { name: "access_token_ref", label: "Referência do token", placeholder: "TRAY_ACCESS_TOKEN", type: "password" },
+      {
+        name: "store_url",
+        label: "URL da loja",
+        placeholder: "https://minhaloja.commercesuite.com.br",
+        type: "url",
+        hint: "URL da sua loja Tray Commerce.",
+      },
+      {
+        name: "consumer_key",
+        label: "Consumer Key",
+        placeholder: "ck_xxxx",
+        type: "password",
+        hint: "Gerada em Tray → Configurações → API → Gerar chaves.",
+      },
+      {
+        name: "consumer_secret",
+        label: "Consumer Secret",
+        placeholder: "cs_xxxx",
+        type: "password",
+        hint: "Gerada junto com a Consumer Key.",
+      },
+      {
+        name: "access_token",
+        label: "Access Token",
+        placeholder: "tray_access_token…",
+        type: "password",
+        hint: "Token OAuth obtido após autorização.",
+        required: false,
+      },
     ],
   },
   {
@@ -426,8 +776,26 @@ const INTEGRATIONS: Integration[] = [
     title: "Loja Integrada",
     description: "Produtos, estoque, preços e pedidos.",
     fields: [
-      { name: "store_url", label: "URL da loja", placeholder: "https://minhaloja.com.br", type: "url" },
-      { name: "api_key_ref", label: "Referência da chave", placeholder: "LOJA_INTEGRADA_API_KEY", type: "password" },
+      {
+        name: "store_domain",
+        label: "Domínio da loja",
+        placeholder: "minhaloja.lojaintegrada.com.br",
+        hint: "Subdomínio da sua loja na Loja Integrada (sem https://).",
+      },
+      {
+        name: "api_key",
+        label: "API Key",
+        placeholder: "sua_api_key",
+        type: "password",
+        hint: "Gerada em Loja Integrada → Configurações → Módulos → API.",
+      },
+      {
+        name: "api_secret",
+        label: "API Secret",
+        placeholder: "seu_api_secret",
+        type: "password",
+        hint: "Secret gerado junto com a API Key.",
+      },
     ],
   },
   {
@@ -438,9 +806,26 @@ const INTEGRATIONS: Integration[] = [
     description: "Catálogo, estoque, preços, OMS e pedidos.",
     docsUrl: "https://developers.vtex.com",
     fields: [
-      { name: "account_name", label: "Account name", placeholder: "florabotanics" },
-      { name: "app_key_ref", label: "Referência App Key", placeholder: "VTEX_APP_KEY", type: "password" },
-      { name: "app_token_ref", label: "Referência App Token", placeholder: "VTEX_APP_TOKEN", type: "password" },
+      {
+        name: "account_name",
+        label: "Account name",
+        placeholder: "florabotanics",
+        hint: "Nome da conta VTEX (subdomínio antes de .vtexcommercestable.com.br).",
+      },
+      {
+        name: "app_key",
+        label: "App Key",
+        placeholder: "vtexappkey-florabotanics-XXXXX",
+        type: "password",
+        hint: "Gerada em VTEX Admin → Configurações da conta → Gerenciamento → Chaves de aplicação.",
+      },
+      {
+        name: "app_token",
+        label: "App Token",
+        placeholder: "XXXXXXXXXXXXXXXXXXXXXXXXXX",
+        type: "password",
+        hint: "Gerado junto com a App Key.",
+      },
     ],
   },
   {
@@ -451,8 +836,27 @@ const INTEGRATIONS: Integration[] = [
     description: "Catálogo, estoque, preços, pedidos e webhooks.",
     docsUrl: "https://developer.adobe.com/commerce",
     fields: [
-      { name: "store_url", label: "URL da loja", placeholder: "https://commerce.exemplo.com.br", type: "url" },
-      { name: "access_token_ref", label: "Referência do token", placeholder: "MAGENTO_ACCESS_TOKEN", type: "password" },
+      {
+        name: "store_url",
+        label: "URL da loja",
+        placeholder: "https://commerce.exemplo.com.br",
+        type: "url",
+        hint: "URL base da loja Magento (sem barra no final).",
+      },
+      {
+        name: "access_token",
+        label: "Access Token",
+        placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        type: "password",
+        hint: "Token de integração. Magento Admin → System → Integrations → Add New Integration.",
+      },
+      {
+        name: "store_code",
+        label: "Store Code",
+        placeholder: "default",
+        hint: "Código da store view (normalmente 'default'). Stores → Settings → All Stores.",
+        required: false,
+      },
     ],
   },
 ];

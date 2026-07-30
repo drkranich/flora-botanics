@@ -48,28 +48,22 @@ export type StaffSession = {
   role: "platform_admin" | "tenant_owner" | "tenant_admin" | "tenant_editor";
 };
 
-const STAFF_ROLES = ["platform_admin", "tenant_owner", "tenant_admin", "tenant_editor"];
-
 /**
- * Retorna a sessão se o usuário for staff (a partir do app_metadata do JWT);
- * null caso contrário. Usado pelas páginas do admin antigo — equivalente a
- * `currentStaff()` em `@/lib/auth`, que lê de `profiles` em vez do JWT.
+ * Retorna a sessão se o usuário for staff.
+ * Internamente delega para `currentStaff()` (lib/auth.ts), que usa `profiles`
+ * com fallback para `app_metadata` — unificando os dois padrões de auth sem
+ * precisar alterar os 48+ arquivos que importam essa função.
+ *
+ * Mapeamento de campos: currentStaff.id → StaffSession.userId
  */
 export async function getStaffSession(): Promise<StaffSession | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const meta = (user.app_metadata ?? {}) as { tenant_id?: string; role?: string };
-  if (!meta.role || !STAFF_ROLES.includes(meta.role)) return null;
-  if (!meta.tenant_id && meta.role !== "platform_admin") return null;
-
+  const { currentStaff } = await import("@/lib/auth");
+  const staff = await currentStaff();
+  if (!staff) return null;
   return {
-    userId: user.id,
-    email: user.email ?? "",
-    tenantId: meta.tenant_id ?? "",
-    role: meta.role as StaffSession["role"],
+    userId: staff.id,
+    email: staff.email ?? "",
+    tenantId: staff.tenantId,
+    role: staff.role,
   };
 }
