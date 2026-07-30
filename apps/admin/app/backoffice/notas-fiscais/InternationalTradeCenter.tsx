@@ -437,15 +437,15 @@ export async function InternationalTradeCenter({
   }
 
   const PROVIDER_CONFIG_URLS: Record<string, string> = {
-    "Portal Único Siscomex": "/admin/config/integracoes",
-    "SEFAZ":                 "/admin/config/integracoes",
-    "Classif":               "/admin/backoffice/notas-fiscais/comercio-exterior/configuracoes",
-    "Fontes tarifárias":     "/admin/backoffice/notas-fiscais/comercio-exterior/configuracoes",
-    "Provedores VAT/GST/Sales Tax": "/admin/backoffice/notas-fiscais/comercio-exterior/registros-fiscais",
-    "Couriers e freight forwarders": "/admin/config/integracoes",
-    "Stripe":                "/admin/config/integracoes",
-    "Marketplaces":          "/admin/backoffice/marketplaces",
-    "Cofre documental":      "/admin/backoffice/notas-fiscais/cofre",
+    "Portal Único Siscomex": "/config/integracoes",
+    "SEFAZ":                 "/config/integracoes",
+    "Classif":               "/backoffice/notas-fiscais/comercio-exterior/classificacao-fiscal",
+    "Fontes tarifárias":     "/backoffice/notas-fiscais/comercio-exterior/tarifas-aduaneiras",
+    "Provedores VAT/GST/Sales Tax": "/backoffice/notas-fiscais/comercio-exterior/registros-fiscais",
+    "Couriers e freight forwarders": "/config/integracoes",
+    "Stripe":                "/config/integracoes",
+    "Marketplaces":          "/backoffice/marketplaces",
+    "Cofre documental":      "/backoffice/notas-fiscais/cofre",
   };
   const jurisdictions = (jurisdictionsRes.data ?? []) as unknown as JurisdictionRow[];
   const operations = (operationsRes.data ?? []) as unknown as OperationRow[];
@@ -1093,7 +1093,7 @@ export async function InternationalTradeCenter({
           <div style={rowGridStyle}>
             {INTEGRATIONS.map(([name, description]) => {
               const chip = providerChip(name);
-              const configUrl = PROVIDER_CONFIG_URLS[name] ?? "/admin/config/integracoes";
+              const configUrl = PROVIDER_CONFIG_URLS[name] ?? "/config/integracoes";
               return (
                 <article key={name} style={providerRowStyle}>
                   <div style={rowContentStyle}>
