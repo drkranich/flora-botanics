@@ -12,9 +12,11 @@ import {
   type NFeConfig,
 } from "@/lib/fiscal/nfe-service";
 
-type Result =
+export type EmissaoResult =
   | { ok: true; chNFe: string; nProt: string; xMotivo?: string }
   | { ok: false; error: string };
+
+type Result = EmissaoResult;
 
 /**
  * Emite uma NF-e a partir de um rascunho já criado (status "rascunho").
@@ -281,4 +283,161 @@ export async function emitirNFeAction(nfeDocumentId: string): Promise<Result> {
     .eq("tenant_id", staff.tenantId);
 
   return { ok: false, error: result.error ?? "Emissão rejeitada pelo SEFAZ." };
+}
+
+// ─── NF-e de teste (homologação) ──────────────────────────────────────────────
+
+/**
+ * Emite uma NF-e de teste diretamente no ambiente de homologação do SEFAZ.
+ * Não requer pedido — usa dados fictícios do destinatário com o próprio CNPJ
+ * do emitente, item de R$ 1,00 e xProd conforme exigência do SEFAZ para hom.
+ */
+export async function emitirNFeTesteAction(): Promise<Result> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const supabase = await createClient();
+
+  // ── 1. Credenciais SEFAZ ──────────────────────────────────────────────────
+  const { data: sefazSetting } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("tenant_id", staff.tenantId)
+    .eq("key", "integration_sefaz")
+    .maybeSingle();
+
+  const sefaz = (sefazSetting?.value ?? {}) as Record<string, string>;
+  const pfxBase64  = sefaz.certificate_pfx_base64 ?? "";
+  const pfxSenha   = sefaz.certificate_password ?? "";
+  const cnpj       = sefaz.cnpj ?? "";
+  const uf         = sefaz.uf ?? "";
+  const crt        = (sefaz.crt ?? "1") as "1" | "2" | "3";
+  const razaoSocial = sefaz.razao_social ?? "";
+  const IE         = sefaz.inscricao_estadual ?? "";
+  const cMunFG     = sefaz.codigo_ibge_municipio ?? "";
+
+  if (!pfxBase64 || !pfxSenha)
+    return { ok: false, error: "Certificado A1 não configurado em Integrações → SEFAZ." };
+  if (!cnpj || !uf || !razaoSocial || !IE)
+    return { ok: false, error: "Dados incompletos em Integrações → SEFAZ (CNPJ, UF, Razão Social, IE)." };
+  if (!cMunFG)
+    return { ok: false, error: "Código IBGE do município não configurado em Integrações → SEFAZ." };
+
+  // ── 2. Número da NF-e de teste ─────────────────────────────────────────────
+  const { data: fiscal } = await supabase
+    .from("fiscal_configs")
+    .select("serie_nfe, proximo_numero_nfe")
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  const nNF  = (fiscal?.proximo_numero_nfe as number) ?? 1;
+  const serie = (fiscal?.serie_nfe as number) ?? 1;
+
+  // ── 3. Monta emitente a partir do site_settings ────────────────────────────
+  const emitente: NFeEmitente = {
+    CNPJ: cnpj,
+    xNome: razaoSocial,
+    xFant: sefaz.nome_fantasia ?? undefined,
+    IE,
+    CRT: crt,
+    enderEmit: {
+      xLgr:    sefaz.logradouro ?? "Rua de Teste",
+      nro:     sefaz.numero_endereco ?? "1",
+      xCompl:  sefaz.complemento ?? undefined,
+      xBairro: sefaz.bairro ?? "Centro",
+      cMun:    cMunFG,
+      xMun:    sefaz.municipio ?? uf,
+      UF:      uf,
+      CEP:     sefaz.cep ?? "00000000",
+    },
+  };
+
+  // ── 4. Destinatário fictício (próprio CNPJ — válido em homologação) ────────
+  const destinatario: NFeDestinatario = {
+    CNPJ: cnpj, // emitente como destinatário — prática comum em testes
+    xNome: "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+    indIEDest: "9",
+    enderDest: {
+      xLgr:    sefaz.logradouro ?? "Rua de Teste",
+      nro:     sefaz.numero_endereco ?? "1",
+      xBairro: sefaz.bairro ?? "Centro",
+      cMun:    cMunFG,
+      xMun:    sefaz.municipio ?? uf,
+      UF:      uf,
+      CEP:     sefaz.cep ?? "00000000",
+    },
+  };
+
+  // ── 5. Item de teste (R$ 1,00) ─────────────────────────────────────────────
+  // SEFAZ exige xProd específico em homologação:
+  const itens: NFeItem[] = [
+    {
+      nItem:  1,
+      cProd:  "TESTE001",
+      xProd:  "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+      NCM:    "84719013",
+      CFOP:   "5102",
+      uCom:   "UN",
+      qCom:   1,
+      vUnCom: 1.00,
+      vProd:  1.00,
+    },
+  ];
+
+  // ── 6. Pagamento fictício ──────────────────────────────────────────────────
+  const pagamentos: NFePagamento[] = [{ tPag: "99", vPag: 1.00 }];
+
+  // ── 7. Config — SEMPRE homologação ────────────────────────────────────────
+  const now  = new Date();
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const dhEmi =
+    `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}` +
+    `T${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}-03:00`;
+
+  const config: NFeConfig = {
+    nNF,
+    serie,
+    dhEmi,
+    ambiente: "2", // SEMPRE homologação
+    natOp:   "Venda de mercadoria",
+    idDest:  "1",
+    cMunFG,
+  };
+
+  // ── 8. Emite ───────────────────────────────────────────────────────────────
+  const result = await emitirNFe({ emitente, destinatario, itens, pagamentos, config, pfxBase64, pfxSenha });
+
+  if (result.ok && result.nProt) {
+    // Incrementa número somente se autorizada
+    if (fiscal) {
+      await supabase
+        .from("fiscal_configs")
+        .update({ proximo_numero_nfe: nNF + 1 })
+        .eq("tenant_id", staff.tenantId);
+    }
+
+    // Registra no nfe_documents para aparecer na listagem
+    await supabase.from("nfe_documents").insert({
+      tenant_id:      staff.tenantId,
+      order_id:       null,
+      numero:         nNF,
+      serie,
+      ambiente:       "homologacao",
+      status:         "autorizada",
+      chave_acesso:   result.chNFe,
+      protocolo:      result.nProt,
+      xml_autorizado: result.xmlAutorizado,
+      valor_total_cents: 100,
+      emitido_em:     now.toISOString(),
+    });
+
+    revalidatePath("/backoffice/notas-fiscais");
+    revalidatePath("/backoffice/notas-fiscais/emissao");
+    return { ok: true, chNFe: result.chNFe!, nProt: result.nProt!, xMotivo: result.xMotivo };
+  }
+
+  return { ok: false, error: result.error ?? "Teste rejeitado pelo SEFAZ." };
 }

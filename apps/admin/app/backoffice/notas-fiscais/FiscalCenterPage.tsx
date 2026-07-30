@@ -5,7 +5,7 @@ import { currentStaff } from "@/lib/auth";
 import { money } from "@/lib/format";
 import { FISCAL_GOVERNMENT_PROVIDERS } from "@/lib/fiscal/government-providers";
 import { createDraftNfe, cancelNfeDraft } from "./actions";
-import { emitirNFeAction } from "./emitir-action";
+import { emitirNFeAction, emitirNFeTesteAction } from "./emitir-action";
 import { FiscalGovernmentPanel } from "./FiscalGovernmentPanel";
 import { InternationalTradeCenter, type InternationalTradeModuleId } from "./InternationalTradeCenter";
 import {
@@ -984,7 +984,17 @@ export async function FiscalCenterPage({
 
       <section id="pedidos-sem-nota" className={sectionClass("emissao")} style={twoColumnStyle}>
         <section id="emissao" className="glass" style={cardStyle}>
-          <SectionTitle eyebrow="Emissão de NF-e" title="Pedidos pagos sem nota" />
+          <SectionTitle eyebrow="Emissão de NF-e" title="Pedidos pagos sem nota">
+            <form action={emitirNFeTesteAction}>
+              <button
+                className="btn btn-ghost"
+                style={{ ...smallButtonStyle, fontSize: 12, opacity: 0.75 }}
+                title="Emite uma NF-e de R$ 1,00 no ambiente de homologação do SEFAZ para validar o certificado e as credenciais"
+              >
+                🧪 Emitir NF-e de teste (homologação)
+              </button>
+            </form>
+          </SectionTitle>
           {pendingOrders.length === 0 ? (
             <EmptyState title="Nenhum pedido pendente de NF-e" action="Quando uma venda for paga, ela entrará aqui para emissão automática ou manual assistida." />
           ) : (
