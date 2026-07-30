@@ -14,13 +14,7 @@ export type IntegrationKey =
   | "integration_jt_express"
   | "integration_melhor_envio"
   | "integration_sefaz"
-  | "integration_shopify"
-  | "integration_woocommerce"
-  | "integration_nuvemshop"
-  | "integration_tray"
-  | "integration_loja_integrada"
-  | "integration_vtex"
-  | "integration_magento";
+;
 
 export const PROVIDER_BY_INTEGRATION: Record<IntegrationKey, string> = {
   integration_resend: "resend",
@@ -38,13 +32,6 @@ export const PROVIDER_BY_INTEGRATION: Record<IntegrationKey, string> = {
   integration_jt_express: "jt_express",
   integration_melhor_envio: "melhor_envio",
   integration_sefaz: "sefaz",
-  integration_shopify: "shopify",
-  integration_woocommerce: "woocommerce",
-  integration_nuvemshop: "nuvemshop",
-  integration_tray: "tray",
-  integration_loja_integrada: "loja_integrada",
-  integration_vtex: "vtex",
-  integration_magento: "magento",
 };
 
 export function providerForIntegration(integrationKey: IntegrationKey) {
