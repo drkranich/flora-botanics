@@ -55,7 +55,9 @@ export default async function MontarKitPage() {
 
   const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/`;
 
-  const products: KitProduct[] = (rawProducts ?? []).flatMap((p) => {
+  type RawProduct = { id: string; slug: string; name: string; subtitle: string | null; weight_g: number; product_variants: unknown; product_media: unknown };
+  const rawProductsList = (rawProducts ?? []) as RawProduct[];
+  const products: KitProduct[] = rawProductsList.flatMap((p) => {
     const variants = Array.isArray(p.product_variants) ? p.product_variants : [p.product_variants].filter(Boolean);
     const variant = (variants as Array<{ id: string; price_cents: number; currency: string; is_default: boolean }>)
       .find((v) => v.is_default) ?? (variants as Array<{ id: string; price_cents: number; currency: string; is_default: boolean }>)[0];
@@ -79,7 +81,7 @@ export default async function MontarKitPage() {
       price_cents: variant.price_cents,
       currency: variant.currency ?? "BRL",
       image_url: imageUrl,
-      weight_g: (p as unknown as { weight_g?: number }).weight_g ?? 200,
+      weight_g: p.weight_g ?? 200,
     }];
   });
 

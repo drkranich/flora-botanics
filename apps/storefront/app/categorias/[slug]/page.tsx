@@ -73,7 +73,7 @@ export default async function CategoryPage({
         .select("product_id")
         .eq("category_id", category.id)
     : { data: [] };
-  const productIds = (links ?? []).map((item) => item.product_id).filter(Boolean);
+  const productIds = (links ?? []).map((item: { product_id: string }) => item.product_id).filter(Boolean);
 
   const [{ data: products }, { data: reviewAggs }] = await Promise.all([
     productIds.length

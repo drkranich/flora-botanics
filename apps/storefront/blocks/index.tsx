@@ -181,7 +181,9 @@ async function CategoryGrid({ props }: { props: Props }) {
     .eq("tenant_id", tenant.tenantId)
     .in("slug", slugs);
 
-  const bySlug = new Map((cats ?? []).map((c) => [c.slug, c]));
+  const bySlug = new Map<string, { slug: string; name: string; description: string | null }>(
+    (cats ?? []).map((c: { slug: string; name: string; description: string | null }) => [c.slug, c])
+  );
 
   return (
     <section className="categories" id="produtos" style={{ ...typography(props), ...sectionBg(props) }}>
@@ -485,7 +487,7 @@ async function ProductCarousel({ props }: { props: Props }) {
         .select("product_id")
         .eq("collection_id", collection.id)
         .order("sort_order");
-      productIds = (links ?? []).map((item) => item.product_id).filter(Boolean);
+      productIds = (links ?? []).map((item: { product_id: string }) => item.product_id).filter(Boolean);
     } else {
       productIds = [];
     }

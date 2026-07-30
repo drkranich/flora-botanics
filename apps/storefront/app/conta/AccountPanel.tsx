@@ -334,7 +334,7 @@ export function AccountPanel({ tenantId }: { tenantId: string }) {
       if (active) await loadAccount(data.session as AccountSession | null);
     }
     init();
-    const { data } = supabase.auth.onAuthStateChange((_e, next) => {
+    const { data } = supabase.auth.onAuthStateChange((_e: unknown, next: unknown) => {
       if (active) loadAccount(next as AccountSession | null);
     });
     return () => { active = false; data.subscription.unsubscribe(); };
