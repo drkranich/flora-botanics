@@ -12,45 +12,91 @@ import {
   type NFeConfig,
 } from "@/lib/fiscal/nfe-service";
 
-export type EmissaoResult =
-  | { ok: true; chNFe: string; nProt: string; xMotivo?: string }
-  | { ok: false; error: string };
+// form actions devem retornar void — erros ficam em nfe_documents.ultimo_erro
 
-type Result = EmissaoResult;
+function revalidateFiscal() {
+  revalidatePath("/backoffice/notas-fiscais");
+  revalidatePath("/backoffice/notas-fiscais/emissao");
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function pad2(n: number) { return String(n).padStart(2, "0"); }
+function dhEmiNow() {
+  const now = new Date();
+  return (
+    `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}` +
+    `T${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}-03:00`
+  );
+}
+
+async function loadSefaz(supabase: Awaited<ReturnType<typeof createClient>>, tenantId: string) {
+  const { data } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("tenant_id", tenantId)
+    .eq("key", "integration_sefaz")
+    .maybeSingle();
+  return (data?.value ?? {}) as Record<string, string>;
+}
+
+function buildEmitente(sefaz: Record<string, string>): NFeEmitente {
+  return {
+    CNPJ: sefaz.cnpj ?? "",
+    xNome: sefaz.razao_social ?? "",
+    xFant: sefaz.nome_fantasia || undefined,
+    IE: sefaz.inscricao_estadual ?? "",
+    CRT: (sefaz.crt ?? "1") as "1" | "2" | "3",
+    enderEmit: {
+      xLgr:    sefaz.logradouro ?? "Logradouro",
+      nro:     sefaz.numero_endereco ?? "S/N",
+      xCompl:  sefaz.complemento || undefined,
+      xBairro: sefaz.bairro ?? "Centro",
+      cMun:    sefaz.codigo_ibge_municipio ?? "",
+      xMun:    sefaz.municipio ?? sefaz.uf ?? "",
+      UF:      sefaz.uf ?? "",
+      CEP:     sefaz.cep ?? "00000000",
+    },
+  };
+}
+
+// ─── Emitir NF-e de rascunho (pedido real) ────────────────────────────────────
 
 /**
  * Emite uma NF-e a partir de um rascunho já criado (status "rascunho").
- *
- * Pré-requisitos:
- *   1. Credenciais SEFAZ salvas em site_settings (integration_sefaz)
- *      com os campos: cnpj, uf, crt, razao_social, inscricao_estadual,
- *      cep, logradouro, numero_endereco, bairro, municipio,
- *      codigo_ibge_municipio, certificate_pfx_base64, certificate_password
- *   2. fiscal_configs com serie_nfe, proximo_numero_nfe, ambiente
- *   3. Cada produto com campo ncm preenchido
+ * Erros de validação e rejeições SEFAZ ficam gravados em nfe_documents.ultimo_erro.
  */
-export async function emitirNFeAction(nfeDocumentId: string): Promise<Result> {
+export async function emitirNFeAction(nfeDocumentId: string): Promise<void> {
   const staff = await currentStaff();
-  if (!staff) return { ok: false, error: "Sessão inválida." };
-  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) {
-    return { ok: false, error: "Sem permissão para emitir NF-e." };
-  }
+  if (!staff) return;
+  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) return;
 
   const supabase = await createClient();
 
-  // ── 1. Carrega o rascunho de NF-e ──────────────────────────────────────────
+  async function rejectWith(erro: string) {
+    await supabase
+      .from("nfe_documents")
+      .update({ status: "rejeitada", ultimo_erro: erro })
+      .eq("id", nfeDocumentId)
+      .eq("tenant_id", staff!.tenantId);
+    revalidateFiscal();
+  }
+
+  // 1. Rascunho
   const { data: nfeDoc } = await supabase
     .from("nfe_documents")
-    .select("id, numero, serie, ambiente, status, order_id")
+    .select("id, numero, serie, status, order_id")
     .eq("id", nfeDocumentId)
     .eq("tenant_id", staff.tenantId)
     .eq("status", "rascunho")
     .maybeSingle();
 
-  if (!nfeDoc) return { ok: false, error: "Rascunho NF-e não encontrado ou já emitido." };
-  if (!nfeDoc.order_id) return { ok: false, error: "Rascunho sem pedido vinculado." };
+  if (!nfeDoc || !nfeDoc.order_id) {
+    await rejectWith("Rascunho não encontrado ou sem pedido vinculado.");
+    return;
+  }
 
-  // ── 2. Carrega pedido + itens + cliente ────────────────────────────────────
+  // 2. Pedido + itens
   const { data: order } = await supabase
     .from("orders")
     .select(`
@@ -62,271 +108,164 @@ export async function emitirNFeAction(nfeDocumentId: string): Promise<Result> {
       order_items(
         id, quantity, unit_price_cents, total_price_cents,
         product_name, product_sku,
-        products(id, sku, name, ncm, cfop_out, cfop_interstate, barcode, unit)
+        products(sku, name, ncm, cfop_out, cfop_interstate, barcode, unit)
       )
     `)
     .eq("id", nfeDoc.order_id)
     .eq("tenant_id", staff.tenantId)
     .maybeSingle();
 
-  if (!order) return { ok: false, error: "Pedido não encontrado." };
+  if (!order) { await rejectWith("Pedido não encontrado."); return; }
 
-  // ── 3. Carrega credenciais SEFAZ de site_settings ─────────────────────────
-  const { data: sefazSetting } = await supabase
-    .from("site_settings")
-    .select("value")
-    .eq("tenant_id", staff.tenantId)
-    .eq("key", "integration_sefaz")
-    .maybeSingle();
+  // 3. Credenciais SEFAZ
+  const sefaz = await loadSefaz(supabase, staff.tenantId);
+  const { certificate_pfx_base64: pfxBase64, certificate_password: pfxSenha } = sefaz;
+  const ambiente = (sefaz.environment === "producao" ? "1" : "2") as "1" | "2";
 
-  const sefaz = (sefazSetting?.value ?? {}) as Record<string, string>;
+  if (!pfxBase64 || !pfxSenha) {
+    await rejectWith("Certificado A1 não configurado em Integrações → SEFAZ.");
+    return;
+  }
+  if (!sefaz.cnpj || !sefaz.uf || !sefaz.razao_social || !sefaz.inscricao_estadual) {
+    await rejectWith("Dados do emitente incompletos em Integrações → SEFAZ.");
+    return;
+  }
+  if (!sefaz.codigo_ibge_municipio) {
+    await rejectWith("Código IBGE do município não configurado em Integrações → SEFAZ.");
+    return;
+  }
 
-  const pfxBase64 = sefaz.certificate_pfx_base64 ?? "";
-  const pfxSenha  = sefaz.certificate_password ?? "";
-  const cnpj      = sefaz.cnpj ?? "";
-  const uf        = sefaz.uf ?? "";
-  const crt       = (sefaz.crt ?? "1") as "1" | "2" | "3";
-  const razaoSocial = sefaz.razao_social ?? "";
-  const IE        = sefaz.inscricao_estadual ?? "";
-  const cMunFG    = sefaz.codigo_ibge_municipio ?? sefaz.cMunFG ?? "";
-  const ambiente  = (sefaz.environment === "producao" ? "1" : "2") as "1" | "2";
+  const emitente = buildEmitente(sefaz);
+  const uf = sefaz.uf;
+  const cMunFG = sefaz.codigo_ibge_municipio;
 
-  if (!pfxBase64 || !pfxSenha)
-    return { ok: false, error: "Certificado A1 não configurado em Integrações → SEFAZ." };
-  if (!cnpj || !uf || !razaoSocial || !IE)
-    return { ok: false, error: "Dados do emitente incompletos em Integrações → SEFAZ (CNPJ, UF, Razão Social, IE)." };
-  if (!cMunFG)
-    return { ok: false, error: "Código IBGE do município não configurado em Integrações → SEFAZ." };
-
-  // ── 4. Monta emitente ──────────────────────────────────────────────────────
-  const emitente: NFeEmitente = {
-    CNPJ: cnpj,
-    xNome: razaoSocial,
-    xFant: sefaz.nome_fantasia ?? undefined,
-    IE,
-    CRT: crt,
-    enderEmit: {
-      xLgr:    sefaz.logradouro ?? "Logradouro não informado",
-      nro:     sefaz.numero_endereco ?? "S/N",
-      xCompl:  sefaz.complemento ?? undefined,
-      xBairro: sefaz.bairro ?? "Centro",
-      cMun:    cMunFG,
-      xMun:    sefaz.municipio ?? uf,
-      UF:      uf,
-      CEP:     sefaz.cep ?? "00000000",
-    },
-  };
-
-  // ── 5. Monta destinatário ──────────────────────────────────────────────────
-  const custDoc  = ((order.customer_document as string) ?? "").replace(/\D/g, "");
-  const isCnpj   = custDoc.length === 14;
-  const destUF   = (order.shipping_state as string) ?? uf;
-
+  // 4. Destinatário
+  const custDoc = ((order.customer_document as string) ?? "").replace(/\D/g, "");
+  const destUF  = (order.shipping_state as string) ?? uf;
   const destinatario: NFeDestinatario = {
-    ...(isCnpj ? { CNPJ: custDoc } : { CPF: custDoc }),
-    xNome:      (order.customer_name as string) ?? "Consumidor Final",
-    email:      (order.customer_email as string) ?? undefined,
-    indIEDest:  "9", // consumidor final, não contribuinte
+    ...(custDoc.length === 14 ? { CNPJ: custDoc } : { CPF: custDoc }),
+    xNome:     (order.customer_name as string) ?? "Consumidor Final",
+    email:     (order.customer_email as string) || undefined,
+    indIEDest: "9",
     enderDest: {
-      xLgr:    (order.shipping_street as string)        ?? "Endereço não informado",
-      nro:     (order.shipping_number as string)        ?? "S/N",
-      xCompl:  (order.shipping_complement as string)    ?? undefined,
-      xBairro: (order.shipping_neighborhood as string)  ?? "Centro",
-      cMun:    (order.shipping_city_ibge as string)     ?? "0000000",
-      xMun:    (order.shipping_city as string)          ?? destUF,
+      xLgr:    (order.shipping_street as string)       ?? "Endereço",
+      nro:     (order.shipping_number as string)       ?? "S/N",
+      xCompl:  (order.shipping_complement as string)   || undefined,
+      xBairro: (order.shipping_neighborhood as string) ?? "Centro",
+      cMun:    (order.shipping_city_ibge as string)    ?? "0000000",
+      xMun:    (order.shipping_city as string)         ?? destUF,
       UF:      destUF,
-      CEP:     (order.shipping_zip as string)           ?? "00000000",
+      CEP:     (order.shipping_zip as string)          ?? "00000000",
     },
   };
 
-  // ── 6. Monta itens ────────────────────────────────────────────────────────
-  const orderItems = (order.order_items as Array<{
+  // 5. Itens
+  const orderItems = (order.order_items ?? []) as Array<{
     quantity: number;
     unit_price_cents: number;
     total_price_cents: number;
     product_name: string;
     product_sku: string;
-    products?: {
-      sku?: string;
-      name?: string;
-      ncm?: string;
-      cfop_out?: string;
-      cfop_interstate?: string;
-      barcode?: string;
-      unit?: string;
-    };
-  }>) ?? [];
+    products?: { sku?: string; name?: string; ncm?: string; cfop_out?: string; cfop_interstate?: string; barcode?: string; unit?: string };
+  }>;
 
-  if (orderItems.length === 0) return { ok: false, error: "Pedido sem itens." };
+  if (!orderItems.length) { await rejectWith("Pedido sem itens."); return; }
 
-  // CFOP: 5102 (dentro do estado) ou 6102 (interestadual)
   const sameState = destUF.toUpperCase() === uf.toUpperCase();
-
   const itens: NFeItem[] = orderItems.map((it, idx) => {
-    const prod   = it.products;
-    const ncm    = prod?.ncm ?? "84719013"; // fallback: computador (editar por produto)
-    const cfopOut = sameState
-      ? (prod?.cfop_out ?? "5102")
-      : (prod?.cfop_interstate ?? "6102");
-    const ean    = prod?.barcode ?? undefined;
-    const unit   = prod?.unit ?? "UN";
-    const qty    = it.quantity ?? 1;
-    const vUnit  = (it.unit_price_cents ?? 0) / 100;
-    const vProd  = (it.total_price_cents ?? 0) / 100 || vUnit * qty;
-
+    const p    = it.products;
+    const qty  = it.quantity ?? 1;
+    const vU   = (it.unit_price_cents ?? 0) / 100;
+    const vP   = (it.total_price_cents ?? 0) / 100 || vU * qty;
     return {
-      nItem: idx + 1,
-      cProd: prod?.sku ?? it.product_sku ?? String(idx + 1),
-      cEAN:  ean,
-      xProd: prod?.name ?? it.product_name ?? "Produto",
-      NCM:   ncm.replace(/\D/g, "").padStart(8, "0"),
-      CFOP:  cfopOut,
-      uCom:  unit,
-      qCom:  qty,
-      vUnCom: vUnit,
-      vProd:  parseFloat(vProd.toFixed(2)),
+      nItem:  idx + 1,
+      cProd:  p?.sku ?? it.product_sku ?? String(idx + 1),
+      cEAN:   p?.barcode || undefined,
+      xProd:  p?.name ?? it.product_name ?? "Produto",
+      NCM:    (p?.ncm ?? "84719013").replace(/\D/g, "").padStart(8, "0"),
+      CFOP:   sameState ? (p?.cfop_out ?? "5102") : (p?.cfop_interstate ?? "6102"),
+      uCom:   p?.unit ?? "UN",
+      qCom:   qty,
+      vUnCom: vU,
+      vProd:  parseFloat(vP.toFixed(2)),
     };
   });
 
-  // ── 7. Monta pagamentos ────────────────────────────────────────────────────
-  // tPag: 01=Dinheiro, 03=Cartão Crédito, 04=Débito, 15=Boleto, 17=PIX, 99=Outros
-  const pmMap: Record<string, string> = {
-    credit_card: "03",
-    debit_card:  "04",
-    pix:         "17",
-    boleto:      "15",
-    cash:        "01",
-  };
-  const pmMethod = (order.payment_method as string) ?? "";
-  const tPag = pmMap[pmMethod] ?? "99";
-  const vTotal = (order.total_cents as number) / 100;
+  // 6. Pagamento
+  const pmMap: Record<string, string> = { credit_card: "03", debit_card: "04", pix: "17", boleto: "15", cash: "01" };
+  const pagamentos: NFePagamento[] = [{ tPag: pmMap[(order.payment_method as string) ?? ""] ?? "99", vPag: (order.total_cents as number) / 100 }];
 
-  const pagamentos: NFePagamento[] = [{ tPag, vPag: vTotal }];
-
-  // ── 8. Monta config ────────────────────────────────────────────────────────
-  const now    = new Date();
-  // Offset BR -03:00
-  const offset = "-03:00";
-  const pad    = (n: number) => String(n).padStart(2, "0");
-  const dhEmi  =
-    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
-    `T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}${offset}`;
-
+  // 7. Config
   const config: NFeConfig = {
-    nNF:     nfeDoc.numero as number,
-    serie:   nfeDoc.serie as number ?? 1,
-    dhEmi,
+    nNF:    nfeDoc.numero as number,
+    serie:  (nfeDoc.serie as number) ?? 1,
+    dhEmi:  dhEmiNow(),
     ambiente,
-    natOp:   "Venda de mercadoria",
-    idDest:  sameState ? "1" : "2",
+    natOp:  "Venda de mercadoria",
+    idDest: sameState ? "1" : "2",
     cMunFG,
-    infCpl:  ambiente === "2" ? undefined : `Pedido #${order.number}`,
+    infCpl: ambiente === "2" ? undefined : `Pedido #${order.number}`,
   };
 
-  // ── 9. Emite ───────────────────────────────────────────────────────────────
-  const result = await emitirNFe({
-    emitente,
-    destinatario,
-    itens,
-    pagamentos,
-    config,
-    pfxBase64,
-    pfxSenha,
-  });
+  // 8. Emite
+  const result = await emitirNFe({ emitente, destinatario, itens, pagamentos, config, pfxBase64, pfxSenha });
 
-  // ── 10. Atualiza nfe_documents ─────────────────────────────────────────────
   if (result.ok && result.nProt) {
-    await supabase
-      .from("nfe_documents")
-      .update({
-        status:         "autorizada",
-        chave_acesso:   result.chNFe,
-        protocolo:      result.nProt,
-        xml_autorizado: result.xmlAutorizado,
-        emitido_em:     now.toISOString(),
-      })
-      .eq("id", nfeDocumentId)
-      .eq("tenant_id", staff.tenantId);
+    await supabase.from("nfe_documents").update({
+      status: "autorizada", chave_acesso: result.chNFe, protocolo: result.nProt,
+      xml_autorizado: result.xmlAutorizado, emitido_em: new Date().toISOString(),
+    }).eq("id", nfeDocumentId).eq("tenant_id", staff.tenantId);
 
-    await supabase.from("fiscal_documents").upsert(
-      {
-        tenant_id:           staff.tenantId,
-        order_id:            nfeDoc.order_id,
-        document_type:       "nfe_sale",
-        direction:           "out",
-        number:              String(nfeDoc.numero),
-        series:              String(nfeDoc.serie ?? 1),
-        status:              "authorized",
-        environment:         ambiente === "1" ? "production" : "sandbox",
-        access_key:          result.chNFe,
-        protocol:            result.nProt,
-        total_cents:         order.total_cents as number,
-        payment_status:      "open",
-        verification_status: "verified",
-        origin:              "order",
-        metadata: { source: "nfe_emission", order_number: order.number },
-        created_by:          staff.id,
-      },
-      { onConflict: "tenant_id,access_key" }
-    );
-
-    revalidatePath("/backoffice/notas-fiscais");
-    revalidatePath("/backoffice/notas-fiscais/emissao");
-    return { ok: true, chNFe: result.chNFe!, nProt: result.nProt!, xMotivo: result.xMotivo };
+    await supabase.from("fiscal_documents").upsert({
+      tenant_id: staff.tenantId, order_id: nfeDoc.order_id,
+      document_type: "nfe_sale", direction: "out",
+      number: String(nfeDoc.numero), series: String((nfeDoc.serie as number) ?? 1),
+      status: "authorized", environment: ambiente === "1" ? "production" : "sandbox",
+      access_key: result.chNFe, protocol: result.nProt,
+      total_cents: order.total_cents as number, payment_status: "open",
+      verification_status: "verified", origin: "order",
+      metadata: { source: "nfe_emission", order_number: order.number },
+      created_by: staff.id,
+    }, { onConflict: "tenant_id,access_key" });
+  } else {
+    await supabase.from("nfe_documents")
+      .update({ status: "rejeitada", ultimo_erro: result.error })
+      .eq("id", nfeDocumentId).eq("tenant_id", staff.tenantId);
   }
 
-  // Rejeição: atualiza status
-  await supabase
-    .from("nfe_documents")
-    .update({ status: "rejeitada", ultimo_erro: result.error })
-    .eq("id", nfeDocumentId)
-    .eq("tenant_id", staff.tenantId);
-
-  return { ok: false, error: result.error ?? "Emissão rejeitada pelo SEFAZ." };
+  revalidateFiscal();
 }
 
 // ─── NF-e de teste (homologação) ──────────────────────────────────────────────
 
 /**
- * Emite uma NF-e de teste diretamente no ambiente de homologação do SEFAZ.
- * Não requer pedido — usa dados fictícios do destinatário com o próprio CNPJ
- * do emitente, item de R$ 1,00 e xProd conforme exigência do SEFAZ para hom.
+ * Emite uma NF-e de R$ 1,00 no ambiente de homologação do SEFAZ.
+ * Não requer pedido. Usa o emitente configurado em Integrações → SEFAZ.
+ * Resultado aparece em "Notas vinculadas a pedidos" com status Autorizada ou Rejeitada.
  */
-export async function emitirNFeTesteAction(): Promise<Result> {
+export async function emitirNFeTesteAction(): Promise<void> {
   const staff = await currentStaff();
-  if (!staff) return { ok: false, error: "Sessão inválida." };
-  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) {
-    return { ok: false, error: "Sem permissão." };
-  }
+  if (!staff) return;
+  if (!["platform_admin", "tenant_owner", "tenant_admin"].includes(staff.role)) return;
 
   const supabase = await createClient();
 
-  // ── 1. Credenciais SEFAZ ──────────────────────────────────────────────────
-  const { data: sefazSetting } = await supabase
-    .from("site_settings")
-    .select("value")
-    .eq("tenant_id", staff.tenantId)
-    .eq("key", "integration_sefaz")
-    .maybeSingle();
+  const sefaz = await loadSefaz(supabase, staff.tenantId);
+  const pfxBase64 = sefaz.certificate_pfx_base64 ?? "";
+  const pfxSenha  = sefaz.certificate_password ?? "";
+  const cMunFG    = sefaz.codigo_ibge_municipio ?? "";
 
-  const sefaz = (sefazSetting?.value ?? {}) as Record<string, string>;
-  const pfxBase64  = sefaz.certificate_pfx_base64 ?? "";
-  const pfxSenha   = sefaz.certificate_password ?? "";
-  const cnpj       = sefaz.cnpj ?? "";
-  const uf         = sefaz.uf ?? "";
-  const crt        = (sefaz.crt ?? "1") as "1" | "2" | "3";
-  const razaoSocial = sefaz.razao_social ?? "";
-  const IE         = sefaz.inscricao_estadual ?? "";
-  const cMunFG     = sefaz.codigo_ibge_municipio ?? "";
+  if (!pfxBase64 || !pfxSenha || !sefaz.cnpj || !sefaz.uf || !sefaz.razao_social || !sefaz.inscricao_estadual || !cMunFG) {
+    // Grava um rascunho rejeitado para o erro aparecer na tela
+    await supabase.from("nfe_documents").insert({
+      tenant_id: staff.tenantId, order_id: null, numero: 0, serie: 1,
+      ambiente: "homologacao", status: "rejeitada", valor_total_cents: 100,
+      ultimo_erro: "Credenciais SEFAZ incompletas — verifique Integrações → SEFAZ (CNPJ, UF, Razão Social, IE, Código IBGE, Certificado A1).",
+    });
+    revalidateFiscal();
+    return;
+  }
 
-  if (!pfxBase64 || !pfxSenha)
-    return { ok: false, error: "Certificado A1 não configurado em Integrações → SEFAZ." };
-  if (!cnpj || !uf || !razaoSocial || !IE)
-    return { ok: false, error: "Dados incompletos em Integrações → SEFAZ (CNPJ, UF, Razão Social, IE)." };
-  if (!cMunFG)
-    return { ok: false, error: "Código IBGE do município não configurado em Integrações → SEFAZ." };
-
-  // ── 2. Número da NF-e de teste ─────────────────────────────────────────────
   const { data: fiscal } = await supabase
     .from("fiscal_configs")
     .select("serie_nfe, proximo_numero_nfe")
@@ -335,109 +274,53 @@ export async function emitirNFeTesteAction(): Promise<Result> {
 
   const nNF  = (fiscal?.proximo_numero_nfe as number) ?? 1;
   const serie = (fiscal?.serie_nfe as number) ?? 1;
+  const emitente = buildEmitente(sefaz);
 
-  // ── 3. Monta emitente a partir do site_settings ────────────────────────────
-  const emitente: NFeEmitente = {
-    CNPJ: cnpj,
-    xNome: razaoSocial,
-    xFant: sefaz.nome_fantasia ?? undefined,
-    IE,
-    CRT: crt,
-    enderEmit: {
-      xLgr:    sefaz.logradouro ?? "Rua de Teste",
-      nro:     sefaz.numero_endereco ?? "1",
-      xCompl:  sefaz.complemento ?? undefined,
-      xBairro: sefaz.bairro ?? "Centro",
-      cMun:    cMunFG,
-      xMun:    sefaz.municipio ?? uf,
-      UF:      uf,
-      CEP:     sefaz.cep ?? "00000000",
-    },
-  };
-
-  // ── 4. Destinatário fictício (próprio CNPJ — válido em homologação) ────────
   const destinatario: NFeDestinatario = {
-    CNPJ: cnpj, // emitente como destinatário — prática comum em testes
+    CNPJ: sefaz.cnpj,
     xNome: "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
     indIEDest: "9",
-    enderDest: {
-      xLgr:    sefaz.logradouro ?? "Rua de Teste",
-      nro:     sefaz.numero_endereco ?? "1",
-      xBairro: sefaz.bairro ?? "Centro",
-      cMun:    cMunFG,
-      xMun:    sefaz.municipio ?? uf,
-      UF:      uf,
-      CEP:     sefaz.cep ?? "00000000",
-    },
+    enderDest: { ...emitente.enderEmit },
   };
 
-  // ── 5. Item de teste (R$ 1,00) ─────────────────────────────────────────────
-  // SEFAZ exige xProd específico em homologação:
-  const itens: NFeItem[] = [
-    {
-      nItem:  1,
-      cProd:  "TESTE001",
-      xProd:  "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
-      NCM:    "84719013",
-      CFOP:   "5102",
-      uCom:   "UN",
-      qCom:   1,
-      vUnCom: 1.00,
-      vProd:  1.00,
-    },
-  ];
+  const itens: NFeItem[] = [{
+    nItem: 1, cProd: "TESTE001",
+    xProd: "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+    NCM: "84719013", CFOP: "5102", uCom: "UN",
+    qCom: 1, vUnCom: 1.00, vProd: 1.00,
+  }];
 
-  // ── 6. Pagamento fictício ──────────────────────────────────────────────────
   const pagamentos: NFePagamento[] = [{ tPag: "99", vPag: 1.00 }];
 
-  // ── 7. Config — SEMPRE homologação ────────────────────────────────────────
-  const now  = new Date();
-  const pad2 = (n: number) => String(n).padStart(2, "0");
-  const dhEmi =
-    `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}` +
-    `T${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}-03:00`;
-
   const config: NFeConfig = {
-    nNF,
-    serie,
-    dhEmi,
-    ambiente: "2", // SEMPRE homologação
-    natOp:   "Venda de mercadoria",
-    idDest:  "1",
-    cMunFG,
+    nNF, serie, dhEmi: dhEmiNow(),
+    ambiente: "2",   // SEMPRE homologação
+    natOp: "Venda de mercadoria", idDest: "1", cMunFG,
   };
 
-  // ── 8. Emite ───────────────────────────────────────────────────────────────
   const result = await emitirNFe({ emitente, destinatario, itens, pagamentos, config, pfxBase64, pfxSenha });
+  const now = new Date();
 
   if (result.ok && result.nProt) {
-    // Incrementa número somente se autorizada
     if (fiscal) {
-      await supabase
-        .from("fiscal_configs")
+      await supabase.from("fiscal_configs")
         .update({ proximo_numero_nfe: nNF + 1 })
         .eq("tenant_id", staff.tenantId);
     }
-
-    // Registra no nfe_documents para aparecer na listagem
     await supabase.from("nfe_documents").insert({
-      tenant_id:      staff.tenantId,
-      order_id:       null,
-      numero:         nNF,
-      serie,
-      ambiente:       "homologacao",
-      status:         "autorizada",
-      chave_acesso:   result.chNFe,
-      protocolo:      result.nProt,
-      xml_autorizado: result.xmlAutorizado,
-      valor_total_cents: 100,
-      emitido_em:     now.toISOString(),
+      tenant_id: staff.tenantId, order_id: null, numero: nNF, serie,
+      ambiente: "homologacao", status: "autorizada",
+      chave_acesso: result.chNFe, protocolo: result.nProt,
+      xml_autorizado: result.xmlAutorizado, valor_total_cents: 100,
+      emitido_em: now.toISOString(),
     });
-
-    revalidatePath("/backoffice/notas-fiscais");
-    revalidatePath("/backoffice/notas-fiscais/emissao");
-    return { ok: true, chNFe: result.chNFe!, nProt: result.nProt!, xMotivo: result.xMotivo };
+  } else {
+    await supabase.from("nfe_documents").insert({
+      tenant_id: staff.tenantId, order_id: null, numero: nNF, serie,
+      ambiente: "homologacao", status: "rejeitada", valor_total_cents: 100,
+      ultimo_erro: result.error ?? "Rejeitada pelo SEFAZ.",
+    });
   }
 
-  return { ok: false, error: result.error ?? "Teste rejeitado pelo SEFAZ." };
+  revalidateFiscal();
 }
