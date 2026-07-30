@@ -428,39 +428,43 @@ export async function createMarketingLandingPage(formData: FormData) {
   const supabase = await supabaseServer();
   const slug = await uniqueMarketingLandingSlug(supabase, tenantId, requiredText(formData, "slug", "o slug"));
 
-  const { error } = await supabase.from("marketing_landing_pages").insert({
-    tenant_id: tenantId,
-    campaign_id: nullableText(formData, "campaign_id"),
-    slug,
-    title: requiredText(formData, "title", "o título"),
-    template_key: nullableText(formData, "template_key"),
-    status: String(formData.get("status") ?? "draft"),
-    publish_at: datetime(formData, "publish_at"),
-    content: {
-      eyebrow: nullableText(formData, "eyebrow"),
-      headline: nullableText(formData, "headline") ?? requiredText(formData, "title", "o título"),
-      intro: nullableText(formData, "intro"),
-      body: nullableText(formData, "body"),
-      cta_label: nullableText(formData, "cta_label"),
-      cta_url: nullableText(formData, "cta_url"),
-      blocks: guidedLandingBlocks(formData),
-    },
-    seo: {
-      title: nullableText(formData, "seo_title"),
-      description: nullableText(formData, "seo_description"),
-    },
-    utm: {
-      source: nullableText(formData, "utm_source"),
-      medium: nullableText(formData, "utm_medium"),
-      campaign: nullableText(formData, "utm_campaign"),
-    },
-    created_by: session.userId,
-  });
+  const { data: page, error } = await supabase
+    .from("marketing_landing_pages")
+    .insert({
+      tenant_id: tenantId,
+      campaign_id: nullableText(formData, "campaign_id"),
+      slug,
+      title: requiredText(formData, "title", "o título"),
+      template_key: nullableText(formData, "template_key"),
+      status: String(formData.get("status") ?? "draft"),
+      publish_at: datetime(formData, "publish_at"),
+      content: {
+        eyebrow: nullableText(formData, "eyebrow"),
+        headline: nullableText(formData, "headline") ?? requiredText(formData, "title", "o título"),
+        intro: nullableText(formData, "intro"),
+        body: nullableText(formData, "body"),
+        cta_label: nullableText(formData, "cta_label"),
+        cta_url: nullableText(formData, "cta_url"),
+        blocks: guidedLandingBlocks(formData),
+      },
+      seo: {
+        title: nullableText(formData, "seo_title"),
+        description: nullableText(formData, "seo_description"),
+      },
+      utm: {
+        source: nullableText(formData, "utm_source"),
+        medium: nullableText(formData, "utm_medium"),
+        campaign: nullableText(formData, "utm_campaign"),
+      },
+      created_by: session.userId,
+    })
+    .select("id")
+    .single();
 
-  if (error) throw new Error(error.message);
+  if (error || !page) throw new Error(error?.message ?? "Não foi possível criar a landing page.");
   revalidatePath("/marketing");
   revalidatePath("/marketing/landing-pages");
-  redirect("/marketing/landing-pages");
+  redirect(`/marketing/landing-pages?edit=${page.id}`);
 }
 
 export async function updateMarketingLandingPage(landingPageId: string, formData: FormData) {
@@ -564,6 +568,60 @@ export async function duplicateMarketingLandingPage(landingPageId: string) {
   });
 
   if (error) throw new Error(error.message);
+  revalidatePath("/marketing");
+  revalidatePath("/marketing/landing-pages");
+}
+
+export async function archiveDuplicateMarketingLandingPages() {
+  const { tenantId } = await requireMarketingAdmin();
+  const supabase = await supabaseServer();
+
+  const { data, error: loadError } = await supabase
+    .from("marketing_landing_pages")
+    .select("id, title, template_key, content, updated_at, created_at, status")
+    .eq("tenant_id", tenantId)
+    .neq("status", "archived")
+    .order("updated_at", { ascending: false });
+
+  if (loadError) throw new Error(loadError.message);
+
+  const groups = new Map<string, Array<{ id: string; updated_at: string | null; created_at: string | null }>>();
+  for (const page of data ?? []) {
+    const content = page.content && typeof page.content === "object" && !Array.isArray(page.content)
+      ? (page.content as { intro?: string | null; headline?: string | null })
+      : {};
+    const key = [
+      String(page.template_key ?? "").trim().toLowerCase(),
+      String(page.title ?? "").trim().toLowerCase(),
+      String(content.headline ?? "").trim().toLowerCase(),
+      String(content.intro ?? "").trim().toLowerCase(),
+    ].join("|");
+    const current = groups.get(key) ?? [];
+    current.push({ id: page.id, updated_at: page.updated_at, created_at: page.created_at });
+    groups.set(key, current);
+  }
+
+  const duplicateIds: string[] = [];
+  for (const group of groups.values()) {
+    if (group.length <= 1) continue;
+    const sorted = [...group].sort((a, b) => {
+      const dateA = new Date(a.updated_at ?? a.created_at ?? 0).getTime();
+      const dateB = new Date(b.updated_at ?? b.created_at ?? 0).getTime();
+      return dateB - dateA;
+    });
+    duplicateIds.push(...sorted.slice(1).map((page) => page.id));
+  }
+
+  if (duplicateIds.length) {
+    const { error } = await supabase
+      .from("marketing_landing_pages")
+      .update({ status: "archived", updated_at: new Date().toISOString() })
+      .in("id", duplicateIds)
+      .eq("tenant_id", tenantId);
+
+    if (error) throw new Error(error.message);
+  }
+
   revalidatePath("/marketing");
   revalidatePath("/marketing/landing-pages");
 }

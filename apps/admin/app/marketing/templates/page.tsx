@@ -377,7 +377,7 @@ function LandingTemplateCard({
       <form action={createMarketingLandingPage} style={{ marginTop: "auto", paddingTop: 16 }}>
         <input type="hidden" name="title" value={preset.title} />
         <input type="hidden" name="slug" value={slug} />
-        <input type="hidden" name="status" value="draft" />
+        <input type="hidden" name="status" value="published" />
         <input type="hidden" name="template_key" value={preset.key} />
         <input type="hidden" name="eyebrow" value={preset.eyebrow} />
         <input type="hidden" name="headline" value={preset.headline} />

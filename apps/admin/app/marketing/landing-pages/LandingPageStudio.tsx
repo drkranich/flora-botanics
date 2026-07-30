@@ -5,6 +5,7 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { GlassDateInput } from "@/components/GlassDateInput";
 import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
 import {
+  archiveDuplicateMarketingLandingPages,
   archiveMarketingLandingPage,
   createMarketingLandingPage,
   deleteMarketingLandingPage,
@@ -233,10 +234,47 @@ function publicLink(baseUrl: string, slug: string) {
   return `${baseUrl.replace(/\/+$/, "")}/l/${slug.replace(/^\/+/, "")}`;
 }
 
+function previewLink(pageId: string) {
+  return `/marketing/landing-pages/preview/${pageId}`;
+}
+
+function landingOpenLink(baseUrl: string, page: LandingPageRow) {
+  return page.status === "published" ? publicLink(baseUrl, page.slug) : previewLink(page.id);
+}
+
 function blocksFromPage(page: LandingPageRow): LandingBlock[] {
   const blocks = page.content?.blocks;
   if (Array.isArray(blocks) && blocks.length) return blocks;
   return [{ type: "benefit", title: "Primeiro bloco", text: "Edite este bloco para começar a página." }];
+}
+
+function duplicateKey(page: LandingPageRow) {
+  return [
+    page.template_key ?? "",
+    page.title,
+    page.content?.headline ?? "",
+    page.content?.intro ?? "",
+    page.status,
+  ]
+    .join("|")
+    .trim()
+    .toLowerCase();
+}
+
+function uniqueVisiblePages(pages: LandingPageRow[]) {
+  const seen = new Set<string>();
+  const unique: LandingPageRow[] = [];
+  for (const page of pages) {
+    if (page.status === "archived") {
+      unique.push(page);
+      continue;
+    }
+    const key = duplicateKey(page);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(page);
+  }
+  return unique;
 }
 
 function slugify(value: string) {
@@ -253,26 +291,30 @@ export function LandingPageStudio({
   pages,
   campaigns,
   publicBaseUrl,
+  initialPageId,
 }: {
   pages: LandingPageRow[];
   campaigns: CampaignOption[];
   publicBaseUrl: string;
+  initialPageId?: string | null;
 }) {
   const [view, setView] = useState("grid");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(pages[0]?.id ?? "");
+  const visiblePages = useMemo(() => uniqueVisiblePages(pages), [pages]);
+  const duplicateCount = Math.max(0, pages.length - visiblePages.length);
+  const [selectedId, setSelectedId] = useState(initialPageId ?? visiblePages[0]?.id ?? "");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const selected = pages.find((page) => page.id === selectedId) ?? pages[0] ?? null;
+  const selected = visiblePages.find((page) => page.id === selectedId) ?? visiblePages[0] ?? null;
 
   const filteredPages = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return pages;
-    return pages.filter((page) => {
+    if (!normalized) return visiblePages;
+    return visiblePages.filter((page) => {
       return [page.title, page.slug, page.template_key, page.status]
         .filter(Boolean)
         .some((item) => String(item).toLowerCase().includes(normalized));
     });
-  }, [pages, query]);
+  }, [visiblePages, query]);
 
   async function copyLandingLink(page: LandingPageRow) {
     await navigator.clipboard.writeText(publicLink(publicBaseUrl, page.slug));
@@ -297,9 +339,9 @@ export function LandingPageStudio({
           </p>
         </div>
         <div style={heroStatsStyle}>
-          <Metric label="Total" value={pages.length} />
-          <Metric label="Publicadas" value={pages.filter((page) => page.status === "published").length} />
-          <Metric label="Rascunhos" value={pages.filter((page) => page.status === "draft").length} />
+          <Metric label="Total" value={visiblePages.length} />
+          <Metric label="Publicadas" value={visiblePages.filter((page) => page.status === "published").length} />
+          <Metric label="Rascunhos" value={visiblePages.filter((page) => page.status === "draft").length} />
         </div>
       </section>
 
@@ -344,6 +386,20 @@ export function LandingPageStudio({
             />
           </div>
         </div>
+
+        {duplicateCount > 0 ? (
+          <div style={duplicateNoticeStyle}>
+            <div>
+              <strong>{duplicateCount} modelo(s) repetido(s) ocultado(s)</strong>
+              <p className="muted" style={{ margin: "4px 0 0", fontSize: 12 }}>
+                Mantive a versão mais recente visível. Use a limpeza para arquivar as cópias antigas.
+              </p>
+            </div>
+            <form action={archiveDuplicateMarketingLandingPages}>
+              <button className="btn btn-ghost" style={smallButtonStyle}>Arquivar duplicatas</button>
+            </form>
+          </div>
+        ) : null}
 
         {filteredPages.length === 0 ? (
           <div style={emptyStyle}>
@@ -408,7 +464,7 @@ function PresetCard({ preset }: { preset: LandingPreset }) {
           <input type="hidden" name="title" value={preset.title} />
           <input type="hidden" name="slug" value={preset.slug} />
           <input type="hidden" name="template_key" value={preset.key} />
-          <input type="hidden" name="status" value="draft" />
+          <input type="hidden" name="status" value="published" />
           <input type="hidden" name="eyebrow" value={preset.eyebrow} />
           <input type="hidden" name="headline" value={preset.headline} />
           <input type="hidden" name="intro" value={preset.intro} />
@@ -446,6 +502,8 @@ function LandingCard({
   onEdit: () => void;
 }) {
   const link = publicLink(publicBaseUrl, page.slug);
+  const openLink = landingOpenLink(publicBaseUrl, page);
+  const linkLabel = page.status === "published" ? link : "Prévia interna disponível antes da publicação";
   return (
     <article style={{ ...pageCardStyle, borderColor: selected ? "rgba(217, 184, 122, 0.58)" : "var(--glass-border)" }}>
       <div>
@@ -459,15 +517,15 @@ function LandingCard({
         <p className="muted" style={cardTextStyle}>
           {page.content?.intro ?? "Página editável criada para campanha, lead ou relacionamento."}
         </p>
-        <div style={linkBoxStyle}>{link}</div>
+        <div style={linkBoxStyle}>{linkLabel}</div>
       </div>
 
       <div style={buttonRowStyle}>
         <button type="button" className="btn btn-gold" style={smallButtonStyle} onClick={onEdit}>
           Editar
         </button>
-        <a href={link} target="_blank" rel="noreferrer" className="btn btn-ghost" style={smallButtonStyle}>
-          Abrir
+        <a href={openLink} target="_blank" rel="noreferrer" className="btn btn-ghost" style={smallButtonStyle}>
+          {page.status === "published" ? "Abrir" : "Prévia"}
         </a>
         <button type="button" className="btn btn-ghost" style={smallButtonStyle} onClick={onCopy}>
           {copied ? "Copiado" : "Copiar link"}
@@ -827,8 +885,8 @@ const presetGridStyle: CSSProperties = {
 
 const presetCardStyle: CSSProperties = {
   display: "grid",
-  gridTemplateRows: "185px 1fr",
-  minHeight: 455,
+  gridTemplateRows: "235px 1fr",
+  minHeight: 505,
   overflow: "hidden",
   border: "1px solid var(--glass-border)",
   borderRadius: 16,
@@ -846,6 +904,7 @@ const presetContentStyle: CSSProperties = {
 const miniPreviewStyle: CSSProperties = {
   margin: 16,
   marginBottom: 0,
+  minHeight: 218,
   border: "1px solid rgba(242,236,223,0.24)",
   borderRadius: 14,
   overflow: "hidden",
@@ -868,6 +927,7 @@ const miniPreviewBodyStyle: CSSProperties = {
   padding: 18,
   fontSize: 12,
   lineHeight: 1.45,
+  alignContent: "start",
 };
 
 const miniPreviewButtonStyle: CSSProperties = {
@@ -959,6 +1019,19 @@ const emptyStyle: CSSProperties = {
   borderRadius: 14,
   padding: 22,
   color: "var(--cream-dim)",
+};
+
+const duplicateNoticeStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 14,
+  flexWrap: "wrap",
+  marginBottom: 16,
+  padding: "14px 16px",
+  border: "1px solid rgba(217, 184, 122, 0.28)",
+  borderRadius: 14,
+  background: "rgba(185, 146, 77, 0.10)",
 };
 
 const editorShellStyle: CSSProperties = {

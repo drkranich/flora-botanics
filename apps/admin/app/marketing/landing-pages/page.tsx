@@ -9,11 +9,16 @@ type CampaignRow = {
   title: string;
 };
 
-export default async function MarketingLandingPagesPage() {
+export default async function MarketingLandingPagesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ edit?: string }>;
+}) {
   const session = await getStaffSession();
   if (!session) redirect("/login");
   if (session.role === "tenant_editor") redirect("/");
 
+  const { edit } = await searchParams;
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
@@ -63,6 +68,7 @@ export default async function MarketingLandingPagesPage() {
         pages={(pages ?? []) as LandingPageRow[]}
         campaigns={(campaigns ?? []) as CampaignRow[]}
         publicBaseUrl={getStorefrontUrl()}
+        initialPageId={edit ?? null}
       />
     </main>
   );
