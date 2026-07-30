@@ -60,7 +60,7 @@ export async function saveIntegration(
       provider_key: providerKey,
       display_name: providerKey,
       environment: "production",
-      status: "pending_auth",
+      status: Object.keys(value).length > 0 ? "online" : "pending_auth",
       credentials_status: Object.keys(value).length > 0 ? "stored" : "missing",
       credentials_ref: `site_settings:${integrationKey}`,
       credentials_preview: publicPreview(value),
