@@ -110,7 +110,7 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
         "Authorization": `Bearer ${supabaseAnonKey}`,
         "apikey": supabaseAnonKey,
       },
-      body: JSON.stringify({ url: sefazUrl, soapBody, soapAction }),
+      body: JSON.stringify({ url: sefazUrl, soapBody, soapAction, pfxBase64: input.pfxBase64, pfxSenha: input.pfxSenha }),
       signal: AbortSignal.timeout(45000),
     });
 
