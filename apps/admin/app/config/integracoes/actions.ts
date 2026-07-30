@@ -29,7 +29,7 @@ export async function saveIntegration(
 ): Promise<{ ok: boolean; error?: string }> {
   const staff = await currentStaff();
   if (!staff) return { ok: false, error: "Sessão inválida." };
-  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin") {
+  if (staff.role !== "platform_admin" && staff.role !== "tenant_owner" && staff.role !== "tenant_admin") {
     return { ok: false, error: "Sem permissão." };
   }
 
@@ -82,7 +82,7 @@ export async function removeIntegration(
 ): Promise<{ ok: boolean; error?: string }> {
   const staff = await currentStaff();
   if (!staff) return { ok: false, error: "Sessão inválida." };
-  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin") {
+  if (staff.role !== "platform_admin" && staff.role !== "tenant_owner" && staff.role !== "tenant_admin") {
     return { ok: false, error: "Sem permissão." };
   }
 
@@ -120,7 +120,7 @@ export async function startManualSync(
 ): Promise<{ ok: boolean; error?: string }> {
   const staff = await currentStaff();
   if (!staff) return { ok: false, error: "Sessão inválida." };
-  if (staff.role !== "tenant_owner" && staff.role !== "tenant_admin") {
+  if (staff.role !== "platform_admin" && staff.role !== "tenant_owner" && staff.role !== "tenant_admin") {
     return { ok: false, error: "Sem permissão." };
   }
 
