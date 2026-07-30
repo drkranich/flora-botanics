@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next && node ../../node_modules/next/dist/bin/next build",
+    "build": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && node ../../node_modules/next/dist/bin/next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "deploy:cf": "node ../../node_modules/@opennextjs/cloudflare/dist/cli/index.js build && node ../../scripts/deploy-worker.mjs"
