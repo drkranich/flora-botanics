@@ -12,3 +12,4 @@ dist/
 .vercel/
 .wrangler/
 .open-next/
+supabase/.temp/
