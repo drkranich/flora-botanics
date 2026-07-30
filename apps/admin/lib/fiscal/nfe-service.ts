@@ -95,29 +95,41 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
     const soapBody = buildSoapEnvelope(nfeXml, lote);
 
     // 4. URL do SEFAZ conforme UF + ambiente
-    const url = getSefazEndpoint(input.emitente.enderEmit.UF, input.config.ambiente);
+    const sefazUrl = getSefazEndpoint(input.emitente.enderEmit.UF, input.config.ambiente);
+    const soapAction = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote";
 
-    // 5. POST SOAP
-    const response = await fetch(url, {
+    // 5. POST SOAP via Supabase Edge Function (evita HTTP 525 do CF Workers com SEFAZ)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    const edgeFnUrl = `${supabaseUrl}/functions/v1/sefaz-nfe`;
+
+    const efResponse = await fetch(edgeFnUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "text/xml; charset=utf-8",
-        "SOAPAction": "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseAnonKey}`,
+        "apikey": supabaseAnonKey,
       },
-      body: soapBody,
-      signal: AbortSignal.timeout(30000),
+      body: JSON.stringify({ url: sefazUrl, soapBody, soapAction }),
+      signal: AbortSignal.timeout(45000),
     });
 
-    if (!response.ok) {
+    if (!efResponse.ok) {
+      return { ok: false, chNFe, error: `Falha ao chamar Edge Function sefaz-nfe: HTTP ${efResponse.status}` };
+    }
+
+    const efData = await efResponse.json() as { ok: boolean; xmlResponse?: string; error?: string; status?: number };
+
+    if (!efData.ok || !efData.xmlResponse) {
       const statusMsg =
-        response.status === 525
-          ? "Falha SSL no servidor SEFAZ (HTTP 525). Causa provável: endpoint da sua UF exige mTLS ou tem certificado SSL inválido no momento. Tente novamente em alguns minutos ou configure uma UF diferente."
-          : `SEFAZ retornou HTTP ${response.status}: ${response.statusText || "(sem mensagem)"}`;
+        efData.status === 525
+          ? "Falha SSL no servidor SEFAZ (HTTP 525). Causa provável: endpoint da sua UF exige mTLS ou tem certificado SSL inválido no momento."
+          : (efData.error ?? "Erro desconhecido ao chamar SEFAZ via Edge Function.");
       return { ok: false, chNFe, error: statusMsg };
     }
 
     // 6. Parse do retorno
-    const xmlRet = await response.text();
+    const xmlRet = efData.xmlResponse;
 
     // Tenta extrair retEnviNFe / protNFe
     const cStat   = extractTag(xmlRet, "cStat");
