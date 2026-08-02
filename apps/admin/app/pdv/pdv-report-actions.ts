@@ -62,6 +62,36 @@ export async function getPDVReport(from: string, to: string): Promise<PDVReportR
   return { days, period_total_cents, period_sales, avg_ticket_cents };
 }
 
+export interface PDVOrderRow {
+  id: string;
+  number: number;
+  total_cents: number;
+  status: string;
+  placed_at: string;
+  notes: string | null;
+}
+
+/** Busca todos os pedidos PDV do dia corrente (para a aba de pedidos do caixa) */
+export async function getPDVOrdersToday(): Promise<PDVOrderRow[]> {
+  const staff = await currentStaff();
+  if (!staff) return [];
+
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data } = await supabase
+    .from("orders")
+    .select("id, number, total_cents, status, placed_at, notes")
+    .eq("tenant_id", staff.tenantId)
+    .eq("source_channel", "pdv")
+    .is("deleted_at", null)
+    .gte("placed_at", `${today}T00:00:00`)
+    .lte("placed_at", `${today}T23:59:59`)
+    .order("placed_at", { ascending: false });
+
+  return (data ?? []) as PDVOrderRow[];
+}
+
 export interface PDVSaleDetail {
   id: string;
   number: number;

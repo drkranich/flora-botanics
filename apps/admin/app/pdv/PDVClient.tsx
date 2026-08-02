@@ -11,6 +11,7 @@ import {
 } from "./pdv-actions";
 import { cancelOrderWithReason } from "@/app/vendas/[orderId]/order-actions";
 import { PDVReportPanel } from "./PDVReportPanel";
+import { PDVOrdersPanel } from "./PDVOrdersPanel";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
 import { getPdfConfig } from "@/lib/pdf/actions";
 import { GlassSelect } from "@/components/GlassSelect";
@@ -80,6 +81,7 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
   const [caixa, setCaixaRaw] = useState<CaixaState>({ open: false, openedAt: null, salesCount: 0, salesTotal: 0, fundoCaixa: 0 });
   const [fundoStr, setFundoStr] = useState(""); // input fundo de caixa
   const [modal, setModal] = useState<"none" | "open" | "close" | "resumo" | "relatorio" | "suprimento" | "sangria" | "receipt">("none");
+  const [catalogTab, setCatalogTab] = useState<"catalog" | "orders">("catalog");
 
   // suprimento / sangria
   const [movStr, setMovStr] = useState("");
@@ -409,62 +411,99 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
       {/* ── CORPO: catálogo + carrinho ─────────────────────────────────── */}
       <div style={S.body}>
 
-        {/* ESQUERDA: busca + categorias + grid */}
+        {/* ESQUERDA: abas Catálogo / Pedidos */}
         <div style={S.catalogCol}>
-          {/* Busca */}
-          <div style={{ position: "relative", marginBottom: 10 }}>
-            <span style={S.searchIcon}>🔍</span>
-            <input
-              ref={searchRef}
-              className="input"
-              style={{ paddingLeft: 38, fontSize: 14, borderRadius: 10 }}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar produto ou SKU…"
-              autoFocus
-            />
+
+          {/* Abas */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: 0 }}>
+            {[
+              { key: "catalog", label: "🛍 Catálogo" },
+              { key: "orders",  label: "📋 Pedidos do dia" },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setCatalogTab(key as "catalog" | "orders")}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontSize: 12, fontWeight: 700,
+                  color: catalogTab === key ? "var(--gold-light)" : "var(--cream-dim)",
+                  padding: "8px 14px",
+                  borderBottom: catalogTab === key ? "2px solid var(--gold-light)" : "2px solid transparent",
+                  marginBottom: -1,
+                  opacity: catalogTab === key ? 1 : 0.6,
+                  letterSpacing: 0.3,
+                  transition: "all 0.15s",
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
-          {/* Código de barras (visual — scanner HID funciona globalmente) */}
-          <div style={{ position: "relative", marginBottom: 14 }}>
-            <span style={{ ...S.searchIcon, fontSize: 13 }}>◇</span>
-            <input
-              className="input"
-              style={{ paddingLeft: 38, fontSize: 13, borderRadius: 10, color: "var(--cream-dim)" }}
-              placeholder="Código de barras — bipe ou digite…"
-              readOnly
-            />
-            <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: "#4ade80", fontWeight: 600 }}>
-              ● Leitor pronto
-            </span>
-          </div>
+          {/* Aba: Catálogo */}
+          {catalogTab === "catalog" && (
+            <>
+              {/* Busca */}
+              <div style={{ position: "relative", marginBottom: 10 }}>
+                <span style={S.searchIcon}>🔍</span>
+                <input
+                  ref={searchRef}
+                  className="input"
+                  style={{ paddingLeft: 38, fontSize: 14, borderRadius: 10 }}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar produto ou SKU…"
+                  autoFocus
+                />
+              </div>
 
-          {/* Categorias */}
-          {categories.length > 1 && (
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-              {[{ key: "__all__", label: "Todos" }, ...categories.map((c) => ({ key: c, label: c }))].map(({ key, label }) => (
-                <button key={key} type="button" onClick={() => setActiveCategory(key)}
-                  style={{ ...S.catTab, ...(activeCategory === key ? S.catTabOn : {}) }}>
-                  {label}
-                </button>
-              ))}
-            </div>
+              {/* Código de barras */}
+              <div style={{ position: "relative", marginBottom: 14 }}>
+                <span style={{ ...S.searchIcon, fontSize: 13 }}>◇</span>
+                <input
+                  className="input"
+                  style={{ paddingLeft: 38, fontSize: 13, borderRadius: 10, color: "var(--cream-dim)" }}
+                  placeholder="Código de barras — bipe ou digite…"
+                  readOnly
+                />
+                <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: "#4ade80", fontWeight: 600 }}>
+                  ● Leitor pronto
+                </span>
+              </div>
+
+              {/* Categorias */}
+              {categories.length > 1 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                  {[{ key: "__all__", label: "Todos" }, ...categories.map((c) => ({ key: c, label: c }))].map(({ key, label }) => (
+                    <button key={key} type="button" onClick={() => setActiveCategory(key)}
+                      style={{ ...S.catTab, ...(activeCategory === key ? S.catTabOn : {}) }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Grid */}
+              {filteredProducts.length === 0 ? (
+                <div className="glass" style={{ padding: "60px 24px", textAlign: "center", borderRadius: 14 }}>
+                  <p className="muted" style={{ fontSize: 13 }}>
+                    {products.length === 0 ? "Nenhum produto. Cadastre em Catálogo." : "Nenhum produto encontrado."}
+                  </p>
+                </div>
+              ) : (
+                <div style={S.grid}>
+                  {filteredProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} onAdd={(v) => addToCart(product, v)} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
-          {/* Grid */}
-          {filteredProducts.length === 0 ? (
-            <div className="glass" style={{ padding: "60px 24px", textAlign: "center", borderRadius: 14 }}>
-              <p className="muted" style={{ fontSize: 13 }}>
-                {products.length === 0 ? "Nenhum produto. Cadastre em Catálogo." : "Nenhum produto encontrado."}
-              </p>
-            </div>
-          ) : (
-            <div style={S.grid}>
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} onAdd={(v) => addToCart(product, v)} />
-              ))}
-            </div>
-          )}
+          {/* Aba: Pedidos do dia */}
+          {catalogTab === "orders" && <PDVOrdersPanel />}
+
         </div>
 
         {/* DIREITA: carrinho + pagamento inline */}
