@@ -45,6 +45,7 @@ const MANUAL_CHANNELS: GlassSelectOption[] = [
   { value: "vendedor", label: "Vendedor" },
   { value: "representante", label: "Representante" },
   { value: "b2b", label: "Cliente B2B" },
+  { value: "b2c", label: "Cliente B2C" },
   { value: "orcamento_aprovado", label: "Orçamento aprovado" },
   { value: "evento", label: "Evento ou feira" },
   { value: "parceria", label: "Parceria" },

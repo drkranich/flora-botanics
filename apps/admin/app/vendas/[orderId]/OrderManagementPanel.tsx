@@ -21,6 +21,7 @@ const CHANNELS = [
   { value: "representante", label: "Representante" },
   { value: "marketplace", label: "Marketplace" },
   { value: "b2b", label: "B2B" },
+  { value: "b2c", label: "B2C" },
   { value: "outro", label: "Outro canal" },
 ];
 
