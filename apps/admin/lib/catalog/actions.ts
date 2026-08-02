@@ -270,3 +270,15 @@ export async function archiveProduct(productId: string, archive: boolean) {
   if (error) throw new Error(error.message);
   revalidatePath("/catalogo");
 }
+
+/** Exclusão definitiva (soft-delete via deleted_at). */
+export async function deleteProduct(productId: string) {
+  await requireStaff();
+  const supabase = await supabaseServer();
+  const { error } = await supabase
+    .from("products")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/catalogo");
+}

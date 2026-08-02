@@ -6,11 +6,13 @@ import {
   createProduct,
   updateProduct,
   archiveProduct,
+  deleteProduct,
   type ProductEditorialCard,
   type ProductEditorialContent,
   type ProductFaqItem,
   type ProductForm,
 } from "@/lib/catalog/actions";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 import { GlassSelect } from "@/components/GlassSelect";
 import { MediaLibraryModal } from "@/components/MediaPicker";
 
@@ -109,6 +111,10 @@ export function ProductManager({
   const [creating, setCreating] = useState(false);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [payLink, setPayLink] = useState<{ id: string; url: string } | null>(null);
+
+  const storefrontBase = getStorefrontUrl();
 
   function run(fn: () => Promise<void>, ok: string) {
     setMsg(null);
@@ -122,6 +128,12 @@ export function ProductManager({
         setMsg(e instanceof Error ? e.message : "Erro inesperado");
       }
     });
+  }
+
+  function handlePayLink(p: ProductRow) {
+    const url = `${storefrontBase}/produto/${p.slug}`;
+    setPayLink({ id: p.id, url });
+    void navigator.clipboard?.writeText(url).catch(() => null);
   }
 
   return (
@@ -164,9 +176,20 @@ export function ProductManager({
                   <span className={`chip ${p.status === "published" ? "chip-live" : "chip-draft"}`}>
                     {p.status === "published" ? "À venda" : p.status === "draft" ? "Rascunho" : "Arquivado"}
                   </span>
+                  {/* Link de pagamento */}
+                  <button
+                    className="btn-icon"
+                    title="Copiar link do produto"
+                    style={{ color: payLink?.id === p.id ? "var(--gold-light)" : "rgba(255,255,255,0.55)", fontSize: 14 }}
+                    onClick={() => handlePayLink(p)}
+                  >
+                    {payLink?.id === p.id ? "✓" : "🔗"}
+                  </button>
+                  {/* Editar */}
                   <button className="btn-icon" title="Editar" onClick={() => { setEditing(p.id); setCreating(false); }}>
                     ✎
                   </button>
+                  {/* Arquivar / Restaurar */}
                   <button
                     className="btn-icon"
                     title={p.status === "archived" ? "Restaurar" : "Arquivar"}
@@ -180,6 +203,39 @@ export function ProductManager({
                   >
                     {p.status === "archived" ? "↺" : "▣"}
                   </button>
+                  {/* Excluir */}
+                  {confirmDelete === p.id ? (
+                    <>
+                      <button
+                        className="btn-icon"
+                        title="Confirmar exclusão"
+                        style={{ color: "#ef4444", fontWeight: 700, fontSize: 12 }}
+                        onClick={() => {
+                          setConfirmDelete(null);
+                          run(() => deleteProduct(p.id), "Produto excluído.");
+                        }}
+                      >
+                        ✓
+                      </button>
+                      <button
+                        className="btn-icon"
+                        title="Cancelar exclusão"
+                        style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}
+                        onClick={() => setConfirmDelete(null)}
+                      >
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="btn-icon"
+                      title="Excluir produto"
+                      style={{ color: "#ef4444", opacity: 0.7, fontSize: 14 }}
+                      onClick={() => setConfirmDelete(p.id)}
+                    >
+                      🗑
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -228,6 +284,49 @@ export function ProductManager({
       {msg ? (
         <p className="rise" style={{ fontSize: 12, color: "var(--gold-light)", textAlign: "center" }}>{msg}</p>
       ) : null}
+
+      {/* Toast: link copiado */}
+      {payLink && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            background: "rgba(18,22,18,0.97)",
+            border: "1px solid rgba(212,175,55,0.4)",
+            borderRadius: 12,
+            padding: "12px 18px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+            maxWidth: "calc(100vw - 48px)",
+          }}
+        >
+          <span style={{ fontSize: 13, color: "var(--gold-light)", fontWeight: 600 }}>🔗 Link copiado!</span>
+          <code style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 280 }}>
+            {payLink.url}
+          </code>
+          <a
+            href={payLink.url}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost"
+            style={{ padding: "5px 10px", fontSize: 10, flexShrink: 0 }}
+          >
+            Abrir ↗
+          </a>
+          <button
+            className="btn-icon"
+            style={{ color: "rgba(255,255,255,0.4)", flexShrink: 0 }}
+            onClick={() => setPayLink(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
