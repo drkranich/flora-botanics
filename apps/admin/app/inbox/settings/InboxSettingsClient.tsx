@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { SlaPolicy } from "./page";
+import { GlassSelect } from "@/components/GlassSelect";
 import { createSlaPolicy, toggleSlaPolicy, deleteSlaPolicy } from "./actions";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -37,6 +38,11 @@ export function InboxSettingsClient({ slaPolicies: initial }: Props) {
   const [showForm, setShowForm]   = useState(false);
   const [isPending, start]        = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
+  // Horários — GlassSelect usa onChange, não name; capturamos em state + hidden inputs
+  const [bhStart, setBhStart]     = useState("08:00");
+  const [bhEnd, setBhEnd]         = useState("18:00");
+  const [defBhStart, setDefBhStart] = useState("08:00");
+  const [defBhEnd, setDefBhEnd]     = useState("18:00");
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -228,10 +234,22 @@ export function InboxSettingsClient({ slaPolicies: initial }: Props) {
                   <span style={{ fontSize: 12, color: "var(--cream-dim)" }}>Horário comercial</span>
                 </label>
                 <Field label="Início">
-                  <input name="bh_start" type="time" defaultValue="08:00" style={inputStyle} />
+                  <input type="hidden" name="bh_start" value={bhStart} />
+                  <GlassSelect
+                    value={bhStart}
+                    options={HOUR_OPTIONS.map(h => ({ value: h, label: h }))}
+                    onChange={setBhStart}
+                    inlineMenu
+                  />
                 </Field>
                 <Field label="Fim">
-                  <input name="bh_end" type="time" defaultValue="18:00" style={inputStyle} />
+                  <input type="hidden" name="bh_end" value={bhEnd} />
+                  <GlassSelect
+                    value={bhEnd}
+                    options={HOUR_OPTIONS.map(h => ({ value: h, label: h }))}
+                    onChange={setBhEnd}
+                    inlineMenu
+                  />
                 </Field>
                 <Field label="Escalar em (%)">
                   <input name="escalate_pct" type="number" min={10} max={100} defaultValue={80} style={{ ...inputStyle, maxWidth: 70 }} />
@@ -408,10 +426,20 @@ export function InboxSettingsClient({ slaPolicies: initial }: Props) {
               content: (
                 <div style={{ display: "flex", gap: 12 }}>
                   <Field label="Abertura">
-                    <input type="time" defaultValue="08:00" style={{ ...inputStyle, maxWidth: 120 }} />
+                    <GlassSelect
+                      value={defBhStart}
+                      options={HOUR_OPTIONS.map(h => ({ value: h, label: h }))}
+                      onChange={setDefBhStart}
+                      inlineMenu
+                    />
                   </Field>
                   <Field label="Fechamento">
-                    <input type="time" defaultValue="18:00" style={{ ...inputStyle, maxWidth: 120 }} />
+                    <GlassSelect
+                      value={defBhEnd}
+                      options={HOUR_OPTIONS.map(h => ({ value: h, label: h }))}
+                      onChange={setDefBhEnd}
+                      inlineMenu
+                    />
                   </Field>
                 </div>
               ),
@@ -454,6 +482,11 @@ export function InboxSettingsClient({ slaPolicies: initial }: Props) {
 }
 
 // ── Helpers de estilo ─────────────────────────────────────────────────────────
+
+// Opções de hora para substituir input type="time" (proibido pelo lint)
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) =>
+  `${String(h).padStart(2, "0")}:00`
+);
 
 const inputStyle: React.CSSProperties = {
   background: "rgba(10,22,11,0.6)",
