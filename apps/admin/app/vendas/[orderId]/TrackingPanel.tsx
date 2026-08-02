@@ -5,6 +5,7 @@ import { GlassSelect } from "@/components/GlassSelect";
 import {
   addShippingEvent,
   deleteShippingEvent,
+  importMETrackingEvents,
   type ShippingEvent,
 } from "./tracking-actions";
 import { STATUS_EVENT_LABEL, STATUS_EVENT_ICON } from "./tracking-constants";
@@ -19,16 +20,23 @@ export function TrackingPanel({
   orderId,
   customerPhone,
   initialEvents,
+  trackingCode,
+  carrier,
 }: {
   orderId: string;
   customerPhone: string | null;
   initialEvents: ShippingEvent[];
+  trackingCode?: string | null;
+  carrier?: string | null;
 }) {
   const [events, setEvents] = useState<ShippingEvent[]>(initialEvents);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [fetchMsg, setFetchMsg] = useState<string | null>(null);
+  const [fetchErr, setFetchErr] = useState<string | null>(null);
+  const [fetching, startFetchTransition] = useTransition();
 
   // Form state
   const [status, setStatus] = useState("in_transit");
@@ -42,6 +50,25 @@ export function TrackingPanel({
 
   function reset() {
     setCity(""); setDescription(""); setErr(null); setMsg(null);
+  }
+
+  function fetchTracking() {
+    if (!trackingCode) return;
+    setFetchErr(null); setFetchMsg(null);
+    startFetchTransition(async () => {
+      const result = await importMETrackingEvents(orderId, trackingCode, carrier ?? null);
+      if (!result.ok) {
+        setFetchErr(result.error ?? "Erro ao buscar rastreamento.");
+        return;
+      }
+      if (result.imported === 0) {
+        setFetchMsg("Rastreamento atualizado — nenhum evento novo encontrado.");
+      } else {
+        setFetchMsg(`✓ ${result.imported} evento${result.imported > 1 ? "s" : ""} importado${result.imported > 1 ? "s" : ""} do Melhor Envio.`);
+      }
+      // Recarrega a página para atualizar a lista (revalidatePath já disparou no servidor)
+      setTimeout(() => window.location.reload(), 1200);
+    });
   }
 
   function submit(e: React.FormEvent) {
@@ -87,17 +114,46 @@ export function TrackingPanel({
 
   return (
     <section className="glass rise" style={{ padding: 22, marginTop: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <p className="eyebrow">📍 Rastreamento de entrega</p>
-        <button
-          type="button"
-          className="btn btn-gold"
-          style={{ padding: "9px 18px", fontSize: 10 }}
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? "Fechar" : "+ Registrar evento"}
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {trackingCode ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ padding: "9px 16px", fontSize: 10 }}
+              disabled={fetching}
+              onClick={fetchTracking}
+            >
+              {fetching ? "Buscando…" : "🔍 Buscar rastreamento"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="btn btn-gold"
+            style={{ padding: "9px 18px", fontSize: 10 }}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? "Fechar" : "+ Registrar evento"}
+          </button>
+        </div>
       </div>
+
+      {/* Feedback da busca automática */}
+      {trackingCode ? (
+        <div style={{ marginBottom: 12 }}>
+          <p className="muted" style={{ fontSize: 10.5 }}>
+            Rastreio: <strong style={{ color: "var(--cream)" }}>{trackingCode}</strong>
+            {carrier ? <span> · {carrier}</span> : null}
+          </p>
+          {fetchMsg ? <p style={{ fontSize: 12, color: "#4ade80", marginTop: 4 }}>{fetchMsg}</p> : null}
+          {fetchErr ? <p style={{ fontSize: 12, color: "#e8a0a0", marginTop: 4 }}>⚠️ {fetchErr}</p> : null}
+        </div>
+      ) : (
+        <p className="muted" style={{ fontSize: 10.5, marginBottom: 12 }}>
+          Código de rastreio ainda não registrado nesta remessa.
+        </p>
+      )}
 
       {/* Timeline */}
       {events.length === 0 ? (

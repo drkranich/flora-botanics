@@ -24,6 +24,7 @@ const NAV: NavItem[] = [
   { href: "/config", label: "Configurações", icon: "✦", match: (p) => p.startsWith("/config") },
   { href: "/dicionario", label: "Dicionário", icon: "ABC", match: (p) => p.startsWith("/dicionario") },
   { href: "/backoffice", label: "Backoffice", icon: "▣", match: (p) => p.startsWith("/backoffice") },
+  { href: "/pdv", label: "PDV", icon: "🛒", match: (p) => p.startsWith("/pdv") },
 ];
 
 /** Visível apenas para o superadmin (platform_admin). */
@@ -65,6 +66,7 @@ const COMMANDS = [
   { label: "Ir para Backoffice — Mensagens", href: "/backoffice/mensagens" },
   { label: "Ir para Backoffice — Logs", href: "/backoffice/logs" },
   { label: "Ir para Backoffice — Config fiscal", href: "/backoffice/config" },
+  { label: "Ir para PDV — Ponto de Venda", href: "/pdv" },
   { label: "Ir para Plataforma (superadmin)", href: "/plataforma" },
   { label: "Ver site ao vivo (nova aba)", href: "__site__" },
   { label: "Sair da conta", href: "__logout__" },
@@ -104,7 +106,8 @@ export function Shell({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  if (isLogin) return <>{children}</>;
+  const isPDV = path.startsWith("/pdv");
+  if (isLogin || isPDV) return <ThemeController>{children}</ThemeController>;
 
   return (
     <ThemeController>

@@ -5,6 +5,38 @@ import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { STATUS_EVENT_LABEL } from "./tracking-constants";
 
+// ── Tipos da resposta da API de tracking do Melhor Envio ────────────────────
+
+interface METrackingEvent {
+  status: string;
+  message: string;
+  created_at: string; // ISO 8601
+  location?: {
+    address?: string;
+    city?: string;
+    state_abbr?: string; // ex: "SP"
+    country?: string;
+  };
+}
+
+interface METrackingResponse {
+  // O ME retorna um objeto indexado pelo tracking_code
+  [code: string]: {
+    tracking: METrackingEvent[];
+  };
+}
+
+/** Mapeia status do ME para nosso sistema de status interno */
+function mapMEStatus(meStatus: string): string {
+  const s = meStatus.toLowerCase();
+  if (s.includes("entregue") || s.includes("delivered")) return "delivered";
+  if (s.includes("saiu") || s.includes("out for delivery") || s.includes("saída")) return "out_for_delivery";
+  if (s.includes("em trânsito") || s.includes("trânsito") || s.includes("transit") || s.includes("encaminhado")) return "in_transit";
+  if (s.includes("postado") || s.includes("enviado") || s.includes("coletado") || s.includes("dispatched")) return "dispatched";
+  if (s.includes("ocorrência") || s.includes("exception") || s.includes("problema") || s.includes("tentativa")) return "exception";
+  return "in_transit";
+}
+
 export type ShippingEvent = {
   id: string;
   status: string;
@@ -117,6 +149,120 @@ export async function addShippingEvent(
 
   revalidatePath(`/vendas/${orderId}`);
   return { ok: true };
+}
+
+/**
+ * Busca rastreamento real via API Melhor Envio e importa os eventos novos para o banco.
+ * Retorna { ok, imported, error }.
+ */
+export async function importMETrackingEvents(
+  orderId: string,
+  trackingCode: string,
+  carrier: string | null
+): Promise<{ ok: boolean; imported: number; error?: string }> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, imported: 0, error: "Sessão inválida." };
+
+  // Chama o proxy interno (rota de API do Next.js no admin)
+  // Como estamos em Server Action, fazemos fetch para a rota local
+  const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL ?? process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3001";
+
+  let meData: METrackingResponse | null = null;
+  try {
+    const token = process.env.MELHOR_ENVIO_TOKEN;
+    if (!token) {
+      return { ok: false, imported: 0, error: "MELHOR_ENVIO_TOKEN não configurado no ambiente do admin." };
+    }
+
+    const res = await fetch(
+      `https://www.melhorenvio.com.br/api/v2/me/shipment/tracking/${encodeURIComponent(trackingCode)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "User-Agent": "Flora Botanics Admin (contato@florabotanics.com.br)",
+        },
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let errMsg = `Erro ${res.status} da API Melhor Envio.`;
+      try {
+        const j = JSON.parse(text);
+        errMsg = j?.message ?? j?.error ?? errMsg;
+      } catch { /* usa genérico */ }
+      return { ok: false, imported: 0, error: errMsg };
+    }
+
+    meData = (await res.json()) as METrackingResponse;
+  } catch (e) {
+    return { ok: false, imported: 0, error: e instanceof Error ? e.message : "Falha de rede ao consultar ME." };
+  }
+
+  // O ME retorna { [tracking_code]: { tracking: [...] } }
+  const payload = meData?.[trackingCode] ?? Object.values(meData ?? {})[0];
+  const rawEvents: METrackingEvent[] = payload?.tracking ?? [];
+
+  if (rawEvents.length === 0) {
+    return { ok: true, imported: 0 };
+  }
+
+  const supabase = await createClient();
+
+  // Busca eventos já existentes para não duplicar (compara por description + created_at)
+  const { data: existing } = await supabase
+    .from("shipping_events")
+    .select("description, created_at")
+    .eq("order_id", orderId)
+    .eq("tenant_id", staff.tenantId);
+
+  const existingKeys = new Set(
+    (existing ?? []).map((e) => `${e.description}|${e.created_at}`)
+  );
+
+  const toInsert = rawEvents
+    .map((ev) => {
+      const city = ev.location?.city ?? null;
+      const state = ev.location?.state_abbr ?? null;
+      const description = ev.message?.trim() || null;
+      const created_at = ev.created_at;
+      const key = `${description}|${created_at}`;
+
+      if (existingKeys.has(key)) return null;
+
+      return {
+        tenant_id: staff.tenantId,
+        order_id: orderId,
+        status: mapMEStatus(ev.status),
+        city,
+        state,
+        description,
+        carrier: carrier ?? null,
+        tracking_code: trackingCode,
+        whatsapp_sent: false,
+        whatsapp_sent_at: null,
+        whatsapp_phone: null,
+        created_by: staff.id,
+        created_at,
+      };
+    })
+    .filter(Boolean);
+
+  if (toInsert.length === 0) {
+    return { ok: true, imported: 0 };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await supabase.from("shipping_events").insert(toInsert as any[]);
+  if (error) return { ok: false, imported: 0, error: error.message };
+
+  revalidatePath(`/vendas/${orderId}`);
+  return { ok: true, imported: toInsert.length };
 }
 
 export async function deleteShippingEvent(eventId: string, orderId: string): Promise<void> {

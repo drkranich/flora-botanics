@@ -276,6 +276,8 @@ export default async function OrderDetail({
         orderId={order.id}
         customerPhone={customer?.phone ?? null}
         initialEvents={shippingEvents}
+        trackingCode={shipments[0]?.tracking_code ?? null}
+        carrier={shipments[0]?.carrier ?? null}
       />
 
       <OrderManagementPanel order={order} />
