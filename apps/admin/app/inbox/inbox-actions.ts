@@ -81,6 +81,23 @@ export type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
+export type TimelineKind = "message" | "note" | "event";
+
+export interface TimelineEvent {
+  id: string;
+  kind: TimelineKind;
+  // mensagem
+  sender_name?: string;
+  sender_is_contact?: boolean;
+  body?: string;
+  is_internal_note?: boolean;
+  // evento
+  event_type?: string;
+  event_label?: string;
+  event_meta?: string;
+  created_at: string;
+}
+
 // ── Filas: mapeamento de status por queue ─────────────────────────────────────
 
 function queueFilter(queue: InboxQueue, userId: string) {
@@ -625,6 +642,132 @@ export async function removeTag(
     .eq("tenant_id", staff.tenantId);
 
   if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox");
+  return { ok: true, data: undefined };
+}
+
+// ── Linha do tempo: mensagens + eventos de sistema intercalados ───────────────
+
+function eventLabel(type: string, meta: Record<string, unknown>): { label: string; meta?: string } {
+  const by   = (meta.by_name as string) ?? "";
+  const to   = (meta.to     as string) ?? "";
+  const from = (meta.from   as string) ?? "";
+  switch (type) {
+    case "status_changed":   return { label: `Status alterado para "${to}"`,    meta: by ? `por ${by}` : undefined };
+    case "assigned":         return { label: `Atribuído a ${to}`,               meta: by ? `por ${by}` : undefined };
+    case "unassigned":       return { label: "Responsável removido",            meta: by ? `por ${by}` : undefined };
+    case "priority_changed": return { label: `Prioridade → "${to}"`,            meta: by ? `por ${by}` : undefined };
+    case "tag_added":        return { label: `Tag adicionada: "${to}"`,         meta: by ? `por ${by}` : undefined };
+    case "tag_removed":      return { label: `Tag removida: "${from}"`,         meta: by ? `por ${by}` : undefined };
+    case "reopened":         return { label: "Conversa reaberta",               meta: by ? `por ${by}` : undefined };
+    case "sla_breach":       return { label: "⚠ SLA violado",                  meta: undefined };
+    case "order_linked":     return { label: `Pedido #${to} vinculado`,        meta: by ? `por ${by}` : undefined };
+    case "email_bounced":    return { label: "E-mail retornou (bounce)",        meta: undefined };
+    default:                 return { label: type.replace(/_/g, " "),           meta: undefined };
+  }
+}
+
+export async function getTimeline(conversationId: string): Promise<TimelineEvent[]> {
+  const staff = await currentStaff();
+  if (!staff) return [];
+
+  const supabase = await createClient();
+
+  // 1. Mensagens
+  const { data: msgs } = await supabase
+    .from("messages")
+    .select("id, direction, sender_name, sender_is_contact, body, is_internal_note, created_at")
+    .eq("conversation_id", conversationId)
+    .eq("tenant_id", staff.tenantId)
+    .order("created_at", { ascending: true })
+    .limit(200);
+
+  const msgEvents: TimelineEvent[] = (msgs ?? []).map((m: Record<string, unknown>) => ({
+    id:                m.id as string,
+    kind:              (m.is_internal_note ? "note" : "message") as TimelineKind,
+    sender_name:       (m.sender_name as string) ?? "?",
+    sender_is_contact: (m.direction as string) === "in",
+    body:              m.body as string,
+    is_internal_note:  m.is_internal_note as boolean,
+    created_at:        m.created_at as string,
+  }));
+
+  // 2. Eventos de auditoria (tabela helpdesk_audit_log — silencia se não existir)
+  let auditEvents: TimelineEvent[] = [];
+  const { data: audits } = await supabase
+    .from("helpdesk_audit_log")
+    .select("id, event_type, payload, created_at")
+    .eq("conversation_id", conversationId)
+    .eq("tenant_id", staff.tenantId)
+    .order("created_at", { ascending: true })
+    .limit(100);
+
+  if (audits) {
+    auditEvents = (audits as Record<string, unknown>[]).map(a => {
+      const payload = (a.payload as Record<string, unknown>) ?? {};
+      const { label, meta } = eventLabel(a.event_type as string, payload);
+      return {
+        id:          `audit-${a.id as string}`,
+        kind:        "event" as TimelineKind,
+        event_type:  a.event_type as string,
+        event_label: label,
+        event_meta:  meta,
+        created_at:  a.created_at as string,
+      };
+    });
+  }
+
+  // 3. Intercala e ordena cronologicamente
+  const all = [...msgEvents, ...auditEvents];
+  all.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  return all;
+}
+
+// ── Registrar evento de auditoria ─────────────────────────────────────────────
+
+async function logAudit(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  conversationId: string,
+  staffId: string,
+  staffName: string,
+  eventType: string,
+  payload: Record<string, unknown>,
+) {
+  await supabase.from("helpdesk_audit_log").insert({
+    tenant_id:       tenantId,
+    conversation_id: conversationId,
+    actor_id:        staffId,
+    event_type:      eventType,
+    payload:         { by_name: staffName, ...payload },
+  });
+}
+
+export async function setStatusWithAudit(
+  conversationId: string,
+  status: string,
+): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const statusMap: Record<string, string> = {
+    open: "open", waiting_customer: "waiting", waiting_team: "waiting",
+    resolved: "resolved", archived: "resolved", spam: "resolved",
+  };
+  const mapped = statusMap[status] ?? status;
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ status: mapped })
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit(supabase, staff.tenantId, conversationId, staff.id,
+    staff.fullName ?? staff.email ?? "", "status_changed", { to: status });
+
   revalidatePath("/inbox");
   return { ok: true, data: undefined };
 }
