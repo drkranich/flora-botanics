@@ -156,10 +156,8 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
   const effResponsibleRole = responsibleRole ?? config.signerRole ?? "";
   const effDepartment      = department      ?? config.department ?? "";
 
-  // Linha de responsável no rodapé
-  const signerLine = effResponsible
-    ? `${effResponsible}${effResponsibleRole ? ` · ${effResponsibleRole}` : ""}${effDepartment ? ` · ${effDepartment}` : ""}`
-    : "";
+  // Linha de responsável no rodapé — apenas setor/departamento (nome já aparece no cabeçalho)
+  const signerLine = effDepartment ?? "";
 
   // Subtítulo do cabeçalho (abaixo do nome da empresa)
   // Exibe: Categoria | Setor | Responsável — nunca o texto fixo "Sistema de Gestão · Admin"
