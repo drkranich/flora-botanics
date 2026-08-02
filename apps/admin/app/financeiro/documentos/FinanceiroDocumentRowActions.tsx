@@ -63,9 +63,8 @@ export function FinanceiroDocumentRowActions({
           e.stopPropagation();
           if (btnRef.current) {
             const rect = btnRef.current.getBoundingClientRect();
-            // Ancorar pela borda direita do botão, espelhando para a esquerda
             setMenuPos({
-              top: rect.bottom + window.scrollY + 4,
+              top: rect.bottom + 4,
               right: window.innerWidth - rect.right,
             });
           }
