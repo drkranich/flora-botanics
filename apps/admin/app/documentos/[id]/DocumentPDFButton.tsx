@@ -43,6 +43,18 @@ const KIND_LABEL: Record<string, string> = {
   proposal: "Proposta Comercial",
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  draft:     "Rascunho",
+  review:    "Em revisão",
+  sent:      "Enviado",
+  viewed:    "Visualizado",
+  approved:  "Aprovado",
+  rejected:  "Rejeitado",
+  expired:   "Expirado",
+  cancelled: "Cancelado",
+  converted: "Convertido",
+};
+
 function fmtDate(v: string | null) {
   if (!v) return "—";
   const d = new Date(v.includes("T") ? v : `${v}T12:00:00`);
@@ -55,121 +67,118 @@ export function DocumentPDFButton({ quote }: { quote: QuoteForPDF }) {
     const items: LineItem[] = Array.isArray(quote.items) ? quote.items : [];
     const totals = quote.totals ?? {};
     const kindLabel = KIND_LABEL[quote.kind] ?? quote.kind;
+    const statusLabel = STATUS_LABEL[quote.status] ?? quote.status;
 
-    // Tabela de itens
-    let itemsTable = "";
+    // ── Seção: dados do documento ──────────────────────────────────────────
+    const headerSection = `
+      <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap;margin-bottom:20px">
+          <div>
+            <div class="section-title" style="font-size:18px;border:none;padding:0;margin-bottom:6px">
+              ${kindLabel} #${quote.number}
+            </div>
+            <div style="font-size:12px;color:#6b5c4a">
+              Emitido em ${fmtDate(quote.created_at.slice(0, 10))}
+              ${quote.valid_until ? ` · Válido até ${fmtDate(quote.valid_until)}` : ""}
+            </div>
+          </div>
+          <span class="badge" style="margin:0">${statusLabel}</span>
+        </div>
+      </div>`;
+
+    // ── Seção: cliente + condições ─────────────────────────────────────────
+    const clientSection = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:24px">
+        <div class="section">
+          <div class="section-title">Cliente</div>
+          <div style="font-size:14px;font-weight:bold;color:#2a4a2c;margin-bottom:8px">${quote.customer_name}</div>
+          ${quote.company_name      ? `<div style="margin-bottom:3px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">Empresa</span><br>${quote.company_name}</div>` : ""}
+          ${quote.document_number   ? `<div style="margin-bottom:3px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">CPF/CNPJ</span><br>${quote.document_number}</div>` : ""}
+          ${quote.responsible_contact ? `<div style="margin-bottom:3px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">Contato</span><br>${quote.responsible_contact}</div>` : ""}
+          ${quote.email             ? `<div style="margin-bottom:3px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">E-mail</span><br>${quote.email}</div>` : ""}
+          ${quote.phone             ? `<div style="margin-bottom:3px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">Telefone</span><br>${quote.phone}</div>` : ""}
+          ${quote.address           ? `<div style="margin-bottom:3px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">Endereço</span><br>${quote.address}</div>` : ""}
+        </div>
+        <div class="section">
+          <div class="section-title">Condições Comerciais</div>
+          ${quote.payment_terms   ? `<div style="margin-bottom:5px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">Pagamento</span><br>${quote.payment_terms}</div>` : ""}
+          ${quote.delivery_terms  ? `<div style="margin-bottom:5px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">Logística / Entrega</span><br>${quote.delivery_terms}</div>` : ""}
+          ${quote.channel         ? `<div style="margin-bottom:5px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">Canal</span><br>${quote.channel}</div>` : ""}
+          ${quote.seller_name     ? `<div style="margin-bottom:5px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#8b7a6a">Vendedor</span><br>${quote.seller_name}</div>` : ""}
+          ${!quote.payment_terms && !quote.delivery_terms && !quote.channel && !quote.seller_name ? "<div style='color:#8b7a6a;font-size:12px'>—</div>" : ""}
+        </div>
+      </div>`;
+
+    // ── Seção: itens ───────────────────────────────────────────────────────
+    let itemsSection = "";
     if (items.length > 0) {
-      const rows = items
-        .map((item) => {
-          const desc = item.product_name ?? item.description ?? "—";
-          const qty  = item.quantity ?? "—";
-          const unit = item.unit ?? "un";
-          const up   = money(item.unit_price_cents ?? 0);
-          const tot  = money(item.total_cents ?? 0);
-          return `<tr>
-            <td>${desc}${item.notes ? `<br><small style="color:#8a9580">${item.notes}</small>` : ""}</td>
-            <td style="text-align:center">${qty}</td>
-            <td style="text-align:center">${unit}</td>
-            <td style="text-align:right">${up}</td>
-            <td style="text-align:right;font-weight:700;color:#c8a84b">${tot}</td>
-          </tr>`;
-        })
-        .join("");
+      const rows = items.map((item) => `
+        <tr>
+          <td>
+            <strong>${item.product_name ?? item.description ?? "—"}</strong>
+            ${item.notes ? `<br><span style="font-size:11px;color:#6b5c4a">${item.notes}</span>` : ""}
+          </td>
+          <td style="text-align:center">${item.quantity ?? "—"}</td>
+          <td style="text-align:center">${item.unit ?? "un"}</td>
+          <td style="text-align:right">${money(item.unit_price_cents ?? 0)}</td>
+          <td style="text-align:right;font-weight:bold;color:#2a4a2c">${money(item.total_cents ?? 0)}</td>
+        </tr>`).join("");
 
-      itemsTable = `
-        <h3 style="font-size:13px;font-weight:700;margin:28px 0 10px;color:#2a4a2c">ITENS</h3>
-        <table>
-          <thead><tr>
-            <th>Descrição</th>
-            <th style="text-align:center">Qtd</th>
-            <th style="text-align:center">Unid.</th>
-            <th style="text-align:right">Preço unit.</th>
-            <th style="text-align:right">Total</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>`;
+      itemsSection = `
+        <div class="section">
+          <div class="section-title">Itens</div>
+          <table>
+            <thead><tr>
+              <th>Descrição</th>
+              <th style="text-align:center;width:60px">Qtd</th>
+              <th style="text-align:center;width:60px">Unid.</th>
+              <th style="text-align:right;width:120px">Preço unit.</th>
+              <th style="text-align:right;width:120px">Total</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
     }
 
-    // Totais
-    const totaisHtml = `
-      <div style="margin-top:20px;border-top:2px solid #2a4a2c;padding-top:16px">
-        <table style="width:340px;margin-left:auto">
+    // ── Seção: totais ──────────────────────────────────────────────────────
+    const totaisSection = `
+      <div class="section">
+        <div class="section-title">Resultado Financeiro</div>
+        <table style="width:380px;margin-left:auto">
           <tbody>
-            <tr><td style="padding:4px 0;color:#555">Receita líquida</td><td style="text-align:right;font-weight:700;color:#2a4a2c">${money(totals.netRevenueCents ?? 0)}</td></tr>
-            <tr><td style="padding:4px 0;color:#555">Custo total</td><td style="text-align:right">${money(totals.totalCostCents ?? 0)}</td></tr>
-            <tr><td style="padding:4px 0;color:#555">Lucro líquido</td><td style="text-align:right">${money(totals.netProfitCents ?? 0)}</td></tr>
-            <tr><td style="padding:4px 0;color:#555">Margem</td><td style="text-align:right">${Number(totals.netMarginPercent ?? 0).toFixed(1)}%</td></tr>
+            <tr><td>Receita líquida</td><td style="text-align:right;font-weight:bold;color:#2a4a2c">${money(totals.netRevenueCents ?? 0)}</td></tr>
+            <tr><td>Custo total</td><td style="text-align:right">${money(totals.totalCostCents ?? 0)}</td></tr>
+            <tr><td>Lucro líquido</td><td style="text-align:right">${money(totals.netProfitCents ?? 0)}</td></tr>
+            <tr><td>Margem</td><td style="text-align:right">${Number(totals.netMarginPercent ?? 0).toFixed(1)}%</td></tr>
           </tbody>
         </table>
       </div>`;
 
-    // Condições
-    const conditions = [
-      quote.payment_terms   ? `<strong>Pagamento:</strong> ${quote.payment_terms}` : null,
-      quote.delivery_terms  ? `<strong>Entrega:</strong> ${quote.delivery_terms}` : null,
-      quote.channel         ? `<strong>Canal:</strong> ${quote.channel}` : null,
-      quote.seller_name     ? `<strong>Vendedor:</strong> ${quote.seller_name}` : null,
-      quote.valid_until     ? `<strong>Validade:</strong> ${fmtDate(quote.valid_until)}` : null,
-    ].filter(Boolean).join("&emsp;·&emsp;");
+    // ── Seção: termos ──────────────────────────────────────────────────────
+    const termsSection = quote.terms ? `
+      <div class="section">
+        <div class="section-title">Termos Comerciais</div>
+        <p style="font-size:12px;line-height:1.8;white-space:pre-wrap;color:#3a2a1a">${quote.terms}</p>
+      </div>` : "";
 
-    // Termos
-    const termsHtml = quote.terms
-      ? `<div style="margin-top:24px;padding:16px;background:#f9f5ef;border-radius:8px;border-left:3px solid #2a4a2c">
-          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#2a4a2c;margin:0 0 8px">Termos Comerciais</p>
-          <p style="font-size:12px;line-height:1.8;color:#444;white-space:pre-wrap;margin:0">${quote.terms}</p>
-         </div>`
-      : "";
-
-    const body = `
-      <!-- Cabeçalho do documento -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2a4a2c;padding-bottom:18px;margin-bottom:22px">
-        <div>
-          <h1 style="font-size:26px;font-weight:900;color:#2a4a2c;margin:0">${kindLabel} #${quote.number}</h1>
-          <p style="font-size:12px;color:#666;margin:4px 0 0">Emitido em ${fmtDate(quote.created_at.slice(0, 10))}</p>
-        </div>
-        <div style="text-align:right">
-          <span style="display:inline-block;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;background:#2a7a4a;color:#fff;text-transform:uppercase">
-            ${quote.status}
-          </span>
-        </div>
-      </div>
-
-      <!-- Cliente -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">
-        <div>
-          <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#2a4a2c;margin:0 0 8px">Cliente</p>
-          <p style="font-size:15px;font-weight:700;color:#1a2e1a;margin:0 0 4px">${quote.customer_name}</p>
-          ${quote.company_name ? `<p style="font-size:12px;color:#555;margin:0 0 4px">${quote.company_name}</p>` : ""}
-          ${quote.document_number ? `<p style="font-size:11px;color:#777;margin:0">CPF/CNPJ: ${quote.document_number}</p>` : ""}
-          ${quote.phone ? `<p style="font-size:11px;color:#777;margin:2px 0 0">Tel: ${quote.phone}</p>` : ""}
-          ${quote.email ? `<p style="font-size:11px;color:#777;margin:2px 0 0">${quote.email}</p>` : ""}
-          ${quote.address ? `<p style="font-size:11px;color:#777;margin:2px 0 0">${quote.address}</p>` : ""}
-        </div>
-        <div>
-          <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#2a4a2c;margin:0 0 8px">Condições</p>
-          <p style="font-size:12px;line-height:1.9;color:#444;margin:0">${conditions || "—"}</p>
-        </div>
-      </div>
-
-      ${itemsTable}
-      ${totaisHtml}
-      ${termsHtml}
-
-      <!-- Assinatura -->
+    // ── Assinaturas ────────────────────────────────────────────────────────
+    const signaturesSection = `
       <div style="margin-top:48px;display:grid;grid-template-columns:1fr 1fr;gap:48px">
-        <div style="border-top:1px solid #ccc;padding-top:8px">
-          <p style="font-size:11px;color:#888;margin:0">Aprovado por / Assinatura do cliente</p>
-          <p style="font-size:11px;color:#888;margin:4px 0 0">Data: ___/___/______</p>
+        <div style="border-top:1px solid rgba(90,62,43,0.35);padding-top:10px">
+          <div style="font-size:11px;color:#6b5c4a">Cliente / Aprovação</div>
+          <div style="font-size:11px;color:#6b5c4a;margin-top:4px">Data: ___/___/______</div>
         </div>
-        <div style="border-top:1px solid #ccc;padding-top:8px">
-          <p style="font-size:11px;color:#888;margin:0">Flora Botanics — ${quote.seller_name ?? "Responsável comercial"}</p>
-          <p style="font-size:11px;color:#888;margin:4px 0 0">Data: ___/___/______</p>
+        <div style="border-top:1px solid rgba(90,62,43,0.35);padding-top:10px">
+          <div style="font-size:11px;color:#6b5c4a">Flora Botanics · ${quote.seller_name ?? "Responsável comercial"}</div>
+          <div style="font-size:11px;color:#6b5c4a;margin-top:4px">Data: ___/___/______</div>
         </div>
-      </div>
-    `;
+      </div>`;
+
+    const body = headerSection + clientSection + itemsSection + totaisSection + termsSection + signaturesSection;
 
     const html = buildFloraKraftPDF({
       title: `${kindLabel} #${quote.number}`,
+      subtitle: `Cliente: ${quote.customer_name}${quote.company_name ? ` · ${quote.company_name}` : ""}`,
       maxWidth: 1100,
       body,
     });
