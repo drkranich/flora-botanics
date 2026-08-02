@@ -199,6 +199,8 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     .page-wrap {
       position: relative;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
       background: ${eff.bgColor} !important;
     }
     .watermark {
@@ -219,9 +221,16 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     .page {
       position: relative;
       z-index: 1;
+      flex: 1;
       max-width: ${maxWidth}px;
+      width: 100%;
       margin: 0 auto;
-      padding: 44px 64px 72px;
+      padding: 44px 64px 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .page-content {
+      flex: 1;
     }
     .pdf-header {
       display: flex;
@@ -339,9 +348,10 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       color: ${eff.accentColor};
     }
     .pdf-footer {
-      margin-top: 40px;
+      margin-top: auto;
+      padding-top: 16px;
+      padding-bottom: 28px;
       border-top: 1px solid ${borderMid};
-      padding-top: 12px;
       font-size: 10px;
       color: ${eff.textColor};
       opacity: 0.7;
@@ -355,8 +365,9 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       opacity: 0.85;
     }
     @media print {
-      html, body, .page-wrap { background: ${eff.bgColor} !important; }
-      .page { padding: 24px 40px 40px; }
+      html, body, .page-wrap { background: ${eff.bgColor} !important; min-height: 100vh; }
+      .page { padding: 24px 40px 0; }
+      .pdf-footer { padding-bottom: 20px; }
       table { page-break-inside: avoid; }
     }
   </style>
@@ -375,11 +386,13 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
         ${config.website ?? "florabotanics.com.br"}
       </div>
     </div>
-    <div class="pdf-title">${title}</div>
-    ${subtitle ? `<div class="pdf-subtitle">${subtitle}</div>` : ""}
-    <div class="badge">Flora Botanics · ${category ? PDF_CATEGORIES[category] : "Documento interno"}</div>
-    ${body}
-    ${notes ? `<div class="notes-box"><strong>Observações</strong>${notes}</div>` : ""}
+    <div class="page-content">
+      <div class="pdf-title">${title}</div>
+      ${subtitle ? `<div class="pdf-subtitle">${subtitle}</div>` : ""}
+      <div class="badge">Flora Botanics · ${category ? PDF_CATEGORIES[category] : "Documento interno"}</div>
+      ${body}
+      ${notes ? `<div class="notes-box"><strong>Observações</strong>${notes}</div>` : ""}
+    </div>
     <div class="pdf-footer">
       <div class="footer-main">${footerLine}</div>
       ${signerLine ? `<div class="footer-signer">${signerLine}</div>` : ""}
