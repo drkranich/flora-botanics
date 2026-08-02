@@ -8,10 +8,8 @@ import { LogoEditor } from "./LogoEditor";
 import { FaviconEditor } from "./FaviconEditor";
 import { DomainEditor, type DomainRow } from "./DomainEditor";
 import { TeamEditor } from "./TeamEditor";
-import { PdfConfigEditor } from "./PdfConfigEditor";
 import type { SocialItem, LogoConfig } from "@/lib/config/actions";
 import type { TeamMember, PendingInvite } from "@/lib/config/team-actions";
-import { getPdfConfig } from "@/lib/pdf/actions";
 
 export default async function ConfigPage() {
   const session = await getStaffSession();
@@ -45,8 +43,6 @@ export default async function ConfigPage() {
     supabase.from("site_settings").select("value").eq("tenant_id", tenantId).eq("key", "logo").maybeSingle(),
     supabase.from("site_settings").select("value").eq("tenant_id", tenantId).eq("key", "favicon").maybeSingle(),
   ]);
-
-  const pdfConfig = await getPdfConfig();
 
   const rawLogo = (logoSetting?.value ?? {}) as Partial<LogoConfig> & { filter?: string };
   const logoConfig: LogoConfig = {
@@ -120,7 +116,7 @@ export default async function ConfigPage() {
 
       {/* ---------- DOCUMENTOS PDF ---------- */}
       <section className="glass rise rise-3" style={{ padding: 26, marginBottom: 18 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 6 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 12 }}>
           <p className="eyebrow">Documentos PDF</p>
           <Link
             href="/config/pdf-styles"
@@ -130,11 +126,12 @@ export default async function ConfigPage() {
             🎨 Editor completo de estilos →
           </Link>
         </div>
-        <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
-          Rodapé, endereço e observações padrão. Para personalizar cores, fontes e marca d'água use o{" "}
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.7 }}>
+          Todos os relatórios do sistema são gerados com fundo <strong>papel kraft</strong> e a logo Flora Botanics como <strong>marca d'água tileada quase transparente</strong>.
+          As informações da empresa, cores, fontes, responsável e estilos por categoria de documento estão no{" "}
           <Link href="/config/pdf-styles" style={{ color: "var(--gold-light)" }}>editor completo de estilos</Link>.
+          Etiquetas de envio e produto usam fundo branco para compatibilidade com impressoras térmicas.
         </p>
-        <PdfConfigEditor initial={pdfConfig} />
       </section>
 
       {/* ---------- EQUIPE ---------- */}
