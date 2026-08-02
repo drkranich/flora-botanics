@@ -120,10 +120,19 @@ export default async function ConfigPage() {
 
       {/* ---------- DOCUMENTOS PDF ---------- */}
       <section className="glass rise rise-3" style={{ padding: 26, marginBottom: 18 }}>
-        <p className="eyebrow" style={{ marginBottom: 6 }}>Documentos PDF</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 6 }}>
+          <p className="eyebrow">Documentos PDF</p>
+          <Link
+            href="/config/pdf-styles"
+            className="btn btn-ghost"
+            style={{ fontSize: 10, padding: "7px 14px", flexShrink: 0 }}
+          >
+            🎨 Editor completo de estilos →
+          </Link>
+        </div>
         <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
-          Rodapé, endereço e observações padrão que aparecem em todos os relatórios gerados pelo sistema
-          (auditoria de pedidos, pipeline CRM e outros). Clique em "Pré-visualizar PDF" para ver o modelo.
+          Rodapé, endereço e observações padrão. Para personalizar cores, fontes e marca d'água use o{" "}
+          <Link href="/config/pdf-styles" style={{ color: "var(--gold-light)" }}>editor completo de estilos</Link>.
         </p>
         <PdfConfigEditor initial={pdfConfig} />
       </section>

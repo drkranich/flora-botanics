@@ -49,6 +49,13 @@ export async function savePdfConfig(
     email: str(formData, "email"),
     website: str(formData, "website"),
     defaultNotes: str(formData, "defaultNotes"),
+    // Estilos visuais
+    bgColor: str(formData, "bgColor"),
+    accentColor: str(formData, "accentColor"),
+    headerBorderColor: str(formData, "headerBorderColor"),
+    fontFamily: str(formData, "fontFamily"),
+    watermarkOpacity: num(formData, "watermarkOpacity"),
+    watermarkSize: num(formData, "watermarkSize"),
   };
 
   const { error } = await supabase.from("site_settings").upsert(
@@ -69,4 +76,9 @@ export async function savePdfConfig(
 function str(fd: FormData, key: string): string | undefined {
   const v = String(fd.get(key) ?? "").trim();
   return v || undefined;
+}
+
+function num(fd: FormData, key: string): number | undefined {
+  const v = Number(fd.get(key));
+  return isNaN(v) ? undefined : v;
 }

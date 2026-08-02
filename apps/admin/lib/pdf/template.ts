@@ -22,6 +22,20 @@ export interface PdfConfig {
   website?: string;
   /** Observações padrão (aparece no rodapé de todos os PDFs) */
   defaultNotes?: string;
+
+  // ── Estilos visuais ──────────────────────────────────────────────────────
+  /** Cor de fundo da página (padrão: #f2e8d9 — kraft) */
+  bgColor?: string;
+  /** Cor de destaque: cabeçalho de tabelas, títulos (padrão: #2a4a2c — verde) */
+  accentColor?: string;
+  /** Cor da borda do cabeçalho (padrão: #5a3e2b — marrom) */
+  headerBorderColor?: string;
+  /** Família de fonte (padrão: Georgia, serif) */
+  fontFamily?: string;
+  /** Opacidade da marca d'água 0–100 (padrão: 6) */
+  watermarkOpacity?: number;
+  /** Tamanho da marca d'água em px (padrão: 260) */
+  watermarkSize?: number;
 }
 
 export interface PdfBuildOptions {
@@ -69,6 +83,22 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
   const footerLine = footerParts.join(" · ");
   const notes = config.defaultNotes ?? "";
 
+  // ── Variáveis de estilo (com fallbacks kraft) ──────────────────────────
+  const bgColor          = config.bgColor          || "#f2e8d9";
+  const accentColor      = config.accentColor      || "#2a4a2c";
+  const headerBorderColor = config.headerBorderColor || "#5a3e2b";
+  const fontFamily       = config.fontFamily       || "Georgia, 'Times New Roman', serif";
+  const wmOpacity        = ((config.watermarkOpacity ?? 6) / 100).toFixed(2);
+  const wmSize           = config.watermarkSize    ?? 260;
+
+  // Derivar variantes tonais a partir das cores base
+  const accentRgb = hexToRgb(accentColor);
+  const borderRgb = hexToRgb(headerBorderColor);
+  const accentBg  = `rgba(${accentRgb},0.12)`;
+  const accentBd  = `rgba(${accentRgb},0.3)`;
+  const borderFaint = `rgba(${borderRgb},0.18)`;
+  const borderMid   = `rgba(${borderRgb},0.25)`;
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -81,14 +111,14 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     /* ── Forçar cores na impressão / Save as PDF ── */
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
-    /* ── Página: fundo kraft mesmo ao salvar como PDF ── */
-    @page { margin: 0; background: #f2e8d9; }
+    /* ── Página: fundo configurável mesmo ao salvar como PDF ── */
+    @page { margin: 0; background: ${bgColor}; }
 
-    /* ── Fundo kraft / papel reciclado ── */
+    /* ── Fundo configurável ── */
     html, body {
-      background: #f2e8d9 !important;
+      background: ${bgColor} !important;
       color: #1a1a1a;
-      font-family: Georgia, 'Times New Roman', serif;
+      font-family: ${fontFamily};
       font-size: 13px;
       line-height: 1.65;
       min-height: 100%;
@@ -98,7 +128,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     .page-wrap {
       position: relative;
       min-height: 100vh;
-      background: #f2e8d9 !important;
+      background: ${bgColor} !important;
     }
 
     /* ── Marca d'água: DIV real com <img> para garantir renderização no PDF ── */
@@ -114,8 +144,8 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       inset: -20px;
       background-image: url('${logoUri}');
       background-repeat: repeat;
-      background-size: 260px auto;
-      opacity: 0.06;
+      background-size: ${wmSize}px auto;
+      opacity: ${wmOpacity};
     }
 
     /* ── Conteúdo acima da marca d'água ── */
@@ -132,7 +162,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      border-bottom: 2px solid #5a3e2b;
+      border-bottom: 2px solid ${headerBorderColor};
       padding-bottom: 16px;
       margin-bottom: 28px;
       gap: 24px;
@@ -141,7 +171,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       font-size: 22px;
       letter-spacing: 2px;
       text-transform: uppercase;
-      color: #2a4a2c;
+      color: ${accentColor};
       margin-bottom: 2px;
     }
     .pdf-header-brand .subtitle {
@@ -157,7 +187,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     .pdf-title {
       font-size: 18px;
       font-weight: bold;
-      color: #2a4a2c;
+      color: ${accentColor};
       margin-bottom: 4px;
     }
     .pdf-subtitle {
@@ -175,8 +205,8 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       font-size: 12.5px;
     }
     th {
-      background: #2a4a2c;
-      color: #f2e8d9;
+      background: ${accentColor};
+      color: ${bgColor};
       text-align: left;
       padding: 10px 14px;
       font-size: 11.5px;
@@ -185,12 +215,12 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     }
     td {
       padding: 9px 14px;
-      border-bottom: 1px solid rgba(90,62,43,0.18);
+      border-bottom: 1px solid ${borderFaint};
       vertical-align: top;
       color: #1a1a1a;
     }
     tr:nth-child(even) td {
-      background: rgba(90,62,43,0.04);
+      background: rgba(${borderRgb},0.04);
     }
     tr:last-child td {
       border-bottom: none;
@@ -203,18 +233,18 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     .section-title {
       font-size: 13px;
       font-weight: bold;
-      color: #2a4a2c;
+      color: ${accentColor};
       margin-bottom: 8px;
       padding-bottom: 4px;
-      border-bottom: 1px solid rgba(90,62,43,0.25);
+      border-bottom: 1px solid ${borderMid};
     }
 
     /* ── Badge ── */
     .badge {
       display: inline-block;
-      background: rgba(42,74,44,0.12);
-      color: #2a4a2c;
-      border: 1px solid rgba(42,74,44,0.3);
+      background: ${accentBg};
+      color: ${accentColor};
+      border: 1px solid ${accentBd};
       padding: 2px 10px;
       border-radius: 4px;
       font-size: 10px;
@@ -274,7 +304,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
 
     /* ── Impressão ── */
     @media print {
-      html, body, .page-wrap { background: #f2e8d9 !important; }
+      html, body, .page-wrap { background: ${bgColor} !important; }
       .page { padding: 24px 40px 40px; }
       table { page-break-inside: avoid; }
     }
@@ -313,6 +343,17 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
 </div>
 </body>
 </html>`;
+}
+
+// ─── Helper: converter hex → "r,g,b" para rgba() ────────────────────────────
+
+function hexToRgb(hex: string): string {
+  const h = hex.replace("#", "");
+  const full = h.length === 3
+    ? h.split("").map((c) => c + c).join("")
+    : h;
+  const n = parseInt(full, 16);
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
 }
 
 // ─── Helper: abrir + imprimir ────────────────────────────────────────────────
