@@ -10,6 +10,7 @@ import {
   type PDVOrderPayment,
 } from "./pdv-actions";
 import { cancelOrderWithReason } from "@/app/vendas/[orderId]/order-actions";
+import { PDVReportPanel } from "./PDVReportPanel";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
 import { getPdfConfig } from "@/lib/pdf/actions";
 import { GlassSelect } from "@/components/GlassSelect";
@@ -78,7 +79,7 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
   // caixa
   const [caixa, setCaixaRaw] = useState<CaixaState>({ open: false, openedAt: null, salesCount: 0, salesTotal: 0, fundoCaixa: 0 });
   const [fundoStr, setFundoStr] = useState(""); // input fundo de caixa
-  const [modal, setModal] = useState<"none" | "open" | "close" | "resumo" | "suprimento" | "sangria" | "receipt">("none");
+  const [modal, setModal] = useState<"none" | "open" | "close" | "resumo" | "relatorio" | "suprimento" | "sangria" | "receipt">("none");
 
   // suprimento / sangria
   const [movStr, setMovStr] = useState("");
@@ -395,6 +396,7 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
         {/* Ações do caixa */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button className="btn btn-ghost" style={S.hdrBtn} onClick={() => setModal("resumo")}>Resumo do dia</button>
+          <button className="btn btn-ghost" style={S.hdrBtn} onClick={() => setModal("relatorio")}>📊 Relatório</button>
           <button className="btn btn-ghost" style={S.hdrBtn} onClick={() => { setMovStr(""); setMovObs(""); setModal("suprimento"); }}>Suprimento</button>
           <button className="btn btn-ghost" style={S.hdrBtn} onClick={() => { setMovStr(""); setMovObs(""); setModal("sangria"); }}>Sangria</button>
           <button style={{ ...S.hdrBtn, background: "rgba(232,100,100,0.15)", border: "1px solid rgba(232,100,100,0.35)", color: "#f87171", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }} onClick={() => setModal("close")}>
@@ -624,7 +626,14 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
       {/* ── MODAIS ────────────────────────────────────────────────────── */}
       {modal !== "none" && (
         <div style={S.overlay} onClick={() => setModal("none")}>
-          <div className="glass" style={S.modal} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="glass"
+            style={{
+              ...S.modal,
+              ...(modal === "relatorio" ? { maxWidth: 720, width: "95vw", maxHeight: "88vh", overflowY: "auto" as const } : {}),
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
 
             {/* Resumo do dia */}
             {modal === "resumo" && (
@@ -645,6 +654,17 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
                   ))}
                 </div>
                 <button className="btn btn-ghost" style={{ width: "100%", marginTop: 20, padding: "11px" }} onClick={() => setModal("none")}>Fechar</button>
+              </>
+            )}
+
+            {/* Relatório de vendas */}
+            {modal === "relatorio" && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <h3 style={S.modalTitle}>📊 Relatório de vendas PDV</h3>
+                  <button style={{ background: "none", border: "none", color: "var(--cream-dim)", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4 }} onClick={() => setModal("none")}>✕</button>
+                </div>
+                <PDVReportPanel />
               </>
             )}
 
