@@ -337,7 +337,6 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
 
     <div class="pdf-footer">
       <div class="footer-main">${footerLine}</div>
-      <div class="footer-gen">Documento gerado automaticamente pelo sistema Flora Botanics. Não possui valor fiscal.</div>
     </div>
   </div>
 </div>

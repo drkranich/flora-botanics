@@ -219,14 +219,6 @@ export function PdfStylesEditor({ initial }: Props) {
             </tbody>
           </table>
         </div>
-        <div class="section">
-          <div class="section-title">Exemplo de texto e observações</div>
-          <p style="font-size:12px;line-height:1.7">
-            Este documento foi gerado automaticamente pelo sistema Flora Botanics.
-            As informações aqui contidas são de uso interno e não possuem valor fiscal.
-            Em caso de dúvidas, entre em contato com o departamento responsável.
-          </p>
-        </div>
       `,
       config,
     });

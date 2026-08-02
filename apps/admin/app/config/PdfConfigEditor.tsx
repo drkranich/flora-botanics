@@ -78,7 +78,7 @@ export function PdfConfigEditor({ initial }: Props) {
         phone: "(11) 9 9999-9999",
         email: "contato@florabotanics.com.br",
         website: "florabotanics.com.br",
-        defaultNotes: "Documento gerado para fins de controle interno.",
+        defaultNotes: "",
       },
     });
     openAndPrint(html);
