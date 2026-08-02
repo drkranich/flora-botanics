@@ -171,16 +171,17 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     .watermark {
       position: absolute;
       inset: 0;
-      overflow: hidden;
       pointer-events: none;
       z-index: 0;
+      overflow: visible;
     }
     .watermark-inner {
       position: absolute;
-      inset: -20px;
+      inset: -40px;
       background-image: url('${FLORA_LOGO_DATA_URI}');
       background-repeat: repeat;
       background-size: ${wmSize}px auto;
+      background-position: 0 0;
       opacity: ${wmOpacity};
     }
     .page {

@@ -316,7 +316,7 @@ export function PdfStylesEditor({ initial }: Props) {
 
           {/* Cores */}
           <Section title="Cores do documento">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, alignItems: "stretch" }}>
               <ColorField label="Fundo do documento" value={bgColor} onChange={setBgColor} />
               <ColorField label="Cor de destaque / cabeçalho" value={accentColor} onChange={setAccentColor} />
               <ColorField label="Cor da borda do cabeçalho" value={headerBorderColor} onChange={setHeaderBorderColor} />
@@ -555,14 +555,14 @@ function ColorField({
   small?: boolean;
 }) {
   return (
-    <label className="field">
+    <label className="field" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
       <span className="field-label" style={small ? { fontSize: 10 } : undefined}>{label}</span>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: "auto" }}>
         <input
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          style={{ width: 36, height: 32, border: "none", background: "none", cursor: "pointer", padding: 0 }}
+          style={{ width: 36, height: 36, border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, background: "none", cursor: "pointer", padding: 2, flexShrink: 0 }}
         />
         <input
           type="text"
