@@ -127,10 +127,21 @@ export async function GET(request: NextRequest) {
   const noCenarios   = url.searchParams.get("no_cenarios")   === "1";
   const noTabelas    = url.searchParams.get("no_tabelas")    === "1";
   const noDocumentos = url.searchParams.get("no_documentos") === "1";
+  const kindFilter   = url.searchParams.get("kind")   ?? "";
+  const statusFilter = url.searchParams.get("status") ?? "";
+  const dateFrom     = url.searchParams.get("date_from") ?? "";
+  const dateTo       = url.searchParams.get("date_to")   ?? "";
 
   const calcRows  = noCenarios   ? [] : (calculations ?? []) as unknown as CalcRow[];
-  const quoteRows = noDocumentos ? [] : (quotes ?? [])        as unknown as QuoteRow[];
-  const priceRows = noTabelas    ? [] : (priceTables ?? [])   as unknown as PriceTableRow[];
+  const priceRows = noTabelas    ? [] : (priceTables ?? [])  as unknown as PriceTableRow[];
+
+  let quoteRows: QuoteRow[] = noDocumentos ? [] : (quotes ?? []) as unknown as QuoteRow[];
+
+  // Aplica filtros de documentos
+  if (kindFilter)   quoteRows = quoteRows.filter((r) => r.kind   === kindFilter);
+  if (statusFilter) quoteRows = quoteRows.filter((r) => r.status === statusFilter);
+  if (dateFrom)     quoteRows = quoteRows.filter((r) => r.created_at.slice(0, 10) >= dateFrom);
+  if (dateTo)       quoteRows = quoteRows.filter((r) => r.created_at.slice(0, 10) <= dateTo);
 
   if (format === "xlsx") {
     const workbook = XLSX.utils.book_new();

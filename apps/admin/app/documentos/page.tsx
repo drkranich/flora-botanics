@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { money } from "@/lib/format";
+import { DocumentRowActions } from "./DocumentRowActions";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,8 @@ type QuoteRow = {
   created_at: string;
 };
 
+type SigRow = { quote_id: string; public_token: string };
+
 function fmtDate(v: string | null) {
   if (!v) return "—";
   const d = new Date(`${v}T12:00:00`);
@@ -85,11 +88,23 @@ export default async function DocumentosPage({
   if (kind)   query = query.eq("kind", kind);
   if (status) query = query.eq("status", status);
 
-  const { data } = await query;
+  const [{ data }, { data: sigs }] = await Promise.all([
+    query,
+    supabase
+      .from("document_signatures")
+      .select("quote_id, public_token")
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending"),
+  ]);
+
   const rows = (data ?? []) as QuoteRow[];
+  const sigMap = Object.fromEntries(
+    ((sigs ?? []) as SigRow[]).map((s) => [s.quote_id, s.public_token])
+  );
 
   const kindTitle = kind ? (KIND_LABEL[kind] ?? kind) + "s" : "Todos os documentos";
   const statusTitle = status ? ` · ${STATUS_LABEL[status] ?? status}` : "";
+  const origin = "https://florabotanics.com.br"; // domínio público
 
   return (
     <div style={{ maxWidth: 1100 }}>
@@ -136,47 +151,60 @@ export default async function DocumentosPage({
                 <Th>Valor líquido</Th>
                 <Th>Status</Th>
                 <Th>Criado</Th>
+                <Th></Th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((q) => (
-                <tr key={q.id} style={{ cursor: "pointer" }}>
-                  <Td>
-                    <Link href={`/documentos/${q.id}`} style={{ color: "var(--color-gold, #c8a84b)", textDecoration: "none", fontWeight: 700 }}>
-                      #{q.number}
-                    </Link>
-                  </Td>
-                  <Td muted small>{KIND_LABEL[q.kind] ?? q.kind}</Td>
-                  <Td>
-                    <Link href={`/documentos/${q.id}`} style={{ color: "inherit", textDecoration: "none" }}>
-                      <strong>{q.customer_name}</strong>
-                      {q.company_name && (
-                        <span style={{ display: "block", fontSize: 11, color: "var(--color-muted, #8a9580)" }}>
-                          {q.company_name}
-                        </span>
-                      )}
-                    </Link>
-                  </Td>
-                  <Td muted small>{q.channel ?? "—"}</Td>
-                  <Td small>{fmtDate(q.valid_until)}</Td>
-                  <Td>
-                    <span style={{ fontWeight: 600, color: "var(--color-gold, #c8a84b)" }}>
-                      {money(q.totals?.netRevenueCents ?? 0)}
-                    </span>
-                  </Td>
-                  <Td>
-                    <span style={{
-                      display: "inline-block", padding: "2px 8px", borderRadius: 4,
-                      fontSize: 11, fontWeight: 600,
-                      background: STATUS_COLOR[q.status] ?? "#555",
-                      color: "#fff",
-                    }}>
-                      {STATUS_LABEL[q.status] ?? q.status}
-                    </span>
-                  </Td>
-                  <Td muted small>{fmtDate(q.created_at.slice(0, 10))}</Td>
-                </tr>
-              ))}
+              {rows.map((q) => {
+                const token = sigMap[q.id];
+                const signingUrl = token ? `${origin}/assinar/${token}` : null;
+                return (
+                  <tr key={q.id}>
+                    <Td>
+                      <Link href={`/documentos/${q.id}`} style={{ color: "var(--color-gold, #c8a84b)", textDecoration: "none", fontWeight: 700 }}>
+                        #{q.number}
+                      </Link>
+                    </Td>
+                    <Td muted small>{KIND_LABEL[q.kind] ?? q.kind}</Td>
+                    <Td>
+                      <Link href={`/documentos/${q.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+                        <strong>{q.customer_name}</strong>
+                        {q.company_name && (
+                          <span style={{ display: "block", fontSize: 11, color: "var(--color-muted, #8a9580)" }}>
+                            {q.company_name}
+                          </span>
+                        )}
+                      </Link>
+                    </Td>
+                    <Td muted small>{q.channel ?? "—"}</Td>
+                    <Td small>{fmtDate(q.valid_until)}</Td>
+                    <Td>
+                      <span style={{ fontWeight: 600, color: "var(--color-gold, #c8a84b)" }}>
+                        {money(q.totals?.netRevenueCents ?? 0)}
+                      </span>
+                    </Td>
+                    <Td>
+                      <span style={{
+                        display: "inline-block", padding: "2px 8px", borderRadius: 4,
+                        fontSize: 11, fontWeight: 600,
+                        background: STATUS_COLOR[q.status] ?? "#555",
+                        color: "#fff",
+                      }}>
+                        {STATUS_LABEL[q.status] ?? q.status}
+                      </span>
+                    </Td>
+                    <Td muted small>{fmtDate(q.created_at.slice(0, 10))}</Td>
+                    <Td>
+                      <DocumentRowActions
+                        id={q.id}
+                        number={q.number}
+                        status={q.status}
+                        signingUrl={signingUrl}
+                      />
+                    </Td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
