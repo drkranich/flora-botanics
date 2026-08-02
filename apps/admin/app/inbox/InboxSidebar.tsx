@@ -217,9 +217,29 @@ export function InboxSidebar({ active, counts, onSelect, onNew }: Props) {
 
       {/* Rodapé */}
       <div style={{
-        padding: "12px 16px",
+        padding: "10px 16px 14px",
         borderTop: "1px solid rgba(242,236,223,0.07)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
       }}>
+        <Link
+          href="/inbox/dashboard"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 11.5,
+            color: "var(--cream-dim)",
+            textDecoration: "none",
+            transition: "color 0.2s",
+          }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = "var(--gold-light)")}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = "var(--cream-dim)")}
+        >
+          <span style={{ fontSize: 11 }}>◈</span>
+          Dashboard
+        </Link>
         <Link
           href="/"
           style={{
