@@ -295,15 +295,38 @@ function generateAuditPDF(
 ) {
   const rows = audits
     .map((a) => {
-      const valueStr = a.new_value
-        ? JSON.stringify(a.new_value, null, 2).slice(0, 500)
-        : "";
+      // Usa os mesmos helpers de humanização do painel inline
+      const diffs = diffValues(a.previous_value, a.new_value);
+      let dadosHtml = "—";
+      if (diffs.length > 0) {
+        dadosHtml = diffs
+          .map(({ label, key, before, after }) => {
+            const afterStr = humanizeValue(key, after);
+            if (before !== undefined && before !== null && String(before) !== "undefined") {
+              const beforeStr = humanizeValue(key, before);
+              return `<div style="margin-bottom:3px"><span style="color:#6b5c4a;font-size:9px">${label}:</span> <span style="text-decoration:line-through;opacity:0.5">${beforeStr}</span> → <strong>${afterStr}</strong></div>`;
+            }
+            return `<div style="margin-bottom:3px"><span style="color:#6b5c4a;font-size:9px">${label}:</span> <strong>${afterStr}</strong></div>`;
+          })
+          .join("");
+      } else if (a.new_value) {
+        // Fallback: campos sem diff mapeado
+        const flat = flattenObj(a.new_value);
+        const mapped = Object.entries(flat)
+          .filter(([k]) => FIELD_LABELS[k])
+          .slice(0, 6);
+        if (mapped.length > 0) {
+          dadosHtml = mapped
+            .map(([k, v]) => `<div style="margin-bottom:3px"><span style="color:#6b5c4a;font-size:9px">${FIELD_LABELS[k]}:</span> <strong>${humanizeValue(k, v)}</strong></div>`)
+            .join("");
+        }
+      }
       return `
         <tr>
-          <td style="white-space:nowrap">${formatDate(a.created_at)}</td>
-          <td><strong>${actionLabel(a.action)}</strong><br/><small style="opacity:0.6;font-size:9px">${a.action}</small></td>
-          <td>${a.reason ?? "—"}</td>
-          <td><pre>${valueStr || "—"}</pre></td>
+          <td style="white-space:nowrap;vertical-align:top">${formatDate(a.created_at)}</td>
+          <td style="vertical-align:top"><strong>${actionLabel(a.action)}</strong></td>
+          <td style="vertical-align:top">${a.reason ?? "—"}</td>
+          <td style="vertical-align:top;font-size:11px">${dadosHtml}</td>
         </tr>`;
     })
     .join("");
@@ -313,9 +336,9 @@ function generateAuditPDF(
       <thead>
         <tr>
           <th style="width:115px">Data/Hora</th>
-          <th style="width:200px">Ação</th>
-          <th style="width:160px">Motivo / Anotação</th>
-          <th>Dados</th>
+          <th style="width:180px">Ação</th>
+          <th style="width:150px">Motivo / Anotação</th>
+          <th>Alterações</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>

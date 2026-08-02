@@ -37,45 +37,12 @@ export interface PdfBuildOptions {
   maxWidth?: number;
 }
 
-// ─── Logo Flora Botanics como SVG inline ────────────────────────────────────
-// Marca d'água: ícone estilizado de duas folhas/pétalas em espelho,
-// representative da identidade Flora Botanics.
-const FLORA_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" width="120" height="140">
-  <!-- Caule central -->
-  <line x1="60" y1="130" x2="60" y2="40" stroke="#5a3e2b" stroke-width="3" stroke-linecap="round"/>
-  <!-- Folha esquerda superior -->
-  <path d="M60 75 C38 55, 20 30, 30 15 C40 5, 55 25, 60 45 Z"
-        fill="#2a4a2c" opacity="0.85"/>
-  <!-- Folha direita superior (espelho) -->
-  <path d="M60 75 C82 55, 100 30, 90 15 C80 5, 65 25, 60 45 Z"
-        fill="#2a4a2c" opacity="0.85"/>
-  <!-- Folha esquerda inferior -->
-  <path d="M60 100 C42 85, 28 65, 35 52 C42 42, 57 58, 60 75 Z"
-        fill="#2a4a2c" opacity="0.6"/>
-  <!-- Folha direita inferior (espelho) -->
-  <path d="M60 100 C78 85, 92 65, 85 52 C78 42, 63 58, 60 75 Z"
-        fill="#2a4a2c" opacity="0.6"/>
-  <!-- Pétala base esquerda -->
-  <path d="M60 125 C48 115, 40 100, 50 92 C56 88, 60 100, 60 115 Z"
-        fill="#b9924d" opacity="0.5"/>
-  <!-- Pétala base direita (espelho) -->
-  <path d="M60 125 C72 115, 80 100, 70 92 C64 88, 60 100, 60 115 Z"
-        fill="#b9924d" opacity="0.5"/>
-</svg>`;
-
-// Codifica o SVG como data URI para uso em CSS background-image
-function svgToDataUri(svg: string): string {
-  const encoded = svg
-    .replace(/\n\s*/g, " ")
-    .replace(/"/g, "'")
-    .replace(/%/g, "%25")
-    .replace(/#/g, "%23")
-    .replace(/{/g, "%7B")
-    .replace(/}/g, "%7D")
-    .replace(/</g, "%3C")
-    .replace(/>/g, "%3E");
-  return `data:image/svg+xml,${encoded}`;
-}
+// ─── Logo Flora Botanics — Base64 pré-computado ─────────────────────────────
+// SVG de folhas/pétalas estilizadas em espelho (identidade Flora Botanics).
+// Embutido como Base64 para garantir renderização correta em qualquer browser
+// e em qualquer contexto (servidor / cliente / popup de impressão).
+const FLORA_LOGO_DATA_URI =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTQwIj48bGluZSB4MT0iNjAiIHkxPSIxMzAiIHgyPSI2MCIgeTI9IjQwIiBzdHJva2U9IiM1YTNlMmIiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTTYwIDc1IEMzOCA1NSwyMCAzMCwzMCAxNSBDNDAgNSw1NSAyNSw2MCA0NSBaIiBmaWxsPSIjMmE0YTJjIiBvcGFjaXR5PSIwLjg1Ii8+PHBhdGggZD0iTTYwIDc1IEM4MiA1NSwxMDAgMzAsOTAgMTUgQzgwIDUsNjUgMjUsNjAgNDUgWiIgZmlsbD0iIzJhNGEyYyIgb3BhY2l0eT0iMC44NSIvPjxwYXRoIGQ9Ik02MCAxMDAgQzQyIDg1LDI4IDY1LDM1IDUyIEM0MiA0Miw1NyA1OCw2MCA3NSBaIiBmaWxsPSIjMmE0YTJjIiBvcGFjaXR5PSIwLjYiLz48cGF0aCBkPSJNNjAgMTAwIEM3OCA4NSw5MiA2NSw4NSA1MiBDNzggNDIsNjMgNTgsNjAgNzUgWiIgZmlsbD0iIzJhNGEyYyIgb3BhY2l0eT0iMC42Ii8+PHBhdGggZD0iTTYwIDEyNSBDNDggMTE1LDQwIDEwMCw1MCA5MiBDNTYgODgsNjAgMTAwLDYwIDExNSBaIiBmaWxsPSIjYjk5MjRkIiBvcGFjaXR5PSIwLjUiLz48cGF0aCBkPSJNNjAgMTI1IEM3MiAxMTUsODAgMTAwLDcwIDkyIEM2NCA4OCw2MCAxMDAsNjAgMTE1IFoiIGZpbGw9IiNiOTkyNGQiIG9wYWNpdHk9IjAuNSIvPjwvc3ZnPg==";
 
 // ─── Construtor principal ────────────────────────────────────────────────────
 
@@ -89,7 +56,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
   } = options;
 
   const now = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  const logoUri = svgToDataUri(FLORA_LOGO_SVG);
+  const logoUri = FLORA_LOGO_DATA_URI;
 
   const companyName = config.companyName || "Flora Botanics";
   const footerParts: string[] = [companyName];
