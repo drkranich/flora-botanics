@@ -4,6 +4,7 @@ import { useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import { updateCrmStage } from "./actions";
 import { type CrmStage } from "./crm-constants";
+import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
 
 /* ─── PDF export ─────────────────────────────────────────────── */
 const STAGE_QUAL: Record<
@@ -67,12 +68,19 @@ const STAGE_QUAL: Record<
   },
 };
 
-function buildPdfHtml(customers: KanbanCustomer[]): string {
-  const now = new Date().toLocaleDateString("pt-BR", {
-    dateStyle: "full",
-  });
-
+function buildCrmPdfBody(customers: KanbanCustomer[]): string {
   const stageOrder: CrmStage[] = ["lead", "contato", "proposta", "cliente", "fidelizado"];
+
+  // Resumo por etapa
+  const summaryChips = stageOrder
+    .map((s) => {
+      const count = customers.filter((c) => c.crm_stage === s).length;
+      const info = STAGE_QUAL[s];
+      return `<div style="border:1px solid rgba(90,62,43,0.2);border-radius:6px;padding:8px 14px;font-size:11px;display:inline-block;margin-right:8px;margin-bottom:8px">
+        <strong style="display:block;font-size:18px;color:#2a4a2c">${count}</strong>${info.emoji} ${info.label}
+      </div>`;
+    })
+    .join("");
 
   const sections = stageOrder
     .map((stageId) => {
@@ -97,86 +105,26 @@ function buildPdfHtml(customers: KanbanCustomer[]): string {
           <thead><tr><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th>Tags</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`
-          : `<p class="empty">Nenhum contato nesta etapa.</p>`;
+          : `<p style="font-size:11px;color:#8b7a6a;padding:8px 0">Nenhum contato nesta etapa.</p>`;
 
       return `
-      <section class="stage">
-        <div class="stage-header">
-          <span class="stage-emoji">${info.emoji}</span>
-          <div>
-            <h2>${info.label} <span class="count">${group.length}</span></h2>
-            <p class="desc">${info.desc}</p>
-          </div>
-        </div>
-        <div class="criteria">
-          <strong>Qualificação da etapa:</strong>
-          <ul>${info.criteria.map((c) => `<li>${c}</li>`).join("")}</ul>
+      <div class="section" style="page-break-inside:avoid">
+        <div class="section-title">${info.emoji} ${info.label} (${group.length})</div>
+        <p style="font-size:11px;color:#6b5c4a;margin-bottom:6px">${info.desc}</p>
+        <div style="background:rgba(42,74,44,0.06);border-left:3px solid #2a4a2c;padding:8px 12px;margin-bottom:10px;font-size:11px">
+          <strong>Qualificação:</strong>
+          <ul style="margin:4px 0 0 16px">${info.criteria.map((c) => `<li style="margin-bottom:2px">${c}</li>`).join("")}</ul>
         </div>
         ${table}
-      </section>`;
+      </div>`;
     })
     .join("");
 
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>Pipeline CRM — Flora Botanics</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Georgia, 'Times New Roman', serif; font-size: 12px; color: #1a2e1c; background: #fff; padding: 40px; }
-    header { border-bottom: 2px solid #2a4a2c; padding-bottom: 16px; margin-bottom: 28px; display: flex; justify-content: space-between; align-items: flex-end; }
-    header h1 { font-size: 22px; letter-spacing: 2px; text-transform: uppercase; }
-    header .meta { font-size: 11px; color: #6b7c6b; text-align: right; }
-    .summary { display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap; }
-    .summary-chip { border: 1px solid #c8d4c8; border-radius: 6px; padding: 8px 14px; font-size: 11px; }
-    .summary-chip strong { display: block; font-size: 18px; margin-bottom: 2px; }
-    .stage { margin-bottom: 32px; page-break-inside: avoid; }
-    .stage-header { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
-    .stage-emoji { font-size: 22px; }
-    .stage-header h2 { font-size: 15px; }
-    .stage-header .count { font-size: 12px; background: #e8f0e8; border-radius: 999px; padding: 1px 8px; margin-left: 6px; }
-    .stage-header .desc { font-size: 11px; color: #6b7c6b; margin-top: 3px; }
-    .criteria { background: #f7f9f7; border-left: 3px solid #2a4a2c; padding: 8px 12px; margin-bottom: 10px; font-size: 11px; }
-    .criteria ul { margin: 4px 0 0 16px; }
-    .criteria li { margin-bottom: 2px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
-    th { background: #2a4a2c; color: #f2ecdf; padding: 6px 10px; text-align: left; font-weight: 700; letter-spacing: 0.5px; }
-    td { padding: 6px 10px; border-bottom: 1px solid #e8e8e8; }
-    tr:last-child td { border-bottom: none; }
-    tr:nth-child(even) td { background: #f9faf9; }
-    .empty { font-size: 11px; color: #9aaa9a; padding: 8px 0; }
-    footer { margin-top: 40px; border-top: 1px solid #c8d4c8; padding-top: 12px; font-size: 10px; color: #9aaa9a; text-align: center; }
-    @media print { body { padding: 20px; } }
-  </style>
-</head>
-<body>
-  <header>
-    <div>
-      <h1>Flora Botanics</h1>
-      <div style="font-size:11px;color:#6b7c6b;margin-top:4px;">Pipeline CRM — Relatório de qualificação por etapa do funil</div>
-    </div>
-    <div class="meta">
-      Gerado em ${now}<br/>
-      Total: ${customers.length} contatos
-    </div>
-  </header>
-
-  <div class="summary">
-    ${stageOrder
-      .map((s) => {
-        const count = customers.filter((c) => c.crm_stage === s).length;
-        const info = STAGE_QUAL[s];
-        return `<div class="summary-chip"><strong>${count}</strong>${info.label}</div>`;
-      })
-      .join("")}
-  </div>
-
-  ${sections}
-
-  <footer>Flora Botanics · Pipeline CRM · florabotanics.com.br</footer>
-</body>
-</html>`;
+  return `
+    <div style="margin-bottom:24px">${summaryChips}</div>
+    <p style="font-size:10px;color:#8b7a6a;margin-bottom:20px">Total: ${customers.length} contatos no funil</p>
+    ${sections}
+  `;
 }
 
 export interface KanbanCustomer {
@@ -338,12 +286,13 @@ export function KanbanBoard({ customers: initial }: { customers: KanbanCustomer[
   const [, startTransition] = useTransition();
 
   function exportPdf() {
-    const html = buildPdfHtml(customers);
-    const win = window.open("", "_blank");
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.onload = () => win.print();
+    const body = buildCrmPdfBody(customers);
+    const html = buildFloraKraftPDF({
+      title: "Pipeline CRM — Relatório de qualificação",
+      subtitle: `Relatório por etapa do funil de vendas · ${new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })}`,
+      body,
+    });
+    openAndPrint(html);
   }
 
   function onDragStart(id: string) {

@@ -8,8 +8,10 @@ import { LogoEditor } from "./LogoEditor";
 import { FaviconEditor } from "./FaviconEditor";
 import { DomainEditor, type DomainRow } from "./DomainEditor";
 import { TeamEditor } from "./TeamEditor";
+import { PdfConfigEditor } from "./PdfConfigEditor";
 import type { SocialItem, LogoConfig } from "@/lib/config/actions";
 import type { TeamMember, PendingInvite } from "@/lib/config/team-actions";
+import { getPdfConfig } from "@/lib/pdf/actions";
 
 export default async function ConfigPage() {
   const session = await getStaffSession();
@@ -43,6 +45,8 @@ export default async function ConfigPage() {
     supabase.from("site_settings").select("value").eq("tenant_id", tenantId).eq("key", "logo").maybeSingle(),
     supabase.from("site_settings").select("value").eq("tenant_id", tenantId).eq("key", "favicon").maybeSingle(),
   ]);
+
+  const pdfConfig = await getPdfConfig();
 
   const rawLogo = (logoSetting?.value ?? {}) as Partial<LogoConfig> & { filter?: string };
   const logoConfig: LogoConfig = {
@@ -112,6 +116,16 @@ export default async function ConfigPage() {
           Conecte o domínio próprio da marca e escolha qual endereço aparece como principal.
         </p>
         <DomainEditor domains={(domains ?? []) as DomainRow[]} />
+      </section>
+
+      {/* ---------- DOCUMENTOS PDF ---------- */}
+      <section className="glass rise rise-3" style={{ padding: 26, marginBottom: 18 }}>
+        <p className="eyebrow" style={{ marginBottom: 6 }}>Documentos PDF</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
+          Rodapé, endereço e observações padrão que aparecem em todos os relatórios gerados pelo sistema
+          (auditoria de pedidos, pipeline CRM e outros). Clique em "Pré-visualizar PDF" para ver o modelo.
+        </p>
+        <PdfConfigEditor initial={pdfConfig} />
       </section>
 
       {/* ---------- EQUIPE ---------- */}

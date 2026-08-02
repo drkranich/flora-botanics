@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updateAuditReason, deleteAuditEvent, archiveOrder, softDeleteOrder } from "./order-actions";
+import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
 
 export interface AuditRow {
   id: string;
@@ -57,76 +58,50 @@ function actionIcon(action: string) {
   return "📋";
 }
 
-// ── Gerador de PDF de auditoria (client-side, sem dependências) ────────────
+// ── Gerador de PDF de auditoria — usa template centralizado Flora ──────────
 
 function generateAuditPDF(
   orderId: string,
   orderNumber: string | number,
   audits: AuditRow[]
 ) {
-  const now = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-
   const rows = audits
     .map((a) => {
       const valueStr = a.new_value
-        ? JSON.stringify(a.new_value, null, 2).slice(0, 400)
+        ? JSON.stringify(a.new_value, null, 2).slice(0, 500)
         : "";
       return `
         <tr>
-          <td>${formatDate(a.created_at)}</td>
-          <td><strong>${actionLabel(a.action)}</strong><br/><small style="color:#666">${a.action}</small></td>
+          <td style="white-space:nowrap">${formatDate(a.created_at)}</td>
+          <td><strong>${actionLabel(a.action)}</strong><br/><small style="opacity:0.6;font-size:9px">${a.action}</small></td>
           <td>${a.reason ?? "—"}</td>
-          <td><pre style="font-size:10px;white-space:pre-wrap;max-width:300px">${valueStr || "—"}</pre></td>
+          <td><pre>${valueStr || "—"}</pre></td>
         </tr>`;
     })
     .join("");
 
-  const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>Auditoria Pedido #${orderNumber}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; padding: 32px; }
-    h1 { font-size: 20px; margin-bottom: 4px; }
-    .meta { color: #666; font-size: 11px; margin-bottom: 24px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th { background: #1a2e1a; color: #fff; text-align: left; padding: 8px 10px; font-size: 11px; letter-spacing: 0.5px; }
-    td { padding: 8px 10px; border-bottom: 1px solid #e8e8e8; vertical-align: top; font-size: 11px; }
-    tr:nth-child(even) td { background: #f9f9f9; }
-    pre { background: #f4f4f4; padding: 4px; border-radius: 4px; }
-    .footer { margin-top: 32px; color: #999; font-size: 10px; border-top: 1px solid #e8e8e8; padding-top: 12px; }
-    .badge { display: inline-block; background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <h1>Relatório de Auditoria</h1>
-  <p class="meta">Pedido <strong>#${orderNumber}</strong> · ID: ${orderId} · Gerado em: ${now}</p>
-  <span class="badge">Flora Botanics · Admin</span>
-  <table>
-    <thead>
-      <tr>
-        <th style="width:120px">Data/Hora</th>
-        <th style="width:200px">Ação</th>
-        <th style="width:160px">Motivo / Anotação</th>
-        <th>Dados</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <div class="footer">
-    Flora Botanics — Relatório gerado automaticamente pelo sistema de auditoria.
-    Total de ${audits.length} evento(s).
-  </div>
-</body>
-</html>`;
+  const body = `
+    <table>
+      <thead>
+        <tr>
+          <th style="width:115px">Data/Hora</th>
+          <th style="width:200px">Ação</th>
+          <th style="width:160px">Motivo / Anotação</th>
+          <th>Dados</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="font-size:10px;color:#8b7a6a;margin-top:8px">Total: ${audits.length} evento(s) · ID do pedido: ${orderId}</p>
+  `;
 
-  const win = window.open("", "_blank");
-  if (!win) return;
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => win.print(), 400);
+  const html = buildFloraKraftPDF({
+    title: `Auditoria — Pedido #${orderNumber}`,
+    subtitle: `Histórico completo de alterações e eventos do pedido #${orderNumber}`,
+    body,
+  });
+
+  openAndPrint(html);
 }
 
 // ── Componente principal ───────────────────────────────────────────────────
