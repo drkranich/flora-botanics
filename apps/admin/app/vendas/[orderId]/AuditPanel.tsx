@@ -46,6 +46,234 @@ function actionLabel(action: string) {
   return labels[action] ?? action.replace(/_/g, " ");
 }
 
+// ── Mapeamento de chaves técnicas → rótulos legíveis ──────────────────────
+
+const FIELD_LABELS: Record<string, string> = {
+  // Operação geral
+  origin_label: "Origem visível",
+  manual_channel: "Canal interno",
+  notes: "Observações internas",
+  internal_tags: "Tags internas",
+  // Pagamento
+  payment_status: "Status financeiro",
+  "payment_summary.method": "Método de pagamento",
+  "payment_summary.terms": "Condição de pagamento",
+  "payment_summary.external_identifier": "Identificador externo",
+  "payment_summary.due_dates": "Vencimentos",
+  "payment_summary.notes": "Observação de pagamento",
+  amount_cents: "Valor (centavos)",
+  // Entrega
+  "delivery_summary.mode": "Modo de entrega",
+  "delivery_summary.carrier": "Transportadora",
+  "delivery_summary.service": "Serviço",
+  "delivery_summary.deadline": "Prazo",
+  "delivery_summary.tracking_code": "Código de rastreio",
+  "delivery_summary.package": "Embalagem",
+  "delivery_summary.customer_observation": "Obs. do cliente",
+  // Fiscal
+  "fiscal_summary.invoice_kind": "Nota fiscal",
+  "fiscal_summary.operation_nature": "Natureza da operação",
+  "fiscal_summary.cfop": "CFOP",
+  "fiscal_summary.fiscal_notes": "Notas fiscais",
+  // Status / evento
+  status: "Status do pedido",
+  payment_status_new: "Status financeiro (novo)",
+  // Arquivamento / exclusão
+  archived_at: "Arquivado em",
+  deleted_at: "Excluído em",
+  // Pagamento baixa
+  provider: "Método",
+  provider_payment_id: "ID do pagamento",
+  last_payment_cents: "Último pagamento",
+  last_payment_at: "Data do pagamento",
+  last_payment_method: "Método do pagamento",
+  last_receipt_reference: "Comprovante",
+  // Rastreamento
+  description: "Descrição",
+  location: "Local",
+  carrier: "Transportadora",
+  tracking_code: "Código",
+  // Outros
+  commission_summary: "Comissões",
+  deleted_audit_id: "ID do evento removido",
+  source_order_id: "Pedido de origem",
+  duplicated_order_id: "Pedido duplicado",
+};
+
+const CHANNEL_LABELS: Record<string, string> = {
+  atendimento_direto: "Atendimento direto",
+  whatsapp: "WhatsApp",
+  instagram: "Instagram",
+  loja_fisica: "Loja física",
+  representante: "Representante",
+  marketplace: "Marketplace",
+  b2b: "B2B",
+  b2c: "B2C",
+  outro: "Outro canal",
+  pdv: "PDV",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pendente",
+  partial: "Parcial",
+  paid: "Pago",
+  scheduled: "Agendado",
+  failed: "Falhou",
+  refunded: "Reembolsado",
+  canceled: "Cancelado",
+  delivered: "Entregue",
+  in_transit: "Em trânsito",
+  out_for_delivery: "Saiu para entrega",
+  dispatched: "Despachado",
+  exception: "Ocorrência",
+};
+
+function humanizeValue(key: string, value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
+  const str = String(value).trim();
+  if (!str) return "—";
+  // centavos → reais
+  if (key.includes("cents") || key.includes("amount")) {
+    const num = Number(str);
+    if (!Number.isNaN(num)) return `R$ ${(num / 100).toFixed(2).replace(".", ",")}`;
+  }
+  // status / canal
+  return STATUS_LABELS[str] ?? CHANNEL_LABELS[str] ?? str;
+}
+
+/** Achata um objeto aninhado em chaves planas (máx. 2 níveis) */
+function flattenObj(obj: Record<string, unknown>, prefix = ""): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+      Object.assign(result, flattenObj(v as Record<string, unknown>, key));
+    } else {
+      result[key] = v;
+    }
+  }
+  return result;
+}
+
+/** Retorna apenas os campos que mudaram entre before e after */
+function diffValues(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown> | null
+): Array<{ label: string; key: string; before: unknown; after: unknown }> {
+  const flatBefore = before ? flattenObj(before) : {};
+  const flatAfter = after ? flattenObj(after) : {};
+
+  const allKeys = new Set([...Object.keys(flatBefore), ...Object.keys(flatAfter)]);
+  const diffs: Array<{ label: string; key: string; before: unknown; after: unknown }> = [];
+
+  for (const key of allKeys) {
+    const vBefore = flatBefore[key];
+    const vAfter = flatAfter[key];
+    // Arrays: comparar serializado
+    const strBefore = Array.isArray(vBefore) ? vBefore.join(", ") : String(vBefore ?? "");
+    const strAfter = Array.isArray(vAfter) ? vAfter.join(", ") : String(vAfter ?? "");
+    if (strBefore === strAfter) continue;
+    // Ignora IDs internos e campos de sistema que não têm rótulo mapeado
+    const label = FIELD_LABELS[key];
+    if (!label) continue;
+    diffs.push({ label, key, before: vBefore, after: vAfter });
+  }
+
+  return diffs;
+}
+
+/** Renderiza os campos alterados de forma legível, sem JSON bruto */
+function AuditDiff({
+  action,
+  previousValue,
+  newValue,
+}: {
+  action: string;
+  previousValue: Record<string, unknown> | null;
+  newValue: Record<string, unknown> | null;
+}) {
+  const diffs = diffValues(previousValue, newValue);
+
+  // Se não há diff mapeado, mostra resumo compacto do new_value
+  if (diffs.length === 0 && newValue) {
+    const flat = flattenObj(newValue);
+    const mapped = Object.entries(flat)
+      .filter(([k]) => FIELD_LABELS[k])
+      .slice(0, 8);
+    if (mapped.length === 0) return null;
+    return (
+      <div style={diffBox}>
+        {mapped.map(([k, v]) => (
+          <div key={k} style={diffRow}>
+            <span style={diffLabel}>{FIELD_LABELS[k]}</span>
+            <span style={diffAfter}>{humanizeValue(k, v)}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (diffs.length === 0) return null;
+
+  return (
+    <div style={diffBox}>
+      {diffs.map(({ label, key, before, after }) => (
+        <div key={key} style={diffRow}>
+          <span style={diffLabel}>{label}</span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            {before !== undefined && before !== null && String(before) !== "undefined" && (
+              <span style={diffBefore}>{humanizeValue(key, before)}</span>
+            )}
+            {before !== undefined && before !== null && String(before) !== "undefined" && (
+              <span style={{ fontSize: 10, opacity: 0.5 }}>→</span>
+            )}
+            <span style={diffAfter}>{humanizeValue(key, after)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const diffBox: React.CSSProperties = {
+  marginTop: 8,
+  display: "grid",
+  gap: 5,
+  padding: "10px 12px",
+  background: "rgba(242,236,223,0.04)",
+  borderRadius: 8,
+  border: "1px solid var(--glass-border)",
+};
+
+const diffRow: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  fontSize: 11.5,
+  flexWrap: "wrap",
+};
+
+const diffLabel: React.CSSProperties = {
+  color: "var(--cream-dim)",
+  fontSize: 11,
+  flexShrink: 0,
+  minWidth: 140,
+};
+
+const diffBefore: React.CSSProperties = {
+  textDecoration: "line-through",
+  opacity: 0.5,
+  fontSize: 11,
+};
+
+const diffAfter: React.CSSProperties = {
+  color: "#8fd486",
+  fontWeight: 600,
+  fontSize: 11.5,
+};
+
 function actionIcon(action: string) {
   if (action.includes("cancel")) return "🚫";
   if (action.includes("delet")) return "🗑️";
@@ -283,6 +511,15 @@ export function AuditPanel({ orderId, orderNumber, initialAudits, isAdmin }: Pro
                     <span className="muted" style={{ fontSize: 10.5 }}>{formatDate(audit.created_at)}</span>
                   </div>
 
+                  {/* Resumo legível dos campos alterados — sempre visível */}
+                  {hasData && editingId !== audit.id && !isExpanded && (
+                    <AuditDiff
+                      action={audit.action}
+                      previousValue={audit.previous_value}
+                      newValue={audit.new_value}
+                    />
+                  )}
+
                   {/* Razão / anotação */}
                   {editingId === audit.id ? (
                     <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -309,26 +546,13 @@ export function AuditPanel({ orderId, orderNumber, initialAudits, isAdmin }: Pro
                     )
                   )}
 
-                  {/* Dados expandidos */}
+                  {/* Dados expandidos — legível, sem JSON bruto */}
                   {hasData && isExpanded && (
-                    <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(242,236,223,0.04)", borderRadius: 8, border: "1px solid var(--glass-border)" }}>
-                      {audit.previous_value && (
-                        <div style={{ marginBottom: 8 }}>
-                          <p className="muted" style={{ fontSize: 10, marginBottom: 4 }}>ANTES</p>
-                          <pre style={{ fontSize: 10, whiteSpace: "pre-wrap", color: "#e8a0a0", maxHeight: 120, overflow: "auto" }}>
-                            {JSON.stringify(audit.previous_value, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                      {audit.new_value && (
-                        <div>
-                          <p className="muted" style={{ fontSize: 10, marginBottom: 4 }}>DEPOIS</p>
-                          <pre style={{ fontSize: 10, whiteSpace: "pre-wrap", color: "#8fd486", maxHeight: 120, overflow: "auto" }}>
-                            {JSON.stringify(audit.new_value, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
+                    <AuditDiff
+                      action={audit.action}
+                      previousValue={audit.previous_value}
+                      newValue={audit.new_value}
+                    />
                   )}
                 </div>
 
