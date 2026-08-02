@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateAuditReason, deleteAuditEvent, archiveOrder, softDeleteOrder } from "./order-actions";
+import { updateAuditReason, deleteAuditEvent, archiveOrder, softDeleteOrder, cancelOrderWithReason } from "./order-actions";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
 import { getPdfConfig } from "@/lib/pdf/actions";
 
@@ -376,6 +376,9 @@ export function AuditPanel({ orderId, orderNumber, initialAudits, isAdmin }: Pro
   const [archiveReason, setArchiveReason] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
+  // Cancelar pedido
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   function flash(ok: boolean, message: string) {
     if (ok) { setMsg(message); setErr(null); }
@@ -436,6 +439,17 @@ export function AuditPanel({ orderId, orderNumber, initialAudits, isAdmin }: Pro
     });
   }
 
+  function handleCancel(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("reason", cancelReason);
+      const result = await cancelOrderWithReason(orderId, fd);
+      if (result.ok) { flash(true, "Pedido cancelado."); setShowCancel(false); }
+      else flash(false, result.error);
+    });
+  }
+
   return (
     <section className="glass rise" style={{ padding: 22, marginTop: 16 }}>
       {/* Header */}
@@ -457,7 +471,7 @@ export function AuditPanel({ orderId, orderNumber, initialAudits, isAdmin }: Pro
                 type="button"
                 className="btn btn-ghost"
                 style={{ padding: "7px 14px", fontSize: 10, color: "var(--gold-light)" }}
-                onClick={() => { setShowArchive((v) => !v); setShowDelete(false); }}
+                onClick={() => { setShowArchive((v) => !v); setShowDelete(false); setShowCancel(false); }}
               >
                 📦 Arquivar pedido
               </button>
@@ -465,7 +479,15 @@ export function AuditPanel({ orderId, orderNumber, initialAudits, isAdmin }: Pro
                 type="button"
                 className="btn btn-ghost"
                 style={{ padding: "7px 14px", fontSize: 10, color: "#e8a0a0" }}
-                onClick={() => { setShowDelete((v) => !v); setShowArchive(false); }}
+                onClick={() => { setShowCancel((v) => !v); setShowDelete(false); setShowArchive(false); }}
+              >
+                🚫 Cancelar pedido
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ padding: "7px 14px", fontSize: 10, color: "#e8a0a0" }}
+                onClick={() => { setShowDelete((v) => !v); setShowArchive(false); setShowCancel(false); }}
               >
                 🗑️ Excluir pedido
               </button>
@@ -494,6 +516,29 @@ export function AuditPanel({ orderId, orderNumber, initialAudits, isAdmin }: Pro
             </button>
             <button type="button" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 11 }} onClick={() => setShowArchive(false)}>
               Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Formulário: cancelar */}
+      {showCancel && (
+        <form onSubmit={handleCancel} style={{ ...formStyle, borderColor: "rgba(232,160,160,0.3)", background: "rgba(232,160,160,0.05)" }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#e8a0a0", marginBottom: 8 }}>🚫 Cancelar pedido</p>
+          <p className="muted" style={{ fontSize: 11, marginBottom: 8 }}>O status do pedido será alterado para "Cancelado". A operação é registrada na auditoria.</p>
+          <input
+            className="input"
+            placeholder="Motivo do cancelamento (obrigatório)"
+            required
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button type="submit" className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 11, color: "#e8a0a0", borderColor: "#e8a0a0" }} disabled={pending}>
+              {pending ? "Cancelando…" : "Confirmar cancelamento"}
+            </button>
+            <button type="button" className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 11 }} onClick={() => setShowCancel(false)}>
+              Voltar
             </button>
           </div>
         </form>

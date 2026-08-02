@@ -9,6 +9,7 @@ import {
   type PDVCartItem,
   type PDVOrderPayment,
 } from "./pdv-actions";
+import { cancelOrderWithReason } from "@/app/vendas/[orderId]/order-actions";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
 import { getPdfConfig } from "@/lib/pdf/actions";
 import { GlassSelect } from "@/components/GlassSelect";
@@ -103,6 +104,13 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
     items: CartItem[]; subtotal: number; discount: number; total: number;
     payLines: PayLine[]; customer: string; notes: string;
   } | null>(null);
+
+  // cancelamento pós-venda
+  const [cancelMode, setCancelMode] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [canceling, setCanceling] = useState(false);
+  const [cancelErr, setCancelErr] = useState<string | null>(null);
+  const [canceled, setCanceled] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const barcodeBuffer = useRef("");
@@ -718,37 +726,108 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
             {modal === "receipt" && lastReceipt && (
               <>
                 <div style={{ textAlign: "center", marginBottom: 20 }}>
-                  <div style={{ fontSize: 48, marginBottom: 10 }}>✅</div>
-                  <h3 style={{ ...S.modalTitle, textAlign: "center", marginBottom: 4 }}>Venda concluída!</h3>
+                  <div style={{ fontSize: 48, marginBottom: 10 }}>{canceled ? "🚫" : "✅"}</div>
+                  <h3 style={{ ...S.modalTitle, textAlign: "center", marginBottom: 4 }}>
+                    {canceled ? "Venda cancelada" : "Venda concluída!"}
+                  </h3>
                   <p className="muted" style={{ fontSize: 13 }}>Pedido <strong style={{ color: "var(--gold-light)" }}>#{lastReceipt.number}</strong></p>
                 </div>
-                <div style={{ background: "rgba(185,146,77,0.07)", borderRadius: 10, border: "1px solid rgba(185,146,77,0.2)", padding: "12px 16px", marginBottom: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                    <span className="muted">Total cobrado</span>
-                    <span style={{ fontWeight: 800, color: "var(--gold-light)" }}>{fmt(lastReceipt.total)}</span>
+
+                {!canceled && (
+                  <div style={{ background: "rgba(185,146,77,0.07)", borderRadius: 10, border: "1px solid rgba(185,146,77,0.2)", padding: "12px 16px", marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                      <span className="muted">Total cobrado</span>
+                      <span style={{ fontWeight: 800, color: "var(--gold-light)" }}>{fmt(lastReceipt.total)}</span>
+                    </div>
+                    {lastReceipt.payLines.filter((l) => parseCents(l.amountStr) > 0).map((l, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                        <span className="muted">{METHOD_LABEL[l.method]}</span>
+                        <span>{fmt(parseCents(l.amountStr))}</span>
+                      </div>
+                    ))}
+                    {cashChange > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", fontWeight: 800, fontSize: 18 }}>
+                        <span>Troco</span><span>{fmt(cashChange)}</span>
+                      </div>
+                    )}
                   </div>
-                  {lastReceipt.payLines.filter((l) => parseCents(l.amountStr) > 0).map((l, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                      <span className="muted">{METHOD_LABEL[l.method]}</span>
-                      <span>{fmt(parseCents(l.amountStr))}</span>
+                )}
+
+                {/* Formulário de cancelamento */}
+                {cancelMode && !canceled && (
+                  <div style={{ marginBottom: 12, padding: "12px 14px", background: "rgba(232,160,160,0.07)", border: "1px solid rgba(232,160,160,0.3)", borderRadius: 10 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#e8a0a0", marginBottom: 8 }}>
+                      Motivo do cancelamento <span style={{ color: "#c0392b" }}>*</span>
+                    </p>
+                    <input
+                      className="input"
+                      placeholder="Ex: cliente desistiu, erro no lançamento…"
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      style={{ fontSize: 12, marginBottom: 8 }}
+                    />
+                    {cancelErr && <p style={{ fontSize: 11, color: "#e8a0a0", marginBottom: 6 }}>⚠️ {cancelErr}</p>}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        className="btn btn-ghost"
+                        style={{ flex: 1, fontSize: 12, color: "#e8a0a0", borderColor: "#e8a0a0", padding: "9px" }}
+                        disabled={canceling}
+                        onClick={async () => {
+                          if (!cancelReason.trim()) { setCancelErr("Informe o motivo."); return; }
+                          setCanceling(true);
+                          setCancelErr(null);
+                          const fd = new FormData();
+                          fd.set("reason", cancelReason.trim());
+                          const res = await cancelOrderWithReason(lastReceipt.orderId, fd);
+                          setCanceling(false);
+                          if (res.ok) { setCanceled(true); setCancelMode(false); }
+                          else setCancelErr(res.error);
+                        }}
+                      >
+                        {canceling ? "Cancelando…" : "Confirmar cancelamento"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        style={{ fontSize: 12, padding: "9px 14px" }}
+                        onClick={() => { setCancelMode(false); setCancelErr(null); }}
+                      >
+                        Voltar
+                      </button>
                     </div>
-                  ))}
-                  {cashChange > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", fontWeight: 800, fontSize: 18 }}>
-                      <span>Troco</span><span>{fmt(cashChange)}</span>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
+
                 <div style={{ display: "grid", gap: 8 }}>
-                  <button className="btn btn-gold" style={{ padding: "12px", fontSize: 14, fontWeight: 800 }} onClick={() => setModal("none")}>
+                  <button
+                    className="btn btn-gold"
+                    style={{ padding: "12px", fontSize: 14, fontWeight: 800 }}
+                    onClick={() => {
+                      setModal("none");
+                      setCancelMode(false);
+                      setCancelReason("");
+                      setCanceled(false);
+                      setCancelErr(null);
+                    }}
+                  >
                     + Nova venda
                   </button>
-                  <button className="btn btn-ghost" style={{ padding: "11px", fontSize: 12 }} onClick={() => void printReceipt()}>
-                    🖨️ Imprimir recibo
-                  </button>
+                  {!canceled && (
+                    <button className="btn btn-ghost" style={{ padding: "11px", fontSize: 12 }} onClick={() => void printReceipt()}>
+                      🖨️ Imprimir recibo
+                    </button>
+                  )}
                   <Link href={`/vendas/${lastReceipt.orderId}`} className="btn btn-ghost" style={{ padding: "11px", fontSize: 12, textAlign: "center", textDecoration: "none" }}>
                     Ver pedido →
                   </Link>
+                  {!canceled && !cancelMode && (
+                    <button
+                      className="btn btn-ghost"
+                      style={{ padding: "9px", fontSize: 11, color: "#e8a0a0", borderColor: "rgba(232,160,160,0.35)" }}
+                      onClick={() => setCancelMode(true)}
+                    >
+                      🚫 Cancelar esta venda
+                    </button>
+                  )}
                 </div>
               </>
             )}
