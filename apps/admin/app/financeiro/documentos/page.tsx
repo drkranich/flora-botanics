@@ -170,12 +170,12 @@ export default async function FinanceiroDocumentosPage({
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <Link href="/financeiro/exportar?format=csv" style={{ padding: "8px 14px", fontSize: 12 }} className="btn btn-ghost">
+          <a href="/financeiro/exportar/download?format=csv" style={{ padding: "8px 14px", fontSize: 12 }} className="btn btn-ghost">
             CSV
-          </Link>
-          <Link href="/financeiro/exportar?format=pdf" style={{ padding: "8px 14px", fontSize: 12 }} className="btn btn-gold">
-            PDF
-          </Link>
+          </a>
+          <a href="/financeiro/exportar/download?format=xlsx" style={{ padding: "8px 14px", fontSize: 12 }} className="btn btn-gold">
+            Excel
+          </a>
         </div>
       </div>
 

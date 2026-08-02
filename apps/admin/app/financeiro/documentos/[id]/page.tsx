@@ -136,9 +136,15 @@ export default async function CommercialDocumentPage({
           <form action={duplicateCommercialQuote.bind(null, row.id)}>
             <button className="btn btn-ghost" style={smallButtonStyle}>Duplicar</button>
           </form>
-          <Link href={`/financeiro/documentos/${row.id}/exportar`} className="btn btn-ghost" style={smallButtonStyle}>
+          <a
+            href={`/financeiro/documentos/${row.id}/exportar`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-ghost"
+            style={smallButtonStyle}
+          >
             PDF
-          </Link>
+          </a>
           {row.status === "approved" ? (
             <form action={convertCommercialQuoteToOrder.bind(null, row.id)}>
               <button className="btn btn-gold" style={smallButtonStyle}>Converter em pedido</button>
