@@ -743,6 +743,109 @@ async function logAudit(
   });
 }
 
+// ── Macros / Templates de resposta rápida ────────────────────────────────────
+
+export interface MacroAction {
+  type: "send_reply" | "send_note" | "set_status" | "set_priority" | "add_tag" | "create_task";
+  params: Record<string, unknown>;
+}
+
+export interface Macro {
+  id: string;
+  name: string;
+  description: string | null;
+  visibility: string;
+  actions: MacroAction[];
+  use_count: number;
+  created_at: string;
+}
+
+export async function getMacros(): Promise<Macro[]> {
+  const staff = await currentStaff();
+  if (!staff) return [];
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("helpdesk_macros")
+    .select("id, name, description, visibility, actions, use_count, created_at")
+    .eq("tenant_id", staff.tenantId)
+    .eq("active", true)
+    .order("use_count", { ascending: false })
+    .limit(50);
+
+  return (data ?? []) as Macro[];
+}
+
+export async function createMacro(
+  name: string,
+  description: string,
+  body: string,
+  isNote: boolean,
+): Promise<ActionResult<string>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (!name.trim()) return { ok: false, error: "Nome obrigatório." };
+  if (!body.trim()) return { ok: false, error: "Corpo do template obrigatório." };
+
+  const supabase = await createClient();
+  const action: MacroAction = {
+    type: isNote ? "send_note" : "send_reply",
+    params: { body },
+  };
+
+  const { data, error } = await supabase
+    .from("helpdesk_macros")
+    .insert({
+      tenant_id:   staff.tenantId,
+      created_by:  staff.id,
+      name:        name.trim(),
+      description: description.trim() || null,
+      actions:     [action],
+      visibility:  "all",
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) return { ok: false, error: error?.message ?? "Erro ao criar template." };
+  revalidatePath("/inbox");
+  return { ok: true, data: (data as { id: string }).id };
+}
+
+export async function deleteMacro(macroId: string): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("helpdesk_macros")
+    .update({ active: false })
+    .eq("id", macroId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox");
+  return { ok: true, data: undefined };
+}
+
+export async function incrementMacroUse(macroId: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.rpc("increment_macro_use", { macro_id: macroId }).then(() => {});
+  // fallback manual se rpc não existir
+  const { data: m } = await supabase
+    .from("helpdesk_macros")
+    .select("use_count")
+    .eq("id", macroId)
+    .maybeSingle();
+  if (m) {
+    await supabase
+      .from("helpdesk_macros")
+      .update({ use_count: ((m as { use_count: number }).use_count ?? 0) + 1 })
+      .eq("id", macroId);
+  }
+}
+
 export async function setStatusWithAudit(
   conversationId: string,
   status: string,

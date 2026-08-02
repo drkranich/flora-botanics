@@ -6,9 +6,9 @@ import {
   getConversationDetail,
   getTimeline,
   sendReply,
-  setStatus,
   setStatusWithAudit,
 } from "./inbox-actions";
+import { MacroPicker } from "./MacroPicker";
 import { formatDateTime, formatRelative } from "./constants";
 
 // ── Constantes de UI ──────────────────────────────────────────────────────────
@@ -67,11 +67,13 @@ export function InboxDetail({ conversationId }: Props) {
   const [timeline, setTimeline]   = useState<TimelineEvent[]>([]);
   const [reply, setReply]         = useState("");
   const [isNote, setIsNote]       = useState(false);
-  const [isPending, start]        = useTransition();
-  const [error, setError]         = useState<string | null>(null);
+  const [isPending, start]          = useTransition();
+  const [error, setError]           = useState<string | null>(null);
   const [showStatus, setShowStatus] = useState(false);
-  const [convNum, setConvNum]     = useState<number | null>(null);
-  const endRef                    = useRef<HTMLDivElement>(null);
+  const [showMacros, setShowMacros] = useState(false);
+  const [convNum, setConvNum]       = useState<number | null>(null);
+  const endRef                      = useRef<HTMLDivElement>(null);
+  const editorRef                   = useRef<HTMLDivElement>(null);
 
   function load(id: string) {
     start(async () => {
@@ -494,13 +496,30 @@ export function InboxDetail({ conversationId }: Props) {
       </div>
 
       {/* ── Editor de resposta ────────────────────────────────────────────── */}
-      <div style={{
-        padding: "14px 22px 18px",
-        borderTop: "1px solid rgba(242,236,223,0.07)",
-        background: "rgba(12,26,14,0.6)",
-        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-        flexShrink: 0,
-      }}>
+      <div
+        ref={editorRef}
+        style={{
+          padding: "14px 22px 18px",
+          borderTop: "1px solid rgba(242,236,223,0.07)",
+          background: "rgba(12,26,14,0.6)",
+          backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+          flexShrink: 0,
+          position: "relative",
+        }}
+      >
+        {/* MacroPicker */}
+        {showMacros && (
+          <MacroPicker
+            contactName={conv?.contact_name}
+            contactEmail={conv?.contact_email}
+            onApply={(body, isNoteTemplate) => {
+              setReply(prev => prev ? prev + "\n\n" + body : body);
+              setIsNote(isNoteTemplate);
+              setShowMacros(false);
+            }}
+            onClose={() => setShowMacros(false)}
+          />
+        )}
         {/* Tabs */}
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           {[
@@ -574,12 +593,32 @@ export function InboxDetail({ conversationId }: Props) {
             padding: "8px 12px 10px",
             borderTop: "1px solid rgba(242,236,223,0.06)",
           }}>
-            <span style={{
-              fontSize: 10, color: "rgba(242,236,223,0.22)",
-              fontFamily: "Manrope, sans-serif",
-            }}>
-              Ctrl+Enter para enviar
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* Botão templates */}
+              <button
+                onClick={() => setShowMacros(v => !v)}
+                style={{
+                  background: showMacros ? "rgba(185,146,77,0.14)" : "rgba(242,236,223,0.05)",
+                  border: `1px solid ${showMacros ? "rgba(185,146,77,0.3)" : "rgba(242,236,223,0.09)"}`,
+                  borderRadius: 7,
+                  color: showMacros ? "var(--gold-light)" : "var(--cream-dim)",
+                  fontFamily: "Manrope, sans-serif",
+                  fontSize: 10.5, fontWeight: showMacros ? 700 : 500,
+                  padding: "5px 9px", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 4,
+                  transition: "all 0.2s",
+                }}
+              >
+                <span style={{ fontSize: 11 }}>◈</span>
+                Templates
+              </button>
+              <span style={{
+                fontSize: 10, color: "rgba(242,236,223,0.22)",
+                fontFamily: "Manrope, sans-serif",
+              }}>
+                Ctrl+Enter para enviar
+              </span>
+            </div>
 
             <div style={{ display: "flex", gap: 7 }}>
               {!isNote && (
