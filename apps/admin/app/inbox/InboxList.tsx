@@ -3,24 +3,40 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { ConversationListItem, InboxQueue } from "./inbox-actions";
 import { getConversations } from "./inbox-actions";
-import { CHANNEL_LABEL, CONVERSATION_STATUS_LABEL, formatRelative } from "./constants";
+import { formatRelative } from "./constants";
 
-const PRIORITY_DOT: Record<string, string> = {
-  low: "#6b7280",
-  normal: "#6b7280",
-  high: "#f59e0b",
-  urgent: "#ef4444",
-  critical: "#dc2626",
+const PRIORITY_COLOR: Record<string, string> = {
+  low:      "#4ade80",
+  normal:   "rgba(242,236,223,0.25)",
+  high:     "#f0b429",
+  urgent:   "#fb923c",
+  critical: "#ef4444",
 };
 
-const CHANNEL_ICONS: Record<string, string> = {
-  email: "✉️",
-  whatsapp: "💬",
-  chat: "🌐",
-  phone: "📞",
-  instagram: "📷",
-  facebook: "👥",
-  sms: "📱",
+const PRIORITY_LABEL: Record<string, string> = {
+  low: "Baixa", normal: "Normal", high: "Alta", urgent: "Urgente", critical: "Crítica",
+};
+
+const CHANNEL_ICON: Record<string, string> = {
+  email:     "✉",
+  whatsapp:  "◎",
+  chat:      "◉",
+  phone:     "◈",
+  instagram: "◌",
+  facebook:  "◫",
+  sms:       "◷",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  new: "Novo", open: "Em atendimento", waiting: "Aguardando",
+  waiting_customer: "Ag. cliente", waiting_team: "Ag. equipe",
+  resolved: "Resolvido", closed: "Fechado", archived: "Arquivado", spam: "Spam",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  new: "#7ea8d9", open: "#62c99d", waiting: "#f0b429",
+  waiting_customer: "#f0b429", waiting_team: "#a78bfa",
+  resolved: "#4ade80", closed: "#6b7280", archived: "#374151", spam: "#ef4444",
 };
 
 interface Props {
@@ -43,166 +59,313 @@ export function InboxList({ queue, selectedId, onSelect }: Props) {
     });
   }
 
-  // Recarrega ao trocar fila
-  useEffect(() => {
-    setSearch("");
-    load(queue);
-  }, [queue]);
+  useEffect(() => { setSearch(""); load(queue); }, [queue]);
 
-  // Debounce de busca
   useEffect(() => {
-    const timer = setTimeout(() => load(queue, search || undefined), 300);
-    return () => clearTimeout(timer);
-  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+    const t = setTimeout(() => load(queue, search || undefined), 300);
+    return () => clearTimeout(t);
+  }, [search]); // eslint-disable-line
+
+  const queueLabels: Record<InboxQueue, string> = {
+    inbox: "Caixa de entrada", mine: "Meus atendimentos",
+    unassigned: "Não atribuídos", urgent: "Urgentes",
+    waiting_customer: "Aguardando cliente", waiting_team: "Aguardando equipe",
+    resolved: "Resolvidos", archived: "Arquivados", spam: "Spam", all: "Todos",
+  };
 
   return (
     <div style={{
-      width: 300,
-      minWidth: 260,
+      width: 320,
+      minWidth: 280,
       display: "flex",
       flexDirection: "column",
-      borderRight: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.015)",
+      background: "rgba(15,32,18,0.55)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      borderRight: "1px solid rgba(242,236,223,0.07)",
       flexShrink: 0,
     }}>
-      {/* Busca */}
-      <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar conversa…"
-          style={{
-            width: "100%",
-            background: "rgba(255,255,255,0.07)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 8,
-            color: "var(--c-text)",
-            fontSize: 13,
-            padding: "6px 10px",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
+
+      {/* Header da lista */}
+      <div style={{
+        padding: "18px 18px 12px",
+        borderBottom: "1px solid rgba(242,236,223,0.07)",
+      }}>
+        <div style={{
+          fontFamily: "Fraunces, serif",
+          fontSize: 17,
+          fontWeight: 500,
+          color: "var(--cream)",
+          letterSpacing: -0.3,
+          marginBottom: 10,
+        }}>
+          {queueLabels[queue]}
+        </div>
+
+        {/* Busca */}
+        <div style={{ position: "relative" }}>
+          <span style={{
+            position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)",
+            fontSize: 12, color: "var(--cream-dim)", pointerEvents: "none",
+          }}>
+            ⌕
+          </span>
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar conversa…"
+            style={{
+              width: "100%",
+              background: "rgba(10,22,11,0.6)",
+              border: "1px solid rgba(242,236,223,0.1)",
+              borderRadius: 9,
+              color: "var(--cream)",
+              fontSize: 12.5,
+              padding: "7px 11px 7px 30px",
+              outline: "none",
+              fontFamily: "Manrope, sans-serif",
+              transition: "border-color 0.2s",
+              boxSizing: "border-box",
+            }}
+            onFocus={e => (e.target.style.borderColor = "rgba(185,146,77,0.45)")}
+            onBlur={e => (e.target.style.borderColor = "rgba(242,236,223,0.1)")}
+          />
+        </div>
       </div>
 
       {/* Lista */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {isPending && items.length === 0 && (
-          <div style={{ padding: 24, textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
+          <div style={{
+            padding: "48px 24px",
+            textAlign: "center",
+            color: "var(--cream-dim)",
+            fontSize: 12.5,
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 12, opacity: 0.3 }}>◌</div>
             Carregando…
           </div>
         )}
+
         {!isPending && items.length === 0 && (
-          <div style={{ padding: 24, textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
-            Nenhuma conversa.
+          <div style={{
+            padding: "48px 24px",
+            textAlign: "center",
+          }}>
+            <div style={{
+              fontSize: 32,
+              marginBottom: 14,
+              color: "var(--gold-light)",
+              opacity: 0.35,
+              fontFamily: "Fraunces, serif",
+            }}>
+              ✦
+            </div>
+            <p style={{
+              fontSize: 13,
+              color: "var(--cream-soft)",
+              fontFamily: "Fraunces, serif",
+              fontStyle: "italic",
+              marginBottom: 6,
+            }}>
+              Nenhum atendimento aqui
+            </p>
+            <p style={{ fontSize: 11, color: "var(--cream-dim)" }}>
+              Esta fila está vazia no momento.
+            </p>
           </div>
         )}
-        {items.map((item) => {
+
+        {items.map(item => {
           const isSelected = item.id === selectedId;
-          const channelIcon = CHANNEL_ICONS[item.channel] ?? "💬";
-          const priorityColor = PRIORITY_DOT[item.priority] ?? "#6b7280";
-          const hasUnread = item.unread_count > 0;
+          const hasUnread  = item.unread_count > 0;
+          const pColor     = PRIORITY_COLOR[item.priority] ?? PRIORITY_COLOR.normal;
+          const sColor     = STATUS_COLOR[item.status] ?? "#6b7280";
+          const chIcon     = CHANNEL_ICON[item.channel] ?? "◉";
+          const initials   = (item.contact_name ?? item.contact_handle ?? "?")
+            .split(" ").slice(0, 2).map(s => s[0]).join("").toUpperCase();
 
           return (
             <button
               key={item.id}
               onClick={() => onSelect(item.id)}
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 3,
+                display: "block",
                 width: "100%",
-                padding: "10px 14px",
+                padding: "13px 16px",
                 background: isSelected
-                  ? "rgba(var(--c-gold-rgb,212,175,55),0.1)"
+                  ? "rgba(185,146,77,0.1)"
                   : hasUnread
-                  ? "rgba(255,255,255,0.035)"
+                  ? "rgba(242,236,223,0.03)"
                   : "transparent",
-                borderLeft: isSelected ? "3px solid var(--c-gold)" : "3px solid transparent",
-                border: "none",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                borderLeft: `3px solid ${isSelected ? "var(--gold)" : "transparent"}`,
+                borderTop: "none",
+                borderRight: "none",
+                borderBottom: "1px solid rgba(242,236,223,0.05)",
                 cursor: "pointer",
                 textAlign: "left",
-                transition: "background 0.12s",
+                transition: "background 0.15s, border-color 0.15s",
+              }}
+              onMouseEnter={e => {
+                if (!isSelected) e.currentTarget.style.background = "rgba(242,236,223,0.04)";
+              }}
+              onMouseLeave={e => {
+                if (!isSelected) e.currentTarget.style.background = hasUnread ? "rgba(242,236,223,0.03)" : "transparent";
               }}
             >
-              {/* Linha 1: nome + horário */}
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{
-                  width: 7, height: 7,
-                  borderRadius: "50%",
-                  background: priorityColor,
+              {/* Linha 1: avatar + nome + horário */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {/* Avatar */}
+                <div style={{
+                  width: 34, height: 34,
+                  borderRadius: 10,
+                  background: isSelected
+                    ? "linear-gradient(135deg, rgba(185,146,77,0.3), rgba(185,146,77,0.1))"
+                    : "rgba(242,236,223,0.07)",
+                  border: `1px solid ${isSelected ? "rgba(185,146,77,0.3)" : "rgba(242,236,223,0.1)"}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 12, fontWeight: 700,
+                  color: isSelected ? "var(--gold-light)" : "var(--cream-dim)",
                   flexShrink: 0,
-                }} />
-                <span style={{ fontSize: 12, opacity: 0.5 }}>{channelIcon}</span>
-                <span style={{
-                  flex: 1,
-                  fontSize: 13.5,
-                  fontWeight: hasUnread ? 700 : 500,
-                  color: "var(--c-text)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  fontFamily: "Manrope, sans-serif",
                 }}>
-                  {item.contact_name || item.contact_handle || "Desconhecido"}
-                </span>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>
-                  {item.last_message_at ? formatRelative(item.last_message_at) : ""}
-                </span>
+                  {initials || chIcon}
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Nome */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                    <span style={{
+                      fontSize: 13,
+                      fontWeight: hasUnread ? 700 : 600,
+                      color: "var(--cream)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontFamily: "Manrope, sans-serif",
+                    }}>
+                      {item.contact_name || item.contact_handle || "Desconhecido"}
+                    </span>
+                    <span style={{
+                      fontSize: 10,
+                      color: "var(--cream-dim)",
+                      flexShrink: 0,
+                      fontFamily: "Manrope, sans-serif",
+                    }}>
+                      {item.last_message_at ? formatRelative(item.last_message_at) : ""}
+                    </span>
+                  </div>
+
+                  {/* Preview */}
+                  {item.last_message_preview && (
+                    <div style={{
+                      fontSize: 11.5,
+                      color: "var(--cream-dim)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      marginTop: 2,
+                      fontFamily: "Manrope, sans-serif",
+                    }}>
+                      {item.last_message_preview}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Linha 2: assunto ou preview */}
-              {(item.subject || item.last_message_preview) && (
+              {/* Linha 2: canal + status + prioridade + badge */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                marginTop: 8,
+                paddingLeft: 44,
+              }}>
+                {/* Canal */}
                 <span style={{
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.5)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  paddingLeft: 12,
+                  fontSize: 9.5,
+                  background: "rgba(242,236,223,0.07)",
+                  border: "1px solid rgba(242,236,223,0.1)",
+                  borderRadius: 5,
+                  padding: "2px 6px",
+                  color: "var(--cream-dim)",
+                  fontFamily: "Manrope, sans-serif",
+                  fontWeight: 600,
+                  letterSpacing: 0.5,
                 }}>
-                  {item.subject || item.last_message_preview}
+                  {chIcon} {item.channel}
                 </span>
-              )}
 
-              {/* Linha 3: status + tags + badge */}
-              <div style={{ display: "flex", alignItems: "center", gap: 5, paddingLeft: 12 }}>
+                {/* Status */}
                 <span style={{
-                  fontSize: 10.5,
-                  background: "rgba(255,255,255,0.08)",
-                  borderRadius: 4,
-                  padding: "1px 5px",
-                  color: "rgba(255,255,255,0.5)",
+                  fontSize: 9.5,
+                  background: `${sColor}18`,
+                  border: `1px solid ${sColor}35`,
+                  borderRadius: 5,
+                  padding: "2px 6px",
+                  color: sColor,
+                  fontFamily: "Manrope, sans-serif",
+                  fontWeight: 600,
                 }}>
-                  {CONVERSATION_STATUS_LABEL[item.status as keyof typeof CONVERSATION_STATUS_LABEL] ?? item.status}
+                  {STATUS_LABEL[item.status] ?? item.status}
                 </span>
-                {item.tags?.slice(0, 2).map((tag) => (
-                  <span key={tag} style={{
-                    fontSize: 10.5,
-                    background: "rgba(212,175,55,0.12)",
-                    color: "var(--c-gold)",
-                    borderRadius: 4,
-                    padding: "1px 5px",
+
+                {/* Prioridade — só se não for normal */}
+                {item.priority !== "normal" && (
+                  <span style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 3,
+                    fontSize: 9.5,
+                    color: pColor,
+                    fontFamily: "Manrope, sans-serif",
+                    fontWeight: 700,
                   }}>
-                    {tag}
+                    <span style={{
+                      width: 5, height: 5, borderRadius: "50%",
+                      background: pColor,
+                      boxShadow: `0 0 5px ${pColor}`,
+                    }} />
+                    {PRIORITY_LABEL[item.priority]}
                   </span>
-                ))}
+                )}
+
+                {/* Spacer */}
+                <span style={{ flex: 1 }} />
+
+                {/* Badge não lidos */}
                 {hasUnread && (
                   <span style={{
-                    marginLeft: "auto",
-                    background: "var(--c-gold)",
-                    color: "#000",
-                    borderRadius: 10,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: "1px 5px",
-                    minWidth: 18,
+                    background: "linear-gradient(135deg, var(--gold-light), var(--gold))",
+                    color: "var(--forest-950)",
+                    borderRadius: 6,
+                    fontSize: 9.5,
+                    fontWeight: 800,
+                    padding: "2px 6px",
+                    minWidth: 20,
                     textAlign: "center",
+                    fontFamily: "Manrope, sans-serif",
                   }}>
                     {item.unread_count}
                   </span>
                 )}
+
+                {/* Tags */}
+                {item.tags?.slice(0, 1).map(tag => (
+                  <span key={tag} style={{
+                    fontSize: 9,
+                    background: "rgba(185,146,77,0.12)",
+                    border: "1px solid rgba(185,146,77,0.25)",
+                    color: "var(--gold-light)",
+                    borderRadius: 5,
+                    padding: "2px 6px",
+                    fontWeight: 600,
+                    fontFamily: "Manrope, sans-serif",
+                  }}>
+                    {tag}
+                  </span>
+                ))}
               </div>
             </button>
           );
