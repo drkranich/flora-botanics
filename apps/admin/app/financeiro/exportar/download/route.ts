@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { money } from "@/lib/format";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
+import { buildFloraKraftPDF } from "@/lib/pdf/template";
 
 type CalcRow = {
   title: string;
@@ -49,48 +50,11 @@ function csvLine(values: (string | number | null | undefined)[]) {
   return values.map(csvCell).join(",");
 }
 
-function pdfText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^\x20-\x7E]/g, "-")
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
-}
-
-function buildPdf(lines: string[]) {
-  const content = [
-    "BT",
-    "/F1 18 Tf",
-    "50 780 Td",
-    `(${pdfText(lines[0] ?? "Flora Botanics")}) Tj`,
-    "/F1 10 Tf",
-    ...lines.slice(1, 42).flatMap((line) => ["0 -18 Td", `(${pdfText(line)}) Tj`]),
-    "ET",
-  ].join("\n");
-
-  const objects = [
-    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-    `5 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`,
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (const obj of objects) {
-    offsets.push(pdf.length);
-    pdf += `${obj}\n`;
-  }
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (const offset of offsets.slice(1)) {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return pdf;
+function esc(s: string | number | null | undefined) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export async function GET(request: NextRequest) {
@@ -202,33 +166,96 @@ export async function GET(request: NextRequest) {
   }
 
   if (format === "pdf") {
-    const lines = [
-      "Flora Botanics - Financeiro, Precificação e Orçamentos",
-      `Emitido em: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
-      "",
-      "Cenários salvos:",
-      ...calcRows.slice(0, 18).map((row) => {
-        const totals = row.totals ?? {};
-        return `${row.title} - ${row.sale_model}/${row.channel} - receita ${money(totals.netRevenueCents ?? 0)} - lucro ${money(totals.netProfitCents ?? 0)}`;
-      }),
-      "",
-      "Orçamentos e propostas:",
-      ...quoteRows.slice(0, 14).map((row) => {
-        const totals = row.totals ?? {};
-        return `#${row.number} - ${row.customer_name} - ${row.status} - ${money(totals.netRevenueCents ?? 0)}`;
-      }),
-      "",
-      "Tabelas de preço:",
-      ...priceRows.slice(0, 8).map((row) => {
-        return `${row.name} - ${row.table_type}/${row.channel ?? "sem canal"} - desc ${Number(row.discount_percent).toFixed(1)}% - margem min ${Number(row.minimum_margin_percent).toFixed(1)}%`;
-      }),
-    ];
-    return new Response(buildPdf(lines), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": "attachment; filename=\"flora-financeiro.pdf\"",
-      },
+    // Cenários
+    const cenariosRows = calcRows.slice(0, 50).map((row) => {
+      const t = row.totals ?? {};
+      return `<tr>
+        <td>${esc(row.title)}</td>
+        <td>${esc(row.sale_model)} / ${esc(row.channel)}</td>
+        <td>${esc(row.quantity)}</td>
+        <td>${money(t.netRevenueCents ?? 0)}</td>
+        <td>${money(t.netProfitCents ?? 0)}</td>
+        <td>${Number(t.netMarginPercent ?? 0).toFixed(1)}%</td>
+      </tr>`;
+    }).join("");
+
+    // Documentos comerciais
+    const docRows = quoteRows.slice(0, 50).map((row) => {
+      const t = row.totals ?? {};
+      return `<tr>
+        <td>#${esc(row.number)}</td>
+        <td>${esc(row.kind)}</td>
+        <td>${esc(row.customer_name)}${row.company_name ? `<br/><small>${esc(row.company_name)}</small>` : ""}</td>
+        <td>${esc(row.channel)}</td>
+        <td>${esc(row.status)}</td>
+        <td>${money(t.netRevenueCents ?? 0)}</td>
+      </tr>`;
+    }).join("");
+
+    // Tabelas de preço
+    const tabelaRows = priceRows.slice(0, 30).map((row) => {
+      return `<tr>
+        <td>${esc(row.name)}</td>
+        <td>${esc(row.table_type)}</td>
+        <td>${esc(row.channel)}</td>
+        <td>${Number(row.discount_percent ?? 0).toFixed(1)}%</td>
+        <td>${Number(row.commission_percent ?? 0).toFixed(1)}%</td>
+        <td>${Number(row.minimum_margin_percent ?? 0).toFixed(1)}%</td>
+      </tr>`;
+    }).join("");
+
+    const body = `
+      ${calcRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Cenários de Precificação (${calcRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>Título</th><th>Modelo / Canal</th><th>Qtd</th>
+            <th>Receita Líquida</th><th>Lucro</th><th>Margem</th>
+          </tr></thead>
+          <tbody>${cenariosRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${quoteRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Documentos Comerciais (${quoteRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>#</th><th>Tipo</th><th>Cliente</th>
+            <th>Canal</th><th>Status</th><th>Valor</th>
+          </tr></thead>
+          <tbody>${docRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${priceRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Tabelas de Preço (${priceRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>Nome</th><th>Tipo</th><th>Canal</th>
+            <th>Desconto</th><th>Comissão</th><th>Margem mín.</th>
+          </tr></thead>
+          <tbody>${tabelaRows}</tbody>
+        </table>
+      </div>` : ""}
+    `;
+
+    const html = buildFloraKraftPDF({
+      title: "Relatório Financeiro",
+      subtitle: "Cenários de precificação, documentos comerciais e tabelas de preço",
+      body,
     });
+
+    return new Response(
+      html + `<script>window.onload=function(){setTimeout(function(){window.print()},600)}</script>`,
+      {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+        },
+      }
+    );
   }
 
   const csv = [
