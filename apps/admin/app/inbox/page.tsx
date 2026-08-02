@@ -4,13 +4,16 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { InboxSidebar } from "./InboxSidebar";
 import { InboxList } from "./InboxList";
 import { InboxDetail } from "./InboxDetail";
+import { InboxContext } from "./InboxContext";
 import { NewConversationForm } from "./NewConversationForm";
-import type { InboxQueue } from "./inbox-actions";
+import type { InboxPriority, InboxQueue } from "./inbox-actions";
 import { getQueueCounts } from "./inbox-actions";
 
 export default function InboxPage() {
   const [queue, setQueue] = useState<InboxQueue>("inbox");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedPriority, setSelectedPriority] = useState<string>("normal");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showNewConv, setShowNewConv] = useState(false);
   const [counts, setCounts] = useState<Record<InboxQueue, number>>({
     inbox: 0, mine: 0, unassigned: 0, urgent: 0,
@@ -31,6 +34,15 @@ export default function InboxPage() {
   function handleQueueChange(q: InboxQueue) {
     setQueue(q);
     setSelectedId(null);
+    setSelectedPriority("normal");
+    setSelectedTags([]);
+  }
+
+  function handleSelectConversation(id: string) {
+    setSelectedId(id);
+    // Reset context local — InboxContext fará fetch ao receber o novo id
+    setSelectedPriority("normal");
+    setSelectedTags([]);
   }
 
   return (
@@ -39,12 +51,12 @@ export default function InboxPage() {
       height: "100dvh",
       width: "100%",
       overflow: "hidden",
-      background: "var(--c-bg, #0f0f11)",
+      background: "linear-gradient(135deg, #080f09 0%, #0c1a0e 50%, #091208 100%)",
       position: "fixed",
       inset: 0,
       zIndex: 10,
     }}>
-      {/* Coluna 1 — Filas */}
+      {/* Coluna 1 — Filas (230px) */}
       <InboxSidebar
         active={queue}
         counts={counts}
@@ -52,15 +64,25 @@ export default function InboxPage() {
         onNew={() => setShowNewConv(true)}
       />
 
-      {/* Coluna 2 — Lista de conversas */}
+      {/* Coluna 2 — Lista de conversas (320px) */}
       <InboxList
         queue={queue}
         selectedId={selectedId}
-        onSelect={setSelectedId}
+        onSelect={handleSelectConversation}
       />
 
-      {/* Coluna 3 — Detalhe */}
-      <InboxDetail conversationId={selectedId} />
+      {/* Coluna 3 — Detalhe (flex:1) */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <InboxDetail conversationId={selectedId} />
+      </div>
+
+      {/* Coluna 4 — Contexto do contato (240px) */}
+      <InboxContext
+        conversationId={selectedId}
+        priority={selectedPriority}
+        tags={selectedTags}
+        onPriorityChange={(p: InboxPriority) => setSelectedPriority(p)}
+      />
 
       {/* Modal: nova conversa */}
       {showNewConv && (
@@ -68,28 +90,40 @@ export default function InboxPage() {
           style={{
             position: "fixed", inset: 0, zIndex: 1000,
             background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(4px)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowNewConv(false); }}
         >
           <div style={{
             width: "min(480px, 90vw)",
-            background: "var(--c-glass, rgba(18,18,22,0.98))",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 16,
+            background: "rgba(12,26,14,0.97)",
+            border: "1px solid rgba(242,236,223,0.1)",
+            borderRadius: 18,
             padding: "28px 28px 24px",
-            boxShadow: "0 24px 64px rgba(0,0,0,0.8)",
+            boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(185,146,77,0.1)",
+            backdropFilter: "blur(24px)",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--c-text)" }}>
+              <h2 style={{
+                margin: 0, fontSize: 18,
+                fontFamily: "Fraunces, serif",
+                fontWeight: 600,
+                color: "var(--cream)",
+                letterSpacing: -0.4,
+              }}>
                 Nova conversa
               </h2>
               <button
                 onClick={() => setShowNewConv(false)}
                 style={{
-                  background: "transparent", border: "none",
-                  color: "rgba(255,255,255,0.5)", fontSize: 20,
+                  background: "rgba(242,236,223,0.06)",
+                  border: "1px solid rgba(242,236,223,0.1)",
+                  borderRadius: 8,
+                  color: "var(--cream-dim)", fontSize: 16,
                   cursor: "pointer", lineHeight: 1,
+                  width: 32, height: 32,
+                  display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
                 ×

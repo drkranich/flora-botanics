@@ -431,3 +431,200 @@ export async function createConversation(
   revalidatePath("/inbox");
   return { ok: true, data: (conv as { id: string }).id };
 }
+
+// ── Contexto do contato vinculado a uma conversa ──────────────────────────────
+
+export interface ContactContext {
+  customer: {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    tags: string[];
+    notes: string | null;
+    accepts_marketing: boolean;
+    created_at: string;
+  } | null;
+  orders: {
+    id: string;
+    number: string;
+    status: string;
+    payment_status: string | null;
+    total_cents: number;
+    currency: string;
+    created_at: string;
+  }[];
+  stats: {
+    total_orders: number;
+    total_spent_cents: number;
+    last_order_at: string | null;
+    avg_ticket_cents: number;
+  };
+}
+
+export async function getContactContext(conversationId: string): Promise<ContactContext> {
+  const empty: ContactContext = { customer: null, orders: [], stats: { total_orders: 0, total_spent_cents: 0, last_order_at: null, avg_ticket_cents: 0 } };
+
+  const staff = await currentStaff();
+  if (!staff) return empty;
+
+  const supabase = await createClient();
+
+  // Busca a conversa para obter o contact_handle (email/phone)
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("contact_handle, contact_name")
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  if (!conv) return empty;
+  const row = conv as { contact_handle: string | null; contact_name: string | null };
+  const handle = row.contact_handle?.trim();
+
+  if (!handle) return empty;
+
+  // Tenta encontrar o cliente pelo email ou pelo nome
+  const isEmail = handle.includes("@");
+  const customerQuery = supabase
+    .from("customers")
+    .select("id, full_name, email, phone, whatsapp, tags, notes, accepts_marketing, created_at")
+    .eq("tenant_id", staff.tenantId)
+    .is("archived_at", null);
+
+  const { data: customers } = isEmail
+    ? await customerQuery.eq("email", handle)
+    : await customerQuery.ilike("full_name", `%${handle}%`);
+
+  const customer = (customers ?? [])[0] as ContactContext["customer"] ?? null;
+
+  let orders: ContactContext["orders"] = [];
+  if (customer) {
+    const { data: orderRows } = await supabase
+      .from("orders")
+      .select("id, number, status, payment_status, total_cents, currency, created_at")
+      .eq("tenant_id", staff.tenantId)
+      .eq("customer_id", customer.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    orders = (orderRows ?? []) as ContactContext["orders"];
+  }
+
+  const paid = orders.filter(o => ["paid","delivered","shipped","processing"].includes(o.status));
+  const totalSpent = paid.reduce((s, o) => s + (o.total_cents ?? 0), 0);
+  const lastOrderAt = orders[0]?.created_at ?? null;
+  const avgTicket = paid.length ? Math.round(totalSpent / paid.length) : 0;
+
+  return {
+    customer,
+    orders,
+    stats: {
+      total_orders: orders.length,
+      total_spent_cents: totalSpent,
+      last_order_at: lastOrderAt,
+      avg_ticket_cents: avgTicket,
+    },
+  };
+}
+
+// ── Atribuir responsável / prioridade ─────────────────────────────────────────
+
+export async function assignConversation(
+  conversationId: string,
+  assigneeId: string | null,
+): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("conversations")
+    .update({ assignee_id: assigneeId } as never)
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox");
+  return { ok: true, data: undefined };
+}
+
+export async function setPriority(
+  conversationId: string,
+  priority: InboxPriority,
+): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("conversations")
+    .update({ priority } as never)
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox");
+  return { ok: true, data: undefined };
+}
+
+export async function addTag(
+  conversationId: string,
+  tag: string,
+): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  // Busca tags atuais
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("tags")
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  const current = ((conv as { tags?: string[] } | null)?.tags ?? []);
+  if (current.includes(tag)) return { ok: true, data: undefined };
+  const updated = [...current, tag];
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ tags: updated } as never)
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox");
+  return { ok: true, data: undefined };
+}
+
+export async function removeTag(
+  conversationId: string,
+  tag: string,
+): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("tags")
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId)
+    .maybeSingle();
+
+  const updated = ((conv as { tags?: string[] } | null)?.tags ?? []).filter(t => t !== tag);
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ tags: updated } as never)
+    .eq("id", conversationId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox");
+  return { ok: true, data: undefined };
+}
