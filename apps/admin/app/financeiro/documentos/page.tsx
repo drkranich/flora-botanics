@@ -211,10 +211,6 @@ export default async function FinanceiroDocumentosPage({
         {rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--color-muted, #8a9580)", fontSize: 14 }}>
             Nenhum documento encontrado.
-            <br />
-            <Link href="/financeiro" style={{ color: "var(--color-gold, #c8a84b)", marginTop: 12, display: "inline-block" }}>
-              Criar novo documento no Financeiro →
-            </Link>
           </div>
         ) : (
           <table style={tableStyle}>

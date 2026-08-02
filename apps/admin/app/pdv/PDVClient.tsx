@@ -10,6 +10,7 @@ import {
   type PDVOrderPayment,
 } from "./pdv-actions";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
+import { GlassSelect } from "@/components/GlassSelect";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -527,16 +528,16 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
                 <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
                   <div>
                     <div style={{ fontSize: 10, color: "var(--cream-dim)", marginBottom: 3, opacity: 0.7 }}>Forma</div>
-                    <select
-                      className="input"
-                      style={{ fontSize: 13, padding: "7px 10px" }}
+                    <GlassSelect
                       value={line.method}
-                      onChange={(e) => updatePayLine(idx, { method: e.target.value as PayLine["method"] })}
-                    >
-                      {(["cash", "pix", "credit", "debit"] as const).map((m) => (
-                        <option key={m} value={m}>{METHOD_LABEL[m]}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => updatePayLine(idx, { method: v as PayLine["method"] })}
+                      inlineMenu
+                      options={(["cash", "pix", "credit", "debit"] as const).map((m) => ({
+                        value: m,
+                        label: METHOD_LABEL[m],
+                      }))}
+                      style={{ fontSize: 13 }}
+                    />
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: "var(--cream-dim)", marginBottom: 3, opacity: 0.7 }}>Valor R$</div>
@@ -770,13 +771,18 @@ function ProductCard({ product, onAdd }: { product: PDVProduct; onAdd: (v: PDVVa
       <div style={{ padding: "9px 11px 11px" }}>
         <p style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.3, marginBottom: 5, color: "var(--cream)" }}>{product.name}</p>
         {product.variants.length > 1 && (
-          <select className="input" style={{ fontSize: 11, padding: "3px 6px", height: 25, marginBottom: 5 }}
-            value={sel} onChange={(e) => { e.stopPropagation(); setSel(e.target.value); }}
-            onClick={(e) => e.stopPropagation()}>
-            {product.variants.map((v) => (
-              <option key={v.id} value={v.id}>{v.name ?? v.sku ?? "Padrão"} — {fmt(v.price_cents)}</option>
-            ))}
-          </select>
+          <div onClick={(e) => e.stopPropagation()}>
+            <GlassSelect
+              value={sel}
+              onChange={setSel}
+              inlineMenu
+              options={product.variants.map((v) => ({
+                value: v.id,
+                label: `${v.name ?? v.sku ?? "Padrão"} — ${fmt(v.price_cents)}`,
+              }))}
+              style={{ fontSize: 11, height: 25, marginBottom: 5, width: "100%" }}
+            />
+          </div>
         )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 15, fontWeight: 800, color: "var(--gold-light)" }}>{fmt(variant.price_cents)}</span>
