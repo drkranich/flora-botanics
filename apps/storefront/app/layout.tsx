@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { currentTenant, db } from "@/lib/tenant";
 import { getTenantTheme, getSiteSetting } from "@flora/db";
+import { ChatWidget } from "@/components/ChatWidget";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://florabotanics.com.br"),
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <div className="site-shell">{children}</div>
+        <ChatWidget />
       </body>
     </html>
   );
