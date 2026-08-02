@@ -85,41 +85,23 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       font-family: Georgia, 'Times New Roman', serif;
       font-size: 12px;
       line-height: 1.6;
+      min-height: 100%;
     }
 
-    /* ── Marca d'água tileada — logo Flora quase transparente ── */
-    body::before {
-      content: '';
-      position: fixed;
+    /* ── Wrapper que contém a marca d'água e o conteúdo ── */
+    .page-wrap {
+      position: relative;
+      min-height: 100vh;
+    }
+
+    /* ── Marca d'água: DIV real (position:fixed falha na impressão) ── */
+    .watermark {
+      position: absolute;
       inset: 0;
       background-image: url('${logoUri}');
       background-repeat: repeat;
       background-size: 180px 163px;
-      opacity: 0.07;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ── Textura de papel kraft ── */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        repeating-linear-gradient(
-          0deg,
-          transparent,
-          transparent 3px,
-          rgba(139,105,70,0.025) 3px,
-          rgba(139,105,70,0.025) 4px
-        ),
-        repeating-linear-gradient(
-          90deg,
-          transparent,
-          transparent 7px,
-          rgba(139,105,70,0.015) 7px,
-          rgba(139,105,70,0.015) 8px
-        );
+      opacity: 0.08;
       pointer-events: none;
       z-index: 0;
     }
@@ -281,12 +263,14 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     /* ── Impressão ── */
     @media print {
       html, body { background: #f2e8d9 !important; }
-      body::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .watermark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .page { padding: 24px 32px 40px; }
     }
   </style>
 </head>
 <body>
+<div class="page-wrap">
+  <div class="watermark"></div>
   <div class="page">
 
     <div class="pdf-header">
@@ -314,6 +298,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       <div class="footer-gen">Documento gerado automaticamente pelo sistema Flora Botanics. Não possui valor fiscal.</div>
     </div>
   </div>
+</div>
 </body>
 </html>`;
 }
