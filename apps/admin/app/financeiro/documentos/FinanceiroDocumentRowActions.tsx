@@ -4,7 +4,7 @@
  * FinanceiroDocumentRowActions
  * Menu ⋯ com position:fixed para não ser truncado pela tabela (overflow:hidden).
  */
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { archiveDocument, deleteDocument } from "@/app/documentos/actions";
 
@@ -25,16 +25,6 @@ export function FinanceiroDocumentRowActions({
   const [isPending, startTransition] = useTransition();
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setMenuPos({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
-      });
-    }
-  }, [open]);
 
   function handleEdit() {
     router.push(`/financeiro/documentos/${id}`);
@@ -69,7 +59,15 @@ export function FinanceiroDocumentRowActions({
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
         ref={btnRef}
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setConfirmDelete(false); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+          }
+          setOpen((v) => !v);
+          setConfirmDelete(false);
+        }}
         style={{
           background: "transparent", border: "none", cursor: "pointer",
           color: "var(--color-muted, #8a9580)", fontSize: 18, padding: "2px 8px",
