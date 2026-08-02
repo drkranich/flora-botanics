@@ -108,7 +108,8 @@ export function Shell({
   }, []);
 
   const isPDV = path.startsWith("/pdv");
-  if (isLogin || isPDV) return <ThemeController>{children}</ThemeController>;
+  const isInbox = path === "/inbox";
+  if (isLogin || isPDV || isInbox) return <ThemeController>{children}</ThemeController>;
 
   return (
     <ThemeController>
