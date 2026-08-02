@@ -14,6 +14,7 @@ import {
   updateDocumentStatus,
 } from "../actions";
 import { DocumentPDFButton } from "./DocumentPDFButton";
+import { SignatureButton } from "./SignatureButton";
 
 export const dynamic = "force-dynamic";
 
@@ -177,8 +178,11 @@ export default async function DocumentoDetailPage({
           )}
         </div>
 
-        {/* Botão PDF — client component */}
-        <DocumentPDFButton quote={row} />
+        {/* Botões direita — client components */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <SignatureButton quoteId={row.id} />
+          <DocumentPDFButton quote={row} />
+        </div>
       </div>
 
       {/* Grid de info */}
