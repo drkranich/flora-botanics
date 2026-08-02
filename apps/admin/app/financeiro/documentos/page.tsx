@@ -222,7 +222,7 @@ export default async function FinanceiroDocumentosPage({
       </div>
 
       {/* Tabela */}
-      <div className="glass" style={{ padding: 0, borderRadius: 12, overflow: "hidden" }}>
+      <div className="glass" style={{ padding: 0, borderRadius: 12, overflow: "visible" }}>
         {rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--color-muted, #8a9580)", fontSize: 14 }}>
             Nenhum documento encontrado.

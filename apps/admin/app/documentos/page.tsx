@@ -129,8 +129,8 @@ export default async function DocumentosPage({
         </Link>
       </div>
 
-      {/* Tabela */}
-      <div className="glass" style={{ padding: 0, borderRadius: 12, overflow: "hidden" }}>
+      {/* Tabela — overflow:visible para o menu ⋯ position:fixed não ser cortado */}
+      <div className="glass" style={{ padding: 0, borderRadius: 12, overflow: "visible" }}>
         {rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "56px 24px", color: "var(--color-muted, #8a9580)", fontSize: 14 }}>
             Nenhum documento encontrado.
