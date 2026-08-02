@@ -4,6 +4,7 @@ import { useState, useCallback, useTransition } from "react";
 import { getPDVReport, getPDVSalesForDay, type PDVDaySummary, type PDVReportResult } from "./pdv-report-actions";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
 import { getPdfConfig } from "@/lib/pdf/actions";
+import { GlassDateInput } from "@/components/GlassDateInput";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -207,21 +208,16 @@ export function PDVReportPanel() {
         {/* Período personalizado */}
         <div style={S.row}>
           <span style={S.periodLabel}>Período:</span>
-          <input
-            type="date"
+          <GlassDateInput
             value={customFrom}
-            max={customTo}
-            onChange={(e) => setCustomFrom(e.target.value)}
-            style={S.dateInput}
+            onChange={(v) => setCustomFrom(v)}
+            inlinePopover
           />
           <span style={{ fontSize: 11, color: "var(--cream-dim)" }}>até</span>
-          <input
-            type="date"
+          <GlassDateInput
             value={customTo}
-            min={customFrom}
-            max={todayStr()}
-            onChange={(e) => setCustomTo(e.target.value)}
-            style={S.dateInput}
+            onChange={(v) => setCustomTo(v)}
+            inlinePopover
           />
           <button
             style={{ ...S.loadBtn, opacity: isPending ? 0.6 : 1 }}
@@ -427,15 +423,6 @@ const S: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     padding: "6px 14px",
     letterSpacing: 0.3,
-  },
-  dateInput: {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: 7,
-    color: "var(--cream-dim)",
-    fontSize: 12,
-    padding: "5px 10px",
-    colorScheme: "dark",
   },
   kpiRow: {
     display: "flex",
