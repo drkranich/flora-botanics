@@ -167,6 +167,11 @@ export function PdfStylesEditor({ initial }: Props) {
     buildInitialCatState(initial)
   );
 
+  // ── Preview editável ──
+  const [previewTitle,    setPreviewTitle]    = useState("");
+  const [previewSubtitle, setPreviewSubtitle] = useState("");
+  const [previewNotes,    setPreviewNotes]    = useState("");
+
   function updateCat(cat: PdfCategory, field: keyof CategoryStyleState[PdfCategory], value: string | boolean) {
     setCatStyles((prev) => ({ ...prev, [cat]: { ...prev[cat], [field]: value } }));
   }
@@ -244,9 +249,16 @@ export function PdfStylesEditor({ initial }: Props) {
         : undefined,
     };
 
+    const effectiveTitle    = previewTitle.trim()    || (cat ? `${PDF_CATEGORIES[cat]} — Pré-visualização` : "Estilos globais — Pré-visualização");
+    const effectiveSubtitle = previewSubtitle.trim() || "Este é um exemplo de como o PDF ficará com as configurações atuais.";
+
+    const notesHtml = previewNotes.trim()
+      ? `<div class="section"><div class="section-title">Observações / Texto livre</div><p style="font-size:13px;white-space:pre-wrap;line-height:1.8">${previewNotes.trim()}</p></div>`
+      : "";
+
     const html = buildFloraKraftPDF({
-      title: cat ? `${PDF_CATEGORIES[cat]} — Pré-visualização` : "Estilos globais — Pré-visualização",
-      subtitle: "Este é um exemplo de como o PDF ficará com as configurações atuais.",
+      title: effectiveTitle,
+      subtitle: effectiveSubtitle,
       category: effectiveCat,
       body: `
         <div class="section">
@@ -262,10 +274,7 @@ export function PdfStylesEditor({ initial }: Props) {
             </tbody>
           </table>
         </div>
-        <div class="section">
-          <div class="section-title">Dados do documento</div>
-          <pre>{ "numero": "0042", "cliente": "Exemplo Ltda", "validade": "30 dias" }</pre>
-        </div>
+        ${notesHtml}
       `,
       config,
     });
@@ -469,13 +478,50 @@ export function PdfStylesEditor({ initial }: Props) {
             </p>
           </Section>
 
-          {/* Preview + salvar */}
+          {/* Preview editável */}
+          <Section title="Pré-visualização — texto do documento">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 700 }}>
+              <label className="field">
+                <span className="field-label">Título do documento</span>
+                <input
+                  className="input"
+                  value={previewTitle}
+                  onChange={(e) => setPreviewTitle(e.target.value)}
+                  placeholder="Ex.: Orçamento #0042"
+                />
+              </label>
+              <label className="field">
+                <span className="field-label">Subtítulo</span>
+                <input
+                  className="input"
+                  value={previewSubtitle}
+                  onChange={(e) => setPreviewSubtitle(e.target.value)}
+                  placeholder="Ex.: Cliente: Loja ABC · Válido 30 dias"
+                />
+              </label>
+            </div>
+            <label className="field" style={{ maxWidth: 700, marginTop: 10 }}>
+              <span className="field-label">Observações / texto livre (opcional)</span>
+              <textarea
+                className="input"
+                rows={3}
+                value={previewNotes}
+                onChange={(e) => setPreviewNotes(e.target.value)}
+                placeholder="Ex.: Condições de pagamento, prazo de entrega, termos comerciais..."
+              />
+            </label>
+            <p style={{ fontSize: 11, color: "var(--color-muted, #8a9580)", marginTop: 6 }}>
+              Esses textos aparecem apenas na pré-visualização — não afetam os PDFs reais.
+            </p>
+          </Section>
+
+          {/* Salvar + Preview */}
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <button type="submit" disabled={pending} className="btn btn-gold" style={{ padding: "11px 22px", fontSize: 10 }}>
               {pending ? "Salvando…" : "Salvar estilos"}
             </button>
             <button type="button" className="btn btn-ghost" style={{ padding: "11px 18px", fontSize: 10 }} onClick={() => handlePreview()}>
-              📄 Pré-visualizar estilo global
+              📄 Pré-visualizar
             </button>
           </div>
         </div>
