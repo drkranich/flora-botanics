@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const STAFF_ROLES = ["platform_admin", "tenant_owner", "tenant_admin", "tenant_editor"];
 
 /** Rotas acessíveis sem sessão autenticada. */
-const PUBLIC_PATHS = ["/admin/login", "/login", "/assinar"];
+const PUBLIC_PATHS = ["/admin/login", "/login", "/assinar", "/api/assinar"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
