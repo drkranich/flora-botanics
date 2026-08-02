@@ -52,7 +52,7 @@ export async function getPDVProducts(): Promise<PDVProduct[]> {
        product_variants(id, sku, barcode, name, price_cents, currency, inventory(quantity))`
     )
     .eq("tenant_id", staff.tenantId)
-    .eq("status", "active")
+    .eq("status", "published")
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
