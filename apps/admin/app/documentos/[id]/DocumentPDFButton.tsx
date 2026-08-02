@@ -1,6 +1,6 @@
 "use client";
 
-import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
+import { buildFloraKraftPDF, openAndPrint, type PdfCategory } from "@/lib/pdf/template";
 import { money } from "@/lib/format";
 
 type LineItem = {
@@ -41,6 +41,13 @@ const KIND_LABEL: Record<string, string> = {
   budget:   "Orçamento",
   quote:    "Cotação",
   proposal: "Proposta Comercial",
+};
+
+// Mapeia kind do documento para PdfCategory do template
+const KIND_CATEGORY: Record<string, PdfCategory> = {
+  budget:   "orcamento",
+  quote:    "cotacao",
+  proposal: "proposta_comercial",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -180,6 +187,10 @@ export function DocumentPDFButton({ quote }: { quote: QuoteForPDF }) {
       title: `${kindLabel} #${quote.number}`,
       subtitle: `Cliente: ${quote.customer_name}${quote.company_name ? ` · ${quote.company_name}` : ""}`,
       maxWidth: 1100,
+      category: KIND_CATEGORY[quote.kind],
+      department: "Comercial",
+      responsible: quote.seller_name ?? undefined,
+      responsibleRole: quote.seller_name ? "Vendedor" : undefined,
       body,
     });
 

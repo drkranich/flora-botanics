@@ -245,6 +245,8 @@ export async function GET(request: NextRequest) {
     const html = buildFloraKraftPDF({
       title: "Relatório Financeiro",
       subtitle: "Cenários de precificação, documentos comerciais e tabelas de preço",
+      category: "relatorio_financeiro",
+      department: "Financeiro / Precificação",
       body,
     });
 

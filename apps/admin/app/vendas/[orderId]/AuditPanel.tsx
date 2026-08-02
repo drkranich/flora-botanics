@@ -349,6 +349,8 @@ function generateAuditPDF(
   const html = buildFloraKraftPDF({
     title: `Auditoria — Pedido #${orderNumber}`,
     subtitle: `Histórico completo de alterações e eventos do pedido #${orderNumber}`,
+    category: "relatorio_auditoria",
+    department: "Gestão de Pedidos",
     body,
   });
 

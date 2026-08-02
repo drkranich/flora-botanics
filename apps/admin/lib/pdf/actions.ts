@@ -88,9 +88,10 @@ export async function savePdfConfig(
     email:        str(formData, "email"),
     website:      str(formData, "website"),
     defaultNotes: str(formData, "defaultNotes"),
-    // ── Assinante ──
+    // ── Assinante / responsável global ──
     signerName:   str(formData, "signerName"),
     signerRole:   str(formData, "signerRole"),
+    department:   str(formData, "department"),
     // ── Estilos globais ──
     bgColor:            str(formData, "bgColor"),
     accentColor:        str(formData, "accentColor"),

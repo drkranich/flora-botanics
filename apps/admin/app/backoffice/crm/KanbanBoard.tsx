@@ -290,6 +290,8 @@ export function KanbanBoard({ customers: initial }: { customers: KanbanCustomer[
     const html = buildFloraKraftPDF({
       title: "Pipeline CRM — Relatório de qualificação",
       subtitle: `Relatório por etapa do funil de vendas · ${new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })}`,
+      category: "relatorio_crm",
+      department: "CRM / Relacionamento",
       body,
     });
     openAndPrint(html);

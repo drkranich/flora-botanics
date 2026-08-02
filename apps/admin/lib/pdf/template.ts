@@ -62,10 +62,12 @@ export interface PdfConfig {
   website?: string;
   /** Observações padrão */
   defaultNotes?: string;
-  /** Nome do funcionário responsável (aparece no rodapé) */
+  /** Nome do funcionário responsável (aparece no rodapé e cabeçalho) */
   signerName?: string;
   /** Cargo do funcionário */
   signerRole?: string;
+  /** Setor / departamento responsável (ex.: "Comercial", "Financeiro") */
+  department?: string;
 
   // ── Estilos globais (fallback quando categoria não tem estilo próprio) ──
   bgColor?: string;
@@ -90,6 +92,19 @@ export interface PdfBuildOptions {
   maxWidth?: number;
   /** Categoria do documento — determina qual estilo de categoryStyles aplicar */
   category?: PdfCategory;
+  /**
+   * Responsável específico deste documento (sobrepõe config.signerName).
+   * Ex.: nome do vendedor, atendente, contador etc.
+   */
+  responsible?: string;
+  /** Cargo do responsável deste documento (sobrepõe config.signerRole). */
+  responsibleRole?: string;
+  /**
+   * Setor/departamento deste documento (sobrepõe config.department).
+   * Aparece no cabeçalho no lugar de "Sistema de Gestão · Admin".
+   * Ex.: "Comercial", "Financeiro", "PDV", "Logística".
+   */
+  department?: string;
 }
 
 // ─── Logo Flora Botanics — Base64 pré-computado ──────────────────────────────
@@ -106,6 +121,9 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     config = {},
     maxWidth = 1100,
     category,
+    responsible,
+    responsibleRole,
+    department,
   } = options;
 
   // Mesclar estilo global com override da categoria
@@ -132,9 +150,24 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
   const footerLine = footerParts.join(" · ");
 
   const notes = config.defaultNotes ?? "";
-  const signerLine = config.signerName
-    ? `${config.signerName}${config.signerRole ? ` · ${config.signerRole}` : ""}`
+
+  // Responsável: opção por-documento tem prioridade sobre config global
+  const effResponsible     = responsible     ?? config.signerName ?? "";
+  const effResponsibleRole = responsibleRole ?? config.signerRole ?? "";
+  const effDepartment      = department      ?? config.department ?? "";
+
+  // Linha de responsável no rodapé
+  const signerLine = effResponsible
+    ? `${effResponsible}${effResponsibleRole ? ` · ${effResponsibleRole}` : ""}${effDepartment ? ` · ${effDepartment}` : ""}`
     : "";
+
+  // Subtítulo do cabeçalho (abaixo do nome da empresa)
+  // Exibe: Categoria | Setor | Responsável — nunca o texto fixo "Sistema de Gestão · Admin"
+  const headerSubParts: string[] = [];
+  if (category)        headerSubParts.push(PDF_CATEGORIES[category]);
+  if (effDepartment)   headerSubParts.push(effDepartment);
+  if (effResponsible)  headerSubParts.push(effResponsible + (effResponsibleRole ? ` (${effResponsibleRole})` : ""));
+  const headerSub = headerSubParts.length > 0 ? headerSubParts.join(" · ") : "Sistema de Gestão";
 
   const wmOpacity  = (eff.watermarkOpacity / 100).toFixed(2);
   const wmSize     = eff.watermarkSize;
@@ -335,7 +368,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     <div class="pdf-header">
       <div class="pdf-header-brand">
         <h1>${companyName}</h1>
-        <div class="subtitle">Sistema de Gestão · Admin${category ? ` · ${PDF_CATEGORIES[category] ?? ""}` : ""}</div>
+        <div class="subtitle">${headerSub}</div>
       </div>
       <div class="pdf-header-meta">
         Gerado em ${now}<br/>

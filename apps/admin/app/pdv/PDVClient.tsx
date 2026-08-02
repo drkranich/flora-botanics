@@ -323,6 +323,10 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
     openAndPrint(buildFloraKraftPDF({
       title: `Comprovante de Venda · #${r.number}`,
       subtitle: `Vendedor: ${staffName} · ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
+      category: "relatorio_pdv",
+      department: "PDV / Frente de Caixa",
+      responsible: staffName,
+      responsibleRole: "Operador(a) de Caixa",
       body, maxWidth: 680,
     }));
   }

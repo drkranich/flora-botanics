@@ -157,9 +157,10 @@ export function PdfStylesEditor({ initial }: Props) {
   const [watermarkOpacity,  setWatermarkOpacity]  = useState(initial.watermarkOpacity  ?? 6);
   const [watermarkSize,     setWatermarkSize]     = useState(initial.watermarkSize     ?? 260);
 
-  // ── Assinante ──
+  // ── Assinante / responsável global ──
   const [signerName, setSignerName] = useState(initial.signerName ?? "");
   const [signerRole, setSignerRole] = useState(initial.signerRole ?? "");
+  const [department, setDepartment] = useState(initial.department ?? "");
 
   // ── Estilos por categoria ──
   const [catStyles, setCatStyles] = useState<CategoryStyleState>(() =>
@@ -230,6 +231,7 @@ export function PdfStylesEditor({ initial }: Props) {
       defaultNotes:      "",
       signerName:        signerName || undefined,
       signerRole:        signerRole || undefined,
+      department:        department || undefined,
       bgColor,
       accentColor,
       headerBorderColor,
@@ -282,6 +284,7 @@ export function PdfStylesEditor({ initial }: Props) {
       <input type="hidden" name="watermarkSize"     value={watermarkSize} />
       <input type="hidden" name="signerName"        value={signerName} />
       <input type="hidden" name="signerRole"        value={signerRole} />
+      <input type="hidden" name="department"        value={department} />
 
       {/* Feedback */}
       {msg && <FeedbackBar ok>{msg}</FeedbackBar>}
@@ -430,9 +433,9 @@ export function PdfStylesEditor({ initial }: Props) {
             </div>
           </Section>
 
-          {/* Assinante */}
-          <Section title="Responsável / Assinante (opcional)">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 520 }}>
+          {/* Responsável / Assinante */}
+          <Section title="Responsável padrão (opcional)">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, maxWidth: 740 }}>
               <label className="field">
                 <span className="field-label">Nome do funcionário</span>
                 <input
@@ -451,9 +454,18 @@ export function PdfStylesEditor({ initial }: Props) {
                   placeholder="Ex.: Gerente Comercial"
                 />
               </label>
+              <label className="field">
+                <span className="field-label">Setor / Departamento</span>
+                <input
+                  className="input"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="Ex.: Comercial, Financeiro, PDV"
+                />
+              </label>
             </div>
             <p style={{ fontSize: 11, color: "var(--color-muted, #8a9580)", marginTop: 6 }}>
-              Aparece em itálico no rodapé de todos os PDFs quando preenchido.
+              Aparece no cabeçalho e rodapé de todos os PDFs. Cada documento pode ter um responsável específico (ex.: nome do vendedor) que sobrepõe este padrão.
             </p>
           </Section>
 
