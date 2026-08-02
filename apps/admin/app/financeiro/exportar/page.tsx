@@ -247,35 +247,42 @@ export default function ExportarPage() {
       return;
     }
     setError("");
+
+    const params = new URLSearchParams({ format });
+    if (!inclCenarios)   params.set("no_cenarios",   "1");
+    if (!inclTabelas)    params.set("no_tabelas",    "1");
+    if (!inclDocumentos) params.set("no_documentos", "1");
+    if (kindFilter)      params.set("kind",          kindFilter);
+    if (statusFilter)    params.set("status",        statusFilter);
+    if (dateFrom)        params.set("date_from",     dateFrom);
+    if (dateTo)          params.set("date_to",       dateTo);
+
+    const base = window.location.origin;
+    const url  = `${base}/admin/financeiro/exportar/download?${params.toString()}`;
+
+    // PDF: abre nova aba (retorna HTML kraft para imprimir/salvar)
+    if (format === "pdf") {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    // XLSX / CSV: download direto
     setLoading(true);
     try {
-      const params = new URLSearchParams({ format });
-      if (!inclCenarios)   params.set("no_cenarios",   "1");
-      if (!inclTabelas)    params.set("no_tabelas",    "1");
-      if (!inclDocumentos) params.set("no_documentos", "1");
-      if (kindFilter)      params.set("kind",          kindFilter);
-      if (statusFilter)    params.set("status",        statusFilter);
-      if (dateFrom)        params.set("date_from",     dateFrom);
-      if (dateTo)          params.set("date_to",       dateTo);
-
-      // URL absoluta — evita falha de path relativo no Cloudflare Workers
-      const base = window.location.origin;
-      const res = await fetch(`${base}/admin/financeiro/exportar/download?${params.toString()}`);
-
+      const res = await fetch(url);
       if (!res.ok) {
         let msg = "Erro ao gerar exportação. Tente novamente.";
         try { const j = await res.json(); msg = j.error ?? msg; } catch { /* ignore */ }
         setError(msg);
         return;
       }
-
       const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href     = blobUrl;
       a.download = `flora-financeiro.${format}`;
       a.click();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(blobUrl);
     } catch (e) {
       setError("Erro de rede. Verifique sua conexão e tente novamente.");
       console.error(e);
