@@ -25,6 +25,7 @@ const NAV: NavItem[] = [
   { href: "/dicionario", label: "Dicionário", icon: "ABC", match: (p) => p.startsWith("/dicionario") },
   { href: "/backoffice", label: "Backoffice", icon: "▣", match: (p) => p.startsWith("/backoffice") },
   { href: "/pdv", label: "PDV", icon: "🛒", match: (p) => p.startsWith("/pdv") },
+  { href: "/documentos", label: "Documentos", icon: "📄", match: (p) => p.startsWith("/documentos") },
 ];
 
 /** Visível apenas para o superadmin (platform_admin). */
