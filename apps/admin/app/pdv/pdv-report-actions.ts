@@ -11,41 +11,86 @@ export interface PDVDaySummary {
 
 export interface PDVReportResult {
   days: PDVDaySummary[];
-  /** Total do período */
   period_total_cents: number;
   period_sales: number;
-  /** Ticket médio em centavos */
   avg_ticket_cents: number;
 }
 
+export type PDVStatusFilter = "all" | "completed" | "canceled" | "pending";
+export type PDVPaymentFilter = "all" | "cash" | "pix" | "credit" | "debit";
+export type PDVClientFilter  = "all" | "b2c" | "b2b";
+
+export interface PDVReportFilters {
+  status?:  PDVStatusFilter;
+  payment?: PDVPaymentFilter;
+  client?:  PDVClientFilter;
+}
+
 /**
- * Busca o resumo de vendas PDV de um período.
+ * Busca o resumo de vendas PDV de um período, com filtros opcionais.
  * @param from YYYY-MM-DD (inclusive)
  * @param to   YYYY-MM-DD (inclusive)
  */
-export async function getPDVReport(from: string, to: string): Promise<PDVReportResult> {
+export async function getPDVReport(
+  from: string,
+  to: string,
+  filters: PDVReportFilters = {},
+): Promise<PDVReportResult> {
   const staff = await currentStaff();
   if (!staff) return { days: [], period_total_cents: 0, period_sales: 0, avg_ticket_cents: 0 };
 
   const supabase = await createClient();
 
-  // Busca pedidos PDV no período (placed_at ou created_at, sem deleted/cancelled)
-  const { data } = await supabase
+  let query = supabase
     .from("orders")
-    .select("id, total_cents, placed_at, created_at")
+    .select("id, total_cents, placed_at, created_at, status, payment_summary, notes")
     .eq("tenant_id", staff.tenantId)
     .eq("source_channel", "pdv")
-    .neq("status", "canceled")
     .is("deleted_at", null)
     .gte("placed_at", `${from}T00:00:00`)
     .lte("placed_at", `${to}T23:59:59`)
     .order("placed_at", { ascending: true });
 
+  // Filtro de status
+  const { status = "all" } = filters;
+  if (status === "completed") {
+    query = query.in("status", ["paid", "processing", "completed"]);
+  } else if (status === "canceled") {
+    query = query.eq("status", "canceled");
+  } else if (status === "pending") {
+    query = query.in("status", ["pending", "draft"]);
+  }
+  // "all" — sem filtro de status
+
+  const { data } = await query;
   const orders = data ?? [];
+
+  // Filtro de pagamento (client-side — payment_summary é jsonb)
+  const { payment = "all" } = filters;
+  const filtered = payment === "all" ? orders : orders.filter((o) => {
+    const ps = o.payment_summary as Record<string, unknown> | null;
+    if (!ps) return false;
+    // payment_summary pode ter { method } ou { lines: [{method}] }
+    const methods: string[] = [];
+    if (typeof ps.method === "string") methods.push(ps.method);
+    if (Array.isArray(ps.lines)) {
+      for (const l of ps.lines as Record<string, unknown>[]) {
+        if (typeof l.method === "string") methods.push(l.method);
+      }
+    }
+    return methods.some((m) => m === payment);
+  });
+
+  // Filtro de tipo de cliente (B2B detectado por notes ou campo futuro)
+  const { client = "all" } = filters;
+  const finalOrders = client === "all" ? filtered : filtered.filter((o) => {
+    const isB2B = typeof o.notes === "string" && o.notes.toLowerCase().includes("b2b");
+    return client === "b2b" ? isB2B : !isB2B;
+  });
 
   // Agrega por dia
   const dayMap = new Map<string, PDVDaySummary>();
-  for (const order of orders) {
+  for (const order of finalOrders) {
     const dateStr = (order.placed_at ?? order.created_at ?? "").slice(0, 10);
     if (!dateStr) continue;
     const existing = dayMap.get(dateStr) ?? { date: dateStr, sales: 0, total_cents: 0 };
@@ -55,8 +100,8 @@ export async function getPDVReport(from: string, to: string): Promise<PDVReportR
   }
 
   const days = Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-  const period_total_cents = orders.reduce((s, o) => s + (o.total_cents ?? 0), 0);
-  const period_sales = orders.length;
+  const period_total_cents = finalOrders.reduce((s, o) => s + (o.total_cents ?? 0), 0);
+  const period_sales = finalOrders.length;
   const avg_ticket_cents = period_sales > 0 ? Math.round(period_total_cents / period_sales) : 0;
 
   return { days, period_total_cents, period_sales, avg_ticket_cents };

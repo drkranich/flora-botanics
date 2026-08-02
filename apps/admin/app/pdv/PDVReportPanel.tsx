@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useCallback, useTransition } from "react";
-import { getPDVReport, getPDVSalesForDay, type PDVDaySummary, type PDVReportResult } from "./pdv-report-actions";
+import {
+  getPDVReport, getPDVSalesForDay,
+  type PDVDaySummary, type PDVReportResult,
+  type PDVStatusFilter, type PDVPaymentFilter, type PDVClientFilter,
+} from "./pdv-report-actions";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
 import { getPdfConfig } from "@/lib/pdf/actions";
 import { GlassDateInput } from "@/components/GlassDateInput";
@@ -11,33 +15,44 @@ import { GlassDateInput } from "@/components/GlassDateInput";
 function fmt(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 }
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function monthStart(y: number, m: number) {
+  return `${y}-${String(m + 1).padStart(2, "0")}-01`;
 }
-
-function monthStart(year: number, month: number) {
-  return `${year}-${String(month + 1).padStart(2, "0")}-01`;
+function monthEnd(y: number, m: number) {
+  const last = new Date(y, m + 1, 0).getDate();
+  return `${y}-${String(m + 1).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
 }
-
-function monthEnd(year: number, month: number) {
-  const last = new Date(year, month + 1, 0).getDate();
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
-}
-
-function daysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function firstWeekday(year: number, month: number) {
-  // 0 = domingo
-  return new Date(year, month, 1).getDay();
-}
+function daysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate(); }
+function firstWeekday(y: number, m: number) { return new Date(y, m, 1).getDay(); }
 
 const MONTH_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-const WEEK_DAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const WEEK_DAYS   = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
 type View = "month" | "custom";
+
+// ── Filtro chip ───────────────────────────────────────────────────────────────
+
+function Chip<T extends string>({
+  label, value, active, onClick,
+}: { label: string; value: T; active: boolean; onClick: (v: T) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(value)}
+      style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: 0.4,
+        padding: "3px 10px", borderRadius: 20, cursor: "pointer",
+        border: active ? "1px solid var(--gold)" : "1px solid rgba(255,255,255,0.12)",
+        background: active ? "rgba(185,146,77,0.2)" : "rgba(255,255,255,0.04)",
+        color: active ? "var(--gold-light)" : "var(--cream-dim)",
+        transition: "all 0.15s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
 
 // ── Componente ────────────────────────────────────────────────────────────────
 
@@ -47,37 +62,55 @@ export function PDVReportPanel() {
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [view, setView] = useState<View>("month");
   const [customFrom, setCustomFrom] = useState(monthStart(today.getFullYear(), today.getMonth()));
-  const [customTo, setCustomTo] = useState(todayStr());
+  const [customTo, setCustomTo]   = useState(todayStr());
 
-  const [report, setReport] = useState<PDVReportResult | null>(null);
+  // Filtros
+  const [filterStatus,  setFilterStatus]  = useState<PDVStatusFilter>("all");
+  const [filterPayment, setFilterPayment] = useState<PDVPaymentFilter>("all");
+  const [filterClient,  setFilterClient]  = useState<PDVClientFilter>("all");
+
+  const [report, setReport]         = useState<PDVReportResult | null>(null);
   const [selectedDay, setSelectedDay] = useState<PDVDaySummary | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const [pdfPending, setPdfPending] = useState(false);
+  const [isPending, startTransition]  = useTransition();
+  const [pdfPending, setPdfPending]   = useState(false);
 
-  // dayMap para lookup rápido
   const dayMap = new Map<string, PDVDaySummary>(
     (report?.days ?? []).map((d) => [d.date, d])
   );
-
-  // Máximo de vendas no período — para colorir o calendário proporcionalmente
   const maxSales = Math.max(1, ...(report?.days.map((d) => d.total_cents) ?? [1]));
 
-  function load(from: string, to: string) {
+  function load(from: string, to: string, overrides?: {
+    status?: PDVStatusFilter; payment?: PDVPaymentFilter; client?: PDVClientFilter;
+  }) {
     startTransition(async () => {
-      const result = await getPDVReport(from, to);
+      const result = await getPDVReport(from, to, {
+        status:  overrides?.status  ?? filterStatus,
+        payment: overrides?.payment ?? filterPayment,
+        client:  overrides?.client  ?? filterClient,
+      });
       setReport(result);
       setSelectedDay(null);
     });
   }
 
+  // Quando filtro muda e já tem relatório, recarrega automaticamente
+  function applyFilter<T extends PDVStatusFilter | PDVPaymentFilter | PDVClientFilter>(
+    setter: (v: T) => void,
+    val: T,
+    key: "status" | "payment" | "client",
+  ) {
+    setter(val);
+    if (!report) return; // ainda não buscou nada
+    const from = view === "month" ? monthStart(viewYear, viewMonth) : customFrom;
+    const to   = view === "month" ? monthEnd(viewYear, viewMonth)   : customTo;
+    load(from, to, { [key]: val });
+  }
+
   function handleMonthNav(delta: number) {
-    let m = viewMonth + delta;
-    let y = viewYear;
+    let m = viewMonth + delta, y = viewYear;
     if (m < 0) { m = 11; y--; }
     if (m > 11) { m = 0; y++; }
-    setViewMonth(m);
-    setViewYear(y);
-    setView("month");
+    setViewMonth(m); setViewYear(y); setView("month");
     load(monthStart(y, m), monthEnd(y, m));
   }
 
@@ -105,12 +138,12 @@ export function PDVReportPanel() {
       const from = view === "month" ? monthStart(viewYear, viewMonth) : customFrom;
       const to   = view === "month" ? monthEnd(viewYear, viewMonth)   : customTo;
 
-      // Busca detalhes do dia selecionado (ou resumo do período)
       let detailRows = "";
       if (selectedDay) {
         const sales = await getPDVSalesForDay(selectedDay.date);
         detailRows = sales.map((s) => {
-          const method = (s.payment_summary as Record<string,unknown> | null)?.method as string ?? "—";
+          const ps = s.payment_summary as Record<string,unknown> | null;
+          const method = (ps?.method as string) ?? "—";
           return `<tr>
             <td>#${s.number}</td>
             <td>${new Date(s.placed_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</td>
@@ -126,7 +159,18 @@ export function PDVReportPanel() {
         <td style="text-align:right;font-weight:700">${fmt(d.total_cents)}</td>
       </tr>`).join("");
 
+      const filterDesc = [
+        filterStatus  !== "all" ? `Status: ${filterStatus}`   : "",
+        filterPayment !== "all" ? `Pagamento: ${filterPayment}` : "",
+        filterClient  !== "all" ? `Cliente: ${filterClient}`   : "",
+      ].filter(Boolean).join(" · ");
+
+      const periodLabel = view === "month"
+        ? `${MONTH_NAMES[viewMonth]} ${viewYear}`
+        : `${new Date(from + "T12:00:00").toLocaleDateString("pt-BR")} – ${new Date(to + "T12:00:00").toLocaleDateString("pt-BR")}`;
+
       const body = `
+        ${filterDesc ? `<p style="font-size:11px;color:#8b6f47;margin:0 0 16px">Filtros: ${filterDesc}</p>` : ""}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px">
           <div style="background:rgba(42,74,44,0.08);border:1px solid rgba(42,74,44,0.2);border-radius:10px;padding:14px 18px;text-align:center">
             <div style="font-size:11px;color:#6b5c4a;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Vendas</div>
@@ -141,7 +185,6 @@ export function PDVReportPanel() {
             <div style="font-size:26px;font-weight:800;color:#2a4a2c">${fmt(report.avg_ticket_cents)}</div>
           </div>
         </div>
-
         ${selectedDay ? `
           <h3 style="font-size:13px;font-weight:800;color:#5a3e2b;margin:0 0 10px;text-transform:uppercase;letter-spacing:1px">
             Vendas em ${new Date(selectedDay.date + "T12:00:00").toLocaleDateString("pt-BR")}
@@ -152,80 +195,100 @@ export function PDVReportPanel() {
           </table>
           <div style="height:20px"></div>
         ` : ""}
-
-        <h3 style="font-size:13px;font-weight:800;color:#5a3e2b;margin:0 0 10px;text-transform:uppercase;letter-spacing:1px">
-          Resumo por dia
-        </h3>
+        <h3 style="font-size:13px;font-weight:800;color:#5a3e2b;margin:0 0 10px;text-transform:uppercase;letter-spacing:1px">Resumo por dia</h3>
         <table>
           <thead><tr><th>Data</th><th style="text-align:center">Vendas</th><th style="text-align:right">Total</th></tr></thead>
           <tbody>${calTable}</tbody>
         </table>
       `;
 
-      const periodLabel = view === "month"
-        ? `${MONTH_NAMES[viewMonth]} ${viewYear}`
-        : `${new Date(from + "T12:00:00").toLocaleDateString("pt-BR")} – ${new Date(to + "T12:00:00").toLocaleDateString("pt-BR")}`;
-
-      const html = buildFloraKraftPDF({
+      openAndPrint(buildFloraKraftPDF({
         title: `Relatório PDV — ${periodLabel}`,
         subtitle: `${report.period_sales} venda(s) · Total ${fmt(report.period_total_cents)} · Ticket médio ${fmt(report.avg_ticket_cents)}`,
         category: "relatorio_pdv",
         department: "PDV / Caixa",
         config,
         body,
-      });
-
-      openAndPrint(html);
+      }));
     } finally {
       setPdfPending(false);
     }
-  }, [report, selectedDay, view, viewYear, viewMonth, customFrom, customTo]);
+  }, [report, selectedDay, view, viewYear, viewMonth, customFrom, customTo, filterStatus, filterPayment, filterClient]);
 
-  // ── Renderização do calendário ──────────────────────────────────────────────
-
-  const totalDays = daysInMonth(viewYear, viewMonth);
+  const totalDays  = daysInMonth(viewYear, viewMonth);
   const startOffset = firstWeekday(viewYear, viewMonth);
 
   return (
     <div style={S.root}>
 
-      {/* Controles de período */}
-      <div style={S.controls}>
-        {/* Navegação mês */}
-        <div style={S.row}>
-          <button style={S.navBtn} onClick={() => handleMonthNav(-1)}>‹</button>
-          <span style={S.monthLabel}>{MONTH_NAMES[viewMonth]} {viewYear}</span>
-          <button style={S.navBtn} onClick={() => handleMonthNav(1)}>›</button>
-          <button
-            style={{ ...S.loadBtn, opacity: isPending ? 0.6 : 1 }}
-            onClick={handleLoadMonth}
-            disabled={isPending}
-          >
-            {isPending && view === "month" ? "Carregando…" : "Ver mês"}
-          </button>
-        </div>
+      {/* Navegação mês */}
+      <div style={S.row}>
+        <button style={S.navBtn} onClick={() => handleMonthNav(-1)}>‹</button>
+        <span style={S.monthLabel}>{MONTH_NAMES[viewMonth]} {viewYear}</span>
+        <button style={S.navBtn} onClick={() => handleMonthNav(1)}>›</button>
+        <button style={{ ...S.loadBtn, opacity: isPending ? 0.6 : 1 }} onClick={handleLoadMonth} disabled={isPending}>
+          {isPending && view === "month" ? "Carregando…" : "Ver mês"}
+        </button>
+      </div>
 
-        {/* Período personalizado */}
-        <div style={S.row}>
-          <span style={S.periodLabel}>Período:</span>
-          <GlassDateInput
-            value={customFrom}
-            onChange={(v) => setCustomFrom(v)}
-            inlinePopover
-          />
-          <span style={{ fontSize: 11, color: "var(--cream-dim)" }}>até</span>
-          <GlassDateInput
-            value={customTo}
-            onChange={(v) => setCustomTo(v)}
-            inlinePopover
-          />
-          <button
-            style={{ ...S.loadBtn, opacity: isPending ? 0.6 : 1 }}
-            onClick={handleLoadCustom}
-            disabled={isPending}
-          >
-            {isPending && view === "custom" ? "Carregando…" : "Buscar"}
-          </button>
+      {/* Período personalizado — sem inlinePopover para escapar do overflow do modal */}
+      <div style={S.row}>
+        <span style={S.label}>Período:</span>
+        <div style={{ minWidth: 130 }}>
+          <GlassDateInput value={customFrom} onChange={setCustomFrom} />
+        </div>
+        <span style={S.label}>até</span>
+        <div style={{ minWidth: 130 }}>
+          <GlassDateInput value={customTo} onChange={setCustomTo} />
+        </div>
+        <button style={{ ...S.loadBtn, opacity: isPending ? 0.6 : 1 }} onClick={handleLoadCustom} disabled={isPending}>
+          {isPending && view === "custom" ? "Carregando…" : "Buscar"}
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div style={S.filterSection}>
+        <div style={S.filterGroup}>
+          <span style={S.filterGroupLabel}>Status</span>
+          <div style={S.chips}>
+            {([
+              ["all",       "Todos"],
+              ["completed", "Realizados"],
+              ["canceled",  "Cancelados"],
+              ["pending",   "Pendentes"],
+            ] as [PDVStatusFilter, string][]).map(([v, l]) => (
+              <Chip key={v} label={l} value={v} active={filterStatus === v}
+                onClick={(val) => applyFilter(setFilterStatus, val, "status")} />
+            ))}
+          </div>
+        </div>
+        <div style={S.filterGroup}>
+          <span style={S.filterGroupLabel}>Pagamento</span>
+          <div style={S.chips}>
+            {([
+              ["all",    "Todos"],
+              ["cash",   "Dinheiro"],
+              ["pix",    "PIX"],
+              ["credit", "Crédito"],
+              ["debit",  "Débito"],
+            ] as [PDVPaymentFilter, string][]).map(([v, l]) => (
+              <Chip key={v} label={l} value={v} active={filterPayment === v}
+                onClick={(val) => applyFilter(setFilterPayment, val, "payment")} />
+            ))}
+          </div>
+        </div>
+        <div style={S.filterGroup}>
+          <span style={S.filterGroupLabel}>Cliente</span>
+          <div style={S.chips}>
+            {([
+              ["all", "Todos"],
+              ["b2c", "B2C"],
+              ["b2b", "B2B"],
+            ] as [PDVClientFilter, string][]).map(([v, l]) => (
+              <Chip key={v} label={l} value={v} active={filterClient === v}
+                onClick={(val) => applyFilter(setFilterClient, val, "client")} />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -255,20 +318,11 @@ export function PDVReportPanel() {
         </div>
       )}
 
-      {/* Calendário — só exibe para view mensal */}
+      {/* Calendário mensal */}
       {report && view === "month" && (
         <div style={S.calendar}>
-          {/* Cabeçalho dias da semana */}
-          {WEEK_DAYS.map((d) => (
-            <div key={d} style={S.weekDay}>{d}</div>
-          ))}
-
-          {/* Células vazias antes do dia 1 */}
-          {Array.from({ length: startOffset }).map((_, i) => (
-            <div key={`empty-${i}`} style={S.emptyCell} />
-          ))}
-
-          {/* Dias do mês */}
+          {WEEK_DAYS.map((d) => <div key={d} style={S.weekDay}>{d}</div>)}
+          {Array.from({ length: startOffset }).map((_, i) => <div key={`e-${i}`} style={S.emptyCell} />)}
           {Array.from({ length: totalDays }).map((_, i) => {
             const day = i + 1;
             const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -276,7 +330,6 @@ export function PDVReportPanel() {
             const intensity = data ? data.total_cents / maxSales : 0;
             const isToday = dateStr === todayStr();
             const isSelected = selectedDay?.date === dateStr;
-
             return (
               <div
                 key={day}
@@ -295,19 +348,11 @@ export function PDVReportPanel() {
                 onClick={() => data && handleDayClick(dateStr)}
                 title={data ? `${fmt(data.total_cents)} · ${data.sales} venda(s)` : undefined}
               >
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: isToday ? 800 : 500,
-                  color: isToday ? "var(--gold-light)" : "var(--cream-dim)",
-                }}>
+                <span style={{ fontSize: 11, fontWeight: isToday ? 800 : 500, color: isToday ? "var(--gold-light)" : "var(--cream-dim)" }}>
                   {day}
                 </span>
-                {data && (
-                  <span style={S.daySales}>{data.sales}v</span>
-                )}
-                {data && (
-                  <span style={S.dayTotal}>{fmt(data.total_cents)}</span>
-                )}
+                {data && <span style={S.daySales}>{data.sales}v</span>}
+                {data && <span style={S.dayTotal}>{fmt(data.total_cents)}</span>}
               </div>
             );
           })}
@@ -316,18 +361,15 @@ export function PDVReportPanel() {
 
       {/* Lista de dias para período personalizado */}
       {report && view === "custom" && report.days.length > 0 && (
-        <div style={S.dayList}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {report.days.map((d) => (
             <div
               key={d.date}
               style={{
-                ...S.dayListRow,
-                background: selectedDay?.date === d.date
-                  ? "rgba(74,222,128,0.1)"
-                  : "rgba(255,255,255,0.03)",
-                borderColor: selectedDay?.date === d.date
-                  ? "rgba(74,222,128,0.4)"
-                  : "rgba(255,255,255,0.07)",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 14px", borderRadius: 10, gap: 12, flexWrap: "wrap",
+                background: selectedDay?.date === d.date ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${selectedDay?.date === d.date ? "rgba(74,222,128,0.4)" : "rgba(255,255,255,0.07)"}`,
                 cursor: "pointer",
               }}
               onClick={() => setSelectedDay(d === selectedDay ? null : d)}
@@ -344,7 +386,7 @@ export function PDVReportPanel() {
 
       {/* Detalhe do dia selecionado */}
       {selectedDay && (
-        <div style={S.dayDetail}>
+        <div style={{ padding: "12px 16px", background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 10 }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: "var(--gold-light)", margin: "0 0 8px" }}>
             📅 {new Date(selectedDay.date + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
           </p>
@@ -361,7 +403,6 @@ export function PDVReportPanel() {
           Nenhuma venda PDV encontrada neste período.
         </p>
       )}
-
       {!report && (
         <p className="muted" style={{ fontSize: 12, textAlign: "center", padding: "20px 0", opacity: 0.6 }}>
           Selecione um período e clique em "Ver mês" ou "Buscar".
@@ -374,159 +415,28 @@ export function PDVReportPanel() {
 // ── Estilos ───────────────────────────────────────────────────────────────────
 
 const S: Record<string, React.CSSProperties> = {
-  root: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-    padding: "18px 20px",
-  },
-  controls: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  },
-  row: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  navBtn: {
-    background: "rgba(255,255,255,0.07)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: 8,
-    color: "var(--cream-dim)",
-    cursor: "pointer",
-    fontSize: 18,
-    lineHeight: 1,
-    padding: "4px 10px",
-  },
-  monthLabel: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "var(--gold-light)",
-    minWidth: 160,
-    textAlign: "center" as const,
-  },
-  periodLabel: {
-    fontSize: 11,
-    color: "var(--cream-dim)",
-    opacity: 0.7,
-  },
-  loadBtn: {
-    background: "rgba(185,146,77,0.15)",
-    border: "1px solid rgba(185,146,77,0.3)",
-    borderRadius: 8,
-    color: "var(--gold-light)",
-    cursor: "pointer",
-    fontSize: 11,
-    fontWeight: 700,
-    padding: "6px 14px",
-    letterSpacing: 0.3,
-  },
-  kpiRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    flexWrap: "wrap",
-    padding: "12px 16px",
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 12,
-  },
-  kpi: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 2,
-    flex: 1,
-    minWidth: 80,
-  },
-  kpiLabel: {
-    fontSize: 9,
-    textTransform: "uppercase" as const,
-    letterSpacing: 1,
-    color: "var(--cream-dim)",
-    opacity: 0.6,
-  },
-  kpiVal: {
-    fontSize: 18,
-    fontWeight: 800,
-    color: "var(--cream-dim)",
-    lineHeight: 1.2,
-  },
-  pdfBtn: {
-    background: "rgba(42,74,44,0.25)",
-    border: "1px solid rgba(42,74,44,0.5)",
-    borderRadius: 10,
-    color: "#4ade80",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 700,
-    padding: "10px 18px",
-    flexShrink: 0,
-    letterSpacing: 0.3,
-  },
-  calendar: {
-    display: "grid",
-    gridTemplateColumns: "repeat(7, 1fr)",
-    gap: 4,
-  },
-  weekDay: {
-    fontSize: 9,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.8,
-    color: "var(--cream-dim)",
-    opacity: 0.5,
-    textAlign: "center" as const,
-    padding: "4px 0",
-  },
-  emptyCell: {
-    height: 60,
-  },
-  dayCell: {
-    borderRadius: 8,
-    padding: "6px 6px 5px",
-    minHeight: 60,
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 2,
-    transition: "all 0.15s",
-    userSelect: "none" as const,
-  },
-  daySales: {
-    fontSize: 9,
-    color: "#4ade80",
-    opacity: 0.7,
-    fontWeight: 600,
-  },
-  dayTotal: {
-    fontSize: 9,
-    color: "#4ade80",
-    fontWeight: 700,
-    lineHeight: 1.2,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-  },
-  dayList: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 6,
-  },
-  dayListRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "10px 14px",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 10,
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  dayDetail: {
-    padding: "12px 16px",
-    background: "rgba(74,222,128,0.05)",
-    border: "1px solid rgba(74,222,128,0.2)",
-    borderRadius: 10,
-  },
+  root:      { display: "flex", flexDirection: "column", gap: 14, padding: "18px 20px" },
+  row:       { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  navBtn:    { background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "var(--cream-dim)", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "4px 10px" },
+  monthLabel:{ fontSize: 14, fontWeight: 700, color: "var(--gold-light)", minWidth: 160, textAlign: "center" as const },
+  loadBtn:   { background: "rgba(185,146,77,0.15)", border: "1px solid rgba(185,146,77,0.3)", borderRadius: 8, color: "var(--gold-light)", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "6px 14px", letterSpacing: 0.3 },
+  label:     { fontSize: 11, color: "var(--cream-dim)", opacity: 0.7, whiteSpace: "nowrap" as const },
+  // Filtros
+  filterSection: { display: "flex", flexDirection: "column" as const, gap: 8, padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 },
+  filterGroup:   { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const },
+  filterGroupLabel: { fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, color: "var(--cream-dim)", opacity: 0.5, minWidth: 60 },
+  chips:     { display: "flex", gap: 5, flexWrap: "wrap" as const },
+  // KPIs
+  kpiRow:    { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" as const, padding: "12px 16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12 },
+  kpi:       { display: "flex", flexDirection: "column" as const, gap: 2, flex: 1, minWidth: 80 },
+  kpiLabel:  { fontSize: 9, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--cream-dim)", opacity: 0.6 },
+  kpiVal:    { fontSize: 18, fontWeight: 800, color: "var(--cream-dim)", lineHeight: 1.2 },
+  pdfBtn:    { background: "rgba(42,74,44,0.25)", border: "1px solid rgba(42,74,44,0.5)", borderRadius: 10, color: "#4ade80", cursor: "pointer", fontSize: 12, fontWeight: 700, padding: "10px 18px", flexShrink: 0, letterSpacing: 0.3 },
+  // Calendário
+  calendar:  { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
+  weekDay:   { fontSize: 9, textTransform: "uppercase" as const, letterSpacing: 0.8, color: "var(--cream-dim)", opacity: 0.5, textAlign: "center" as const, padding: "4px 0" },
+  emptyCell: { height: 60 },
+  dayCell:   { borderRadius: 8, padding: "6px 6px 5px", minHeight: 60, display: "flex", flexDirection: "column" as const, gap: 2, transition: "all 0.15s", userSelect: "none" as const },
+  daySales:  { fontSize: 9, color: "#4ade80", opacity: 0.7, fontWeight: 600 },
+  dayTotal:  { fontSize: 9, color: "#4ade80", fontWeight: 700, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
 };
