@@ -148,6 +148,15 @@ export function PdfStylesEditor({ initial }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"global" | "categorias">("global");
 
+  // ── Dados da empresa (rodapé) ──
+  const [companyName,   setCompanyName]   = useState(initial.companyName   ?? "");
+  const [cnpj,          setCnpj]          = useState(initial.cnpj          ?? "");
+  const [address,       setAddress]       = useState(initial.address       ?? "");
+  const [phone,         setPhone]         = useState(initial.phone         ?? "");
+  const [emailEmp,      setEmailEmp]      = useState(initial.email         ?? "");
+  const [website,       setWebsite]       = useState(initial.website       ?? "");
+  const [defaultNotes,  setDefaultNotes]  = useState(initial.defaultNotes  ?? "");
+
   // ── Estilos globais ──
   const [bgColor,           setBgColor]           = useState(initial.bgColor           ?? "#f2e8d9");
   const [accentColor,       setAccentColor]       = useState(initial.accentColor       ?? "#2a4a2c");
@@ -227,16 +236,16 @@ export function PdfStylesEditor({ initial }: Props) {
     } : undefined;
 
     const config: PdfConfig = {
-      companyName:       initial.companyName   ?? "Flora Botanics",
-      address:           initial.address       ?? "Rua das Flores, 123 — São Paulo, SP",
-      cnpj:              initial.cnpj          ?? "12.345.678/0001-99",
-      phone:             initial.phone         ?? "(11) 9 9999-9999",
-      email:             initial.email         ?? "contato@florabotanics.com.br",
-      website:           initial.website       ?? "florabotanics.com.br",
-      defaultNotes:      "",
-      signerName:        signerName || undefined,
-      signerRole:        signerRole || undefined,
-      department:        department || undefined,
+      companyName:       companyName   || "Flora Botanics",
+      address:           address       || undefined,
+      cnpj:              cnpj          || undefined,
+      phone:             phone         || undefined,
+      email:             emailEmp      || undefined,
+      website:           website       || undefined,
+      defaultNotes:      defaultNotes  || undefined,
+      signerName:        signerName    || undefined,
+      signerRole:        signerRole    || undefined,
+      department:        department    || undefined,
       bgColor,
       accentColor,
       headerBorderColor,
@@ -283,7 +292,16 @@ export function PdfStylesEditor({ initial }: Props) {
 
   return (
     <form action={handleSubmit} style={{ display: "grid", gap: 24 }}>
-      {/* Campos hidden para os estilos globais controlados por state */}
+      {/* Campos hidden — dados da empresa */}
+      <input type="hidden" name="companyName"   value={companyName} />
+      <input type="hidden" name="cnpj"          value={cnpj} />
+      <input type="hidden" name="address"       value={address} />
+      <input type="hidden" name="phone"         value={phone} />
+      <input type="hidden" name="email"         value={emailEmp} />
+      <input type="hidden" name="website"       value={website} />
+      <input type="hidden" name="defaultNotes"  value={defaultNotes} />
+
+      {/* Campos hidden — estilos globais */}
       <input type="hidden" name="bgColor"           value={bgColor} />
       <input type="hidden" name="accentColor"       value={accentColor} />
       <input type="hidden" name="headerBorderColor" value={headerBorderColor} />
@@ -328,6 +346,40 @@ export function PdfStylesEditor({ initial }: Props) {
       {/* ── ABA GLOBAL ── */}
       {activeTab === "global" && (
         <div style={{ display: "grid", gap: 24 }}>
+          {/* Dados da empresa */}
+          <Section title="Dados da empresa (rodapé dos PDFs)">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <label className="field">
+                <span className="field-label">Nome da empresa</span>
+                <input className="input" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Flora Botanics Cosméticos Ltda" />
+              </label>
+              <label className="field">
+                <span className="field-label">CNPJ</span>
+                <input className="input" value={cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0001-00" />
+              </label>
+              <label className="field">
+                <span className="field-label">Telefone / WhatsApp</span>
+                <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 9 9999-9999" />
+              </label>
+              <label className="field">
+                <span className="field-label">E-mail de contato</span>
+                <input className="input" value={emailEmp} onChange={(e) => setEmailEmp(e.target.value)} placeholder="contato@florabotanics.com.br" />
+              </label>
+              <label className="field">
+                <span className="field-label">Website</span>
+                <input className="input" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="florabotanics.com.br" />
+              </label>
+            </div>
+            <label className="field" style={{ marginTop: 10 }}>
+              <span className="field-label">Endereço completo</span>
+              <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Av. Prudente de Morais, 755, Sala 14 — Santo Antônio, MG" />
+            </label>
+            <label className="field" style={{ marginTop: 10 }}>
+              <span className="field-label">Observações padrão (todos os PDFs)</span>
+              <textarea className="input" rows={2} value={defaultNotes} onChange={(e) => setDefaultNotes(e.target.value)} placeholder="Ex.: Documento confidencial. Válido por 30 dias." />
+            </label>
+          </Section>
+
           {/* Presets */}
           <Section title="Temas prontos">
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
