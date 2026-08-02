@@ -121,7 +121,7 @@ export function Shell({
           <span className="side-logo-sub">ECOSYSTEM</span>
         </Link>
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 0", overflowY: "auto", scrollbarWidth: "none" }}>
           {navItems.map((item) => {
             const active = item.match(path);
             return (
@@ -137,24 +137,27 @@ export function Shell({
           })}
         </nav>
 
-        <Link
-          href="/perfil"
-          className={`side-item ${path.startsWith("/perfil") ? "side-item-active" : ""}`}
-        >
-          <span className="side-icon">◐</span>
-          <span className="side-label">Meu perfil</span>
-        </Link>
+        {/* Rodapé do sidebar — sempre visível */}
+        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 2, paddingTop: 6, borderTop: "1px solid var(--glass-border)" }}>
+          <Link
+            href="/perfil"
+            className={`side-item ${path.startsWith("/perfil") ? "side-item-active" : ""}`}
+          >
+            <span className="side-icon">◐</span>
+            <span className="side-label">Meu perfil</span>
+          </Link>
 
-        <button className="side-item" onClick={() => setPaletteOpen(true)} title="Busca rápida">
-          <span className="side-icon">⌘</span>
-          <span className="side-label">
-            Buscar <kbd className="side-kbd">Ctrl K</kbd>
-          </span>
-        </button>
+          <button className="side-item" onClick={() => setPaletteOpen(true)} title="Busca rápida">
+            <span className="side-icon">⌘</span>
+            <span className="side-label">
+              Buscar <kbd className="side-kbd">Ctrl K</kbd>
+            </span>
+          </button>
 
-        <ThemePicker />
+          <ThemePicker />
 
-        <LogoutItem />
+          <LogoutItem />
+        </div>
       </aside>
 
       <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
