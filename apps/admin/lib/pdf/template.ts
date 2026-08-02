@@ -52,7 +52,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     subtitle,
     body,
     config = {},
-    maxWidth = 900,
+    maxWidth = 1100,
   } = options;
 
   const now = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
@@ -83,8 +83,8 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       background: #f2e8d9;
       color: #1a1a1a;
       font-family: Georgia, 'Times New Roman', serif;
-      font-size: 12px;
-      line-height: 1.6;
+      font-size: 13px;
+      line-height: 1.65;
       min-height: 100%;
     }
 
@@ -112,7 +112,7 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       z-index: 1;
       max-width: ${maxWidth}px;
       margin: 0 auto;
-      padding: 40px 48px 60px;
+      padding: 44px 64px 72px;
     }
 
     /* ── Cabeçalho ── */
@@ -158,21 +158,21 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 12px;
-      margin-bottom: 24px;
-      font-size: 11px;
+      margin-top: 14px;
+      margin-bottom: 28px;
+      font-size: 12.5px;
     }
     th {
       background: #2a4a2c;
       color: #f2e8d9;
       text-align: left;
-      padding: 8px 10px;
-      font-size: 10.5px;
+      padding: 10px 14px;
+      font-size: 11.5px;
       letter-spacing: 0.5px;
       font-weight: 700;
     }
     td {
-      padding: 7px 10px;
+      padding: 9px 14px;
       border-bottom: 1px solid rgba(90,62,43,0.18);
       vertical-align: top;
       color: #1a1a1a;
