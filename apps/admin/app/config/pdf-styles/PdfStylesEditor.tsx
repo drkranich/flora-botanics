@@ -70,6 +70,20 @@ const PRESETS: { label: string; values: Partial<PdfConfig> }[] = [
   },
 ];
 
+// ─── Paleta de cores de destaque (accentColor + headerBorderColor) ─────────────
+// Derivadas da paleta existente no SaaS (Design System "Estufa de Vidro")
+
+const ACCENT_PALETTE: { label: string; accentColor: string; headerBorderColor: string }[] = [
+  { label: "Caramelo dourado",  accentColor: "#96763f", headerBorderColor: "#c8843c" },
+  { label: "Verde esmeralda",   accentColor: "#2a6a4a", headerBorderColor: "#4a9a72" },
+  { label: "Rosa terracota",    accentColor: "#8b3a52", headerBorderColor: "#c47090" },
+  { label: "Rosa suave",        accentColor: "#b05878", headerBorderColor: "#d4a0b0" },
+  { label: "Lilás botânico",    accentColor: "#6a3a8a", headerBorderColor: "#a070c0" },
+  { label: "Laranja queimado",  accentColor: "#a04a18", headerBorderColor: "#d07040" },
+  { label: "Ardósia azulada",   accentColor: "#3a5278", headerBorderColor: "#6a8ab0" },
+  { label: "Azul corporativo",  accentColor: "#1a3a6b", headerBorderColor: "#5a80b8" },
+];
+
 // ─── Categorias com sugestão de cor padrão ────────────────────────────────────
 
 const CATEGORY_DEFAULTS: Record<PdfCategory, { accentColor: string; headerBorderColor: string; textColor?: string }> = {
@@ -164,6 +178,11 @@ export function PdfStylesEditor({ initial }: Props) {
     if (preset.fontFamily)         setFontFamily(preset.fontFamily);
     if (preset.watermarkOpacity !== undefined) setWatermarkOpacity(preset.watermarkOpacity);
     if (preset.watermarkSize    !== undefined) setWatermarkSize(preset.watermarkSize);
+  }
+
+  function applyAccent(accent: (typeof ACCENT_PALETTE)[number]) {
+    setAccentColor(accent.accentColor);
+    setHeaderBorderColor(accent.headerBorderColor);
   }
 
   function flash(ok: boolean, text: string) {
@@ -299,7 +318,7 @@ export function PdfStylesEditor({ initial }: Props) {
         <div style={{ display: "grid", gap: 24 }}>
           {/* Presets */}
           <Section title="Temas prontos">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
               {PRESETS.map((p) => (
                 <button
                   key={p.label}
@@ -309,6 +328,44 @@ export function PdfStylesEditor({ initial }: Props) {
                   style={{ fontSize: 11, padding: "7px 14px" }}
                 >
                   {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Paleta de cores de destaque */}
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "var(--color-muted, #8a9580)", marginBottom: 8 }}>
+              Cor de destaque
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {ACCENT_PALETTE.map((a) => (
+                <button
+                  key={a.accentColor}
+                  type="button"
+                  title={a.label}
+                  onClick={() => applyAccent(a)}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 8,
+                    background: a.accentColor,
+                    border: accentColor === a.accentColor
+                      ? "3px solid #fff"
+                      : "2px solid rgba(255,255,255,0.15)",
+                    cursor: "pointer",
+                    padding: 0,
+                    position: "relative",
+                    transition: "transform 0.15s, border-color 0.15s",
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.12)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+                >
+                  {accentColor === a.accentColor && (
+                    <span style={{
+                      position: "absolute", inset: 0, display: "grid", placeItems: "center",
+                      color: "#fff", fontSize: 14, fontWeight: 900, textShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                    }}>✓</span>
+                  )}
                 </button>
               ))}
             </div>
