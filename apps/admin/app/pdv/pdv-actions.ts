@@ -117,8 +117,13 @@ export async function createPDVOrder(
     return { ok: false, error: "Pagamento insuficiente." };
   }
 
-  // Gera número do pedido PDV
-  const orderNumber = `PDV-${Date.now().toString(36).toUpperCase()}`;
+  // Gera número sequencial via RPC (mesmo mecanismo dos pedidos do storefront)
+  const { data: nextNum, error: numErr } = await supabase
+    .rpc("next_order_number", { t: staff.tenantId });
+  if (numErr || nextNum == null) {
+    return { ok: false, error: "Erro ao gerar número do pedido." };
+  }
+  const orderNumber = nextNum as number;
 
   const { data: order, error: orderErr } = await supabase
     .from("orders")
