@@ -2,9 +2,10 @@
 
 /**
  * FinanceiroDocumentRowActions
- * Menu ⋯ com position:fixed para não ser truncado pela tabela (overflow:hidden).
+ * Menu ⋯ com position:absolute relativo ao wrapper (evita problemas com
+ * ancestrais que possuem transform ou filter quebrando position:fixed).
  */
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { archiveDocument, deleteDocument } from "@/app/documentos/actions";
 
@@ -23,8 +24,6 @@ export function FinanceiroDocumentRowActions({
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
 
   function handleEdit() {
     router.push(`/financeiro/documentos/${id}`);
@@ -58,16 +57,8 @@ export function FinanceiroDocumentRowActions({
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
-        ref={btnRef}
         onClick={(e) => {
           e.stopPropagation();
-          if (btnRef.current) {
-            const rect = btnRef.current.getBoundingClientRect();
-            setMenuPos({
-              top: rect.bottom + 4,
-              right: window.innerWidth - rect.right,
-            });
-          }
           setOpen((v) => !v);
           setConfirmDelete(false);
         }}
@@ -84,18 +75,21 @@ export function FinanceiroDocumentRowActions({
 
       {open && (
         <>
+          {/* Backdrop para fechar ao clicar fora */}
           <div
             style={{ position: "fixed", inset: 0, zIndex: 999 }}
             onClick={() => { setOpen(false); setConfirmDelete(false); }}
           />
+          {/* Menu: absolute relativo ao wrapper — não sofre com transform dos ancestrais */}
           <div style={{
-            position: "fixed",
-            top: menuPos.top,
-            right: menuPos.right,
+            position: "absolute",
+            top: "100%",
+            right: 0,
+            marginTop: 4,
             background: "#1a2e1a",
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: 8,
-            minWidth: 190,
+            minWidth: 200,
             zIndex: 1000,
             overflow: "hidden",
             boxShadow: "0 8px 32px rgba(0,0,0,0.6)",

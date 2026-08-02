@@ -19,7 +19,6 @@ export function DocumentRowActions({
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
 
   function handleEdit() {
@@ -50,18 +49,12 @@ export function DocumentRowActions({
   }
 
   return (
+    // position:relative aqui garante que o menu absolute é relativo a este wrapper
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
         ref={btnRef}
         onClick={(e) => {
           e.stopPropagation();
-          if (btnRef.current) {
-            const rect = btnRef.current.getBoundingClientRect();
-            setMenuPos({
-              top: rect.bottom + 4,
-              right: window.innerWidth - rect.right,
-            });
-          }
           setOpen((v) => !v);
           setConfirmDelete(false);
         }}
@@ -78,18 +71,21 @@ export function DocumentRowActions({
 
       {open && (
         <>
+          {/* Backdrop para fechar ao clicar fora */}
           <div
             style={{ position: "fixed", inset: 0, zIndex: 999 }}
             onClick={() => { setOpen(false); setConfirmDelete(false); }}
           />
+          {/* Menu: position absolute relativo ao wrapper, abre à esquerda do botão */}
           <div style={{
-            position: "fixed",
-            top: menuPos.top,
-            right: menuPos.right,
+            position: "absolute",
+            top: "100%",
+            right: 0,
+            marginTop: 4,
             background: "#1a2e1a",
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: 8,
-            minWidth: 190,
+            minWidth: 200,
             zIndex: 1000,
             overflow: "hidden",
             boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
