@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
-import type { PdfConfig } from "./template";
+import type { PdfConfig, PdfCategory } from "./template";
 
 type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -41,21 +41,66 @@ export async function savePdfConfig(
   const tenantId = await effectiveTenantId();
   const supabase = await supabaseServer();
 
+  // ── Estilos por categoria ──────────────────────────────────────────────────
+  // O FormData contém campos como "cat_orcamento_bgColor", etc.
+  // Reconstruímos o mapa categoryStyles a partir desses campos.
+  const CATEGORIES: PdfCategory[] = [
+    "orcamento", "cotacao", "proposta_comercial", "pedido",
+    "nota_fiscal", "recibo", "boleto", "contrato",
+    "relatorio_financeiro", "relatorio_estoque", "relatorio_vendas",
+    "relatorio_crm", "relatorio_auditoria", "relatorio_remessa",
+    "relatorio_pdv", "contabil", "fiscal", "exportacao",
+    "etiqueta", "assinatura", "interno",
+  ];
+
+  const CAT_STYLE_KEYS = [
+    "bgColor", "accentColor", "headerBorderColor",
+    "textColor", "fontFamily", "watermarkOpacity", "watermarkSize",
+  ] as const;
+
+  type CatStyleKey = typeof CAT_STYLE_KEYS[number];
+
+  const categoryStyles: PdfConfig["categoryStyles"] = {};
+  for (const cat of CATEGORIES) {
+    const entry: Record<string, string | number> = {};
+    for (const key of CAT_STYLE_KEYS) {
+      const raw = formData.get(`cat_${cat}_${key}`);
+      if (raw !== null && raw !== "") {
+        if (key === "watermarkOpacity" || key === "watermarkSize") {
+          const n = Number(raw);
+          if (!isNaN(n)) entry[key] = n;
+        } else {
+          entry[key] = String(raw).trim();
+        }
+      }
+    }
+    if (Object.keys(entry).length > 0) {
+      categoryStyles[cat] = entry as PdfConfig["categoryStyles"][typeof cat];
+    }
+  }
+
   const config: PdfConfig = {
-    companyName: str(formData, "companyName"),
-    address: str(formData, "address"),
-    cnpj: str(formData, "cnpj"),
-    phone: str(formData, "phone"),
-    email: str(formData, "email"),
-    website: str(formData, "website"),
+    // ── Dados da empresa ──
+    companyName:  str(formData, "companyName"),
+    address:      str(formData, "address"),
+    cnpj:         str(formData, "cnpj"),
+    phone:        str(formData, "phone"),
+    email:        str(formData, "email"),
+    website:      str(formData, "website"),
     defaultNotes: str(formData, "defaultNotes"),
-    // Estilos visuais
-    bgColor: str(formData, "bgColor"),
-    accentColor: str(formData, "accentColor"),
-    headerBorderColor: str(formData, "headerBorderColor"),
-    fontFamily: str(formData, "fontFamily"),
-    watermarkOpacity: num(formData, "watermarkOpacity"),
-    watermarkSize: num(formData, "watermarkSize"),
+    // ── Assinante ──
+    signerName:   str(formData, "signerName"),
+    signerRole:   str(formData, "signerRole"),
+    // ── Estilos globais ──
+    bgColor:            str(formData, "bgColor"),
+    accentColor:        str(formData, "accentColor"),
+    headerBorderColor:  str(formData, "headerBorderColor"),
+    textColor:          str(formData, "textColor"),
+    fontFamily:         str(formData, "fontFamily"),
+    watermarkOpacity:   num(formData, "watermarkOpacity"),
+    watermarkSize:      num(formData, "watermarkSize"),
+    // ── Estilos por categoria ──
+    categoryStyles: Object.keys(categoryStyles).length > 0 ? categoryStyles : undefined,
   };
 
   const { error } = await supabase.from("site_settings").upsert(

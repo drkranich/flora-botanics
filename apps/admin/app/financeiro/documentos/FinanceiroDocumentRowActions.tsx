@@ -23,7 +23,7 @@ export function FinanceiroDocumentRowActions({
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
 
   function handleEdit() {
@@ -63,7 +63,12 @@ export function FinanceiroDocumentRowActions({
           e.stopPropagation();
           if (btnRef.current) {
             const rect = btnRef.current.getBoundingClientRect();
-            setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+            const menuW = 200;
+            const left = Math.min(
+              rect.right - menuW,
+              window.innerWidth - menuW - 8
+            );
+            setMenuPos({ top: rect.bottom + 4, left: Math.max(8, left) });
           }
           setOpen((v) => !v);
           setConfirmDelete(false);
@@ -88,7 +93,7 @@ export function FinanceiroDocumentRowActions({
           <div style={{
             position: "fixed",
             top: menuPos.top,
-            right: menuPos.right,
+            left: menuPos.left,
             background: "#1a2e1a",
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: 8,
