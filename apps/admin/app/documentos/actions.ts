@@ -131,3 +131,72 @@ export async function convertDocumentToOrder(id: string) {
   revalidatePath("/vendas");
   redirect(`/vendas/${result.order_id}`);
 }
+
+export async function archiveDocument(id: string) {
+  const { tenantId } = await ensureCanEdit();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase
+    .from("commercial_quotes")
+    .update({ status: "cancelled" })
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .neq("status", "converted");
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/documentos");
+}
+
+export async function deleteDocument(id: string) {
+  const { session, tenantId } = await ensureCanEdit();
+  const supabase = await supabaseServer();
+
+  // Registra auditoria antes de deletar
+  await supabase.from("finance_audit_events").insert({
+    tenant_id: tenantId,
+    entity_type: "commercial_quote",
+    entity_id: id,
+    action: "deleted",
+    before_data: { deleted_by: session.userId },
+    after_data: null,
+    created_by: session.userId,
+  });
+
+  const { error } = await supabase
+    .from("commercial_quotes")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/documentos");
+}
+
+export async function requestSignature(quoteId: string): Promise<{ token: string }> {
+  const { session, tenantId } = await ensureCanEdit();
+  const supabase = await supabaseServer();
+
+  // Verifica se já existe assinatura pendente
+  const { data: existing } = await supabase
+    .from("document_signatures")
+    .select("public_token")
+    .eq("quote_id", quoteId)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (existing) return { token: existing.public_token };
+
+  const { data, error } = await supabase
+    .from("document_signatures")
+    .insert({
+      tenant_id: tenantId,
+      quote_id: quoteId,
+      requested_by: session.userId,
+    })
+    .select("public_token")
+    .single();
+
+  if (error || !data) throw new Error(error?.message ?? "Erro ao criar solicitação.");
+  revalidatePath(`/documentos/${quoteId}`);
+  return { token: data.public_token };
+}

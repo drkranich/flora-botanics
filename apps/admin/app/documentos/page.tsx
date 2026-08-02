@@ -213,7 +213,7 @@ export default async function DocumentosPage({
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children }: { children?: React.ReactNode }) {
   return (
     <th style={{
       textAlign: "left", padding: "10px 14px", fontSize: 11, fontWeight: 600,
