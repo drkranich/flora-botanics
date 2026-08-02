@@ -38,13 +38,13 @@ export function TrackingPanel({
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [fetching, startFetchTransition] = useTransition();
 
-  // Form state
+  // Form state (nomes distintos das props carrier/trackingCode)
   const [status, setStatus] = useState("in_transit");
   const [city, setCity] = useState("");
   const [state, setState] = useState("SP");
   const [description, setDescription] = useState("");
-  const [carrier, setCarrier] = useState("");
-  const [trackingCode, setTrackingCode] = useState("");
+  const [formCarrier, setFormCarrier] = useState("");
+  const [formTrackingCode, setFormTrackingCode] = useState("");
   const [sendWhatsapp, setSendWhatsapp] = useState(true);
   const [phone, setPhone] = useState(customerPhone ?? "");
 
@@ -76,7 +76,7 @@ export function TrackingPanel({
     setErr(null); setMsg(null);
     startTransition(async () => {
       const result = await addShippingEvent(orderId, {
-        status, city, state, description, carrier, tracking_code: trackingCode,
+        status, city, state, description, carrier: formCarrier, tracking_code: formTrackingCode,
         sendWhatsapp: sendWhatsapp && !!phone,
         phone: phone || undefined,
       });
@@ -92,8 +92,8 @@ export function TrackingPanel({
         city: city || null,
         state: state || null,
         description: description || null,
-        carrier: carrier || null,
-        tracking_code: trackingCode || null,
+        carrier: formCarrier || null,
+        tracking_code: formTrackingCode || null,
         whatsapp_sent: sendWhatsapp && !!phone,
         whatsapp_sent_at: sendWhatsapp && !!phone ? new Date().toISOString() : null,
         whatsapp_phone: sendWhatsapp && !!phone ? phone : null,
@@ -269,8 +269,8 @@ export function TrackingPanel({
               <span className="field-label">Transportadora</span>
               <input
                 className="input"
-                value={carrier}
-                onChange={(e) => setCarrier(e.target.value)}
+                value={formCarrier}
+                onChange={(e) => setFormCarrier(e.target.value)}
                 placeholder="Correios, Jadlog…"
               />
             </div>
@@ -278,8 +278,8 @@ export function TrackingPanel({
               <span className="field-label">Código de rastreio</span>
               <input
                 className="input"
-                value={trackingCode}
-                onChange={(e) => setTrackingCode(e.target.value)}
+                value={formTrackingCode}
+                onChange={(e) => setFormTrackingCode(e.target.value)}
                 placeholder="AA123456789BR"
               />
             </div>
