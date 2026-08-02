@@ -57,7 +57,6 @@ function GlassCalendar({
   const init = value ? new Date(`${value}T12:00:00`) : today;
   const [view, setView] = useState({ year: init.getFullYear(), month: init.getMonth() });
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
@@ -95,87 +94,93 @@ function GlassCalendar({
   const selectedKey = selected ? isoDate(selected) : "";
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div>
+      {/* Label + campo */}
       <div style={{ fontSize: 11, color: "var(--color-muted, #8a9580)", marginBottom: 4 }}>{label}</div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)",
-          background: "rgba(255,255,255,0.04)", color: value ? "var(--color-text, #e8e3d9)" : "var(--color-muted, #8a9580)",
-          fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between",
-        }}
-      >
-        <span>{value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "Selecionar data"}</span>
-        <span style={{ opacity: 0.5 }}>📅</span>
-      </button>
-      {value && (
+      <div style={{ display: "flex", gap: 6 }}>
         <button
           type="button"
-          onClick={() => onChange("")}
+          onClick={() => setOpen((v) => !v)}
           style={{
-            position: "absolute", right: 34, top: 29, background: "none", border: "none",
-            color: "var(--color-muted, #8a9580)", cursor: "pointer", fontSize: 13, padding: "0 4px",
+            flex: 1, padding: "9px 12px", borderRadius: 8,
+            border: `1px solid ${open ? "rgba(200,168,75,0.5)" : "rgba(255,255,255,0.15)"}`,
+            background: "rgba(255,255,255,0.04)",
+            color: value ? "var(--color-text, #e8e3d9)" : "var(--color-muted, #8a9580)",
+            fontSize: 13, cursor: "pointer", textAlign: "left",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
           }}
-          title="Limpar"
         >
-          ×
+          <span>{value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "Selecionar data"}</span>
+          <span style={{ opacity: 0.5, fontSize: 14 }}>📅</span>
         </button>
-      )}
+        {value && (
+          <button
+            type="button"
+            onClick={() => { onChange(""); setOpen(false); }}
+            style={{
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 8, color: "var(--color-muted, #8a9580)", cursor: "pointer",
+              fontSize: 16, width: 34, flexShrink: 0,
+            }}
+            title="Limpar"
+          >
+            ×
+          </button>
+        )}
+      </div>
 
+      {/* Calendário inline — empurra o conteúdo abaixo, sem flutuar */}
       {open && (
-        <>
-          <div style={{ position: "fixed", inset: 0, zIndex: 199 }} onClick={() => setOpen(false)} />
-          <div style={{
-            position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 200,
-            background: "rgba(18,30,18,0.92)", backdropFilter: "blur(20px) saturate(1.6)",
-            border: "1px solid rgba(200,168,75,0.25)", borderRadius: 14,
-            boxShadow: "0 16px 48px rgba(0,0,0,0.7)", padding: 16, minWidth: 280,
-          }}>
-            {/* Nav de mês */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <button type="button" onClick={prevMonth} style={navBtn}>‹</button>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-gold, #c8a84b)" }}>
-                {MONTHS[view.month]} {view.year}
-              </span>
-              <button type="button" onClick={nextMonth} style={navBtn}>›</button>
-            </div>
-            {/* Cabeçalho dias */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-              {WEEKDAYS.map((d) => (
-                <div key={d} style={{ textAlign: "center", fontSize: 10, color: "var(--color-muted, #8a9580)", fontWeight: 600, padding: "2px 0" }}>
-                  {d}
-                </div>
-              ))}
-            </div>
-            {/* Grid dias */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
-              {cells.map((day, idx) => {
-                if (!day) return <div key={`empty-${idx}`} />;
-                const cellDate = isoDate(new Date(view.year, view.month, day));
-                const isSelected = cellDate === selectedKey;
-                const isToday = cellDate === isoDate(today);
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => selectDay(day)}
-                    style={{
-                      textAlign: "center", padding: "6px 2px", borderRadius: 6,
-                      fontSize: 12, cursor: "pointer", border: "none",
-                      background: isSelected ? "var(--color-gold, #c8a84b)" : isToday ? "rgba(200,168,75,0.15)" : "transparent",
-                      color: isSelected ? "#1a2e1a" : isToday ? "var(--color-gold, #c8a84b)" : "var(--color-text, #e8e3d9)",
-                      fontWeight: isSelected || isToday ? 700 : 400,
-                      outline: isToday && !isSelected ? "1px solid rgba(200,168,75,0.4)" : "none",
-                    }}
-                  >
-                    {day}
-                  </button>
-                );
-              })}
-            </div>
+        <div style={{
+          marginTop: 8,
+          background: "rgba(18,30,18,0.97)",
+          border: "1px solid rgba(200,168,75,0.3)",
+          borderRadius: 14,
+          padding: "14px 12px 12px",
+        }}>
+          {/* Nav de mês */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <button type="button" onClick={prevMonth} style={navBtn}>‹</button>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-gold, #c8a84b)" }}>
+              {MONTHS[view.month]} {view.year}
+            </span>
+            <button type="button" onClick={nextMonth} style={navBtn}>›</button>
           </div>
-        </>
+          {/* Cabeçalho dias */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+            {WEEKDAYS.map((d) => (
+              <div key={d} style={{ textAlign: "center", fontSize: 10, color: "var(--color-muted, #8a9580)", fontWeight: 600, padding: "2px 0" }}>
+                {d}
+              </div>
+            ))}
+          </div>
+          {/* Grid dias */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+            {cells.map((day, idx) => {
+              if (!day) return <div key={`empty-${idx}`} />;
+              const cellDate = isoDate(new Date(view.year, view.month, day));
+              const isSelected = cellDate === selectedKey;
+              const isToday = cellDate === isoDate(today);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => selectDay(day)}
+                  style={{
+                    textAlign: "center", padding: "6px 2px", borderRadius: 6,
+                    fontSize: 12, cursor: "pointer", border: "none",
+                    background: isSelected ? "var(--color-gold, #c8a84b)" : isToday ? "rgba(200,168,75,0.15)" : "transparent",
+                    color: isSelected ? "#1a2e1a" : isToday ? "var(--color-gold, #c8a84b)" : "var(--color-text, #e8e3d9)",
+                    fontWeight: isSelected || isToday ? 700 : 400,
+                    outline: isToday && !isSelected ? "1px solid rgba(200,168,75,0.4)" : "none",
+                  }}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );
