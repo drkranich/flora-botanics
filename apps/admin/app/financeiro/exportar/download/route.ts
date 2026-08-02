@@ -4,6 +4,7 @@ import { effectiveTenantId } from "@/lib/cms/actions";
 import { money } from "@/lib/format";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { buildFloraKraftPDF } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 
 type CalcRow = {
   title: string;
@@ -242,11 +243,13 @@ export async function GET(request: NextRequest) {
       </div>` : ""}
     `;
 
+    const pdfConfig = await getPdfConfig();
     const html = buildFloraKraftPDF({
       title: "Relatório Financeiro",
       subtitle: "Cenários de precificação, documentos comerciais e tabelas de preço",
       category: "relatorio_financeiro",
       department: "Financeiro / Precificação",
+      config: pdfConfig,
       body,
     });
 

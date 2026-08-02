@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateAuditReason, deleteAuditEvent, archiveOrder, softDeleteOrder } from "./order-actions";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 
 export interface AuditRow {
   id: string;
@@ -288,7 +289,7 @@ function actionIcon(action: string) {
 
 // ── Gerador de PDF de auditoria — usa template centralizado Flora ──────────
 
-function generateAuditPDF(
+async function generateAuditPDF(
   orderId: string,
   orderNumber: string | number,
   audits: AuditRow[]
@@ -346,11 +347,13 @@ function generateAuditPDF(
     <p style="font-size:10px;color:#8b7a6a;margin-top:8px">Total: ${audits.length} evento(s) · ID do pedido: ${orderId}</p>
   `;
 
+  const config = await getPdfConfig();
   const html = buildFloraKraftPDF({
     title: `Auditoria — Pedido #${orderNumber}`,
     subtitle: `Histórico completo de alterações e eventos do pedido #${orderNumber}`,
     category: "relatorio_auditoria",
     department: "Gestão de Pedidos",
+    config,
     body,
   });
 
@@ -443,7 +446,7 @@ export function AuditPanel({ orderId, orderNumber, initialAudits, isAdmin }: Pro
             type="button"
             className="btn btn-ghost"
             style={{ padding: "7px 14px", fontSize: 10 }}
-            onClick={() => generateAuditPDF(orderId, orderNumber, audits)}
+            onClick={() => void generateAuditPDF(orderId, orderNumber, audits)}
             disabled={audits.length === 0}
           >
             📄 Relatório PDF

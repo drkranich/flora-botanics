@@ -12,6 +12,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { money } from "@/lib/format";
+import { buildFloraKraftPDF } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -87,7 +89,6 @@ export async function GET(
   const totals = q.totals ?? {};
   const kindLabel   = KIND_LABEL[q.kind]     ?? q.kind;
   const statusLabel = STATUS_LABEL[q.status] ?? q.status;
-  const now         = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
   const validUntil  = q.valid_until
     ? new Date(`${q.valid_until}T12:00:00`).toLocaleDateString("pt-BR")
     : "Sem validade definida";
@@ -173,19 +174,33 @@ export async function GET(
     </div>` : ""}
   `;
 
-  const html = kraftHTML({
+  const KIND_CATEGORY: Record<string, string> = {
+    budget:   "orcamento",
+    quote:    "cotacao",
+    proposal: "proposta_comercial",
+  };
+
+  const pdfConfig = await getPdfConfig();
+  const html = buildFloraKraftPDF({
     title:    `${kindLabel} #${q.number}`,
     subtitle: `Cliente: ${esc(q.customer_name)} · Status: ${statusLabel}`,
-    now,
+    category: (KIND_CATEGORY[q.kind] ?? "interno") as Parameters<typeof buildFloraKraftPDF>[0]["category"],
+    department: "Comercial",
+    responsible: q.seller_name ?? undefined,
+    responsibleRole: q.seller_name ? "Vendedor" : undefined,
+    config: pdfConfig,
     body,
   });
 
-  return new Response(html, {
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
+  return new Response(
+    html + `<script>window.onload=function(){setTimeout(function(){window.print()},600)}</script>`,
+    {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    }
+  );
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -197,114 +212,4 @@ function esc(s: string | null | undefined): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-/** Gera o HTML completo com estética kraft + marca d'água Flora */
-function kraftHTML({
-  title, subtitle, now, body,
-}: {
-  title: string;
-  subtitle: string;
-  now: string;
-  body: string;
-}) {
-  // Logo em SVG inline (marca d'água — funciona sem carregar arquivo externo)
-  // Lettering "FLORa BOTANICS" em estilo minimalista, adequado para tile em grid
-  const wm = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="220" height="80" viewBox="0 0 220 80">
-  <text x="10" y="30" font-family="Georgia,serif" font-size="18" letter-spacing="4" fill="#2a4a2c" opacity="0.9">FLORa</text>
-  <text x="10" y="55" font-family="Georgia,serif" font-size="11" letter-spacing="6" fill="#2a4a2c" opacity="0.9">BOTANICS</text>
-  <line x1="10" y1="62" x2="210" y2="62" stroke="#5a3e2b" stroke-width="0.5" opacity="0.4"/>
-</svg>`)}`;
-
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <title>${title}</title>
-  <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-    @page{margin:0;background:#f2e8d9}
-    html,body{background:#f2e8d9!important;color:#1a1a1a;font-family:Georgia,'Times New Roman',serif;font-size:13px;line-height:1.65;min-height:100%}
-
-    /* Wrapper + marca d'água */
-    .page-wrap{position:relative;min-height:100vh;background:#f2e8d9!important}
-    .watermark{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-    .watermark-inner{
-      position:absolute;inset:-20px;
-      background-image:url('${wm}');
-      background-repeat:repeat;
-      background-size:220px auto;
-      opacity:0.08;
-    }
-
-    /* Conteúdo */
-    .page{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:44px 64px 72px}
-
-    /* Cabeçalho */
-    .pdf-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #5a3e2b;padding-bottom:16px;margin-bottom:28px;gap:24px}
-    .pdf-header-brand h1{font-size:22px;letter-spacing:3px;text-transform:uppercase;color:#2a4a2c;margin-bottom:2px}
-    .pdf-header-brand .sub{font-size:11px;color:#6b5c4a;letter-spacing:1px}
-    .pdf-header-meta{text-align:right;font-size:11px;color:#6b5c4a;flex-shrink:0}
-    .pdf-title{font-size:18px;font-weight:bold;color:#2a4a2c;margin-bottom:4px}
-    .pdf-subtitle{font-size:11px;color:#6b5c4a;margin-bottom:24px}
-    .badge{display:inline-block;background:rgba(42,74,44,.12);color:#2a4a2c;border:1px solid rgba(42,74,44,.3);padding:2px 10px;border-radius:4px;font-size:10px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;margin-bottom:20px}
-
-    /* Tabelas */
-    table{width:100%;border-collapse:collapse;margin-top:14px;margin-bottom:28px;font-size:12.5px}
-    th{background:#2a4a2c;color:#f2e8d9;text-align:left;padding:10px 14px;font-size:11.5px;letter-spacing:.5px;font-weight:700}
-    td{padding:9px 14px;border-bottom:1px solid rgba(90,62,43,.18);vertical-align:top;color:#1a1a1a}
-    tr:nth-child(even) td{background:rgba(90,62,43,.04)}
-    tr:last-child td{border-bottom:none}
-
-    /* Seções */
-    .section{margin-bottom:28px}
-    .section-title{font-size:13px;font-weight:bold;color:#2a4a2c;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid rgba(90,62,43,.25)}
-
-    /* Notas */
-    .notes-box{background:rgba(185,146,77,.08);border:1px solid rgba(185,146,77,.3);border-radius:6px;padding:10px 14px;font-size:11px;color:#4a3a20;margin-top:20px}
-    .notes-box strong{display:block;margin-bottom:4px;font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:#8b6914}
-
-    /* Rodapé */
-    .pdf-footer{margin-top:40px;border-top:1px solid rgba(90,62,43,.25);padding-top:12px;font-size:10px;color:#8b7a6a;text-align:center}
-    .pdf-footer .gen{font-size:9px;opacity:.75;margin-top:3px}
-
-    /* Impressão */
-    @media print{
-      html,body,.page-wrap{background:#f2e8d9!important}
-      .page{padding:24px 40px 40px}
-      table{page-break-inside:avoid}
-    }
-  </style>
-  <script>window.onload=function(){setTimeout(function(){window.print()},600)}</script>
-</head>
-<body>
-<div class="page-wrap">
-  <div class="watermark"><div class="watermark-inner"></div></div>
-  <div class="page">
-
-    <div class="pdf-header">
-      <div class="pdf-header-brand">
-        <h1>Flora Botanics</h1>
-        <div class="sub">Sistema de Gestão · Admin</div>
-      </div>
-      <div class="pdf-header-meta">
-        Gerado em ${now}<br/>florabotanics.com.br
-      </div>
-    </div>
-
-    <div class="pdf-title">${title}</div>
-    <div class="pdf-subtitle">${subtitle}</div>
-    <div class="badge">Flora Botanics · Documento interno</div>
-
-    ${body}
-
-    <div class="pdf-footer">
-      <div>Flora Botanics</div>
-      <div class="gen">Documento gerado automaticamente pelo sistema Flora Botanics. Não possui valor fiscal.</div>
-    </div>
-  </div>
-</div>
-</body>
-</html>`;
 }

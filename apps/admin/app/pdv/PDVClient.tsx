@@ -10,6 +10,7 @@ import {
   type PDVOrderPayment,
 } from "./pdv-actions";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 import { GlassSelect } from "@/components/GlassSelect";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -294,7 +295,7 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
   }
 
   // ── recibo ────────────────────────────────────────────────────────────
-  function printReceipt(r = lastReceipt) {
+  async function printReceipt(r = lastReceipt) {
     if (!r) return;
     const rows = r.items.map((i) =>
       `<tr><td>${i.productName}${i.variantName ? ` <small>(${i.variantName})</small>` : ""}</td>
@@ -320,6 +321,7 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
         <tbody>${prows}${cashChange > 0 ? `<tr><td>Troco (dinheiro)</td><td style="text-align:right;color:#2a7a4a">${fmt(cashChange)}</td></tr>` : ""}</tbody></table></div>
       ${r.customer && r.customer !== "Consumidor final" ? `<div class="section"><div class="section-title">Cliente</div><p style="font-size:13px">${r.customer}</p></div>` : ""}
       ${r.notes ? `<div class="notes-box"><strong>Observações</strong>${r.notes}</div>` : ""}`;
+    const pdfConfig = await getPdfConfig();
     openAndPrint(buildFloraKraftPDF({
       title: `Comprovante de Venda · #${r.number}`,
       subtitle: `Vendedor: ${staffName} · ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
@@ -327,6 +329,7 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
       department: "PDV / Frente de Caixa",
       responsible: staffName,
       responsibleRole: "Operador(a) de Caixa",
+      config: pdfConfig,
       body, maxWidth: 680,
     }));
   }
@@ -740,7 +743,7 @@ export function PDVClient({ products, staffName }: { products: PDVProduct[]; sta
                   <button className="btn btn-gold" style={{ padding: "12px", fontSize: 14, fontWeight: 800 }} onClick={() => setModal("none")}>
                     + Nova venda
                   </button>
-                  <button className="btn btn-ghost" style={{ padding: "11px", fontSize: 12 }} onClick={() => printReceipt()}>
+                  <button className="btn btn-ghost" style={{ padding: "11px", fontSize: 12 }} onClick={() => void printReceipt()}>
                     🖨️ Imprimir recibo
                   </button>
                   <Link href={`/vendas/${lastReceipt.orderId}`} className="btn btn-ghost" style={{ padding: "11px", fontSize: 12, textAlign: "center", textDecoration: "none" }}>

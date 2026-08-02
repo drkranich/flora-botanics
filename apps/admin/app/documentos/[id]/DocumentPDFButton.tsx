@@ -1,6 +1,7 @@
 "use client";
 
 import { buildFloraKraftPDF, openAndPrint, type PdfCategory } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 import { money } from "@/lib/format";
 
 type LineItem = {
@@ -70,7 +71,7 @@ function fmtDate(v: string | null) {
 }
 
 export function DocumentPDFButton({ quote }: { quote: QuoteForPDF }) {
-  function handlePDF() {
+  async function handlePDF() {
     const items: LineItem[] = Array.isArray(quote.items) ? quote.items : [];
     const totals = quote.totals ?? {};
     const kindLabel = KIND_LABEL[quote.kind] ?? quote.kind;
@@ -183,6 +184,7 @@ export function DocumentPDFButton({ quote }: { quote: QuoteForPDF }) {
 
     const body = headerSection + clientSection + itemsSection + totaisSection + termsSection + signaturesSection;
 
+    const config = await getPdfConfig();
     const html = buildFloraKraftPDF({
       title: `${kindLabel} #${quote.number}`,
       subtitle: `Cliente: ${quote.customer_name}${quote.company_name ? ` · ${quote.company_name}` : ""}`,
@@ -191,6 +193,7 @@ export function DocumentPDFButton({ quote }: { quote: QuoteForPDF }) {
       department: "Comercial",
       responsible: quote.seller_name ?? undefined,
       responsibleRole: quote.seller_name ? "Vendedor" : undefined,
+      config,
       body,
     });
 
@@ -199,7 +202,7 @@ export function DocumentPDFButton({ quote }: { quote: QuoteForPDF }) {
 
   return (
     <button
-      onClick={handlePDF}
+      onClick={() => void handlePDF()}
       className="btn btn-ghost"
       style={{ padding: "7px 18px", fontSize: 12, fontWeight: 700 }}
     >

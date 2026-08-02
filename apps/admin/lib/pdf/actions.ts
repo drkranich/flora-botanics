@@ -10,7 +10,11 @@ type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-/** Carrega configuração PDF salva em site_settings */
+/**
+ * Carrega configuração PDF salva em site_settings.
+ * Pode ser chamada tanto em Server Components quanto em Client Components
+ * (via Server Actions) para garantir que todos os PDFs usem os dados da empresa.
+ */
 export async function getPdfConfig(): Promise<PdfConfig> {
   const session = await getStaffSession();
   if (!session) redirect("/login");

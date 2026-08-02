@@ -5,6 +5,7 @@ import Link from "next/link";
 import { updateCrmStage } from "./actions";
 import { type CrmStage } from "./crm-constants";
 import { buildFloraKraftPDF, openAndPrint } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 
 /* ─── PDF export ─────────────────────────────────────────────── */
 const STAGE_QUAL: Record<
@@ -285,13 +286,14 @@ export function KanbanBoard({ customers: initial }: { customers: KanbanCustomer[
   const dragId = useRef<string | null>(null);
   const [, startTransition] = useTransition();
 
-  function exportPdf() {
-    const body = buildCrmPdfBody(customers);
+  async function exportPdf() {
+    const [body, config] = [buildCrmPdfBody(customers), await getPdfConfig()];
     const html = buildFloraKraftPDF({
       title: "Pipeline CRM — Relatório de qualificação",
       subtitle: `Relatório por etapa do funil de vendas · ${new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })}`,
       category: "relatorio_crm",
       department: "CRM / Relacionamento",
+      config,
       body,
     });
     openAndPrint(html);
