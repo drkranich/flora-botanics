@@ -258,8 +258,8 @@ export function PdfStylesEditor({ initial }: Props) {
         : undefined,
     };
 
-    const effectiveTitle    = previewTitle.trim()    || (cat ? `${PDF_CATEGORIES[cat]} — Pré-visualização` : "Estilos globais — Pré-visualização");
-    const effectiveSubtitle = previewSubtitle.trim() || "Este é um exemplo de como o PDF ficará com as configurações atuais.";
+    const effectiveTitle    = previewTitle.trim();
+    const effectiveSubtitle = previewSubtitle.trim();
 
     const notesHtml = previewNotes.trim()
       ? `<div class="section"><div class="section-title">Observações / Texto livre</div><p style="font-size:13px;white-space:pre-wrap;line-height:1.8">${previewNotes.trim()}</p></div>`

@@ -387,9 +387,9 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
       </div>
     </div>
     <div class="page-content">
-      <div class="pdf-title">${title}</div>
+      ${title ? `<div class="pdf-title">${title}</div>` : ""}
       ${subtitle ? `<div class="pdf-subtitle">${subtitle}</div>` : ""}
-      <div class="badge">Flora Botanics · ${category ? PDF_CATEGORIES[category] : "Documento interno"}</div>
+      ${category ? `<div class="badge">Flora Botanics · ${PDF_CATEGORIES[category]}</div>` : ""}
       ${body}
       ${notes ? `<div class="notes-box"><strong>Observações</strong>${notes}</div>` : ""}
     </div>
