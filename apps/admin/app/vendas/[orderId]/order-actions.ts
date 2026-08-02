@@ -296,6 +296,61 @@ export async function cancelOrderWithReason(orderId: string, formData: FormData)
   return { ok: true, message: "Pedido cancelado." };
 }
 
+// ── Auditoria: editar razão, excluir evento ────────────────────────────────
+
+export async function updateAuditReason(
+  auditId: string,
+  orderId: string,
+  reason: string
+): Promise<ActionResult> {
+  const { session, tenantId, supabase } = await context();
+
+  const { error } = await supabase
+    .from("order_audit_events")
+    .update({ reason: reason.trim() || null })
+    .eq("id", auditId)
+    .eq("order_id", orderId)
+    .eq("tenant_id", tenantId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/vendas/${orderId}`);
+  return { ok: true, message: "Anotação atualizada." };
+}
+
+export async function deleteAuditEvent(
+  auditId: string,
+  orderId: string
+): Promise<ActionResult> {
+  const { session, tenantId, supabase } = await context();
+
+  // Somente admins podem excluir eventos de auditoria
+  if (session.role !== "tenant_admin" && session.role !== "platform_admin") {
+    return { ok: false, error: "Apenas administradores podem excluir eventos de auditoria." };
+  }
+
+  const { error } = await supabase
+    .from("order_audit_events")
+    .delete()
+    .eq("id", auditId)
+    .eq("order_id", orderId)
+    .eq("tenant_id", tenantId);
+
+  if (error) return { ok: false, error: error.message };
+
+  // Registra que houve deleção (meta-auditoria)
+  await audit(supabase, {
+    tenantId,
+    orderId,
+    actorId: session.userId,
+    action: "audit_event_deleted",
+    newValue: { deleted_audit_id: auditId },
+  });
+
+  revalidatePath(`/vendas/${orderId}`);
+  return { ok: true, message: "Evento de auditoria removido." };
+}
+
 export async function duplicateOrder(orderId: string): Promise<ActionResult> {
   const { session, tenantId, supabase } = await context();
 

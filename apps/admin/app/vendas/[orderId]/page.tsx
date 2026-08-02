@@ -9,6 +9,7 @@ import { OrderManagementPanel, type ManagedOrder } from "./OrderManagementPanel"
 import { TransitionBar } from "./TransitionBar";
 import { TrackingPanel } from "./TrackingPanel";
 import { getShippingEvents } from "./tracking-actions";
+import { AuditPanel } from "./AuditPanel";
 
 type MaybeArray<T> = T | T[];
 
@@ -282,7 +283,12 @@ export default async function OrderDetail({
 
       <OrderManagementPanel order={order} />
 
-      <AuditTimeline audits={audits} />
+      <AuditPanel
+        orderId={order.id}
+        orderNumber={order.number}
+        initialAudits={audits}
+        isAdmin={session.role === "tenant_admin" || session.role === "platform_admin"}
+      />
 
       <TransitionBar orderId={order.id} status={order.status} statusLabel={STATUS_LABEL} />
     </main>
@@ -424,29 +430,6 @@ function ShippingBox({ orderId, quotes, shipments, currency }: { orderId: string
   );
 }
 
-function AuditTimeline({ audits }: { audits: AuditRow[] }) {
-  return (
-    <section className="glass rise" style={{ padding: 22, marginTop: 16 }}>
-      <p className="eyebrow" style={{ marginBottom: 12 }}>Auditoria do pedido</p>
-      {audits.length === 0 ? (
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>Nenhum evento auditável registrado ainda.</p>
-      ) : (
-        <div style={{ display: "grid", gap: 10 }}>
-          {audits.map((audit) => (
-            <div key={audit.id} style={rowStyle}>
-              <div>
-                <strong>{audit.action.replace(/_/g, " ")}</strong>
-                <p className="muted" style={{ margin: "3px 0 0", fontSize: 11 }}>{formatDate(audit.created_at)}</p>
-                {audit.reason ? <p style={{ margin: "5px 0 0", color: "var(--cream-dim)", fontSize: 12 }}>Motivo: {audit.reason}</p> : null}
-              </div>
-              <StatusPill label="Auditado" tone="ok" />
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
 
 function StatusPill({ label, tone = "neutral" }: { label: string; tone?: "neutral" | "ok" | "warn" | "danger" }) {
   const color = tone === "danger" ? "#e8a0a0" : tone === "ok" ? "#8fd486" : tone === "warn" ? "var(--gold-light)" : "var(--cream-dim)";
