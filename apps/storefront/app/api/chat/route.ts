@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/tenant";
 import { currentTenant } from "@/lib/tenant";
+import { getServerSupabase } from "@/lib/server-runtime";
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
     };
 
     const tenant   = await currentTenant();
-    const supabase = db();
+    // service_role: bypassa RLS — necessário pois visitantes não estão autenticados
+    const supabase = await getServerSupabase();
 
     if (body.action === "start") {
       const name  = (body.name  ?? "").trim();
@@ -45,14 +46,16 @@ export async function POST(req: NextRequest) {
 
       const preview = `[Chat] ${topic} — ${name}`;
 
-      // Cria a conversa
+      // Cria a conversa no helpdesk
       const { data: conv, error: convErr } = await supabase
-        .from("conversations")
+        .from("helpdesk_conversations")
         .insert({
           tenant_id:            tenant.tenantId,
           channel:              "chat",
+          subject:              `[Chat] ${topic}`,
           contact_name:         name,
-          contact_handle:       email,
+          contact_email:        email,
+          contact_phone:        phone,
           status:               "open",
           last_message_preview: preview,
           last_message_at:      new Date().toISOString(),
@@ -62,18 +65,20 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (convErr || !conv) {
+        console.error("[chat/start] convErr:", convErr);
         return NextResponse.json({ error: "Não foi possível iniciar o chat." }, { status: 500, headers: CORS });
       }
 
       const convId = (conv as { id: string }).id;
 
-      // Mensagem inicial do sistema
-      await supabase.from("messages").insert({
-        tenant_id:       tenant.tenantId,
-        conversation_id: convId,
-        direction:       "out",
-        sender_name:     "Flora Botanics",
-        body:            `Olá, ${name}! 👋 Seja bem-vindo(a) ao atendimento Flora Botanics.\n\nVocê escolheu o tópico: **${topic}**\n\nEm instantes um de nossos atendentes estará com você. Como podemos ajudar?`,
+      // Mensagem inicial do atendimento (type=outbound = do atendente para o cliente)
+      await supabase.from("helpdesk_messages").insert({
+        tenant_id:        tenant.tenantId,
+        conversation_id:  convId,
+        type:             "outbound",
+        sender_name:      "Flora Botanics",
+        sender_is_contact: false,
+        body:             `Olá, ${name}! 👋 Seja bem-vindo(a) ao atendimento Flora Botanics.\n\nAssunto: ${topic}\n\nEm instantes um de nossos atendentes estará com você.`,
         is_internal_note: false,
       });
 
@@ -88,19 +93,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Dados incompletos." }, { status: 400, headers: CORS });
       }
 
-      const { error } = await supabase.from("messages").insert({
-        tenant_id:       tenant.tenantId,
-        conversation_id: convId,
-        direction:       "in",
-        sender_name:     "Visitante",
-        body:            text,
-        is_internal_note: false,
+      const { error } = await supabase.from("helpdesk_messages").insert({
+        tenant_id:         tenant.tenantId,
+        conversation_id:   convId,
+        type:              "inbound",
+        sender_name:       "Visitante",
+        sender_is_contact: true,
+        body:              text,
+        is_internal_note:  false,
       });
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS });
 
       // Atualiza preview da conversa
-      await supabase.from("conversations")
+      await supabase.from("helpdesk_conversations")
         .update({ last_message_preview: text.slice(0, 140), last_message_at: new Date().toISOString() })
         .eq("id", convId)
         .eq("tenant_id", tenant.tenantId);
@@ -128,11 +134,11 @@ export async function GET(req: NextRequest) {
     }
 
     const tenant   = await currentTenant();
-    const supabase = db();
+    const supabase = await getServerSupabase();
 
     const { data: msgs } = await supabase
-      .from("messages")
-      .select("id, direction, sender_name, body, is_internal_note, created_at")
+      .from("helpdesk_messages")
+      .select("id, type, sender_name, body, created_at")
       .eq("conversation_id", convId)
       .eq("tenant_id", tenant.tenantId)
       .eq("is_internal_note", false)
@@ -140,7 +146,16 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: true })
       .limit(50);
 
-    return NextResponse.json({ messages: msgs ?? [] }, { headers: CORS });
+    // Mapeia type (inbound/outbound) → direction (in/out) para o ChatWidget
+    const messages = (msgs ?? []).map((m: { id: string; type: string; sender_name: string; body: string; created_at: string }) => ({
+      id:          m.id,
+      direction:   m.type === "outbound" ? "out" : "in",
+      sender_name: m.sender_name,
+      body:        m.body,
+      created_at:  m.created_at,
+    }));
+
+    return NextResponse.json({ messages }, { headers: CORS });
   } catch {
     return NextResponse.json({ error: "Erro interno." }, { status: 500, headers: CORS });
   }

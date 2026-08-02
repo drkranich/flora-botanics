@@ -241,6 +241,23 @@ export function InboxSidebar({ active, counts, onSelect, onNew }: Props) {
           Dashboard
         </Link>
         <Link
+          href="/inbox/pipeline"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 11.5,
+            color: "var(--cream-dim)",
+            textDecoration: "none",
+            transition: "color 0.2s",
+          }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = "var(--gold-light)")}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = "var(--cream-dim)")}
+        >
+          <span style={{ fontSize: 11 }}>⬡</span>
+          Pipeline CRM
+        </Link>
+        <Link
           href="/"
           style={{
             display: "flex",

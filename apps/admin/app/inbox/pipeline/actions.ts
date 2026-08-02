@@ -18,5 +18,5 @@ export async function updateCrmStage(customerId: string, stage: CrmStage) {
     .eq("id", customerId)
     .eq("tenant_id", staff.tenantId);
 
-  revalidatePath("/backoffice/crm");
+  revalidatePath("/inbox/pipeline");
 }
