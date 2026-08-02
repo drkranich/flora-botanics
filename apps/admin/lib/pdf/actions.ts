@@ -73,9 +73,8 @@ export async function savePdfConfig(
   return { ok: true, data: undefined };
 }
 
-function str(fd: FormData, key: string): string | undefined {
-  const v = String(fd.get(key) ?? "").trim();
-  return v || undefined;
+function str(fd: FormData, key: string): string {
+  return String(fd.get(key) ?? "").trim();
 }
 
 function num(fd: FormData, key: string): number | undefined {
