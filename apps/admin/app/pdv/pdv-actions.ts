@@ -100,7 +100,8 @@ export async function createPDVOrder(
   items: PDVCartItem[],
   payments: PDVOrderPayment[],
   customerName?: string,
-  notes?: string
+  notes?: string,
+  discountCents = 0,
 ): Promise<{ ok: boolean; orderId?: string; orderNumber?: string; error?: string }> {
   const staff = await currentStaff();
   if (!staff) return { ok: false, error: "Sessão inválida." };
@@ -109,9 +110,10 @@ export async function createPDVOrder(
   const supabase = await createClient();
 
   const subtotal = items.reduce((s, i) => s + i.total_cents, 0);
+  const totalAfterDiscount = Math.max(0, subtotal - discountCents);
   const totalPaid = payments.reduce((s, p) => s + p.amount_cents, 0);
 
-  if (totalPaid < subtotal) {
+  if (totalPaid < totalAfterDiscount) {
     return { ok: false, error: "Pagamento insuficiente." };
   }
 
@@ -129,9 +131,9 @@ export async function createPDVOrder(
       manual_channel: "Venda presencial",
       payment_status: "paid",
       subtotal_cents: subtotal,
-      discount_cents: 0,
+      discount_cents: discountCents,
       shipping_cents: 0,
-      total_cents: subtotal,
+      total_cents: totalAfterDiscount,
       currency: "BRL",
       notes: notes || null,
       placed_at: new Date().toISOString(),
@@ -200,7 +202,7 @@ export async function createPDVOrder(
     order_id: order.id,
     action: "pdv_sale",
     reason: `Venda presencial por ${staff.fullName ?? staff.email}`,
-    new_value: { items: items.length, total_cents: subtotal, payments },
+    new_value: { items: items.length, subtotal_cents: subtotal, discount_cents: discountCents, total_cents: totalAfterDiscount, payments },
     actor_id: staff.id,
   }).then(({ error }) => {
     if (error) console.warn("[PDV] audit:", error.message);
