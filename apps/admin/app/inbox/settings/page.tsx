@@ -4,7 +4,7 @@ import { currentStaff } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { InboxSettingsClient } from "./InboxSettingsClient";
 
-// ── Tipos ─────────────────────────────────────────────────────────────────────
+// ── Tipos exportados ──────────────────────────────────────────────────────────
 
 export interface SlaPolicy {
   id: string;
@@ -22,6 +22,44 @@ export interface SlaPolicy {
   applies_to_channels: string[] | null;
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  active: boolean;
+  members: TeamMember[];
+}
+
+export interface TeamMember {
+  profile_id: string;
+  full_name: string | null;
+  email: string | null;
+  role: "agent" | "lead";
+}
+
+export interface BusinessHour {
+  day_of_week: number;
+  open: boolean;
+  start_time: string;
+  end_time: string;
+  timezone: string;
+}
+
+export interface EmailSignature {
+  id: string;
+  name: string;
+  body: string;
+  is_default: boolean;
+  profile_id: string | null;
+}
+
+export interface StaffProfile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
 // ── Server Component ──────────────────────────────────────────────────────────
 
 export default async function InboxSettingsPage() {
@@ -30,11 +68,84 @@ export default async function InboxSettingsPage() {
 
   const supabase = await createClient();
 
-  const { data: slaPolicies } = await supabase
-    .from("helpdesk_sla_policies")
-    .select("id, name, description, active, first_response_minutes, next_response_minutes, resolution_minutes, business_hours_only, business_hours_start, business_hours_end, business_days, escalate_at_percent, applies_to_channels")
-    .eq("tenant_id", staff.tenantId)
-    .order("created_at", { ascending: true });
+  const [
+    { data: slaPolicies },
+    { data: teamsRaw },
+    { data: membersRaw },
+    { data: businessHours },
+    { data: signatures },
+    { data: profiles },
+  ] = await Promise.all([
+    supabase
+      .from("helpdesk_sla_policies")
+      .select("id, name, description, active, first_response_minutes, next_response_minutes, resolution_minutes, business_hours_only, business_hours_start, business_hours_end, business_days, escalate_at_percent, applies_to_channels")
+      .eq("tenant_id", staff.tenantId)
+      .order("created_at", { ascending: true }),
+
+    supabase
+      .from("helpdesk_teams")
+      .select("id, name, description, color, active")
+      .eq("tenant_id", staff.tenantId)
+      .eq("active", true)
+      .order("created_at", { ascending: true }),
+
+    supabase
+      .from("helpdesk_team_members")
+      .select("team_id, profile_id, role, profiles(full_name, email)")
+      .eq("tenant_id", staff.tenantId),
+
+    supabase
+      .from("helpdesk_business_hours")
+      .select("day_of_week, open, start_time, end_time, timezone")
+      .eq("tenant_id", staff.tenantId)
+      .order("day_of_week", { ascending: true }),
+
+    supabase
+      .from("helpdesk_email_signatures")
+      .select("id, name, body, is_default, profile_id")
+      .eq("tenant_id", staff.tenantId)
+      .eq("active", true)
+      .order("created_at", { ascending: true }),
+
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("tenant_id", staff.tenantId),
+  ]);
+
+  // Agrupa membros por equipe
+  const membersByTeam: Record<string, TeamMember[]> = {};
+  for (const m of (membersRaw ?? []) as Array<{
+    team_id: string; profile_id: string; role: string;
+    profiles: { full_name: string | null; email: string | null } | null;
+  }>) {
+    if (!membersByTeam[m.team_id]) membersByTeam[m.team_id] = [];
+    membersByTeam[m.team_id].push({
+      profile_id: m.profile_id,
+      full_name: m.profiles?.full_name ?? null,
+      email: m.profiles?.email ?? null,
+      role: m.role as "agent" | "lead",
+    });
+  }
+
+  const teams: Team[] = (teamsRaw ?? []).map((t: { id: string; name: string; description: string | null; color: string; active: boolean }) => ({
+    ...t,
+    members: membersByTeam[t.id] ?? [],
+  }));
+
+  // Horário padrão se não configurado ainda
+  const DAY_DEFAULTS: BusinessHour[] = [0, 1, 2, 3, 4, 5, 6].map(d => ({
+    day_of_week: d,
+    open: d >= 1 && d <= 5,
+    start_time: "08:00",
+    end_time: "18:00",
+    timezone: "America/Sao_Paulo",
+  }));
+  const savedHours = businessHours ?? [];
+  const mergedHours: BusinessHour[] = DAY_DEFAULTS.map(def => {
+    const saved = savedHours.find((h: { day_of_week: number }) => h.day_of_week === def.day_of_week);
+    return saved ? (saved as BusinessHour) : def;
+  });
 
   return (
     <div style={{
@@ -67,10 +178,14 @@ export default async function InboxSettingsPage() {
         </span>
       </div>
 
-      <div style={{ padding: "28px 32px 48px", maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ padding: "28px 32px 48px", maxWidth: 960, margin: "0 auto" }}>
         <InboxSettingsClient
           slaPolicies={(slaPolicies ?? []) as SlaPolicy[]}
           tenantId={staff.tenantId}
+          teams={teams}
+          businessHours={mergedHours}
+          signatures={(signatures ?? []) as EmailSignature[]}
+          allProfiles={(profiles ?? []) as StaffProfile[]}
         />
       </div>
     </div>

@@ -84,3 +84,170 @@ export async function deleteSlaPolicy(id: string): Promise<ActionResult<void>> {
   revalidatePath("/inbox/settings");
   return { ok: true, data: undefined };
 }
+
+// ── Teams ──────────────────────────────────────────────────────────────────────
+
+export async function createTeam(name: string, description: string, color: string): Promise<ActionResult<string>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (!name.trim()) return { ok: false, error: "Nome obrigatório." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("helpdesk_teams")
+    .insert({ tenant_id: staff.tenantId, name: name.trim(), description: description.trim() || null, color })
+    .select("id")
+    .single();
+
+  if (error || !data) return { ok: false, error: error?.message ?? "Erro ao criar equipe." };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: (data as { id: string }).id };
+}
+
+export async function updateTeam(id: string, name: string, description: string, color: string): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("helpdesk_teams")
+    .update({ name: name.trim(), description: description.trim() || null, color })
+    .eq("id", id)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: undefined };
+}
+
+export async function deleteTeam(id: string): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("helpdesk_teams")
+    .update({ active: false })
+    .eq("id", id)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: undefined };
+}
+
+export async function addTeamMember(teamId: string, profileId: string, role: "agent" | "lead"): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("helpdesk_team_members")
+    .upsert({ tenant_id: staff.tenantId, team_id: teamId, profile_id: profileId, role }, { onConflict: "team_id,profile_id" });
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: undefined };
+}
+
+export async function removeTeamMember(teamId: string, profileId: string): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("helpdesk_team_members")
+    .delete()
+    .eq("team_id", teamId)
+    .eq("profile_id", profileId)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: undefined };
+}
+
+// ── Business Hours ─────────────────────────────────────────────────────────────
+
+export interface BusinessHourInput {
+  day_of_week: number;  // 0=Dom … 6=Sáb
+  open: boolean;
+  start_time: string;
+  end_time: string;
+  timezone: string;
+}
+
+export async function saveBusinessHours(hours: BusinessHourInput[]): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const rows = hours.map(h => ({ ...h, tenant_id: staff.tenantId }));
+
+  const { error } = await supabase
+    .from("helpdesk_business_hours")
+    .upsert(rows, { onConflict: "tenant_id,day_of_week" });
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: undefined };
+}
+
+// ── Email Signatures ───────────────────────────────────────────────────────────
+
+export async function saveEmailSignature(
+  id: string | null,
+  name: string,
+  body: string,
+  isDefault: boolean,
+): Promise<ActionResult<string>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+
+  // Se for padrão, remove default das demais
+  if (isDefault) {
+    await supabase
+      .from("helpdesk_email_signatures")
+      .update({ is_default: false })
+      .eq("tenant_id", staff.tenantId);
+  }
+
+  if (id) {
+    const { error } = await supabase
+      .from("helpdesk_email_signatures")
+      .update({ name, body, is_default: isDefault })
+      .eq("id", id)
+      .eq("tenant_id", staff.tenantId);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/inbox/settings");
+    return { ok: true, data: id };
+  }
+
+  const { data, error } = await supabase
+    .from("helpdesk_email_signatures")
+    .insert({ tenant_id: staff.tenantId, name, body, is_default: isDefault })
+    .select("id")
+    .single();
+
+  if (error || !data) return { ok: false, error: error?.message ?? "Erro ao salvar." };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: (data as { id: string }).id };
+}
+
+export async function deleteEmailSignature(id: string): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("helpdesk_email_signatures")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: undefined };
+}
