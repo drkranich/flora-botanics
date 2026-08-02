@@ -78,9 +78,15 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     /* ── Reset ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── Forçar cores na impressão / Save as PDF ── */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+    /* ── Página: fundo kraft mesmo ao salvar como PDF ── */
+    @page { margin: 0; background: #f2e8d9; }
+
     /* ── Fundo kraft / papel reciclado ── */
     html, body {
-      background: #f2e8d9;
+      background: #f2e8d9 !important;
       color: #1a1a1a;
       font-family: Georgia, 'Times New Roman', serif;
       font-size: 13px;
@@ -92,18 +98,24 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
     .page-wrap {
       position: relative;
       min-height: 100vh;
+      background: #f2e8d9 !important;
     }
 
-    /* ── Marca d'água: DIV real (position:fixed falha na impressão) ── */
+    /* ── Marca d'água: DIV real com <img> para garantir renderização no PDF ── */
     .watermark {
       position: absolute;
       inset: 0;
-      background-image: url('${logoUri}');
-      background-repeat: repeat;
-      background-size: 180px 163px;
-      opacity: 0.08;
+      overflow: hidden;
       pointer-events: none;
       z-index: 0;
+    }
+    .watermark-inner {
+      position: absolute;
+      inset: -20px;
+      background-image: url('${logoUri}');
+      background-repeat: repeat;
+      background-size: 200px auto;
+      opacity: 0.07;
     }
 
     /* ── Conteúdo acima da marca d'água ── */
@@ -262,15 +274,15 @@ export function buildFloraKraftPDF(options: PdfBuildOptions): string {
 
     /* ── Impressão ── */
     @media print {
-      html, body { background: #f2e8d9 !important; }
-      .watermark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .page { padding: 24px 32px 40px; }
+      html, body, .page-wrap { background: #f2e8d9 !important; }
+      .page { padding: 24px 40px 40px; }
+      table { page-break-inside: avoid; }
     }
   </style>
 </head>
 <body>
 <div class="page-wrap">
-  <div class="watermark"></div>
+  <div class="watermark"><div class="watermark-inner"></div></div>
   <div class="page">
 
     <div class="pdf-header">

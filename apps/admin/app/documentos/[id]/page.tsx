@@ -9,10 +9,10 @@ import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { money } from "@/lib/format";
 import {
-  convertCommercialQuoteToOrder,
-  duplicateCommercialQuote,
-  updateCommercialQuoteStatus,
-} from "../../financeiro/actions";
+  convertDocumentToOrder,
+  duplicateDocument,
+  updateDocumentStatus,
+} from "../actions";
 import { DocumentPDFButton } from "./DocumentPDFButton";
 
 export const dynamic = "force-dynamic";
@@ -149,7 +149,7 @@ export default async function DocumentoDetailPage({
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {row.status !== "converted" &&
             STATUS_FLOW.map((item) => (
-              <form key={item.status} action={updateCommercialQuoteStatus.bind(null, row.id, item.status)}>
+              <form key={item.status} action={updateDocumentStatus.bind(null, row.id, item.status)}>
                 <button
                   className={item.status === "approved" ? "btn btn-gold" : "btn btn-ghost"}
                   style={{ padding: "7px 14px", fontSize: 11 }}
@@ -158,13 +158,13 @@ export default async function DocumentoDetailPage({
                 </button>
               </form>
             ))}
-          <form action={duplicateCommercialQuote.bind(null, row.id)}>
+          <form action={duplicateDocument.bind(null, row.id)}>
             <button className="btn btn-ghost" style={{ padding: "7px 14px", fontSize: 11 }}>
               Duplicar
             </button>
           </form>
           {row.status === "approved" && (
-            <form action={convertCommercialQuoteToOrder.bind(null, row.id)}>
+            <form action={convertDocumentToOrder.bind(null, row.id)}>
               <button className="btn btn-gold" style={{ padding: "7px 14px", fontSize: 11 }}>
                 Converter em pedido
               </button>
