@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
-import type { PdfConfig, PdfCategory } from "./template";
+import type { PdfConfig, PdfCategory, CategoryStyle } from "./template";
 
 type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -64,22 +64,22 @@ export async function savePdfConfig(
 
   type CatStyleKey = typeof CAT_STYLE_KEYS[number];
 
-  const categoryStyles: PdfConfig["categoryStyles"] = {};
+  const categoryStyles: Partial<Record<PdfCategory, CategoryStyle>> = {};
   for (const cat of CATEGORIES) {
-    const entry: Record<string, string | number> = {};
+    const entry: Partial<CategoryStyle> = {};
     for (const key of CAT_STYLE_KEYS) {
       const raw = formData.get(`cat_${cat}_${key}`);
       if (raw !== null && raw !== "") {
         if (key === "watermarkOpacity" || key === "watermarkSize") {
           const n = Number(raw);
-          if (!isNaN(n)) entry[key] = n;
+          if (!isNaN(n)) (entry as Record<string, unknown>)[key] = n;
         } else {
-          entry[key] = String(raw).trim();
+          (entry as Record<string, unknown>)[key] = String(raw).trim();
         }
       }
     }
     if (Object.keys(entry).length > 0) {
-      categoryStyles[cat] = entry as PdfConfig["categoryStyles"][typeof cat];
+      categoryStyles[cat] = entry as CategoryStyle;
     }
   }
 
