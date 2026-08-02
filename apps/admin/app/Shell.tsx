@@ -121,7 +121,7 @@ export function Shell({
           <span className="side-logo-sub">ECOSYSTEM</span>
         </Link>
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 0", overflowY: "auto", scrollbarWidth: "none" }}>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 0", overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "rgba(var(--gold-rgb),0.28) rgba(255,248,234,0.04)" }}>
           {navItems.map((item) => {
             const active = item.match(path);
             return (
