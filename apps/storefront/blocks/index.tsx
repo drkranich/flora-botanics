@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { currentTenant, db } from "@/lib/tenant";
 import { NewsletterForm } from "./NewsletterForm";
+import { ContactForm } from "./ContactForm";
 
 type Props = Record<string, unknown>;
 type Cta = { label: string; href: string };
@@ -592,6 +593,14 @@ export function SectionRenderer({
       return <Faq props={section.props} />;
     case "product_carousel":
       return <ProductCarousel props={section.props} />;
+    case "contact_form":
+      return (
+        <ContactForm
+          heading={section.props.heading as string | undefined}
+          subheading={section.props.subheading as string | undefined}
+          successMessage={section.props.successMessage as string | undefined}
+        />
+      );
     default:
       return null; // bloco desconhecido: ignora silenciosamente em produção
   }
