@@ -36,26 +36,23 @@ async function resolveTenantId(supabase: Awaited<ReturnType<typeof getServerSupa
 }
 
 // ── POST /api/chat ────────────────────────────────────────────────────────────
-// action: "start"   → cria conversa + mensagem inicial
-// action: "message" → adiciona mensagem à conversa
+// action: "start"   → cria conversa + mensagem de boas-vindas
+// action: "message" → adiciona mensagem do visitante
 //
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as {
       action:     "start" | "message";
-      // start
       name?:      string;
       email?:     string;
       phone?:     string;
       topic?:     string;
-      // message
       conv_id?:   string;
       text?:      string;
     };
 
-    // service_role: bypassa RLS — necessário pois visitantes não estão autenticados
-    const supabase  = await getServerSupabase();
-    const tenantId  = await resolveTenantId(supabase);
+    const supabase = await getServerSupabase();
+    const tenantId = await resolveTenantId(supabase);
 
     if (body.action === "start") {
       const name  = (body.name  ?? "").trim();
@@ -69,14 +66,14 @@ export async function POST(req: NextRequest) {
 
       const preview = `[Chat] ${topic} — ${name}`;
 
-      // Cria a conversa no helpdesk
+      // Cria conversa
       const { data: conv, error: convErr } = await supabase
         .from("conversations")
         .insert({
           tenant_id:            tenantId,
           channel:              "chat",
           contact_name:         name,
-          contact_handle:       email,   // email como identificador; phone no body da mensagem inicial
+          contact_handle:       email,
           status:               "open",
           last_message_preview: preview,
           last_message_at:      new Date().toISOString(),
@@ -92,14 +89,13 @@ export async function POST(req: NextRequest) {
 
       const convId = (conv as { id: string }).id;
 
-      // Mensagem de boas-vindas (direction=out = do atendente para o cliente)
+      // Mensagem de boas-vindas (direction=out)
       await supabase.from("messages").insert({
         tenant_id:       tenantId,
         conversation_id: convId,
         direction:       "out",
         sender_name:     "Flora Botanics",
         body:            `Olá, ${name}! 👋 Seja bem-vindo(a) ao atendimento Flora Botanics.\n\nAssunto: ${topic} | Tel: ${phone}\n\nEm instantes um de nossos atendentes estará com você.`,
-        private:         false,
       });
 
       return NextResponse.json({ conv_id: convId, name, topic }, { headers: CORS });
@@ -119,12 +115,11 @@ export async function POST(req: NextRequest) {
         direction:       "in",
         sender_name:     "Visitante",
         body:            text,
-        private:         false,
       });
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS });
 
-      // Atualiza preview da conversa
+      // Atualiza preview
       await supabase.from("conversations")
         .update({ last_message_preview: text.slice(0, 140), last_message_at: new Date().toISOString() })
         .eq("id", convId)
@@ -134,14 +129,13 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "Ação inválida." }, { status: 400, headers: CORS });
-  } catch {
+  } catch (err) {
+    console.error("[chat] erro interno:", err);
     return NextResponse.json({ error: "Erro interno." }, { status: 500, headers: CORS });
   }
 }
 
 // ── GET /api/chat?conv_id=xxx&after=ISO ───────────────────────────────────────
-// Polling: retorna novas mensagens depois de `after`
-//
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -160,21 +154,21 @@ export async function GET(req: NextRequest) {
       .select("id, direction, sender_name, body, created_at")
       .eq("conversation_id", convId)
       .eq("tenant_id", tenantId)
-      .eq("private", false)
       .gt("created_at", after)
       .order("created_at", { ascending: true })
       .limit(50);
 
     const messages = (msgs ?? []).map((m: { id: string; direction: string; sender_name: string; body: string; created_at: string }) => ({
       id:          m.id,
-      direction:   m.direction === "out" ? "out" : "in",
+      direction:   m.direction,
       sender_name: m.sender_name,
       body:        m.body,
       created_at:  m.created_at,
     }));
 
     return NextResponse.json({ messages }, { headers: CORS });
-  } catch {
+  } catch (err) {
+    console.error("[chat/GET] erro:", err);
     return NextResponse.json({ error: "Erro interno." }, { status: 500, headers: CORS });
   }
 }
