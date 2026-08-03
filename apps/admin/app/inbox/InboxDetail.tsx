@@ -126,7 +126,8 @@ export function InboxDetail({ conversationId }: Props) {
   const [showMacros, setShowMacros] = useState(false);
   const [convNum, setConvNum]       = useState<number | null>(null);
   const [statusPos, setStatusPos]   = useState<{ top: number; left: number } | null>(null);
-  const statusBtnRef = useRef<HTMLButtonElement>(null);
+  const statusBtnRef      = useRef<HTMLButtonElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   // Edição de mensagem
   const [editingId,   setEditingId]   = useState<string | null>(null);
@@ -145,7 +146,11 @@ export function InboxDetail({ conversationId }: Props) {
   useEffect(() => {
     if (!showStatus) return;
     function close(e: MouseEvent) {
-      if (statusBtnRef.current && !statusBtnRef.current.contains(e.target as Node)) {
+      const t = e.target as Node;
+      if (
+        statusBtnRef.current && !statusBtnRef.current.contains(t) &&
+        statusDropdownRef.current && !statusDropdownRef.current.contains(t)
+      ) {
         setShowStatus(false);
       }
     }
@@ -374,7 +379,7 @@ export function InboxDetail({ conversationId }: Props) {
                   <span style={{ fontSize: 9, opacity: 0.6, flexShrink: 0 }}>▾</span>
                 </button>
                 {showStatus && statusPos && typeof document !== "undefined" && createPortal(
-                  <div style={{
+                  <div ref={statusDropdownRef} style={{
                     position: "fixed",
                     top: statusPos.top,
                     left: statusPos.left,
