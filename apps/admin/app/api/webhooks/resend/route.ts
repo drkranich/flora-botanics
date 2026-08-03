@@ -58,7 +58,7 @@ async function verifyResendSignature(
   const toSign = `${msgId}.${msgTimestamp}.${rawBody}`;
 
   const key = await crypto.subtle.importKey(
-    "raw", secretBytes,
+    "raw", secretBytes.buffer as ArrayBuffer,
     { name: "HMAC", hash: "SHA-256" },
     false, ["sign"],
   );

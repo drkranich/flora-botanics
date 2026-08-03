@@ -139,15 +139,16 @@ export default async function InboxSettingsPage() {
 
   // Agrupa membros por equipe
   const membersByTeam: Record<string, TeamMember[]> = {};
-  for (const m of (membersRaw ?? []) as Array<{
+  for (const m of (membersRaw ?? []) as unknown as Array<{
     team_id: string; profile_id: string; role: string;
-    profiles: { full_name: string | null; email: string | null } | null;
+    profiles: { full_name: string | null; email: string | null } | { full_name: string | null; email: string | null }[] | null;
   }>) {
     if (!membersByTeam[m.team_id]) membersByTeam[m.team_id] = [];
+    const prof = Array.isArray(m.profiles) ? m.profiles[0] ?? null : m.profiles;
     membersByTeam[m.team_id].push({
       profile_id: m.profile_id,
-      full_name: m.profiles?.full_name ?? null,
-      email: m.profiles?.email ?? null,
+      full_name: prof?.full_name ?? null,
+      email: prof?.email ?? null,
       role: m.role as "agent" | "lead",
     });
   }
