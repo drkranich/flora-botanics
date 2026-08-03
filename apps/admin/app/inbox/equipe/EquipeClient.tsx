@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { AgentProfile, InboxTeam } from "./actions";
 import { updateAgentProfile, inviteAgent, removeAgent } from "./actions";
+import { GlassSelect } from "@/components/GlassSelect";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -286,10 +287,16 @@ function InviteModal({ onClose, onInvited }: { onClose: () => void; onInvited: (
           </div>
           <div>
             <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: "var(--cream-dim)", marginBottom: 4 }}>Nível de acesso</label>
-            <select style={inputStyle} value={role} onChange={e => setRole(e.target.value as "tenant_admin" | "tenant_editor")}>
-              <option value="tenant_editor">Editor — atende e edita conteúdo</option>
-              <option value="tenant_admin">Administrador — acesso total</option>
-            </select>
+            <GlassSelect
+              value={role}
+              onChange={v => setRole(v as "tenant_admin" | "tenant_editor")}
+              options={[
+                { value: "tenant_editor", label: "Editor — atende e edita conteúdo" },
+                { value: "tenant_admin", label: "Administrador — acesso total" },
+              ]}
+              ariaLabel="Nível de acesso"
+              style={inputStyle}
+            />
           </div>
           <div>
             <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: "var(--cream-dim)", marginBottom: 4 }}>Cargo / Função</label>
@@ -425,11 +432,13 @@ export function EquipeClient({ agents, teams, myId, canManage }: Props) {
               placeholder="Buscar por nome, e-mail ou setor…"
               value={search} onChange={e => setSearch(e.target.value)}
             />
-            <select style={{ ...inputStyle, maxWidth: 200 }} value={filterDept} onChange={e => setFilterDept(e.target.value)}>
-              {departments.map(d => (
-                <option key={d} value={d}>{d === "todos" ? "Todos os setores" : d}</option>
-              ))}
-            </select>
+            <GlassSelect
+              value={filterDept}
+              onChange={v => setFilterDept(v)}
+              options={departments.map(d => ({ value: d, label: d === "todos" ? "Todos os setores" : d }))}
+              ariaLabel="Filtrar por setor"
+              style={{ ...inputStyle, maxWidth: 200 }}
+            />
           </div>
 
           {/* Tabela */}
