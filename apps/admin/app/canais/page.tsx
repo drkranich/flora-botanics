@@ -108,6 +108,42 @@ export default async function CanaisPage() {
       features: ["Produtos", "Feed"],
       cta: { label: "Configurar API", href: "/config/integracoes" },
     },
+    {
+      name: "Carrefour",
+      icon: "⬡",
+      desc: "Venda no marketplace do Carrefour com sincronização de estoque e pedidos.",
+      status: "soon" as const,
+      phase: "Credenciais disponíveis",
+      features: ["Produtos", "Estoque", "Pedidos"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
+    },
+    {
+      name: "Casas Bahia",
+      icon: "⬢",
+      desc: "Catálogo e pedidos integrados ao marketplace das Casas Bahia.",
+      status: "soon" as const,
+      phase: "Credenciais disponíveis",
+      features: ["Produtos", "Estoque", "Pedidos"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
+    },
+    {
+      name: "Americanas",
+      icon: "◆",
+      desc: "Publicação de produtos e importação de pedidos da Americanas.",
+      status: "soon" as const,
+      phase: "Credenciais disponíveis",
+      features: ["Produtos", "Estoque", "Pedidos"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
+    },
+    {
+      name: "Magalu",
+      icon: "◇",
+      desc: "Sincronize catálogo, estoque e pedidos com o Magazine Luiza.",
+      status: "soon" as const,
+      phase: "Credenciais disponíveis",
+      features: ["Produtos", "Estoque", "Pedidos"],
+      cta: { label: "Configurar API", href: "/config/integracoes" },
+    },
   ];
 
   return (
