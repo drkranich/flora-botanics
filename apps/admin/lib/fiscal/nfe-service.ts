@@ -46,15 +46,16 @@ function buildSoapEnvelope(nfeXml: string, lote: string): string {
     nfeXml +
     `</enviNFe>`;
 
+  // SOAP 1.1 — compatível com endpoints JAX-WS (MG, GO, PE...) e .asmx (SP, RS, SVAN)
   return (
     `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
-    `<soap:Body>` +
+    `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">` +
+    `<soapenv:Body>` +
     `<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">` +
     enviNFe +
     `</nfeDadosMsg>` +
-    `</soap:Body>` +
-    `</soap:Envelope>`
+    `</soapenv:Body>` +
+    `</soapenv:Envelope>`
   );
 }
 
@@ -118,7 +119,7 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
       return { ok: false, chNFe, error: `Falha ao chamar Edge Function sefaz-nfe: HTTP ${efResponse.status}` };
     }
 
-    const efData = await efResponse.json() as { ok: boolean; xmlResponse?: string; error?: string; status?: number };
+    const efData = await efResponse.json() as { ok: boolean; xmlResponse?: string; xmlSnippet?: string; error?: string; status?: number };
 
     if (!efData.ok || !efData.xmlResponse) {
       const statusMsg =
@@ -130,6 +131,8 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
 
     // 6. Parse do retorno
     const xmlRet = efData.xmlResponse;
+    // DEBUG — log primeiros 800 chars para diagnosticar estrutura do XML do SEFAZ
+    console.log("[sefaz-nfe] xmlResponse snippet:", xmlRet?.slice(0, 800));
 
     // Tenta extrair retEnviNFe / protNFe
     const cStat   = extractTag(xmlRet, "cStat");
@@ -160,12 +163,16 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
     }
 
     // Qualquer outro cStat = rejeição ou processamento assíncrono
+    // Se cStat vazio: exibir snippet do XML para diagnóstico
+    const errorMsg = cStat
+      ? `SEFAZ: [${cStat}] ${xMotivo}`
+      : `SEFAZ sem cStat — snippet: ${(efData.xmlSnippet ?? xmlRet).slice(0, 400)}`;
     return {
       ok: false,
       chNFe,
       cStat,
       xMotivo,
-      error: `SEFAZ: [${cStat}] ${xMotivo}`,
+      error: errorMsg,
     };
   } catch (err) {
     return {
