@@ -13,58 +13,62 @@ export const UF_CODE: Record<string, string> = {
   SP: "35", TO: "17",
 };
 
-// Estados com sistema próprio de autorização NF-e
-// Os demais usam SVRS (Sefaz Virtual Rio Grande do Sul)
+// Ambiente de homologação unificado — SEFAZ Nacional (nfe.fazenda.gov.br)
+// Todos os estados usam este endpoint para testes. É o único com DNS
+// globalmente resolvível a partir do Supabase Edge Functions (Deno/Fly.io).
+// Os endpoints estaduais de homologação (svrs, hnfe, etc.) têm DNS restrito
+// e não são acessíveis de fora do Brasil / provedores internacionais.
+const HOM_URL = "https://hom.nfe.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx";
+
 const ENDPOINTS: Record<string, { prod: string; hom: string }> = {
   AM: {
     prod: "https://nfe.sefaz.am.gov.br/services2/services/NfeAutorizacao4",
-    hom:  "https://homnfe.sefaz.am.gov.br/services2/services/NfeAutorizacao4",
+    hom:  HOM_URL,
   },
   BA: {
     prod: "https://nfe.sefaz.ba.gov.br/webservices/NFeAutorizacao4/NFeAutorizacao4.asmx",
-    hom:  "https://hnfe.sefaz.ba.gov.br/webservices/NFeAutorizacao4/NFeAutorizacao4.asmx",
+    hom:  HOM_URL,
   },
   CE: {
     prod: "https://nfe.sefaz.ce.gov.br/nfe4/services/NFeAutorizacao4",
-    hom:  "https://nfeh.sefaz.ce.gov.br/nfe4/services/NFeAutorizacao4",
+    hom:  HOM_URL,
   },
   GO: {
     prod: "https://nfe.sefaz.go.gov.br/nfe/services/NFeAutorizacao4",
-    hom:  "https://homolog.sefaz.go.gov.br/nfe/services/NFeAutorizacao4",
+    hom:  HOM_URL,
   },
   MG: {
     prod: "https://nfe.fazenda.mg.gov.br/nfe/services/NFeAutorizacao4",
-    // Homologação MG via SVRS — o servidor hnfe.fazenda.mg.gov.br tem TLS instável
-    hom:  "https://homologacao.nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
+    hom:  HOM_URL,
   },
   MS: {
     prod: "https://nfe.fazenda.ms.gov.br/ws/NFeAutorizacao4.asmx",
-    hom:  "https://homologacao.nfe.ms.gov.br/ws/NFeAutorizacao4.asmx",
+    hom:  HOM_URL,
   },
   MT: {
     prod: "https://nfe.sefaz.mt.gov.br/nfews/v2/services/NfeAutorizacao4",
-    hom:  "https://homologacao.sefaz.mt.gov.br/nfews/v2/services/NfeAutorizacao4",
+    hom:  HOM_URL,
   },
   PE: {
     prod: "https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeAutorizacao4",
-    hom:  "https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeAutorizacao4",
+    hom:  HOM_URL,
   },
   PR: {
     prod: "https://nfe.fazenda.pr.gov.br/nfe/services/NFeAutorizacao4",
-    hom:  "https://homologacao.nfe.fazenda.pr.gov.br/nfe/services/NFeAutorizacao4",
+    hom:  HOM_URL,
   },
   RS: {
     prod: "https://nfe.sefaz.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-    hom:  "https://nfe-homologacao.sefazrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
+    hom:  HOM_URL,
   },
   SP: {
     prod: "https://nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx",
-    hom:  "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx",
+    hom:  HOM_URL,
   },
-  // SVRS (fallback para demais estados)
+  // Fallback para demais estados
   _SVRS: {
     prod: "https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-    hom:  "https://homologacao.nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
+    hom:  HOM_URL,
   },
 };
 
