@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
 
   // 1. Verificar assinatura
   const env    = await getRuntimeEnv();
-  const secret = env.RESEND_WEBHOOK_SECRET ?? "";
+  const secret = env.RESEND_INBOUND_WEBHOOK_SECRET ?? "";
 
   if (secret) {
     const valid = await verifyResendSignature(rawBody, req.headers, secret);
