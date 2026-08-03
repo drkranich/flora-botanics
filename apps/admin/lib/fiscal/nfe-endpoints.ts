@@ -35,7 +35,8 @@ const ENDPOINTS: Record<string, { prod: string; hom: string }> = {
   },
   MG: {
     prod: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4",
-    hom:  "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4",
+    // hnfe.fazenda.mg.gov.br rejeita TLS 1.2 (forge) — usar SVRS como fallback de homologação
+    hom:  "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
   },
   MS: {
     prod: "https://nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4",
