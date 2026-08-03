@@ -568,7 +568,23 @@ export function ChatWidget() {
                               lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word",
                             }}>{msg.body}</div>
                           )}
-                            </div>
+                          {/* Botão ✏ — só nas mensagens DO LEAD (direction=in), aparece no hover */}
+                          {!isOut && !msg.id.startsWith("temp-") && (
+                            <button
+                              onClick={() => startEdit(msg)}
+                              title="Editar sua mensagem"
+                              style={{
+                                position: "absolute", top: 4, right: -20,
+                                background: "none", border: "none",
+                                fontSize: 11, color: "rgba(242,236,223,0.35)",
+                                cursor: "pointer", padding: 2,
+                                lineHeight: 1,
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.color = "#d9b87a")}
+                              onMouseLeave={e => (e.currentTarget.style.color = "rgba(242,236,223,0.35)")}
+                            >✏</button>
+                          )}
+                        </div>
                       )}
                       {/* Attachments */}
                       {atts.length > 0 && !isEditing && (
