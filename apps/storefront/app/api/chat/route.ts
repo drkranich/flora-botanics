@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentTenant } from "@/lib/tenant";
 import { getServerSupabase } from "@/lib/server-runtime";
 
 const CORS = {
@@ -10,6 +9,31 @@ const CORS = {
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
+}
+
+// Resolve tenant_id usando service_role (sem depender do anon client nem de RLS)
+async function resolveTenantId(supabase: Awaited<ReturnType<typeof getServerSupabase>>): Promise<string> {
+  // Tenta pelo slug canônico do .env, depois pega o primeiro tenant ativo
+  const slug = process.env.TENANT_SLUG ?? "flora-botanics";
+  const { data } = await supabase
+    .from("tenants")
+    .select("id")
+    .eq("slug", slug)
+    .eq("active", true)
+    .maybeSingle();
+  if (data) return (data as { id: string }).id;
+
+  // Fallback: primeiro tenant ativo
+  const { data: fallback } = await supabase
+    .from("tenants")
+    .select("id")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (fallback) return (fallback as { id: string }).id;
+
+  throw new Error("Nenhum tenant ativo encontrado.");
 }
 
 // ── POST /api/chat ────────────────────────────────────────────────────────────
@@ -30,9 +54,9 @@ export async function POST(req: NextRequest) {
       text?:      string;
     };
 
-    const tenant   = await currentTenant();
     // service_role: bypassa RLS — necessário pois visitantes não estão autenticados
-    const supabase = await getServerSupabase();
+    const supabase  = await getServerSupabase();
+    const tenantId  = await resolveTenantId(supabase);
 
     if (body.action === "start") {
       const name  = (body.name  ?? "").trim();
@@ -50,7 +74,7 @@ export async function POST(req: NextRequest) {
       const { data: conv, error: convErr } = await supabase
         .from("helpdesk_conversations")
         .insert({
-          tenant_id:            tenant.tenantId,
+          tenant_id:            tenantId,
           channel:              "chat",
           subject:              `[Chat] ${topic}`,
           contact_name:         name,
@@ -73,7 +97,7 @@ export async function POST(req: NextRequest) {
 
       // Mensagem inicial do atendimento (type=outbound = do atendente para o cliente)
       await supabase.from("helpdesk_messages").insert({
-        tenant_id:        tenant.tenantId,
+        tenant_id:        tenantId,
         conversation_id:  convId,
         type:             "outbound",
         sender_name:      "Flora Botanics",
@@ -94,7 +118,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { error } = await supabase.from("helpdesk_messages").insert({
-        tenant_id:         tenant.tenantId,
+        tenant_id:         tenantId,
         conversation_id:   convId,
         type:              "inbound",
         sender_name:       "Visitante",
@@ -109,7 +133,7 @@ export async function POST(req: NextRequest) {
       await supabase.from("helpdesk_conversations")
         .update({ last_message_preview: text.slice(0, 140), last_message_at: new Date().toISOString() })
         .eq("id", convId)
-        .eq("tenant_id", tenant.tenantId);
+        .eq("tenant_id", tenantId);
 
       return NextResponse.json({ ok: true }, { headers: CORS });
     }
@@ -133,14 +157,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "conv_id obrigatório." }, { status: 400, headers: CORS });
     }
 
-    const tenant   = await currentTenant();
     const supabase = await getServerSupabase();
+    const tenantId = await resolveTenantId(supabase);
 
     const { data: msgs } = await supabase
       .from("helpdesk_messages")
       .select("id, type, sender_name, body, created_at")
       .eq("conversation_id", convId)
-      .eq("tenant_id", tenant.tenantId)
+      .eq("tenant_id", tenantId)
       .eq("is_internal_note", false)
       .gt("created_at", after)
       .order("created_at", { ascending: true })
