@@ -8,9 +8,9 @@
  * em caso de sucesso, ou o motivo de rejeição.
  */
 
-import { buildNFeXml, type NFeEmitente, type NFeDestinatario, type NFeItem, type NFePagamento, type NFeConfig } from "./nfe-xml";
-import { signNFe } from "./nfe-signer";
-import { getSefazEndpoint } from "./nfe-endpoints";
+import type { NFeEmitente, NFeDestinatario, NFeItem, NFePagamento, NFeConfig } from "./nfe-xml";
+// buildNFeXml, signNFe e transmissão SEFAZ rodam na Edge Function (Deno/Supabase)
+// para não importar node-forge no Cloudflare Worker (erro 1102 - CPU limit)
 
 export type { NFeEmitente, NFeDestinatario, NFeItem, NFePagamento, NFeConfig };
 
@@ -36,29 +36,6 @@ export interface NFeResult {
   error?: string;
 }
 
-// ─── SOAP helpers ─────────────────────────────────────────────────────────────
-
-function buildSoapEnvelope(nfeXml: string, lote: string): string {
-  const enviNFe =
-    `<enviNFe versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe">` +
-    `<idLote>${lote}</idLote>` +
-    `<indSinc>1</indSinc>` +
-    nfeXml +
-    `</enviNFe>`;
-
-  // SOAP 1.1 — compatível com endpoints JAX-WS (MG, GO, PE...) e .asmx (SP, RS, SVAN)
-  return (
-    `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">` +
-    `<soapenv:Body>` +
-    `<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">` +
-    enviNFe +
-    `</nfeDadosMsg>` +
-    `</soapenv:Body>` +
-    `</soapenv:Envelope>`
-  );
-}
-
 // Parser simples de tags XML para o retorno do SEFAZ
 function extractTag(xml: string, tag: string): string {
   const m = xml.match(new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`));
@@ -74,32 +51,8 @@ function extractAttr(xml: string, tag: string, attr: string): string {
 
 export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
   try {
-    // 1. Constrói o XML NF-e (forma canônica pronta para assinar)
-    const { canonicalInfNFe, chNFe } = buildNFeXml({
-      emitente: input.emitente,
-      destinatario: input.destinatario,
-      itens: input.itens,
-      pagamentos: input.pagamentos,
-      config: input.config,
-    });
-
-    // 2. Assina com o certificado A1
-    const nfeXml = await signNFe(
-      canonicalInfNFe,
-      chNFe,
-      input.pfxBase64,
-      input.pfxSenha
-    );
-
-    // 3. Monta envelope SOAP
-    const lote = String(Date.now()).slice(-15).padStart(15, "0");
-    const soapBody = buildSoapEnvelope(nfeXml, lote);
-
-    // 4. URL do SEFAZ conforme UF + ambiente
-    const sefazUrl = getSefazEndpoint(input.emitente.enderEmit.UF, input.config.ambiente);
-    const soapAction = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote";
-
-    // 5. POST SOAP via Supabase Edge Function (evita HTTP 525 do CF Workers com SEFAZ)
+    // Envia dados brutos para a Edge Function — buildNFeXml + signNFe + transmissão
+    // rodam no Deno (Supabase), não no Cloudflare Worker (evita erro 1102)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     const edgeFnUrl = `${supabaseUrl}/functions/v1/sefaz-nfe`;
@@ -111,42 +64,48 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
         "Authorization": `Bearer ${supabaseAnonKey}`,
         "apikey": supabaseAnonKey,
       },
-      body: JSON.stringify({ url: sefazUrl, soapBody, soapAction, pfxBase64: input.pfxBase64, pfxSenha: input.pfxSenha }),
+      body: JSON.stringify({
+        pfxBase64: input.pfxBase64,
+        pfxSenha:  input.pfxSenha,
+        nfeInput: {
+          emitente:     input.emitente,
+          destinatario: input.destinatario,
+          itens:        input.itens,
+          pagamentos:   input.pagamentos,
+          config:       input.config,
+        },
+      }),
       signal: AbortSignal.timeout(45000),
     });
 
     if (!efResponse.ok) {
-      return { ok: false, chNFe, error: `Falha ao chamar Edge Function sefaz-nfe: HTTP ${efResponse.status}` };
+      return { ok: false, error: `Falha ao chamar Edge Function sefaz-nfe: HTTP ${efResponse.status}` };
     }
 
-    const efData = await efResponse.json() as { ok: boolean; xmlResponse?: string; xmlSnippet?: string; error?: string; status?: number };
+    const efData = await efResponse.json() as { ok: boolean; xmlResponse?: string; xmlSnippet?: string; chNFe?: string; error?: string; status?: number };
 
     if (!efData.ok || !efData.xmlResponse) {
-      const statusMsg =
-        efData.status === 525
-          ? "Falha SSL no servidor SEFAZ (HTTP 525). Causa provável: endpoint da sua UF exige mTLS ou tem certificado SSL inválido no momento."
-          : (efData.error ?? "Erro desconhecido ao chamar SEFAZ via Edge Function.");
-      return { ok: false, chNFe, error: statusMsg };
+      return { ok: false, error: efData.error ?? "Erro desconhecido ao chamar SEFAZ via Edge Function." };
     }
 
-    // 6. Parse do retorno
-    const xmlRet = efData.xmlResponse;
-    // DEBUG — log primeiros 800 chars para diagnosticar estrutura do XML do SEFAZ
+    // Parse do retorno
+    const xmlRet   = efData.xmlResponse;
+    const chNFe    = efData.chNFe ?? extractTag(xmlRet, "chNFe");
     console.log("[sefaz-nfe] xmlResponse snippet:", xmlRet?.slice(0, 800));
 
-    // Tenta extrair retEnviNFe / protNFe
-    const cStat   = extractTag(xmlRet, "cStat");
-    const xMotivo = extractTag(xmlRet, "xMotivo");
-    const nProt   = extractTag(xmlRet, "nProt");
+    const cStat    = extractTag(xmlRet, "cStat");
+    const xMotivo  = extractTag(xmlRet, "xMotivo");
+    const nProt    = extractTag(xmlRet, "nProt");
     const chNFeRet = extractTag(xmlRet, "chNFe") || chNFe;
 
     // cStat 100 = NF-e Autorizada
     if (cStat === "100" && nProt) {
-      // Monta XML autorizado (nfeProc)
+      // nfeXml assinado vem da edge function via efData.nfeXml (quando disponível)
+      const nfeXmlSigned = (efData as Record<string, unknown>).nfeXml as string | undefined ?? "";
       const xmlAutorizado =
         `<?xml version="1.0" encoding="UTF-8"?>` +
         `<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">` +
-        nfeXml +
+        nfeXmlSigned +
         `<protNFe versao="4.00"><infProt>` +
         `<tpAmb>${input.config.ambiente}</tpAmb>` +
         `<verAplic>${extractTag(xmlRet, "verAplic")}</verAplic>` +
@@ -167,13 +126,7 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
     const errorMsg = cStat
       ? `SEFAZ: [${cStat}] ${xMotivo}`
       : `SEFAZ sem cStat — snippet: ${(efData.xmlSnippet ?? xmlRet).slice(0, 400)}`;
-    return {
-      ok: false,
-      chNFe,
-      cStat,
-      xMotivo,
-      error: errorMsg,
-    };
+    return { ok: false, chNFe, cStat, xMotivo, error: errorMsg };
   } catch (err) {
     return {
       ok: false,
