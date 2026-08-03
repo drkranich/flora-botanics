@@ -224,7 +224,9 @@ export function InboxDetail({ conversationId }: Props) {
   // ── PDF ────────────────────────────────────────────────────────────────────
   function handlePdf() {
     if (!conversationId) return;
-    window.open(`/api/inbox/${conversationId}/pdf`, "_blank");
+    // O admin serve em /admin/* no mesmo domínio; URL relativa /api/... resolve
+    // para o storefront. Usamos prefixo /admin explícito.
+    window.open(`/admin/api/inbox/${conversationId}/pdf`, "_blank");
   }
 
   // ── Estado vazio ────────────────────────────────────────────────────────────
@@ -321,7 +323,7 @@ export function InboxDetail({ conversationId }: Props) {
                   fontSize: 11, fontWeight: 600,
                   padding: "6px 11px", cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 5,
-                  flexShrink: 0, transition: "all 0.2s",
+                  flexShrink: 0, whiteSpace: "nowrap", transition: "all 0.2s",
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = "rgba(185,146,77,0.15)")}
                 onMouseLeave={e => (e.currentTarget.style.background = "rgba(185,146,77,0.08)")}
@@ -342,11 +344,12 @@ export function InboxDetail({ conversationId }: Props) {
                     padding: "6px 11px", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: 5,
                     transition: "all 0.2s",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc, boxShadow: `0 0 5px ${sc}` }} />
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc, boxShadow: `0 0 5px ${sc}`, flexShrink: 0 }} />
                   {sLabel(conv.status)}
-                  <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
+                  <span style={{ fontSize: 9, opacity: 0.6, flexShrink: 0 }}>▾</span>
                 </button>
                 {showStatus && (
                   <div style={{
@@ -403,6 +406,7 @@ export function InboxDetail({ conversationId }: Props) {
                     fontSize: 11, fontWeight: 700,
                     padding: "6px 12px", cursor: "pointer",
                     letterSpacing: 0.4, flexShrink: 0,
+                    whiteSpace: "nowrap",
                     transition: "all 0.2s",
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = "rgba(74,222,128,0.16)")}
