@@ -15,6 +15,13 @@ const QUEUES: { id: InboxQueue; label: string; icon: string; dot?: string }[] = 
   { id: "spam",             label: "Spam",                icon: "⊘",  dot: "#ef4444" },
 ];
 
+const CHANNELS: { id: InboxQueue; label: string; icon: string; dot: string }[] = [
+  { id: "ch_whatsapp",  label: "WhatsApp",  icon: "◎", dot: "#25d366" },
+  { id: "ch_instagram", label: "Instagram", icon: "◌", dot: "#e1306c" },
+  { id: "ch_email",     label: "E-mail",    icon: "✉", dot: "#7ea8d9" },
+  { id: "ch_chat",      label: "Chat",      icon: "◉", dot: "#a78bfa" },
+];
+
 interface Props {
   active: InboxQueue;
   counts: Record<InboxQueue, number>;
@@ -171,7 +178,6 @@ export function InboxSidebar({ active, counts, onSelect, onNew }: Props) {
                 }
               }}
             >
-              {/* Dot de cor */}
               <span style={{
                 width: 7, height: 7,
                 borderRadius: "50%",
@@ -179,8 +185,6 @@ export function InboxSidebar({ active, counts, onSelect, onNew }: Props) {
                 flexShrink: 0,
                 boxShadow: isActive ? `0 0 6px ${q.dot ?? "#6b7280"}88` : "none",
               }} />
-
-              {/* Label */}
               <span style={{
                 flex: 1,
                 fontFamily: "Manrope, sans-serif",
@@ -191,14 +195,102 @@ export function InboxSidebar({ active, counts, onSelect, onNew }: Props) {
               }}>
                 {q.label}
               </span>
-
-              {/* Badge */}
               {badge > 0 && (
                 <span style={{
                   background: isActive
                     ? "linear-gradient(135deg, var(--gold-light), var(--gold))"
                     : "rgba(242,236,223,0.1)",
                   color: isActive ? "var(--forest-950)" : "var(--cream-dim)",
+                  borderRadius: 6,
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: "2px 7px",
+                  minWidth: 22,
+                  textAlign: "center",
+                  flexShrink: 0,
+                }}>
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+
+        {/* Seção Canais */}
+        <div style={{ padding: "14px 12px 6px" }}>
+          <span style={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: 2.2,
+            textTransform: "uppercase",
+            color: "var(--cream-dim)",
+            opacity: 0.6,
+          }}>
+            Canais
+          </span>
+        </div>
+
+        {CHANNELS.map((ch) => {
+          const isActive = active === ch.id;
+          const badge = counts[ch.id] ?? 0;
+
+          return (
+            <button
+              key={ch.id}
+              onClick={() => onSelect(ch.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                width: "100%",
+                padding: "8px 12px",
+                marginBottom: 2,
+                background: isActive
+                  ? `${ch.dot}1a`
+                  : "transparent",
+                border: "1px solid",
+                borderColor: isActive
+                  ? `${ch.dot}44`
+                  : "transparent",
+                borderRadius: 10,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all 0.2s cubic-bezier(0.22,1,0.36,1)",
+              }}
+              onMouseEnter={e => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "rgba(242,236,223,0.05)";
+                  e.currentTarget.style.borderColor = "rgba(242,236,223,0.08)";
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.borderColor = "transparent";
+                }
+              }}
+            >
+              <span style={{
+                width: 7, height: 7,
+                borderRadius: "50%",
+                background: ch.dot,
+                flexShrink: 0,
+                boxShadow: isActive ? `0 0 6px ${ch.dot}99` : "none",
+              }} />
+              <span style={{
+                flex: 1,
+                fontFamily: "Manrope, sans-serif",
+                fontSize: 13,
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? "var(--cream)" : "var(--cream-soft)",
+                letterSpacing: 0.1,
+              }}>
+                {ch.label}
+              </span>
+              {badge > 0 && (
+                <span style={{
+                  background: isActive ? ch.dot : "rgba(242,236,223,0.1)",
+                  color: isActive ? "#fff" : "var(--cream-dim)",
                   borderRadius: 6,
                   fontSize: 10,
                   fontWeight: 800,

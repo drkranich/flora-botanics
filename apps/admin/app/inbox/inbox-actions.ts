@@ -17,7 +17,11 @@ export type InboxQueue =
   | "resolved"
   | "archived"
   | "spam"
-  | "all";
+  | "all"
+  | "ch_whatsapp"
+  | "ch_instagram"
+  | "ch_email"
+  | "ch_chat";
 
 export type InboxPriority = "low" | "normal" | "high" | "urgent" | "critical";
 export type InboxStatus =
@@ -122,6 +126,10 @@ function queueFilter(queue: InboxQueue, userId: string) {
     case "resolved":         return { status_in: ["resolved","closed"] };
     case "archived":         return { status_in: ["archived"] };
     case "spam":             return { status_in: ["spam"] };
+    case "ch_whatsapp":      return { channel: "whatsapp" };
+    case "ch_instagram":     return { channel: "instagram" };
+    case "ch_email":         return { channel: "email" };
+    case "ch_chat":          return { channel: "chat" };
     default:                 return {};
   }
 }
@@ -154,6 +162,11 @@ export async function getConversations(
     `)
     .eq("tenant_id", staff.tenantId)
     .is("deleted_at", null);
+
+  // Filtro de canal
+  if ("channel" in filters && filters.channel) {
+    q = q.eq("channel", filters.channel as string);
+  }
 
   // Filtros de status
   if ("status_in" in filters && filters.status_in) {
@@ -332,17 +345,18 @@ export async function getQueueCounts(): Promise<Record<InboxQueue, number>> {
     inbox: 0, mine: 0, unassigned: 0, urgent: 0,
     waiting_customer: 0, waiting_team: 0,
     resolved: 0, archived: 0, spam: 0, all: 0,
+    ch_whatsapp: 0, ch_instagram: 0, ch_email: 0, ch_chat: 0,
   };
   if (!staff) return zero;
 
   const supabase = await createClient();
   const { data } = await supabase
     .from("helpdesk_conversations")
-    .select("status, priority, unread_count, assignee_id")
+    .select("status, priority, unread_count, assignee_id, channel")
     .eq("tenant_id", staff.tenantId)
     .is("deleted_at", null);
 
-  const rows = (data ?? []) as { status: string; priority: string; unread_count: number; assignee_id: string | null }[];
+  const rows = (data ?? []) as { status: string; priority: string; unread_count: number; assignee_id: string | null; channel: string }[];
   const counts = { ...zero };
 
   for (const r of rows) {
@@ -356,6 +370,11 @@ export async function getQueueCounts(): Promise<Record<InboxQueue, number>> {
     if (["resolved","closed"].includes(r.status)) counts.resolved += 1;
     if (r.status === "archived") counts.archived += 1;
     if (r.status === "spam") counts.spam += 1;
+    // Canais
+    if (r.channel === "whatsapp")  counts.ch_whatsapp += 1;
+    if (r.channel === "instagram") counts.ch_instagram += 1;
+    if (r.channel === "email")     counts.ch_email += 1;
+    if (r.channel === "chat")      counts.ch_chat += 1;
   }
 
   return counts;

@@ -18,6 +18,7 @@ export default function InboxPage() {
     inbox: 0, mine: 0, unassigned: 0, urgent: 0,
     waiting_customer: 0, waiting_team: 0,
     resolved: 0, archived: 0, spam: 0, all: 0,
+    ch_whatsapp: 0, ch_instagram: 0, ch_email: 0, ch_chat: 0,
   });
   const [, startTransition] = useTransition();
 
