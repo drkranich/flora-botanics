@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import type { ConversationDetail, TimelineAttachment, TimelineEvent } from "./inbox-actions";
+import type { ConversationDetail, TimelineAttachment, TimelineEvent, PipelineOption } from "./inbox-actions";
 import {
   editMessage,
   getConversationDetail,
   getTimeline,
   sendReply,
   setStatusWithAudit,
+  triageLeadToPipeline,
+  getPipelineOptions,
 } from "./inbox-actions";
 import { MacroPicker } from "./MacroPicker";
 import { formatDateTime, formatRelative } from "./constants";
@@ -68,6 +70,249 @@ function fmtSize(bytes: number) {
 
 function isRasterImage(type: string) {
   return type === "image/jpeg" || type === "image/png" || type === "image/webp";
+}
+
+// ── Media bubble (WA/IG) ──────────────────────────────────────────────────────
+
+function MediaBubble({ mediaType, mediaUrl, body, isOut }: {
+  mediaType?: TimelineEvent["media_type"];
+  mediaUrl?: string;
+  body?: string;
+  isOut: boolean;
+}) {
+  if (!mediaType) return null;
+  const borderR = isOut ? "14px 14px 4px 14px" : "14px 14px 14px 4px";
+  const bg = isOut
+    ? "linear-gradient(135deg, rgba(185,146,77,0.17), rgba(185,146,77,0.07))"
+    : "rgba(242,236,223,0.055)";
+  const border = isOut ? "1px solid rgba(185,146,77,0.22)" : "1px solid rgba(242,236,223,0.08)";
+
+  if (mediaType === "image" && mediaUrl) {
+    return (
+      <div style={{ maxWidth: "68%", borderRadius: borderR, overflow: "hidden", border }}>
+        <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
+          <img src={mediaUrl} alt="imagem" style={{ display: "block", maxWidth: 300, maxHeight: 300, objectFit: "cover" }} />
+        </a>
+        {body && (
+          <div style={{ padding: "6px 12px 8px", background: bg, fontSize: 13, fontFamily: "Manrope, sans-serif", color: "var(--cream)" }}>
+            {body}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (mediaType === "audio" && mediaUrl) {
+    return (
+      <div style={{ maxWidth: "68%", background: bg, border, borderRadius: borderR, padding: "10px 12px" }}>
+        <audio controls style={{ maxWidth: 260 }}>
+          <source src={mediaUrl} />
+          <a href={mediaUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--gold-light)", fontSize: 12 }}>🎵 Áudio</a>
+        </audio>
+      </div>
+    );
+  }
+
+  if (mediaType === "video" && mediaUrl) {
+    return (
+      <div style={{ maxWidth: "68%", borderRadius: borderR, overflow: "hidden", border }}>
+        <video controls style={{ maxWidth: 300, display: "block" }}>
+          <source src={mediaUrl} />
+          <a href={mediaUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--gold-light)", fontSize: 12 }}>🎬 Vídeo</a>
+        </video>
+        {body && (
+          <div style={{ padding: "6px 12px 8px", background: bg, fontSize: 13, fontFamily: "Manrope, sans-serif", color: "var(--cream)" }}>
+            {body}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (mediaType === "document" || mediaType === "sticker") {
+    return (
+      <div style={{ maxWidth: "68%", background: bg, border, borderRadius: borderR, padding: "10px 14px" }}>
+        <a href={mediaUrl ?? "#"} target="_blank" rel="noopener noreferrer" style={{
+          display: "flex", alignItems: "center", gap: 8,
+          color: "var(--gold-light)", textDecoration: "none",
+          fontFamily: "Manrope, sans-serif", fontSize: 13,
+        }}>
+          <span>{mediaType === "sticker" ? "🎭" : "📎"}</span>
+          <span>{body || (mediaType === "document" ? "Documento" : "Sticker")}</span>
+        </a>
+      </div>
+    );
+  }
+
+  // Fallback genérico
+  return (
+    <div style={{ maxWidth: "68%", background: bg, border, borderRadius: borderR, padding: "10px 14px",
+      fontFamily: "Manrope, sans-serif", fontSize: 13, color: "var(--cream)" }}>
+      {body || `[${mediaType}]`}
+    </div>
+  );
+}
+
+// ── Triage Modal ──────────────────────────────────────────────────────────────
+
+function TriageModal({
+  conversationId,
+  onClose,
+  onSuccess,
+}: {
+  conversationId: string;
+  onClose: () => void;
+  onSuccess: (dealId: string) => void;
+}) {
+  const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPipeline, setSelectedPipeline] = useState("");
+  const [selectedStage, setSelectedStage] = useState("");
+  const [notes, setNotes] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPipelineOptions().then(opts => { setPipelines(opts); setLoading(false); });
+  }, []);
+
+  const pipeline = pipelines.find(p => p.id === selectedPipeline);
+
+  async function handleSubmit() {
+    if (!selectedPipeline || !selectedStage) { setError("Selecione pipeline e estágio."); return; }
+    setSending(true);
+    setError(null);
+    const res = await triageLeadToPipeline(conversationId, selectedPipeline, selectedStage, notes || undefined);
+    setSending(false);
+    if (!res.ok) { setError(res.error); return; }
+    onSuccess(res.data);
+  }
+
+  return createPortal(
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 99999,
+      background: "rgba(0,0,0,0.7)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        background: "rgba(10,22,11,0.98)",
+        border: "1px solid rgba(242,236,223,0.12)",
+        borderRadius: 16, padding: 28,
+        width: 380, maxWidth: "90vw",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.8)",
+        backdropFilter: "blur(24px)",
+      }}>
+        <div style={{
+          fontFamily: "Fraunces, serif", fontSize: 18,
+          color: "var(--cream)", marginBottom: 18,
+        }}>
+          Enviar lead para pipeline
+        </div>
+
+        {loading ? (
+          <p style={{ color: "var(--cream-dim)", fontSize: 12, fontFamily: "Manrope, sans-serif" }}>Carregando pipelines…</p>
+        ) : pipelines.length === 0 ? (
+          <p style={{ color: "var(--cream-dim)", fontSize: 12, fontFamily: "Manrope, sans-serif" }}>
+            Nenhum pipeline ativo. Crie um em Pipeline CRM primeiro.
+          </p>
+        ) : (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: "var(--cream-dim)", fontFamily: "Manrope, sans-serif", letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                Pipeline
+              </label>
+              <select
+                value={selectedPipeline}
+                onChange={e => { setSelectedPipeline(e.target.value); setSelectedStage(""); }}
+                style={{
+                  width: "100%", background: "rgba(242,236,223,0.05)",
+                  border: "1px solid rgba(242,236,223,0.12)",
+                  borderRadius: 8, padding: "8px 10px",
+                  color: "var(--cream)", fontFamily: "Manrope, sans-serif",
+                  fontSize: 13, outline: "none",
+                }}
+              >
+                <option value="">Selecionar…</option>
+                {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+
+            {pipeline && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 11, color: "var(--cream-dim)", fontFamily: "Manrope, sans-serif", letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                  Estágio
+                </label>
+                <select
+                  value={selectedStage}
+                  onChange={e => setSelectedStage(e.target.value)}
+                  style={{
+                    width: "100%", background: "rgba(242,236,223,0.05)",
+                    border: "1px solid rgba(242,236,223,0.12)",
+                    borderRadius: 8, padding: "8px 10px",
+                    color: "var(--cream)", fontFamily: "Manrope, sans-serif",
+                    fontSize: 13, outline: "none",
+                  }}
+                >
+                  <option value="">Selecionar…</option>
+                  {pipeline.stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 11, color: "var(--cream-dim)", fontFamily: "Manrope, sans-serif", letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                Observações (opcional)
+              </label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={3}
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  background: "rgba(242,236,223,0.05)",
+                  border: "1px solid rgba(242,236,223,0.12)",
+                  borderRadius: 8, padding: "8px 10px",
+                  color: "var(--cream)", fontFamily: "Manrope, sans-serif",
+                  fontSize: 13, outline: "none", resize: "vertical",
+                }}
+                placeholder="Contexto do lead, interesse, urgência…"
+              />
+            </div>
+          </>
+        )}
+
+        {error && (
+          <p style={{ color: "#ef4444", fontSize: 11.5, fontFamily: "Manrope, sans-serif", marginBottom: 12 }}>{error}</p>
+        )}
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none", border: "1px solid rgba(242,236,223,0.12)",
+              borderRadius: 8, padding: "7px 14px",
+              color: "var(--cream-dim)", fontFamily: "Manrope, sans-serif",
+              fontSize: 12, cursor: "pointer",
+            }}
+          >Cancelar</button>
+          <button
+            onClick={handleSubmit}
+            disabled={sending || !selectedPipeline || !selectedStage}
+            style={{
+              background: "linear-gradient(135deg, var(--gold-light), var(--gold))",
+              border: "none", borderRadius: 8,
+              padding: "7px 16px",
+              color: "var(--forest-950)", fontFamily: "Manrope, sans-serif",
+              fontSize: 12, fontWeight: 800, letterSpacing: 0.8,
+              cursor: sending ? "wait" : "pointer",
+              opacity: sending || !selectedPipeline || !selectedStage ? 0.5 : 1,
+            }}
+          >{sending ? "Enviando…" : "Enviar para pipeline"}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 // ── Attachment chip ───────────────────────────────────────────────────────────
@@ -134,6 +379,9 @@ export function InboxDetail({ conversationId, onStatusChange }: Props) {
   const [editingId,   setEditingId]   = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [editLoading, setEditLoading] = useState(false);
+
+  // Triagem para pipeline
+  const [showTriage, setShowTriage] = useState(false);
 
   // Upload de arquivo pelo admin
   const [pendingAtts,  setPendingAtts]  = useState<TimelineAttachment[]>([]);
@@ -354,6 +602,26 @@ export function InboxDetail({ conversationId, onStatusChange }: Props) {
                 onMouseLeave={e => (e.currentTarget.style.background = "rgba(185,146,77,0.08)")}
               >
                 📄 PDF
+              </button>
+
+              {/* Triagem para Pipeline */}
+              <button
+                onClick={() => setShowTriage(true)}
+                title="Enviar lead para o pipeline CRM"
+                style={{
+                  background: "rgba(167,139,250,0.08)",
+                  border: "1px solid rgba(167,139,250,0.22)",
+                  borderRadius: 8, color: "#a78bfa",
+                  fontFamily: "Manrope, sans-serif",
+                  fontSize: 11, fontWeight: 600,
+                  padding: "6px 11px", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 5,
+                  flexShrink: 0, whiteSpace: "nowrap", transition: "all 0.2s",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "rgba(167,139,250,0.15)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "rgba(167,139,250,0.08)")}
+              >
+                ◈ Pipeline
               </button>
 
               {/* Status dropdown */}
@@ -652,7 +920,15 @@ export function InboxDetail({ conversationId, onStatusChange }: Props) {
                 </div>
               ) : (
                 <>
-                  {item.body && (
+                  {/* Mídia WA/IG (image, audio, video, document, sticker) */}
+                  {item.media_type ? (
+                    <MediaBubble
+                      mediaType={item.media_type}
+                      mediaUrl={item.media_url}
+                      body={item.body}
+                      isOut={isOut}
+                    />
+                  ) : item.body ? (
                     <div style={{
                       maxWidth: "68%",
                       background: isNoteMsg
@@ -674,8 +950,8 @@ export function InboxDetail({ conversationId, onStatusChange }: Props) {
                     }}>
                       {item.body}
                     </div>
-                  )}
-                  {/* Attachments */}
+                  ) : null}
+                  {/* Attachments (upload de arquivo pelo admin) */}
                   {atts.length > 0 && (
                     <div style={{
                       display: "flex", flexWrap: "wrap", gap: 6,
@@ -922,6 +1198,20 @@ export function InboxDetail({ conversationId, onStatusChange }: Props) {
           </p>
         )}
       </div>
+
+      {/* Modal de triagem */}
+      {showTriage && conversationId && (
+        <TriageModal
+          conversationId={conversationId}
+          onClose={() => setShowTriage(false)}
+          onSuccess={(dealId) => {
+            setShowTriage(false);
+            // feedback visual
+            setError(null);
+            console.info("[triage] deal criado:", dealId);
+          }}
+        />
+      )}
     </div>
   );
 }
