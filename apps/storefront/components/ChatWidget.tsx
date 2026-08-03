@@ -568,28 +568,7 @@ export function ChatWidget() {
                               lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word",
                             }}>{msg.body}</div>
                           )}
-                          {/* Botão editar — só nas mensagens do LEAD (direction=in), não nas do admin */}
-                          {!isOut && !msg.id.startsWith("temp-") && (
-                            <button
-                              onClick={() => startEdit(msg)}
-                              title="Editar sua mensagem"
-                              style={{
-                                position: "absolute", top: 2, right: -22,
-                                background: "none", border: "none",
-                                fontSize: 11, color: "rgba(242,236,223,0.3)",
-                                cursor: "pointer", padding: 2,
-                                opacity: 0, transition: "opacity 0.2s",
-                              }}
-                              onMouseEnter={e => {
-                                e.currentTarget.style.opacity = "1";
-                                e.currentTarget.style.color = "#d9b87a";
-                              }}
-                              onMouseLeave={e => {
-                                e.currentTarget.style.opacity = "0";
-                              }}
-                            >✏</button>
-                          )}
-                        </div>
+                            </div>
                       )}
                       {/* Attachments */}
                       {atts.length > 0 && !isEditing && (

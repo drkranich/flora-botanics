@@ -391,12 +391,14 @@ export async function editMessage(
   if (!newBody.trim()) return { ok: false, error: "Conteúdo não pode ser vazio." };
 
   const supabase = await createClient();
+  // Admin só pode editar suas próprias mensagens (out/note), nunca as do lead (in)
   const { error } = await supabase
     .from("messages")
     .update({ body: newBody.trim() })
     .eq("id",              messageId)
     .eq("conversation_id", conversationId)
-    .eq("tenant_id",       staff.tenantId);
+    .eq("tenant_id",       staff.tenantId)
+    .in("direction",       ["out", "note"]);
 
   if (error) return { ok: false, error: error.message };
 

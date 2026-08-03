@@ -551,11 +551,11 @@ export function InboxDetail({ conversationId }: Props) {
                 }}>
                   {item.sender_name} · {formatDateTime(item.created_at)}
                 </span>
-                {/* Botão editar — disponível para admin em qualquer mensagem */}
-                {!isEditing && (
+                {/* Botão editar — apenas nas mensagens do admin (direction=out/note) */}
+                {!isEditing && !item.sender_is_contact && (
                   <button
                     onClick={() => startEdit(item)}
-                    title="Editar mensagem"
+                    title="Editar sua mensagem"
                     style={{
                       background: "none", border: "none",
                       fontSize: 11, color: "rgba(242,236,223,0.25)",
