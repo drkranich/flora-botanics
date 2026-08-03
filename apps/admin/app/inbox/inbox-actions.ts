@@ -673,24 +673,28 @@ export async function getTimeline(conversationId: string): Promise<TimelineEvent
 
   const supabase = await createClient();
 
-  // 1. Mensagens
+  // 1. Mensagens — schema real: id, direction, sender_name, body, created_at
   const { data: msgs } = await supabase
     .from("messages")
-    .select("id, direction, sender_name, sender_is_contact, body, is_internal_note, created_at")
+    .select("id, direction, sender_name, body, created_at")
     .eq("conversation_id", conversationId)
     .eq("tenant_id", staff.tenantId)
     .order("created_at", { ascending: true })
     .limit(200);
 
-  const msgEvents: TimelineEvent[] = (msgs ?? []).map((m: Record<string, unknown>) => ({
-    id:                m.id as string,
-    kind:              (m.is_internal_note ? "note" : "message") as TimelineKind,
-    sender_name:       (m.sender_name as string) ?? "?",
-    sender_is_contact: (m.direction as string) === "in",
-    body:              m.body as string,
-    is_internal_note:  m.is_internal_note as boolean,
-    created_at:        m.created_at as string,
-  }));
+  const msgEvents: TimelineEvent[] = (msgs ?? []).map((m: Record<string, unknown>) => {
+    const dir = (m.direction as string) ?? "out";
+    const isNote = dir === "note";
+    return {
+      id:                m.id as string,
+      kind:              (isNote ? "note" : "message") as TimelineKind,
+      sender_name:       (m.sender_name as string) ?? "?",
+      sender_is_contact: dir === "in",
+      body:              m.body as string,
+      is_internal_note:  isNote,
+      created_at:        m.created_at as string,
+    };
+  });
 
   // 2. Eventos de auditoria (tabela helpdesk_audit_log — silencia se não existir)
   let auditEvents: TimelineEvent[] = [];
