@@ -34,7 +34,8 @@ const ENDPOINTS: Record<string, { prod: string; hom: string }> = {
   },
   MG: {
     prod: "https://nfe.fazenda.mg.gov.br/nfe/services/NFeAutorizacao4",
-    hom:  "https://hnfe.fazenda.mg.gov.br/nfe/services/NFeAutorizacao4",
+    // Homologação MG via SVRS — o servidor hnfe.fazenda.mg.gov.br tem TLS instável
+    hom:  "https://homologacao.nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
   },
   MS: {
     prod: "https://nfe.fazenda.ms.gov.br/ws/NFeAutorizacao4.asmx",
