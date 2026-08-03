@@ -13,7 +13,6 @@ export async function OPTIONS() {
 
 // Resolve tenant_id usando service_role (sem depender do anon client nem de RLS)
 async function resolveTenantId(supabase: Awaited<ReturnType<typeof getServerSupabase>>): Promise<string> {
-  // Tenta pelo slug canônico do .env, depois pega o primeiro tenant ativo
   const slug = process.env.TENANT_SLUG ?? "flora-botanics";
   const { data } = await supabase
     .from("tenants")
@@ -72,14 +71,12 @@ export async function POST(req: NextRequest) {
 
       // Cria a conversa no helpdesk
       const { data: conv, error: convErr } = await supabase
-        .from("helpdesk_conversations")
+        .from("conversations")
         .insert({
           tenant_id:            tenantId,
           channel:              "chat",
-          subject:              `[Chat] ${topic}`,
           contact_name:         name,
-          contact_email:        email,
-          contact_phone:        phone,
+          contact_handle:       email,   // email como identificador; phone no body da mensagem inicial
           status:               "open",
           last_message_preview: preview,
           last_message_at:      new Date().toISOString(),
@@ -95,15 +92,14 @@ export async function POST(req: NextRequest) {
 
       const convId = (conv as { id: string }).id;
 
-      // Mensagem inicial do atendimento (type=outbound = do atendente para o cliente)
-      await supabase.from("helpdesk_messages").insert({
-        tenant_id:        tenantId,
-        conversation_id:  convId,
-        type:             "outbound",
-        sender_name:      "Flora Botanics",
-        sender_is_contact: false,
-        body:             `Olá, ${name}! 👋 Seja bem-vindo(a) ao atendimento Flora Botanics.\n\nAssunto: ${topic}\n\nEm instantes um de nossos atendentes estará com você.`,
-        is_internal_note: false,
+      // Mensagem de boas-vindas (direction=out = do atendente para o cliente)
+      await supabase.from("messages").insert({
+        tenant_id:       tenantId,
+        conversation_id: convId,
+        direction:       "out",
+        sender_name:     "Flora Botanics",
+        body:            `Olá, ${name}! 👋 Seja bem-vindo(a) ao atendimento Flora Botanics.\n\nAssunto: ${topic} | Tel: ${phone}\n\nEm instantes um de nossos atendentes estará com você.`,
+        private:         false,
       });
 
       return NextResponse.json({ conv_id: convId, name, topic }, { headers: CORS });
@@ -117,20 +113,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Dados incompletos." }, { status: 400, headers: CORS });
       }
 
-      const { error } = await supabase.from("helpdesk_messages").insert({
-        tenant_id:         tenantId,
-        conversation_id:   convId,
-        type:              "inbound",
-        sender_name:       "Visitante",
-        sender_is_contact: true,
-        body:              text,
-        is_internal_note:  false,
+      const { error } = await supabase.from("messages").insert({
+        tenant_id:       tenantId,
+        conversation_id: convId,
+        direction:       "in",
+        sender_name:     "Visitante",
+        body:            text,
+        private:         false,
       });
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS });
 
       // Atualiza preview da conversa
-      await supabase.from("helpdesk_conversations")
+      await supabase.from("conversations")
         .update({ last_message_preview: text.slice(0, 140), last_message_at: new Date().toISOString() })
         .eq("id", convId)
         .eq("tenant_id", tenantId);
@@ -161,19 +156,18 @@ export async function GET(req: NextRequest) {
     const tenantId = await resolveTenantId(supabase);
 
     const { data: msgs } = await supabase
-      .from("helpdesk_messages")
-      .select("id, type, sender_name, body, created_at")
+      .from("messages")
+      .select("id, direction, sender_name, body, created_at")
       .eq("conversation_id", convId)
       .eq("tenant_id", tenantId)
-      .eq("is_internal_note", false)
+      .eq("private", false)
       .gt("created_at", after)
       .order("created_at", { ascending: true })
       .limit(50);
 
-    // Mapeia type (inbound/outbound) → direction (in/out) para o ChatWidget
-    const messages = (msgs ?? []).map((m: { id: string; type: string; sender_name: string; body: string; created_at: string }) => ({
+    const messages = (msgs ?? []).map((m: { id: string; direction: string; sender_name: string; body: string; created_at: string }) => ({
       id:          m.id,
-      direction:   m.type === "outbound" ? "out" : "in",
+      direction:   m.direction === "out" ? "out" : "in",
       sender_name: m.sender_name,
       body:        m.body,
       created_at:  m.created_at,
