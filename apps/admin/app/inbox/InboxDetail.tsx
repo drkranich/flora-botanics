@@ -125,7 +125,7 @@ export function InboxDetail({ conversationId }: Props) {
   const [showStatus, setShowStatus] = useState(false);
   const [showMacros, setShowMacros] = useState(false);
   const [convNum, setConvNum]       = useState<number | null>(null);
-  const [statusPos, setStatusPos]   = useState<{ top: number; right: number } | null>(null);
+  const [statusPos, setStatusPos]   = useState<{ top: number; left: number } | null>(null);
   const statusBtnRef = useRef<HTMLButtonElement>(null);
 
   // Edição de mensagem
@@ -353,7 +353,7 @@ export function InboxDetail({ conversationId }: Props) {
                   onClick={() => {
                     if (!showStatus && statusBtnRef.current) {
                       const r = statusBtnRef.current.getBoundingClientRect();
-                      setStatusPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+                      setStatusPos({ top: r.bottom + 6, left: r.left });
                     }
                     setShowStatus(v => !v);
                   }}
@@ -377,7 +377,7 @@ export function InboxDetail({ conversationId }: Props) {
                   <div style={{
                     position: "fixed",
                     top: statusPos.top,
-                    right: statusPos.right,
+                    left: statusPos.left,
                     background: "rgba(10,22,11,0.97)",
                     border: "1px solid rgba(242,236,223,0.12)",
                     borderRadius: 12, zIndex: 99999, minWidth: 190,
