@@ -15,6 +15,7 @@ export default function InboxPage() {
   const [selectedPriority, setSelectedPriority] = useState<string>("normal");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showNewConv, setShowNewConv] = useState(false);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
   const [counts, setCounts] = useState<Record<InboxQueue, number>>({
     inbox: 0, mine: 0, unassigned: 0, urgent: 0,
     waiting_customer: 0, waiting_team: 0,
@@ -69,11 +70,15 @@ export default function InboxPage() {
         queue={queue}
         selectedId={selectedId}
         onSelect={handleSelectConversation}
+        refreshKey={listRefreshKey}
       />
 
       {/* Coluna 3 — Detalhe (flex:1) */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <InboxDetail conversationId={selectedId} />
+        <InboxDetail
+          conversationId={selectedId}
+          onStatusChange={() => { setListRefreshKey(k => k + 1); loadCounts(); }}
+        />
       </div>
 
       {/* Coluna 4 — Contexto do contato (240px) */}

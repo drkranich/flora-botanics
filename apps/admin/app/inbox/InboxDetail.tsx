@@ -113,9 +113,9 @@ function AttachmentChip({ att }: { att: TimelineAttachment }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-interface Props { conversationId: string | null }
+interface Props { conversationId: string | null; onStatusChange?: () => void }
 
-export function InboxDetail({ conversationId }: Props) {
+export function InboxDetail({ conversationId, onStatusChange }: Props) {
   const [conv, setConv]           = useState<ConversationDetail | null>(null);
   const [timeline, setTimeline]   = useState<TimelineEvent[]>([]);
   const [reply, setReply]         = useState("");
@@ -213,7 +213,10 @@ export function InboxDetail({ conversationId }: Props) {
     if (!res.ok) { setError(res.error); return; }
     setReply("");
     setPendingAtts([]);
-    if (resolveAfter) await setStatusWithAudit(conversationId, "resolved");
+    if (resolveAfter) {
+      await setStatusWithAudit(conversationId, "resolved");
+      onStatusChange?.();
+    }
     load(conversationId);
   }
 
@@ -239,6 +242,7 @@ export function InboxDetail({ conversationId }: Props) {
     await setStatusWithAudit(conversationId, s);
     setShowStatus(false);
     load(conversationId);
+    onStatusChange?.();
   }
 
   // ── PDF ────────────────────────────────────────────────────────────────────

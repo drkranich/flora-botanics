@@ -43,9 +43,10 @@ interface Props {
   queue: InboxQueue;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  refreshKey?: number;
 }
 
-export function InboxList({ queue, selectedId, onSelect }: Props) {
+export function InboxList({ queue, selectedId, onSelect, refreshKey }: Props) {
   const [items, setItems] = useState<ConversationListItem[]>([]);
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -60,6 +61,7 @@ export function InboxList({ queue, selectedId, onSelect }: Props) {
   }
 
   useEffect(() => { setSearch(""); load(queue); }, [queue]);
+  useEffect(() => { if (refreshKey) load(queue, searchRef.current || undefined); }, [refreshKey]); // eslint-disable-line
 
   useEffect(() => {
     const t = setTimeout(() => load(queue, search || undefined), 300);
