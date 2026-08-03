@@ -184,6 +184,9 @@ export function ChatWidget() {
   }, [phase]);
 
   // ── Polling estável ────────────────────────────────────────────────────────
+  // Estratégia: busca TODAS as mensagens da conversa a cada 4s usando
+  // apenas IDs reais (UUID) como deduplicação. Mensagens temporárias (temp-*)
+  // são substituídas pelas reais do banco assim que chegam.
   useEffect(() => {
     if (phase !== "chat" || !convId) return;
 
@@ -191,22 +194,32 @@ export function ChatWidget() {
       const cid = convIdRef.current;
       if (!cid) return;
       try {
-        const res = await fetch(`/api/chat?conv_id=${cid}&after=${encodeURIComponent(lastAtRef.current)}`);
+        // Sempre busca tudo (after=epoch) para não perder mensagens do admin
+        // O backend limita a 50 msgs — suficiente para chat de atendimento
+        const res = await fetch(`/api/chat?conv_id=${cid}&after=${encodeURIComponent(new Date(0).toISOString())}`);
         if (!res.ok) return;
         const json = await res.json() as { messages?: ChatMessage[] };
-        const incoming = json.messages ?? [];
-        if (!incoming.length) return;
+        const serverMsgs = json.messages ?? [];
+        if (!serverMsgs.length) return;
 
         setMessages(prev => {
-          const ids  = new Set(prev.map(m => m.id));
-          const news = incoming.filter(m => !ids.has(m.id));
-          if (!news.length) return prev;
+          // IDs reais do servidor
+          const serverIds = new Set(serverMsgs.map(m => m.id));
+          // Remove temporários que já têm correspondente no banco
+          // (heurística: mensagens temp- com body igual a uma msg real recente)
+          const temps = prev.filter(m => m.id.startsWith("temp-"));
+          const realBodies = new Set(serverMsgs.filter(m => m.direction === "in").map(m => m.body));
+          const tempsToKeep = temps.filter(t => !realBodies.has(t.body));
 
-          const newLastAt = news[news.length - 1].created_at;
-          lastAtRef.current = newLastAt;
-          const next = [...prev, ...news];
+          // Mensagens reais + temporários ainda não confirmados
+          const next = [...serverMsgs, ...tempsToKeep];
+
+          // Avança lastAt para o último timestamp real
+          const lastReal = serverMsgs[serverMsgs.length - 1]?.created_at;
+          if (lastReal) lastAtRef.current = lastReal;
+
           if (convIdRef.current) {
-            saveSession(convIdRef.current, userNameRef.current, topicRef.current ?? "", next, newLastAt);
+            saveSession(convIdRef.current, userNameRef.current, topicRef.current ?? "", next, lastReal ?? lastAtRef.current);
           }
           return next;
         });
@@ -507,11 +520,28 @@ export function ChatWidget() {
           {/* Chat */}
           {phase === "chat" && (
             <>
-              <div style={{
+              <style>{`
+                .flora-chat-scroll::-webkit-scrollbar { width: 4px; }
+                .flora-chat-scroll::-webkit-scrollbar-track {
+                  background: rgba(185,146,77,0.04);
+                  border-radius: 8px;
+                }
+                .flora-chat-scroll::-webkit-scrollbar-thumb {
+                  background: rgba(185,146,77,0.25);
+                  border-radius: 8px;
+                  backdrop-filter: blur(4px);
+                }
+                .flora-chat-scroll::-webkit-scrollbar-thumb:hover {
+                  background: rgba(185,146,77,0.45);
+                }
+              `}</style>
+              <div className="flora-chat-scroll" style={{
                 flex: 1, overflowY: "auto",
                 padding: "14px 16px",
                 display: "flex", flexDirection: "column", gap: 10,
                 minHeight: 200, maxHeight: 360,
+                scrollbarWidth: "thin",
+                scrollbarColor: "rgba(185,146,77,0.25) rgba(185,146,77,0.04)",
               }}>
                 {messages.length === 0 && (
                   <div style={{ textAlign: "center", padding: "24px 0", color: "rgba(242,236,223,0.35)", fontSize: 12 }}>
@@ -568,21 +598,23 @@ export function ChatWidget() {
                               lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word",
                             }}>{msg.body}</div>
                           )}
-                          {/* Botão ✏ — só nas mensagens DO LEAD (direction=in), aparece no hover */}
+                          {/* Botão ✏ — só nas mensagens DO LEAD (direction=in) */}
                           {!isOut && !msg.id.startsWith("temp-") && (
                             <button
                               onClick={() => startEdit(msg)}
                               title="Editar sua mensagem"
                               style={{
-                                position: "absolute", top: 4, right: -20,
+                                display: "block",
+                                marginTop: 3,
                                 background: "none", border: "none",
-                                fontSize: 11, color: "rgba(242,236,223,0.35)",
-                                cursor: "pointer", padding: 2,
-                                lineHeight: 1,
+                                fontSize: 10, color: "rgba(242,236,223,0.35)",
+                                cursor: "pointer", padding: "1px 3px",
+                                fontFamily: "Manrope, sans-serif",
+                                textAlign: "right",
                               }}
                               onMouseEnter={e => (e.currentTarget.style.color = "#d9b87a")}
                               onMouseLeave={e => (e.currentTarget.style.color = "rgba(242,236,223,0.35)")}
-                            >✏</button>
+                            >✏ editar</button>
                           )}
                         </div>
                       )}
