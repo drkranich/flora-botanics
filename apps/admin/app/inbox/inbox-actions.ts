@@ -83,6 +83,13 @@ export type ActionResult<T = void> =
 
 export type TimelineKind = "message" | "note" | "event";
 
+export interface TimelineAttachment {
+  url:  string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 export interface TimelineEvent {
   id: string;
   kind: TimelineKind;
@@ -91,6 +98,7 @@ export interface TimelineEvent {
   sender_is_contact?: boolean;
   body?: string;
   is_internal_note?: boolean;
+  attachments?: TimelineAttachment[];
   // evento
   event_type?: string;
   event_label?: string;
@@ -319,10 +327,11 @@ export async function sendReply(
   conversationId: string,
   body: string,
   isNote: boolean,
+  attachments?: TimelineAttachment[],
 ): Promise<ActionResult> {
   const staff = await currentStaff();
   if (!staff) return { ok: false, error: "Sessão inválida." };
-  if (!body.trim()) return { ok: false, error: "Mensagem vazia." };
+  if (!body.trim() && !attachments?.length) return { ok: false, error: "Mensagem vazia." };
 
   const supabase = await createClient();
 
@@ -341,6 +350,7 @@ export async function sendReply(
     direction:       isNote ? "note" : "out",
     sender_name:     staff.fullName ?? staff.email,
     body,
+    ...(attachments?.length ? { attachments } : {}),
   });
 
   if (!isNote) {
@@ -368,6 +378,47 @@ export async function sendReply(
 }
 
 // ── Alterar status ───────────────────────────────────────────────────────────
+
+// ── Editar mensagem (admin pode editar qualquer, lead só "in") ────────────────
+
+export async function editMessage(
+  conversationId: string,
+  messageId: string,
+  newBody: string,
+): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (!newBody.trim()) return { ok: false, error: "Conteúdo não pode ser vazio." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("messages")
+    .update({ body: newBody.trim() })
+    .eq("id",              messageId)
+    .eq("conversation_id", conversationId)
+    .eq("tenant_id",       staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit(supabase, staff.tenantId, conversationId, staff.id,
+    staff.fullName ?? staff.email ?? "", "message_edited", { message_id: messageId });
+
+  revalidatePath("/inbox");
+  return { ok: true, data: undefined };
+}
+
+// ── Gerar PDF da conversa ─────────────────────────────────────────────────────
+
+export async function getConversationPdfData(conversationId: string): Promise<{
+  conv: ConversationDetail | null;
+  timeline: TimelineEvent[];
+}> {
+  const [conv, timeline] = await Promise.all([
+    getConversationDetail(conversationId),
+    getTimeline(conversationId),
+  ]);
+  return { conv, timeline };
+}
 
 export async function setStatus(
   conversationId: string,
@@ -673,17 +724,17 @@ export async function getTimeline(conversationId: string): Promise<TimelineEvent
 
   const supabase = await createClient();
 
-  // 1. Mensagens — schema real: id, direction, sender_name, body, created_at
+  // 1. Mensagens — schema real: id, direction, sender_name, body, attachments, created_at
   const { data: msgs } = await supabase
     .from("messages")
-    .select("id, direction, sender_name, body, created_at")
+    .select("id, direction, sender_name, body, attachments, created_at")
     .eq("conversation_id", conversationId)
     .eq("tenant_id", staff.tenantId)
     .order("created_at", { ascending: true })
     .limit(200);
 
   const msgEvents: TimelineEvent[] = (msgs ?? []).map((m: Record<string, unknown>) => {
-    const dir = (m.direction as string) ?? "out";
+    const dir    = (m.direction as string) ?? "out";
     const isNote = dir === "note";
     return {
       id:                m.id as string,
@@ -692,6 +743,7 @@ export async function getTimeline(conversationId: string): Promise<TimelineEvent
       sender_is_contact: dir === "in",
       body:              m.body as string,
       is_internal_note:  isNote,
+      attachments:       Array.isArray(m.attachments) ? (m.attachments as TimelineAttachment[]) : [],
       created_at:        m.created_at as string,
     };
   });

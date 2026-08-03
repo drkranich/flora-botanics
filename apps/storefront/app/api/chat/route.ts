@@ -102,10 +102,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === "message") {
-      const convId = (body.conv_id ?? "").trim();
-      const text   = (body.text   ?? "").trim();
+      const convId      = (body.conv_id ?? "").trim();
+      const text        = (body.text    ?? "").trim();
+      const attachments = Array.isArray(body.attachments) ? body.attachments : [];
 
-      if (!convId || !text) {
+      if (!convId || (!text && !attachments.length)) {
         return NextResponse.json({ error: "Dados incompletos." }, { status: 400, headers: CORS });
       }
 
@@ -115,16 +116,39 @@ export async function POST(req: NextRequest) {
         direction:       "in",
         sender_name:     "Visitante",
         body:            text,
+        attachments:     attachments.length ? attachments : null,
       });
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS });
 
-      // Atualiza preview
+      const preview = text.slice(0, 140) || (attachments.length ? `[${attachments.length} arquivo(s)]` : "");
       await supabase.from("conversations")
-        .update({ last_message_preview: text.slice(0, 140), last_message_at: new Date().toISOString() })
+        .update({ last_message_preview: preview, last_message_at: new Date().toISOString() })
         .eq("id", convId)
         .eq("tenant_id", tenantId);
 
+      return NextResponse.json({ ok: true }, { headers: CORS });
+    }
+
+    if (body.action === "edit") {
+      const convId = (body.conv_id ?? "").trim();
+      const msgId  = (body.msg_id  ?? "").trim();
+      const text   = (body.text    ?? "").trim();
+
+      if (!convId || !msgId || !text) {
+        return NextResponse.json({ error: "Dados incompletos." }, { status: 400, headers: CORS });
+      }
+
+      // Só permite editar mensagens "in" (do visitante) desta conversa
+      const { error } = await supabase
+        .from("messages")
+        .update({ body: text })
+        .eq("id",              msgId)
+        .eq("conversation_id", convId)
+        .eq("tenant_id",       tenantId)
+        .eq("direction",       "in");
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS });
       return NextResponse.json({ ok: true }, { headers: CORS });
     }
 
@@ -151,18 +175,19 @@ export async function GET(req: NextRequest) {
 
     const { data: msgs } = await supabase
       .from("messages")
-      .select("id, direction, sender_name, body, created_at")
+      .select("id, direction, sender_name, body, attachments, created_at")
       .eq("conversation_id", convId)
       .eq("tenant_id", tenantId)
       .gt("created_at", after)
       .order("created_at", { ascending: true })
       .limit(50);
 
-    const messages = (msgs ?? []).map((m: { id: string; direction: string; sender_name: string; body: string; created_at: string }) => ({
+    const messages = (msgs ?? []).map((m: { id: string; direction: string; sender_name: string; body: string; attachments: unknown; created_at: string }) => ({
       id:          m.id,
       direction:   m.direction,
       sender_name: m.sender_name,
       body:        m.body,
+      attachments: Array.isArray(m.attachments) ? m.attachments : [],
       created_at:  m.created_at,
     }));
 
