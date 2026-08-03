@@ -224,6 +224,23 @@ export function InboxSidebar({ active, counts, onSelect, onNew }: Props) {
         gap: 6,
       }}>
         <Link
+          href="/inbox/equipe"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 11.5,
+            color: "var(--cream-dim)",
+            textDecoration: "none",
+            transition: "color 0.2s",
+          }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = "var(--gold-light)")}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = "var(--cream-dim)")}
+        >
+          <span style={{ fontSize: 11 }}>◎</span>
+          Equipe
+        </Link>
+        <Link
           href="/inbox/dashboard"
           style={{
             display: "flex",
