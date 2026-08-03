@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import type { ConversationDetail, TimelineAttachment, TimelineEvent } from "./inbox-actions";
 import {
   editMessage,
@@ -372,14 +373,14 @@ export function InboxDetail({ conversationId }: Props) {
                   {sLabel(conv.status)}
                   <span style={{ fontSize: 9, opacity: 0.6, flexShrink: 0 }}>▾</span>
                 </button>
-                {showStatus && statusPos && (
+                {showStatus && statusPos && typeof document !== "undefined" && createPortal(
                   <div style={{
                     position: "fixed",
                     top: statusPos.top,
                     right: statusPos.right,
                     background: "rgba(10,22,11,0.97)",
                     border: "1px solid rgba(242,236,223,0.12)",
-                    borderRadius: 12, zIndex: 9999, minWidth: 190,
+                    borderRadius: 12, zIndex: 99999, minWidth: 190,
                     boxShadow: "0 20px 56px rgba(0,0,0,0.75)",
                     backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
                   }}>
@@ -413,7 +414,8 @@ export function InboxDetail({ conversationId }: Props) {
                         )}
                       </button>
                     ))}
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
 
