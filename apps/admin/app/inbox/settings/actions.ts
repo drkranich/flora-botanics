@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { currentStaff } from "@/lib/auth";
 
 type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
@@ -244,6 +245,73 @@ export async function deleteEmailSignature(id: string): Promise<ActionResult<voi
   const { error } = await supabase
     .from("helpdesk_email_signatures")
     .delete()
+    .eq("id", id)
+    .eq("tenant_id", staff.tenantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: undefined };
+}
+
+// ── Channel Connections (e-mail) ───────────────────────────────────────────────
+
+export async function saveEmailChannel(
+  id: string | null,
+  name: string,
+  identifier: string,
+  autoReply: boolean,
+  autoReplyMessage: string,
+): Promise<ActionResult<string>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+  if (!identifier.trim()) return { ok: false, error: "E-mail obrigatório." };
+
+  const admin = await createAdminClient();
+  if (!admin) return { ok: false, error: "Erro de configuração do servidor." };
+
+  const payload = {
+    tenant_id:           staff.tenantId,
+    channel:             "email" as const,
+    name:                name.trim() || identifier.trim(),
+    identifier:          identifier.trim().toLowerCase(),
+    active:              true,
+    status:              "connected",
+    auto_reply_enabled:  autoReply,
+    auto_reply_message:  autoReply ? autoReplyMessage.trim() : null,
+  };
+
+  if (id) {
+    const { error } = await admin
+      .from("helpdesk_channel_connections")
+      .update(payload)
+      .eq("id", id)
+      .eq("tenant_id", staff.tenantId);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/inbox/settings");
+    return { ok: true, data: id };
+  }
+
+  const { data, error } = await admin
+    .from("helpdesk_channel_connections")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error || !data) return { ok: false, error: error?.message ?? "Erro ao salvar." };
+  revalidatePath("/inbox/settings");
+  return { ok: true, data: (data as { id: string }).id };
+}
+
+export async function deleteEmailChannel(id: string): Promise<ActionResult<void>> {
+  const staff = await currentStaff();
+  if (!staff) return { ok: false, error: "Sessão inválida." };
+
+  const admin = await createAdminClient();
+  if (!admin) return { ok: false, error: "Erro de configuração do servidor." };
+
+  const { error } = await admin
+    .from("helpdesk_channel_connections")
+    .update({ active: false })
     .eq("id", id)
     .eq("tenant_id", staff.tenantId);
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { currentStaff } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { InboxSettingsClient } from "./InboxSettingsClient";
@@ -60,6 +61,16 @@ export interface StaffProfile {
   email: string | null;
 }
 
+export interface EmailChannel {
+  id: string;
+  name: string;
+  identifier: string;        // e-mail de recebimento
+  status: string;            // 'connected' | 'disconnected' | 'error'
+  auto_reply_enabled: boolean;
+  auto_reply_message: string | null;
+  active: boolean;
+}
+
 // ── Server Component ──────────────────────────────────────────────────────────
 
 export default async function InboxSettingsPage() {
@@ -67,6 +78,8 @@ export default async function InboxSettingsPage() {
   if (!staff) redirect("/login");
 
   const supabase = await createClient();
+  // Canais precisam de service_role (RLS restrita a tenant_admin)
+  const admin    = await createAdminClient();
 
   const [
     { data: slaPolicies },
@@ -75,6 +88,7 @@ export default async function InboxSettingsPage() {
     { data: businessHours },
     { data: signatures },
     { data: profiles },
+    channelsResult,
   ] = await Promise.all([
     supabase
       .from("helpdesk_sla_policies")
@@ -111,6 +125,16 @@ export default async function InboxSettingsPage() {
       .from("profiles")
       .select("id, full_name, email")
       .eq("tenant_id", staff.tenantId),
+
+    admin
+      ? admin
+          .from("helpdesk_channel_connections")
+          .select("id, name, identifier, status, auto_reply_enabled, auto_reply_message, active")
+          .eq("tenant_id", staff.tenantId)
+          .eq("channel", "email")
+          .eq("active", true)
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [] }),
   ]);
 
   // Agrupa membros por equipe
@@ -146,6 +170,14 @@ export default async function InboxSettingsPage() {
     const saved = savedHours.find((h: { day_of_week: number }) => h.day_of_week === def.day_of_week);
     return saved ? (saved as BusinessHour) : def;
   });
+
+  const emailChannels = ((channelsResult as { data: unknown[] | null }).data ?? []) as EmailChannel[];
+
+  // URL do webhook para exibir na UI
+  const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL
+    ?? process.env.NEXTAUTH_URL
+    ?? "https://admin.florabotanics.com.br";
+  const webhookUrl = `${baseUrl}/api/webhooks/resend`;
 
   return (
     <div style={{
@@ -186,6 +218,8 @@ export default async function InboxSettingsPage() {
           businessHours={mergedHours}
           signatures={(signatures ?? []) as EmailSignature[]}
           allProfiles={(profiles ?? []) as StaffProfile[]}
+          emailChannels={emailChannels}
+          webhookUrl={webhookUrl}
         />
       </div>
     </div>

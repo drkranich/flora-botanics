@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { SlaPolicy, Team, BusinessHour, EmailSignature, StaffProfile } from "./page";
+import type { SlaPolicy, Team, BusinessHour, EmailSignature, StaffProfile, EmailChannel } from "./page";
 import { GlassSelect } from "@/components/GlassSelect";
 import {
   createSlaPolicy, toggleSlaPolicy, deleteSlaPolicy,
   createTeam, updateTeam, deleteTeam, addTeamMember, removeTeamMember,
   saveBusinessHours, saveEmailSignature, deleteEmailSignature,
+  saveEmailChannel, deleteEmailChannel,
 } from "./actions";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -127,7 +128,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
-const TABS = ["SLA", "Equipes", "Horário", "Assinatura"] as const;
+const TABS = ["SLA", "Equipes", "Horário", "Assinatura", "Canais"] as const;
 type Tab = typeof TABS[number];
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -139,6 +140,8 @@ interface Props {
   businessHours: BusinessHour[];
   signatures: EmailSignature[];
   allProfiles: StaffProfile[];
+  emailChannels: EmailChannel[];
+  webhookUrl: string;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -151,6 +154,8 @@ export function InboxSettingsClient({
   businessHours: initialHours,
   signatures: initialSigs,
   allProfiles,
+  emailChannels: initialChannels,
+  webhookUrl,
 }: Props) {
   const [tab, setTab] = useState<Tab>("SLA");
   const [isPending, start] = useTransition();
@@ -188,6 +193,17 @@ export function InboxSettingsClient({
   const [sigDefault, setSigDefault] = useState(false);
   const [sigError, setSigError]     = useState<string | null>(null);
   const [showSigForm, setShowSigForm] = useState(false);
+
+  // ── Channels state ───────────────────────────────────────────────────────
+  const [channels, setChannels]         = useState<EmailChannel[]>(initialChannels);
+  const [showChannelForm, setShowChannelForm] = useState(false);
+  const [editingChannel, setEditingChannel]   = useState<EmailChannel | null>(null);
+  const [channelName, setChannelName]         = useState("");
+  const [channelEmail, setChannelEmail]       = useState("");
+  const [channelAutoReply, setChannelAutoReply] = useState(false);
+  const [channelAutoReplyMsg, setChannelAutoReplyMsg] = useState("");
+  const [channelError, setChannelError]       = useState<string | null>(null);
+  const [channelCopied, setChannelCopied]     = useState(false);
 
   // ────────────────────────────────────────────────────────────────────────
   // SLA handlers
@@ -331,6 +347,60 @@ export function InboxSettingsClient({
       await deleteEmailSignature(id);
       setSigs(prev => prev.filter(s => s.id !== id));
     });
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Channels handlers
+  // ────────────────────────────────────────────────────────────────────────
+
+  function openNewChannel() {
+    setEditingChannel(null); setChannelName(""); setChannelEmail("");
+    setChannelAutoReply(false); setChannelAutoReplyMsg(""); setChannelError(null);
+    setShowChannelForm(true);
+  }
+  function openEditChannel(c: EmailChannel) {
+    setEditingChannel(c); setChannelName(c.name); setChannelEmail(c.identifier);
+    setChannelAutoReply(c.auto_reply_enabled); setChannelAutoReplyMsg(c.auto_reply_message ?? "");
+    setChannelError(null); setShowChannelForm(true);
+  }
+
+  async function handleSaveChannel() {
+    setChannelError(null);
+    start(async () => {
+      const res = await saveEmailChannel(
+        editingChannel?.id ?? null,
+        channelName, channelEmail, channelAutoReply, channelAutoReplyMsg,
+      );
+      if (!res.ok) { setChannelError(res.error); return; }
+      const updated: EmailChannel = {
+        id: res.data,
+        name: channelName || channelEmail,
+        identifier: channelEmail.toLowerCase().trim(),
+        status: "connected",
+        auto_reply_enabled: channelAutoReply,
+        auto_reply_message: channelAutoReply ? channelAutoReplyMsg : null,
+        active: true,
+      };
+      if (editingChannel) {
+        setChannels(prev => prev.map(c => c.id === editingChannel.id ? updated : c));
+      } else {
+        setChannels(prev => [...prev, updated]);
+      }
+      setShowChannelForm(false);
+    });
+  }
+
+  async function handleDeleteChannel(id: string) {
+    start(async () => {
+      await deleteEmailChannel(id);
+      setChannels(prev => prev.filter(c => c.id !== id));
+    });
+  }
+
+  function handleCopyWebhook() {
+    void navigator.clipboard.writeText(webhookUrl);
+    setChannelCopied(true);
+    setTimeout(() => setChannelCopied(false), 2000);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -842,6 +912,204 @@ export function InboxSettingsClient({
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          ABA: CANAIS
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === "Canais" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div>
+              <h2 style={{ margin: 0, fontFamily: "Fraunces, serif", fontSize: 20, fontWeight: 600, color: "var(--cream)", letterSpacing: -0.4 }}>
+                Canais de E-mail
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--cream-dim)", opacity: 0.6 }}>
+                Configure endereços de e-mail para receber mensagens no helpdesk via Resend.
+              </p>
+            </div>
+            <GoldBtn onClick={openNewChannel}>+ Novo canal</GoldBtn>
+          </div>
+
+          {/* Card URL do webhook */}
+          <div style={{
+            background: "rgba(15,32,18,0.55)", border: "1px solid rgba(185,146,77,0.18)",
+            borderRadius: 14, padding: "20px 22px", backdropFilter: "blur(20px)", marginBottom: 16,
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gold-light)", marginBottom: 10, opacity: 0.8 }}>
+              URL do Webhook (Resend)
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <code style={{
+                flex: 1, fontFamily: "monospace", fontSize: 12.5, color: "var(--cream)",
+                background: "rgba(10,22,11,0.6)", border: "1px solid rgba(242,236,223,0.1)",
+                borderRadius: 8, padding: "9px 12px", overflowX: "auto", whiteSpace: "nowrap",
+              }}>
+                {webhookUrl}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopyWebhook}
+                style={{
+                  flexShrink: 0, background: channelCopied ? "rgba(74,222,128,0.12)" : "rgba(185,146,77,0.1)",
+                  border: `1px solid ${channelCopied ? "rgba(74,222,128,0.3)" : "rgba(185,146,77,0.25)"}`,
+                  borderRadius: 8, padding: "9px 14px", fontSize: 11, fontWeight: 700,
+                  color: channelCopied ? "#4ade80" : "var(--gold-light)", cursor: "pointer",
+                  transition: "all 0.2s", fontFamily: "Manrope, sans-serif", letterSpacing: 0.5,
+                }}
+              >
+                {channelCopied ? "✓ Copiado" : "Copiar"}
+              </button>
+            </div>
+
+            {/* Instruções */}
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(242,236,223,0.06)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--cream-dim)", marginBottom: 10, letterSpacing: 0.3 }}>
+                Como configurar no Resend:
+              </div>
+              {[
+                "Acesse resend.com → Webhooks → Add Webhook",
+                "Cole a URL acima no campo Endpoint URL",
+                "Marque o evento email.received",
+                "Copie o Signing Secret gerado e adicione como RESEND_WEBHOOK_SECRET no painel do Cloudflare",
+                "Em Domains → seu domínio, configure o MX record para inbound.resend.com (prioridade 10)",
+              ].map((step, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 7, alignItems: "flex-start" }}>
+                  <span style={{
+                    flexShrink: 0, width: 18, height: 18, borderRadius: "50%",
+                    background: "rgba(185,146,77,0.2)", border: "1px solid rgba(185,146,77,0.3)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 9.5, fontWeight: 800, color: "var(--gold-light)",
+                  }}>{i + 1}</span>
+                  <span style={{ fontSize: 12, color: "var(--cream-dim)", lineHeight: 1.55 }}>{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Formulário novo/editar canal */}
+          {showChannelForm && (
+            <SectionCard title={editingChannel ? "Editar canal" : "Novo canal de e-mail"}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                <Field label="Nome do canal">
+                  <input
+                    value={channelName}
+                    onChange={e => setChannelName(e.target.value)}
+                    placeholder="ex: Suporte, Vendas…"
+                    style={inputStyle}
+                  />
+                </Field>
+                <Field label="Endereço de e-mail *">
+                  <input
+                    value={channelEmail}
+                    onChange={e => setChannelEmail(e.target.value)}
+                    placeholder="suporte@florabotanics.com.br"
+                    type="email"
+                    style={inputStyle}
+                  />
+                </Field>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: channelAutoReply ? 14 : 0 }}>
+                <Toggle on={channelAutoReply} onChange={setChannelAutoReply} />
+                <span style={{ fontSize: 12.5, color: "var(--cream-dim)" }}>Auto-resposta ativa</span>
+              </div>
+
+              {channelAutoReply && (
+                <div style={{ marginTop: 14 }}>
+                  <Field label="Mensagem de auto-resposta">
+                    <textarea
+                      value={channelAutoReplyMsg}
+                      onChange={e => setChannelAutoReplyMsg(e.target.value)}
+                      placeholder={"Olá! Recebemos sua mensagem e retornaremos em breve.\n\nEquipe Flora Botanics"}
+                      rows={4}
+                      style={{ ...inputStyle, resize: "vertical", lineHeight: 1.55 }}
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {channelError && <p style={{ fontSize: 11.5, color: "#ef4444", marginTop: 10 }}>{channelError}</p>}
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                <GoldBtn onClick={handleSaveChannel} disabled={isPending || !channelEmail.trim()}>
+                  {isPending ? "Salvando…" : editingChannel ? "Salvar alterações" : "Adicionar canal"}
+                </GoldBtn>
+                <button type="button" onClick={() => setShowChannelForm(false)} style={{
+                  background: "rgba(242,236,223,0.06)", border: "1px solid rgba(242,236,223,0.1)", borderRadius: 9,
+                  color: "var(--cream-dim)", fontFamily: "Manrope, sans-serif", fontSize: 11, fontWeight: 600,
+                  padding: "9px 16px", cursor: "pointer",
+                }}>Cancelar</button>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Lista de canais */}
+          {channels.length === 0 && !showChannelForm && (
+            <div style={{ textAlign: "center", padding: "48px 0" }}>
+              <div style={{ fontSize: 36, color: "var(--gold-light)", opacity: 0.15, marginBottom: 12, fontFamily: "Fraunces, serif" }}>✉</div>
+              <p style={{ fontSize: 13, color: "var(--cream-dim)", fontFamily: "Fraunces, serif", fontStyle: "italic" }}>
+                Nenhum canal de e-mail configurado ainda.
+              </p>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {channels.map(ch => {
+              const statusColor: Record<string, string> = {
+                connected: "#4ade80", disconnected: "#f0b429", error: "#ef4444",
+              };
+              const color = statusColor[ch.status] ?? "rgba(242,236,223,0.4)";
+              return (
+                <div key={ch.id} style={{
+                  background: "rgba(15,32,18,0.55)", border: "1px solid rgba(242,236,223,0.08)",
+                  borderRadius: 14, padding: "16px 20px", backdropFilter: "blur(20px)",
+                  display: "flex", alignItems: "center", gap: 14,
+                }}>
+                  {/* Status dot */}
+                  <span style={{
+                    width: 8, height: 8, borderRadius: "50%", background: color,
+                    flexShrink: 0, boxShadow: `0 0 6px ${color}88`,
+                  }} />
+
+                  {/* Info */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--cream)", marginBottom: 2 }}>
+                      {ch.name || ch.identifier}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--cream-dim)", display: "flex", alignItems: "center", gap: 10 }}>
+                      <span>{ch.identifier}</span>
+                      {ch.auto_reply_enabled && (
+                        <span style={{
+                          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+                          background: "rgba(125,160,217,0.12)", border: "1px solid rgba(125,160,217,0.25)",
+                          borderRadius: 5, padding: "1px 6px", color: "#7ea8d9",
+                        }}>Auto-resposta</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status badge */}
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+                    color, background: `${color}18`, border: `1px solid ${color}44`,
+                    borderRadius: 5, padding: "3px 9px",
+                  }}>
+                    {ch.status === "connected" ? "Conectado" : ch.status === "disconnected" ? "Desconectado" : "Erro"}
+                  </span>
+
+                  <button type="button" onClick={() => openEditChannel(ch)} style={{
+                    background: "rgba(185,146,77,0.1)", border: "1px solid rgba(185,146,77,0.2)",
+                    borderRadius: 7, padding: "5px 12px", fontSize: 11, color: "var(--gold-light)", cursor: "pointer",
+                  }}>Editar</button>
+                  <button type="button" onClick={() => handleDeleteChannel(ch.id)} style={{
+                    background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)",
+                    borderRadius: 7, padding: "5px 12px", fontSize: 11, color: "#ef4444", cursor: "pointer",
+                  }}>Remover</button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
