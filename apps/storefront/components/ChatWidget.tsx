@@ -265,17 +265,18 @@ export function ChatWidget() {
       if (!res.ok || !json.conv_id) { setError(json.error ?? "Erro ao iniciar."); return; }
 
       const cid = json.conv_id;
-      const lat = new Date(Date.now() - 5000).toISOString();
+      // lastAt fica em epoch: a primeira poll busca TODAS as mensagens da conversa
+      // (incluindo a boas-vindas do admin criada no mesmo instante)
+      lastAtRef.current   = new Date(0).toISOString();
 
       convIdRef.current   = cid;
       userNameRef.current = name;
       topicRef.current    = topic;
-      lastAtRef.current   = lat;
 
       setConvId(cid);
       setUserName(name);
       setMessages([]);
-      saveSession(cid, name, topic, [], lat);
+      saveSession(cid, name, topic, [], new Date(0).toISOString());
       setPhase("chat");
     } catch { setError("Falha de conexão."); }
     finally { setLoading(false); }
@@ -567,13 +568,13 @@ export function ChatWidget() {
                               lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word",
                             }}>{msg.body}</div>
                           )}
-                          {/* Botão editar — só nas mensagens do lead */}
+                          {/* Botão editar — só nas mensagens do LEAD (direction=in), não nas do admin */}
                           {!isOut && !msg.id.startsWith("temp-") && (
                             <button
                               onClick={() => startEdit(msg)}
-                              title="Editar mensagem"
+                              title="Editar sua mensagem"
                               style={{
-                                position: "absolute", top: 2, left: -22,
+                                position: "absolute", top: 2, right: -22,
                                 background: "none", border: "none",
                                 fontSize: 11, color: "rgba(242,236,223,0.3)",
                                 cursor: "pointer", padding: 2,
@@ -585,9 +586,7 @@ export function ChatWidget() {
                               }}
                               onMouseLeave={e => {
                                 e.currentTarget.style.opacity = "0";
-                                e.currentTarget.style.color = "rgba(242,236,223,0.3)";
                               }}
-                              onMouseOver={e => (e.currentTarget.style.opacity = "1")}
                             >✏</button>
                           )}
                         </div>
