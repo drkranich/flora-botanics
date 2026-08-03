@@ -19,7 +19,7 @@ async function resolveTenantId(supabase: Awaited<ReturnType<typeof getServerSupa
     .from("tenants")
     .select("id")
     .eq("slug", slug)
-    .eq("active", true)
+    .eq("status", "active")
     .maybeSingle();
   if (data) return (data as { id: string }).id;
 
@@ -27,7 +27,7 @@ async function resolveTenantId(supabase: Awaited<ReturnType<typeof getServerSupa
   const { data: fallback } = await supabase
     .from("tenants")
     .select("id")
-    .eq("active", true)
+    .eq("status", "active")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
