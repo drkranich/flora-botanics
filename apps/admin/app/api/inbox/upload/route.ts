@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 
 const ALLOWED_TYPES = new Set([
@@ -37,10 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Arquivo muito grande. Máximo 10 MB." }, { status: 400 });
     }
 
-    const supabase = await createAdminClient();
-    if (!supabase) {
-      return NextResponse.json({ error: "Serviço indisponível." }, { status: 503 });
-    }
+    const supabase = await createClient();
 
     const safeName   = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const path       = `${convId}/${Date.now()}_${safeName}`;
