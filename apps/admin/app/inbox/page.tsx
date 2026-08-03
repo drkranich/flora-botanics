@@ -6,14 +6,12 @@ import { InboxList } from "./InboxList";
 import { InboxDetail } from "./InboxDetail";
 import { InboxContext } from "./InboxContext";
 import { NewConversationForm } from "./NewConversationForm";
-import type { InboxPriority, InboxQueue } from "./inbox-actions";
+import type { InboxQueue } from "./inbox-actions";
 import { getQueueCounts } from "./inbox-actions";
 
 export default function InboxPage() {
   const [queue, setQueue] = useState<InboxQueue>("inbox");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedPriority, setSelectedPriority] = useState<string>("normal");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showNewConv, setShowNewConv] = useState(false);
   const [listRefreshKey, setListRefreshKey] = useState(0);
   const [counts, setCounts] = useState<Record<InboxQueue, number>>({
@@ -35,15 +33,10 @@ export default function InboxPage() {
   function handleQueueChange(q: InboxQueue) {
     setQueue(q);
     setSelectedId(null);
-    setSelectedPriority("normal");
-    setSelectedTags([]);
   }
 
   function handleSelectConversation(id: string) {
     setSelectedId(id);
-    // Reset context local — InboxContext fará fetch ao receber o novo id
-    setSelectedPriority("normal");
-    setSelectedTags([]);
   }
 
   return (
@@ -84,9 +77,6 @@ export default function InboxPage() {
       {/* Coluna 4 — Contexto do contato (240px) */}
       <InboxContext
         conversationId={selectedId}
-        priority={selectedPriority}
-        tags={selectedTags}
-        onPriorityChange={(p: InboxPriority) => setSelectedPriority(p)}
       />
 
       {/* Modal: nova conversa */}

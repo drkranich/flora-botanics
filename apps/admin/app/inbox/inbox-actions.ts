@@ -505,6 +505,8 @@ export async function createConversation(
 // ── Contexto do contato vinculado a uma conversa ──────────────────────────────
 
 export interface ContactContext {
+  priority: InboxPriority;
+  convTags: string[];
   customer: {
     id: string;
     full_name: string | null;
@@ -534,23 +536,23 @@ export interface ContactContext {
 }
 
 export async function getContactContext(conversationId: string): Promise<ContactContext> {
-  const empty: ContactContext = { customer: null, orders: [], stats: { total_orders: 0, total_spent_cents: 0, last_order_at: null, avg_ticket_cents: 0 } };
+  const empty: ContactContext = { priority: "normal", convTags: [], customer: null, orders: [], stats: { total_orders: 0, total_spent_cents: 0, last_order_at: null, avg_ticket_cents: 0 } };
 
   const staff = await currentStaff();
   if (!staff) return empty;
 
   const supabase = await createClient();
 
-  // Busca a conversa para obter o contact_handle (email/phone)
+  // Busca a conversa para obter o contact_handle (email/phone), priority e tags
   const { data: conv } = await supabase
     .from("conversations")
-    .select("contact_handle, contact_name")
+    .select("contact_handle, contact_name, priority, tags")
     .eq("id", conversationId)
     .eq("tenant_id", staff.tenantId)
     .maybeSingle();
 
   if (!conv) return empty;
-  const row = conv as { contact_handle: string | null; contact_name: string | null };
+  const row = conv as { contact_handle: string | null; contact_name: string | null; priority: string | null; tags: string[] | null };
   const handle = row.contact_handle?.trim();
 
   if (!handle) return empty;
@@ -589,6 +591,8 @@ export async function getContactContext(conversationId: string): Promise<Contact
   const avgTicket = paid.length ? Math.round(totalSpent / paid.length) : 0;
 
   return {
+    priority: (row.priority as InboxPriority | null) ?? "normal",
+    convTags: row.tags ?? [],
     customer,
     orders,
     stats: {

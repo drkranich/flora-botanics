@@ -28,6 +28,7 @@ const STATUS_OPTIONS = [
   { value: "open",             label: "Em atendimento",  color: "#62c99d" },
   { value: "waiting_customer", label: "Ag. cliente",     color: "#f0b429" },
   { value: "waiting_team",     label: "Ag. equipe",      color: "#a78bfa" },
+  { value: "urgent",           label: "Urgente",         color: "#e07b6a" },
   { value: "resolved",         label: "Resolvido",       color: "#4ade80" },
   { value: "archived",         label: "Arquivado",       color: "#6b7280" },
   { value: "spam",             label: "Spam",            color: "#ef4444" },
@@ -396,6 +397,7 @@ export function InboxDetail({ conversationId, onStatusChange }: Props) {
                     {STATUS_OPTIONS.map(opt => (
                       <button
                         key={opt.value}
+                        onMouseDown={e => e.preventDefault()}
                         onClick={() => handleStatus(opt.value)}
                         style={{
                           display: "flex", alignItems: "center", gap: 9,

@@ -109,37 +109,34 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 
 interface Props {
   conversationId: string | null;
-  priority: string;
-  tags: string[];
   onPriorityChange?: (p: InboxPriority) => void;
 }
 
-export function InboxContext({ conversationId, priority, tags: initialTags, onPriorityChange }: Props) {
+export function InboxContext({ conversationId, onPriorityChange }: Props) {
   const [ctx, setCtx] = useState<ContactContext | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // Tags locais (editáveis)
-  const [tags, setTags] = useState<string[]>(initialTags);
+  // Tags locais (editáveis) — iniciadas do ctx após fetch
+  const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
 
-  // Prioridade local
-  const [localPriority, setLocalPriority] = useState(priority);
+  // Prioridade local — iniciada do ctx após fetch
+  const [localPriority, setLocalPriority] = useState<InboxPriority>("normal");
   const [showPriorityMenu, setShowPriorityMenu] = useState(false);
 
   // Expansão de seções
   const [showAllOrders, setShowAllOrders] = useState(false);
 
-  useEffect(() => { setTags(initialTags); }, [initialTags]);
-  useEffect(() => { setLocalPriority(priority); }, [priority]);
-
   useEffect(() => {
-    if (!conversationId) { setCtx(null); return; }
+    if (!conversationId) { setCtx(null); setTags([]); setLocalPriority("normal"); return; }
     setLoading(true);
     startTransition(async () => {
       const res = await getContactContext(conversationId);
       setCtx(res);
+      setLocalPriority(res.priority);
+      setTags(res.convTags);
       setLoading(false);
     });
   }, [conversationId]);
@@ -466,7 +463,7 @@ export function InboxContext({ conversationId, priority, tags: initialTags, onPr
 
                 {/* Botão ver perfil */}
                 <Link
-                  href={`/backoffice/clientes/${ctx.customer.id}`}
+                  href={`/inbox/clientes/${ctx.customer.id}`}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 5,
                     fontSize: 10.5, color: "var(--gold-light)",
