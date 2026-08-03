@@ -2,11 +2,14 @@
  * POST /api/inbox/upload
  *
  * Upload de arquivo para o bucket chat-attachments.
- * Acessível apenas para staff autenticado (usa createClient que verifica sessão).
+ * Usa service_role (via getCloudflareContext) para bypass de RLS —
+ * mesmo padrão do storefront /api/chat/upload.
+ * Autenticação garantida por currentStaff() antes do upload.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { createClient } from "@supabase/supabase-js";
 import { currentStaff } from "@/lib/auth";
 
 const ALLOWED_TYPES = new Set([
@@ -15,8 +18,19 @@ const ALLOWED_TYPES = new Set([
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
+type RuntimeEnv = Record<string, string | undefined>;
+
+async function getRuntimeEnv(): Promise<RuntimeEnv> {
+  try {
+    const { env } = await getCloudflareContext({ async: true });
+    return env as RuntimeEnv;
+  } catch {
+    return process.env;
+  }
+}
+
 export async function POST(req: NextRequest) {
-  // Autenticação
+  // Autenticação — só staff pode fazer upload
   const staff = await currentStaff();
   if (!staff) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
@@ -37,10 +51,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Arquivo muito grande. Máximo 10 MB." }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    // Cliente com service_role — bypassa RLS, igual ao storefront
+    const env            = await getRuntimeEnv();
+    const url            = env.NEXT_PUBLIC_SUPABASE_URL       ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY      ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-    const safeName   = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
-    const path       = `${convId}/${Date.now()}_${safeName}`;
+    if (!url || !serviceRoleKey) {
+      console.error("[inbox/upload] service_role ausente");
+      return NextResponse.json({ error: "Serviço indisponível." }, { status: 503 });
+    }
+
+    const supabase = createClient(url, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const safeName    = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+    const path        = `${convId}/${Date.now()}_${safeName}`;
     const arrayBuffer = await file.arrayBuffer();
     const uint8       = new Uint8Array(arrayBuffer);
 
