@@ -275,7 +275,7 @@ export function InboxSidebar({ active, counts, onSelect, onNew }: Props) {
           Pipeline CRM
         </Link>
         <Link
-          href="/backoffice/clientes"
+          href="/inbox/clientes"
           style={{
             display: "flex",
             alignItems: "center",
