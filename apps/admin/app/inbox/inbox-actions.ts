@@ -110,7 +110,7 @@ export interface TimelineEvent {
 
 function queueFilter(queue: InboxQueue, userId: string) {
   switch (queue) {
-    case "inbox":         return { status_in: ["new","open","triaging","assigned","in_progress"], not_archived: true };
+    case "inbox":         return { status_in: ["new","open","triaging","assigned","in_progress","urgent"], not_archived: true };
     case "mine":          return { assignee_id: userId,   status_in: ["new","open","triaging","assigned","in_progress","waiting_customer","waiting_team"] };
     case "unassigned":    return { assignee_id: null,   status_in: ["new","open","triaging","in_progress"] };
     case "urgent":        return { priority_in: ["urgent","critical"], status_in: ["new","open","triaging","assigned","in_progress","waiting_customer","waiting_team"] };
@@ -146,12 +146,15 @@ export async function getConversations(
 
   // Filtros de status
   if ("status_in" in filters && filters.status_in) {
-    // Mapeamento para os status antigos da tabela conversations
+    // Mapeamento: status novos + legado "waiting" para compatibilidade
     const legacyMap: Record<string, string[]> = {
       new: ["new"], open: ["open"], triaging: ["open"], assigned: ["open"],
-      in_progress: ["open"], waiting_customer: ["waiting"], waiting_team: ["waiting"],
-      resolved: ["resolved"], closed: ["resolved"], archived: ["resolved"],
-      spam: ["resolved"],
+      in_progress: ["open"],
+      waiting_customer: ["waiting_customer", "waiting"],
+      waiting_team: ["waiting_team"],
+      resolved: ["resolved", "closed"], closed: ["resolved"],
+      archived: ["archived"],
+      spam: ["spam"],
     };
     const mapped = [...new Set((filters.status_in as string[]).flatMap((s) => legacyMap[s] ?? [s]))];
     if (mapped.length === 1) {
@@ -310,12 +313,14 @@ export async function getQueueCounts(): Promise<Record<InboxQueue, number>> {
   const counts = { ...zero };
   for (const r of rows) {
     counts.all += 1;
-    if (["new","open","waiting"].includes(r.status)) counts.inbox += 1;
-    if (r.status === "waiting") counts.waiting_customer += 1;
-    if (r.status === "resolved") counts.resolved += 1;
+    if (["new","open"].includes(r.status)) counts.inbox += 1;
+    if (["waiting_customer","waiting"].includes(r.status)) counts.waiting_customer += 1;
+    if (r.status === "waiting_team") counts.waiting_team += 1;
+    if (["resolved","closed"].includes(r.status)) counts.resolved += 1;
+    if (r.status === "archived") counts.archived += 1;
+    if (r.status === "spam") counts.spam += 1;
   }
-  // Não lidos no inbox = urgentes aproximados
-  counts.urgent = rows.filter((r) => r.unread_count > 0 && ["new","open"].includes(r.status)).length;
+  counts.urgent = rows.filter((r) => r.unread_count > 0 && ["new","open","urgent"].includes(r.status)).length;
   counts.unassigned = rows.filter((r) => ["new","open"].includes(r.status)).length;
 
   return counts;
@@ -430,12 +435,8 @@ export async function setStatus(
   if (!staff) return { ok: false, error: "Sessão inválida." };
 
   const supabase = await createClient();
-  // Mapeamento para status da tabela conversations existente
-  const mapped =
-    status === "resolved" || status === "closed" ? "resolved"
-    : status === "waiting_customer" || status === "waiting_team" ? "waiting"
-    : status === "archived" || status === "spam" ? "resolved"
-    : "open";
+  const VALID_STATUS = new Set(["new","open","waiting","waiting_customer","waiting_team","resolved","archived","spam","urgent"]);
+  const mapped = VALID_STATUS.has(status) ? status : "open";
 
   await supabase.from("conversations")
     .update({ status: mapped })
@@ -916,11 +917,9 @@ export async function setStatusWithAudit(
   if (!staff) return { ok: false, error: "Sessão inválida." };
 
   const supabase = await createClient();
-  const statusMap: Record<string, string> = {
-    open: "open", waiting_customer: "waiting", waiting_team: "waiting",
-    resolved: "resolved", archived: "resolved", spam: "resolved",
-  };
-  const mapped = statusMap[status] ?? status;
+  // Mapa direto — todos os valores novos são aceitos pelo banco agora
+  const VALID = new Set(["new","open","waiting","waiting_customer","waiting_team","resolved","archived","spam","urgent"]);
+  const mapped = VALID.has(status) ? status : "open";
 
   const { error } = await supabase
     .from("conversations")
