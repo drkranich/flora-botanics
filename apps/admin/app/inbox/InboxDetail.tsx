@@ -124,6 +124,8 @@ export function InboxDetail({ conversationId }: Props) {
   const [showStatus, setShowStatus] = useState(false);
   const [showMacros, setShowMacros] = useState(false);
   const [convNum, setConvNum]       = useState<number | null>(null);
+  const [statusPos, setStatusPos]   = useState<{ top: number; right: number } | null>(null);
+  const statusBtnRef = useRef<HTMLButtonElement>(null);
 
   // Edição de mensagem
   const [editingId,   setEditingId]   = useState<string | null>(null);
@@ -137,6 +139,18 @@ export function InboxDetail({ conversationId }: Props) {
 
   const endRef    = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    if (!showStatus) return;
+    function close(e: MouseEvent) {
+      if (statusBtnRef.current && !statusBtnRef.current.contains(e.target as Node)) {
+        setShowStatus(false);
+      }
+    }
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showStatus]);
 
   function load(id: string) {
     start(async () => {
@@ -334,7 +348,14 @@ export function InboxDetail({ conversationId }: Props) {
               {/* Status dropdown */}
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <button
-                  onClick={() => setShowStatus(v => !v)}
+                  ref={statusBtnRef}
+                  onClick={() => {
+                    if (!showStatus && statusBtnRef.current) {
+                      const r = statusBtnRef.current.getBoundingClientRect();
+                      setStatusPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+                    }
+                    setShowStatus(v => !v);
+                  }}
                   style={{
                     background: `${sc}15`,
                     border: `1px solid ${sc}38`,
@@ -351,14 +372,15 @@ export function InboxDetail({ conversationId }: Props) {
                   {sLabel(conv.status)}
                   <span style={{ fontSize: 9, opacity: 0.6, flexShrink: 0 }}>▾</span>
                 </button>
-                {showStatus && (
+                {showStatus && statusPos && (
                   <div style={{
-                    position: "absolute", right: 0, top: "calc(100% + 6px)",
+                    position: "fixed",
+                    top: statusPos.top,
+                    right: statusPos.right,
                     background: "rgba(10,22,11,0.97)",
                     border: "1px solid rgba(242,236,223,0.12)",
-                    borderRadius: 12, zIndex: 300, minWidth: 190,
+                    borderRadius: 12, zIndex: 9999, minWidth: 190,
                     boxShadow: "0 20px 56px rgba(0,0,0,0.75)",
-                    overflow: "hidden",
                     backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
                   }}>
                     {STATUS_OPTIONS.map(opt => (
