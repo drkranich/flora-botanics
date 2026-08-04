@@ -72,15 +72,21 @@ export function ContactForm({
   const fieldInput: React.CSSProperties = {
     width: "100%",
     padding: "13px 16px",
-    background: "rgba(255,255,255,0.055)",
+    background: "rgba(255,255,255,0.07)",
     border: "1px solid rgba(255,255,255,0.13)",
     borderRadius: 12,
     color: "#f2ecdf",
     fontFamily: "'Inter', 'Montserrat', sans-serif",
     fontSize: 14,
     outline: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    appearance: "none",
+    colorScheme: "dark",
     transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
     boxSizing: "border-box",
+    /* Elimina highlight azul nativo do browser */
+    WebkitTapHighlightColor: "transparent",
   };
 
   const fieldLabel: React.CSSProperties = {
@@ -107,6 +113,7 @@ export function ContactForm({
 
   return (
     <section
+      className="flora-contact-form"
       style={{
         position: "relative",
         padding: "80px 16px 96px",
@@ -114,6 +121,41 @@ export function ContactForm({
         overflow: "hidden",
       }}
     >
+      {/* CSS: elimina highlight azul nativo do browser em inputs/select */}
+      <style>{`
+        .flora-contact-form input,
+        .flora-contact-form textarea,
+        .flora-contact-form select {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+          color-scheme: dark;
+          outline: none !important;
+          box-shadow: none;
+        }
+        .flora-contact-form input:focus,
+        .flora-contact-form textarea:focus,
+        .flora-contact-form select:focus {
+          outline: none !important;
+        }
+        .flora-contact-form input::selection,
+        .flora-contact-form textarea::selection {
+          background: rgba(185,146,77,0.35);
+          color: #f2ecdf;
+        }
+        .flora-contact-form select option {
+          background: #0c1a0e;
+          color: #f2ecdf;
+        }
+        .flora-contact-form select:focus option:checked {
+          background: rgba(185,146,77,0.25);
+        }
+        .flora-contact-form button[type="submit"]:hover:not(:disabled) {
+          transform: translateY(-1px);
+          filter: brightness(1.08);
+        }
+      `}</style>
+
       {/* Orbs decorativos glassmorphism */}
       <div
         aria-hidden
