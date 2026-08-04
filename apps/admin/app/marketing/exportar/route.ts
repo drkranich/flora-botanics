@@ -3,6 +3,8 @@ import * as XLSX from "xlsx";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { money } from "@/lib/format";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
+import { buildFloraKraftPDF } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 
 type CampaignRow = {
   title: string;
@@ -78,48 +80,11 @@ function dateTime(value: string | null | undefined) {
   return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
-function pdfText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\x20-\x7E]/g, "-")
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
-}
-
-function buildPdf(lines: string[]) {
-  const content = [
-    "BT",
-    "/F1 18 Tf",
-    "50 780 Td",
-    `(${pdfText(lines[0] ?? "Flora Botanics")}) Tj`,
-    "/F1 10 Tf",
-    ...lines.slice(1, 42).flatMap((line) => ["0 -18 Td", `(${pdfText(line)}) Tj`]),
-    "ET",
-  ].join("\n");
-
-  const objects = [
-    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-    `5 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`,
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (const obj of objects) {
-    offsets.push(pdf.length);
-    pdf += `${obj}\n`;
-  }
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (const offset of offsets.slice(1)) {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return pdf;
+function esc(s: string | number | null | undefined) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function filename(format: string) {
@@ -255,31 +220,85 @@ export async function GET(request: NextRequest) {
   }
 
   if (format === "pdf") {
-    const lines = [
-      "Flora Botanics - Marketing e Relacionamento",
-      `Emitido em: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
-      "",
-      `Campanhas: ${campaigns.length}`,
-      `Mensagens enviadas: ${sent}`,
-      `Falhas: ${failures}`,
-      `Receita atribuida: ${money(totalRevenue)}`,
-      `Custo registrado: ${money(totalCost)}`,
-      "",
-      "Campanhas recentes:",
-      ...campaigns.slice(0, 14).map((row) => `${row.title} - ${row.status} - ${row.channel ?? "sem canal"} - ${money(row.revenue_cents ?? 0)}`),
-      "",
-      "Ultimos envios:",
-      ...queue.slice(0, 12).map((row) => `${row.channel} - ${row.recipient} - ${row.status} - ${dateTime(row.sent_at)}`),
-      "",
-      "Linha do tempo:",
-      ...timeline.slice(0, 10).map((row) => `${row.title} - ${row.event_type} - ${dateTime(row.occurred_at)}`),
-    ];
-    return new Response(buildPdf(lines), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename("pdf")}"`,
-      },
+    const campaignRows = campaigns.slice(0, 50).map((row) => `<tr>
+      <td>${esc(row.title)}</td>
+      <td>${esc(row.channel ?? "—")}</td>
+      <td>${esc(row.status)}</td>
+      <td>${money(row.budget_cents ?? 0)}</td>
+      <td>${money(row.cost_cents ?? 0)}</td>
+      <td>${money(row.revenue_cents ?? 0)}</td>
+    </tr>`).join("");
+
+    const queueRows = queue.slice(0, 50).map((row) => `<tr>
+      <td>${esc(row.channel)}</td>
+      <td>${esc(row.recipient)}</td>
+      <td>${esc(row.status)}</td>
+      <td>${esc(dateTime(row.sent_at))}</td>
+    </tr>`).join("");
+
+    const timelineRows = timeline.slice(0, 30).map((row) => `<tr>
+      <td>${esc(row.title)}</td>
+      <td>${esc(row.event_type)}</td>
+      <td>${esc(dateTime(row.occurred_at))}</td>
+    </tr>`).join("");
+
+    const body = `
+      <div class="section">
+        <div class="section-title">Indicadores</div>
+        <table>
+          <thead><tr><th>Indicador</th><th>Valor</th></tr></thead>
+          <tbody>
+            <tr><td>Campanhas</td><td>${campaigns.length}</td></tr>
+            <tr><td>Mensagens enviadas</td><td>${sent}</td></tr>
+            <tr><td>Falhas</td><td>${failures}</td></tr>
+            <tr><td>Receita atribuída</td><td>${money(totalRevenue)}</td></tr>
+            <tr><td>Custo registrado</td><td>${money(totalCost)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      ${campaigns.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Campanhas (${campaigns.length})</div>
+        <table>
+          <thead><tr><th>Título</th><th>Canal</th><th>Status</th><th>Orçamento</th><th>Custo</th><th>Receita</th></tr></thead>
+          <tbody>${campaignRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${queue.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Envios (${queue.length})</div>
+        <table>
+          <thead><tr><th>Canal</th><th>Destinatário</th><th>Status</th><th>Enviado em</th></tr></thead>
+          <tbody>${queueRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${timeline.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Linha do Tempo (${timeline.length})</div>
+        <table>
+          <thead><tr><th>Título</th><th>Evento</th><th>Data</th></tr></thead>
+          <tbody>${timelineRows}</tbody>
+        </table>
+      </div>` : ""}
+    `;
+
+    const pdfConfig = await getPdfConfig();
+    const html = buildFloraKraftPDF({
+      title: "Marketing e Relacionamento",
+      subtitle: "Campanhas, envios e linha do tempo",
+      category: "relatorio_crm",
+      department: "Marketing / Relacionamento",
+      config: pdfConfig,
+      body,
     });
+
+    return new Response(
+      html + `<script>window.onload=function(){setTimeout(function(){window.print()},600)}</script>`,
+      { headers: { "Content-Type": "text/html; charset=utf-8" } }
+    );
   }
 
   const csv = [

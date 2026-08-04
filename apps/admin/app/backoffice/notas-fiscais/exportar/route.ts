@@ -3,6 +3,8 @@ import * as XLSX from "xlsx";
 import { money } from "@/lib/format";
 import { getStaffSession, supabaseServer } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
+import { buildFloraKraftPDF } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 
 type FiscalDocExport = {
   document_type: string;
@@ -101,48 +103,11 @@ function csvLine(values: (string | number | null | undefined)[]) {
   return values.map(csvCell).join(",");
 }
 
-function pdfText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\x20-\x7E]/g, "-")
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
-}
-
-function buildPdf(lines: string[]) {
-  const content = [
-    "BT",
-    "/F1 18 Tf",
-    "50 780 Td",
-    `(${pdfText(lines[0] ?? "Flora Botanics")}) Tj`,
-    "/F1 10 Tf",
-    ...lines.slice(1, 42).flatMap((line) => ["0 -18 Td", `(${pdfText(line)}) Tj`]),
-    "ET",
-  ].join("\n");
-
-  const objects = [
-    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-    `5 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`,
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (const obj of objects) {
-    offsets.push(pdf.length);
-    pdf += `${obj}\n`;
-  }
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (const offset of offsets.slice(1)) {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return pdf;
+function esc(s: string | number | null | undefined) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function formatDate(value: string | null) {
@@ -353,31 +318,144 @@ export async function GET(request: NextRequest) {
   }
 
   if (format === "pdf") {
-    const lines = [
-      "Flora Botanics - Centro Fiscal e Tributario",
-      `Emitido em: ${new Date().toLocaleString("pt-BR")}`,
-      "",
-      "Documentos fiscais:",
-      ...docRows.slice(0, 15).map((row) => `${row.document_type} ${row.number ?? ""} - ${row.party_name ?? "sem parte"} - ${money(row.total_cents)} - ${row.status}`),
-      "",
-      "Guias e pagamentos:",
-      ...guideRows.slice(0, 12).map((row) => `${row.document_name} - vence ${formatDate(row.due_date)} - ${money(row.updated_cents)} - ${row.payment_status}`),
-      "",
-      "Obrigacoes:",
-      ...obligationRows.slice(0, 8).map((row) => `${row.name} - ${row.competence ?? ""} - ${formatDate(row.due_date)} - ${row.status}`),
-      "",
-      "Comercio Exterior:",
-      ...exportOperationRows.slice(0, 10).map((row) => `${row.operation_number} - ${row.title} - ${row.destination_country} - ${row.incoterm} - ${row.status}`),
-      "",
-      "Landed Cost:",
-      ...landedCostRows.slice(0, 10).map((row) => `${row.scenario_name} - ${money(row.total_landed_cost_cents, row.currency)} - preco ${money(row.recommended_price_cents, row.currency)} - margem ${row.margin_net_percent}%`),
-    ];
-    return new Response(buildPdf(lines), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": "attachment; filename=\"flora-centro-fiscal.pdf\"",
-      },
+    const docTableRows = docRows.slice(0, 50).map((row) => `<tr>
+      <td>${esc(row.document_type)}</td>
+      <td>${esc(row.number ?? "—")}</td>
+      <td>${esc(row.party_name ?? "—")}</td>
+      <td>${esc(row.competence ?? "—")}</td>
+      <td>${money(row.total_cents)}</td>
+      <td>${esc(row.status)}</td>
+    </tr>`).join("");
+
+    const guideTableRows = guideRows.slice(0, 50).map((row) => `<tr>
+      <td>${esc(row.document_name)}</td>
+      <td>${esc(row.guide_type)}</td>
+      <td>${esc(row.competence ?? "—")}</td>
+      <td>${esc(formatDate(row.due_date) || "—")}</td>
+      <td>${money(row.updated_cents)}</td>
+      <td>${esc(row.payment_status)}</td>
+    </tr>`).join("");
+
+    const obligationTableRows = obligationRows.slice(0, 50).map((row) => `<tr>
+      <td>${esc(row.name)}</td>
+      <td>${esc(row.obligation_type)}</td>
+      <td>${esc(row.competence ?? "—")}</td>
+      <td>${esc(formatDate(row.due_date) || "—")}</td>
+      <td>${esc(row.status)}</td>
+      <td>${esc(row.priority)}</td>
+    </tr>`).join("");
+
+    const exportTableRows = exportOperationRows.slice(0, 30).map((row) => `<tr>
+      <td>${esc(row.operation_number)}</td>
+      <td>${esc(row.title)}</td>
+      <td>${esc(row.destination_country)}</td>
+      <td>${esc(row.incoterm)}</td>
+      <td>${esc(row.tax_responsibility)}</td>
+      <td>${esc(row.status)}</td>
+    </tr>`).join("");
+
+    const landedTableRows = landedCostRows.slice(0, 30).map((row) => `<tr>
+      <td>${esc(row.scenario_name)}</td>
+      <td>${money(row.total_landed_cost_cents, row.currency)}</td>
+      <td>${money(row.recommended_price_cents, row.currency)}</td>
+      <td>${money(row.profit_net_cents, row.currency)}</td>
+      <td>${Number(row.margin_net_percent ?? 0).toFixed(1)}%</td>
+      <td>${esc(row.currency)}</td>
+    </tr>`).join("");
+
+    const vaultTableRows = vaultRows.slice(0, 30).map((row) => `<tr>
+      <td>${esc(row.name)}</td>
+      <td>${esc(row.document_type)}</td>
+      <td>${esc(row.department ?? "—")}</td>
+      <td>${esc(row.competence ?? "—")}</td>
+      <td>${money(row.value_cents)}</td>
+      <td>${esc(row.status)}</td>
+    </tr>`).join("");
+
+    const body = `
+      ${docRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Documentos Fiscais (${docRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>Tipo</th><th>Número</th><th>Parte</th><th>Competência</th><th>Valor</th><th>Situação</th>
+          </tr></thead>
+          <tbody>${docTableRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${guideRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Guias e Pagamentos (${guideRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>Documento</th><th>Tipo</th><th>Competência</th><th>Vencimento</th><th>Valor</th><th>Pagamento</th>
+          </tr></thead>
+          <tbody>${guideTableRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${obligationRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Obrigações Fiscais (${obligationRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>Obrigação</th><th>Tipo</th><th>Competência</th><th>Vencimento</th><th>Status</th><th>Prioridade</th>
+          </tr></thead>
+          <tbody>${obligationTableRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${vaultRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Cofre Fiscal (${vaultRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>Nome</th><th>Tipo</th><th>Departamento</th><th>Competência</th><th>Valor</th><th>Status</th>
+          </tr></thead>
+          <tbody>${vaultTableRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${exportOperationRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Comércio Exterior (${exportOperationRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>Operação</th><th>Título</th><th>Destino</th><th>Incoterm</th><th>Tributos</th><th>Status</th>
+          </tr></thead>
+          <tbody>${exportTableRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${landedCostRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Landed Cost (${landedCostRows.length})</div>
+        <table>
+          <thead><tr>
+            <th>Cenário</th><th>Landed Cost</th><th>Preço Rec.</th><th>Lucro Líq.</th><th>Margem</th><th>Moeda</th>
+          </tr></thead>
+          <tbody>${landedTableRows}</tbody>
+        </table>
+      </div>` : ""}
+    `;
+
+    const pdfConfig = await getPdfConfig();
+    const html = buildFloraKraftPDF({
+      title: "Centro Fiscal e Tributário",
+      subtitle: "Documentos fiscais, guias, obrigações, cofre, comércio exterior e landed cost",
+      category: "fiscal",
+      department: "Fiscal / Tributário",
+      config: pdfConfig,
+      body,
     });
+
+    return new Response(
+      html + `<script>window.onload=function(){setTimeout(function(){window.print()},600)}</script>`,
+      {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }
+    );
   }
 
   const csv = [

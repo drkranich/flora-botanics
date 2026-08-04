@@ -3,6 +3,8 @@ import { getStaffSession } from "@/lib/supabase/server";
 import { effectiveTenantId } from "@/lib/cms/actions";
 import { buildAccountingReport, customerName, type AccountingSearch } from "@/lib/accounting/report";
 import { money } from "@/lib/format";
+import { buildFloraKraftPDF } from "@/lib/pdf/template";
+import { getPdfConfig } from "@/lib/pdf/actions";
 
 function csvCell(value: string | number | null | undefined) {
   const text = String(value ?? "");
@@ -62,73 +64,11 @@ function buildCsv(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
   return `\uFEFF${rows.join("\r\n")}`;
 }
 
-function pdfText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\x20-\x7E]/g, "-")
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
-}
-
-function buildPdf(report: Awaited<ReturnType<typeof buildAccountingReport>>) {
-  const lines = [
-    "Flora Botanics - Contabilidade",
-    `Período: ${report.range.label}`,
-    "",
-    `Receita por pedidos: ${money(report.totals.grossRevenue)}`,
-    `Receita manual: ${money(report.totals.manualIncome)}`,
-    `Receita ajustada: ${money(report.totals.adjustedRevenue)}`,
-    `Custos estimados: ${money(report.totals.estimatedCosts)}`,
-    `Custos manuais: ${money(report.totals.manualExpenses)}`,
-    `Lucro ajustado: ${money(report.totals.adjustedProfit)}`,
-    `MRR ativo: ${money(report.totals.mrr)}`,
-    `Descontos concedidos: ${money(report.totals.discounts)}`,
-    "",
-    "Razão contábil:",
-    ...report.ledgerRows.slice(0, 24).map((entry) => {
-      const signal = entry.type === "income" ? "+" : "-";
-      return `${entry.source} - ${entry.channel ?? "sem canal"} - ${entry.description} - ${signal} ${money(entry.amount_cents, entry.currency)}`;
-    }),
-    "",
-    "Últimas receitas:",
-    ...report.realizedOrders.slice(0, 12).map((order) => {
-      return `Pedido #${order.number} - ${customerName(order)} - ${money(order.total_cents, order.currency)}`;
-    }),
-  ];
-
-  const content = [
-    "BT",
-    "/F1 18 Tf",
-    "50 780 Td",
-    `(${pdfText(lines[0])}) Tj`,
-    "/F1 10 Tf",
-    ...lines.slice(1).flatMap((line) => ["0 -18 Td", `(${pdfText(line)}) Tj`]),
-    "ET",
-  ].join("\n");
-
-  const objects = [
-    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-    `5 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`,
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (const obj of objects) {
-    offsets.push(pdf.length);
-    pdf += `${obj}\n`;
-  }
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (const offset of offsets.slice(1)) {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return pdf;
+function esc(s: string | number | null | undefined) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export async function GET(request: NextRequest) {
@@ -148,12 +88,77 @@ export async function GET(request: NextRequest) {
   const report = await buildAccountingReport(tenantId, search);
 
   if (format === "pdf") {
-    return new Response(buildPdf(report), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="flora-contabilidade-${report.range.period}.pdf"`,
-      },
+    const kpiRows = `
+      <tr><td>Receita por pedidos</td><td>${money(report.totals.grossRevenue)}</td></tr>
+      <tr><td>Receita manual</td><td>${money(report.totals.manualIncome)}</td></tr>
+      <tr><td>Receita ajustada</td><td>${money(report.totals.adjustedRevenue)}</td></tr>
+      <tr><td>Custos estimados</td><td>${money(report.totals.estimatedCosts)}</td></tr>
+      <tr><td>Custos manuais</td><td>${money(report.totals.manualExpenses)}</td></tr>
+      <tr><td>Lucro ajustado</td><td>${money(report.totals.adjustedProfit)}</td></tr>
+      <tr><td>MRR ativo</td><td>${money(report.totals.mrr)}</td></tr>
+      <tr><td>Descontos concedidos</td><td>${money(report.totals.discounts)}</td></tr>
+    `;
+
+    const ledgerRows = report.ledgerRows.slice(0, 50).map((entry) => {
+      const signal = entry.type === "income" ? "+" : "-";
+      return `<tr>
+        <td>${esc(entry.source === "automatic" ? "automático" : "manual")}</td>
+        <td>${esc(entry.channel ?? "—")}</td>
+        <td>${esc(entry.description)}</td>
+        <td>${esc(entry.cost_center ?? "—")}</td>
+        <td>${signal} ${money(entry.amount_cents, entry.currency)}</td>
+      </tr>`;
+    }).join("");
+
+    const orderRows = report.realizedOrders.slice(0, 50).map((order) => `<tr>
+      <td>#${esc(order.number)}</td>
+      <td>${esc(customerName(order))}</td>
+      <td>${money(order.total_cents, order.currency)}</td>
+      <td>${new Date(order.created_at).toLocaleDateString("pt-BR")}</td>
+    </tr>`).join("");
+
+    const body = `
+      <div class="section">
+        <div class="section-title">Indicadores — ${esc(report.range.label)}</div>
+        <table>
+          <thead><tr><th>Indicador</th><th>Valor</th></tr></thead>
+          <tbody>${kpiRows}</tbody>
+        </table>
+      </div>
+
+      ${report.ledgerRows.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Razão Contábil (${report.ledgerRows.length})</div>
+        <table>
+          <thead><tr><th>Origem</th><th>Canal</th><th>Descrição</th><th>Centro de custo</th><th>Valor</th></tr></thead>
+          <tbody>${ledgerRows}</tbody>
+        </table>
+      </div>` : ""}
+
+      ${report.realizedOrders.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Pedidos Realizados (${report.realizedOrders.length})</div>
+        <table>
+          <thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Data</th></tr></thead>
+          <tbody>${orderRows}</tbody>
+        </table>
+      </div>` : ""}
+    `;
+
+    const pdfConfig = await getPdfConfig();
+    const html = buildFloraKraftPDF({
+      title: "Relatório Contábil",
+      subtitle: `Período: ${report.range.label}`,
+      category: "contabil",
+      department: "Contabilidade / Financeiro",
+      config: pdfConfig,
+      body,
     });
+
+    return new Response(
+      html + `<script>window.onload=function(){setTimeout(function(){window.print()},600)}</script>`,
+      { headers: { "Content-Type": "text/html; charset=utf-8" } }
+    );
   }
 
   return new Response(buildCsv(report), {
