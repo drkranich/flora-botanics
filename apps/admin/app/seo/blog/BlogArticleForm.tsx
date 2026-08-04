@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SeoMetaEditor } from "@/components/SeoMetaEditor";
+import { GlassSelect } from "@/components/GlassSelect";
 import type { SeoMeta, EntityType } from "@/app/seo/actions";
 
 interface Category { id: string; name: string; slug: string }
@@ -201,16 +202,14 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
 
           <div>
             <label className="label">Categoria</label>
-            <select
-              className="glass-input"
+            <GlassSelect
+              options={[
+                { value: "", label: "— Sem categoria —" },
+                ...categories.map(c => ({ value: c.id, label: c.name })),
+              ]}
               value={catId}
-              onChange={e => setCatId(e.target.value)}
-            >
-              <option value="">— Sem categoria —</option>
-              {categories.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+              onChange={v => setCatId(v)}
+            />
           </div>
 
           <div>

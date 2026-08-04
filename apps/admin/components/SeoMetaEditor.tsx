@@ -2,6 +2,18 @@
 
 import { useState, useTransition } from "react";
 import type { SeoMeta, EntityType } from "@/app/seo/actions";
+import { GlassSelect, type GlassSelectOption } from "@/components/GlassSelect";
+
+const SCHEMA_TYPE_OPTIONS: GlassSelectOption[] = [
+  { value: "", label: "Automático" },
+  { value: "Product", label: "Product" },
+  { value: "Article", label: "Article" },
+  { value: "FAQPage", label: "FAQPage" },
+  { value: "Organization", label: "Organization" },
+  { value: "LocalBusiness", label: "LocalBusiness" },
+  { value: "BreadcrumbList", label: "BreadcrumbList" },
+  { value: "WebPage", label: "WebPage" },
+];
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface Props {
@@ -529,20 +541,11 @@ export function SeoMetaEditor({
 
           <div>
             <label className="label">Schema.org Type</label>
-            <select
-              className="glass-input"
+            <GlassSelect
+              options={SCHEMA_TYPE_OPTIONS}
               value={meta.schema_type ?? ""}
-              onChange={e => set("schema_type", e.target.value || undefined)}
-            >
-              <option value="">Automático</option>
-              <option value="Product">Product</option>
-              <option value="Article">Article</option>
-              <option value="FAQPage">FAQPage</option>
-              <option value="Organization">Organization</option>
-              <option value="LocalBusiness">LocalBusiness</option>
-              <option value="BreadcrumbList">BreadcrumbList</option>
-              <option value="WebPage">WebPage</option>
-            </select>
+              onChange={v => set("schema_type", v || undefined)}
+            />
           </div>
         </div>
       )}

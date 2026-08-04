@@ -21,6 +21,7 @@ import {
   type SeoMeta,
 } from "./actions";
 import { SeoMetaEditor } from "@/components/SeoMetaEditor";
+import { RedirectCodeSelect, RobotsDirectiveSelect, SitemapPrioritySelect, SitemapFreqSelect } from "./SeoFormSelects";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 type Sx = CSSProperties;
@@ -534,12 +535,7 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
               </div>
               <div>
                 <label className="label">Código</label>
-                <select name="code" className="glass-input">
-                  <option value="301">301 Permanente</option>
-                  <option value="302">302 Temporário</option>
-                  <option value="307">307</option>
-                  <option value="308">308</option>
-                </select>
+                <RedirectCodeSelect />
               </div>
               <div>
                 <label className="label">Motivo (opcional)</label>
@@ -629,28 +625,16 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
                           />
                         </td>
                         <td style={{ padding: "10px 8px" }}>
-                          <select
+                          <SitemapPrioritySelect
                             name={`${row.key}_priority`}
-                            className="glass-input"
                             defaultValue={String(cfg?.priority ?? 0.5)}
-                            style={{ width: 100 }}
-                          >
-                            {["1.0", "0.9", "0.8", "0.7", "0.6", "0.5", "0.4", "0.3", "0.2", "0.1"].map(v => (
-                              <option key={v} value={v}>{v}</option>
-                            ))}
-                          </select>
+                          />
                         </td>
                         <td style={{ padding: "10px 8px" }}>
-                          <select
+                          <SitemapFreqSelect
                             name={`${row.key}_freq`}
-                            className="glass-input"
                             defaultValue={cfg?.change_frequency ?? "weekly"}
-                            style={{ width: 130 }}
-                          >
-                            {["always","hourly","daily","weekly","monthly","yearly","never"].map(f => (
-                              <option key={f} value={f}>{f}</option>
-                            ))}
-                          </select>
+                          />
                         </td>
                       </tr>
                     );
@@ -691,10 +675,7 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
               </div>
               <div>
                 <label className="label">Diretiva</label>
-                <select name="directive" className="glass-input">
-                  <option value="disallow">Disallow</option>
-                  <option value="allow">Allow</option>
-                </select>
+                <RobotsDirectiveSelect />
               </div>
               <div>
                 <label className="label">Path</label>
