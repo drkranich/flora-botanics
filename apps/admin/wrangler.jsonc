@@ -6,8 +6,7 @@
 	"workers_dev": false,
 	"compatibility_date": "2026-06-17",
 	"compatibility_flags": [
-		"nodejs_compat",
-		"global_fetch_strictly_public"
+		"nodejs_compat"
 	],
 	"routes": [
 		{
