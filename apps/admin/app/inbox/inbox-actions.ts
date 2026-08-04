@@ -120,7 +120,7 @@ function queueFilter(queue: InboxQueue, userId: string) {
     case "inbox":            return { status_in: ["new","open","triaging","assigned","in_progress"] };
     case "mine":             return { assignee_id: userId, status_in: ["new","open","triaging","assigned","in_progress","waiting_customer","waiting_team"] };
     case "unassigned":       return { assignee_id: null,  status_in: ["new","open","triaging","in_progress"] };
-    case "urgent":           return { priority_in: ["urgent","critical"], status_in: ["new","open","triaging","assigned","in_progress","waiting_customer","waiting_team"] };
+    case "urgent":           return { status_in: ["urgent"] };
     case "waiting_customer": return { status_in: ["waiting_customer"] };
     case "waiting_team":     return { status_in: ["waiting_team","waiting_third_party","waiting_payment","waiting_logistics","waiting_stock","waiting_financial","waiting_fiscal"] };
     case "resolved":         return { status_in: ["resolved","closed"] };
@@ -364,7 +364,7 @@ export async function getQueueCounts(): Promise<Record<InboxQueue, number>> {
     if (["new","open","triaging","assigned","in_progress"].includes(r.status)) counts.inbox += 1;
     if (r.assignee_id === staff.id && ["new","open","triaging","assigned","in_progress","waiting_customer","waiting_team"].includes(r.status)) counts.mine += 1;
     if (!r.assignee_id && ["new","open","triaging","in_progress"].includes(r.status)) counts.unassigned += 1;
-    if (["urgent","critical"].includes(r.priority)) counts.urgent += 1;
+    if (r.status === "urgent") counts.urgent += 1;
     if (r.status === "waiting_customer") counts.waiting_customer += 1;
     if (["waiting_team","waiting_third_party","waiting_payment","waiting_logistics","waiting_stock","waiting_financial","waiting_fiscal"].includes(r.status)) counts.waiting_team += 1;
     if (["resolved","closed"].includes(r.status)) counts.resolved += 1;
