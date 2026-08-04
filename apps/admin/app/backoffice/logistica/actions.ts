@@ -435,7 +435,7 @@ export async function requestShippingQuotes(orderId: string): Promise<ActionResu
   const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 6).toISOString();
 
   await supabase
-    .from("shipping_quotes")
+    .from("order_shipping_quotes")
     .update({ status: "expired" })
     .eq("tenant_id", staff.tenantId)
     .eq("order_id", orderId)
@@ -464,7 +464,7 @@ export async function requestShippingQuotes(orderId: string): Promise<ActionResu
     };
   });
 
-  const { error } = await supabase.from("shipping_quotes").insert(quotes);
+  const { error } = await supabase.from("order_shipping_quotes").insert(quotes);
   if (error) return { ok: false, error: error.message };
 
   await supabase.from("shipping_audit_events").insert({
@@ -488,7 +488,7 @@ export async function chooseShippingQuote(quoteId: string): Promise<ActionResult
 
   const supabase = await createClient();
   const { data: quote } = await supabase
-    .from("shipping_quotes")
+    .from("order_shipping_quotes")
     .select("id, order_id, provider_key, service, service_name, cost_cents, price_cents, currency, deadline_days")
     .eq("id", quoteId)
     .eq("tenant_id", staff.tenantId)
@@ -526,14 +526,14 @@ export async function chooseShippingQuote(quoteId: string): Promise<ActionResult
   };
 
   await supabase
-    .from("shipping_quotes")
+    .from("order_shipping_quotes")
     .update({ status: "quoted" })
     .eq("tenant_id", staff.tenantId)
     .eq("order_id", quote.order_id)
     .eq("status", "selected");
 
   await supabase
-    .from("shipping_quotes")
+    .from("order_shipping_quotes")
     .update({ status: "selected" })
     .eq("tenant_id", staff.tenantId)
     .eq("id", quoteId);

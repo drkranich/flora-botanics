@@ -156,7 +156,7 @@ export default async function OrderDetail({
       .eq("order_id", orderId)
       .order("created_at", { ascending: false }),
     supabase
-      .from("shipping_quotes")
+      .from("order_shipping_quotes")
       .select("id, provider_key, service, service_name, status, cost_cents, price_cents, currency, deadline_days, error")
       .eq("order_id", orderId)
       .in("status", ["quoted", "selected", "failed"])

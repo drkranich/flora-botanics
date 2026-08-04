@@ -241,7 +241,7 @@ export default async function LogisticaPage() {
         .order("created_at", { ascending: false })
         .limit(40),
       supabase
-        .from("shipping_quotes")
+        .from("order_shipping_quotes")
         .select("id, order_id, provider_key, service, service_name, status, cost_cents, price_cents, currency, deadline_days, error, expires_at, created_at")
         .eq("tenant_id", staff.tenantId)
         .in("status", ["quoted", "selected", "failed"])
