@@ -18,6 +18,7 @@ const BLOCK_LABEL: Record<string, string> = {
   banner: "Banner",
   faq: "Perguntas frequentes",
   product_carousel: "Carrossel de produtos",
+  contact_form: "Formulário de contato",
 };
 
 const BLOCK_DEFAULTS: Record<string, Record<string, unknown>> = {
@@ -65,6 +66,23 @@ const BLOCK_DEFAULTS: Record<string, Record<string, unknown>> = {
   banner: { image: "", href: "", full_width: true },
   faq: { items: [{ q: "Pergunta?", a: "Resposta." }] },
   product_carousel: { heading: "Título da seção", collection_slug: "" },
+  contact_form: {
+    heading: "Fale conosco",
+    subheading: "Preencha o formulário e nossa equipe retornará em breve.",
+    successMessage: "Mensagem recebida! Em breve entraremos em contato.",
+    subjects: [
+      "Dúvida sobre produto",
+      "Pedido e entrega",
+      "Troca ou devolução",
+      "Parceria",
+      "Outros",
+    ],
+    show_phone: true,
+    phone_required: false,
+    accent_color: "#b9924d",
+    bg_from: "rgba(10,22,11,0.96)",
+    bg_to: "rgba(12,29,13,0.92)",
+  },
 };
 
 const ITEM_TEMPLATES: Record<string, unknown> = {
@@ -107,6 +125,16 @@ const DEDICATED_PROP_KEYS = new Set([
   "imageX",
   "imageY",
   "imageHeight",
+  // contact_form — gerenciados pelo ContactFormEditor
+  "subjects",
+  "show_phone",
+  "phone_required",
+  "accent_color",
+  "bg_from",
+  "bg_to",
+  "heading",
+  "subheading",
+  "successMessage",
 ]);
 
 const DISPLAY_FONTS = [
@@ -437,6 +465,190 @@ function RichTextContentEditor({
           }}
         />
       )}
+    </div>
+  );
+}
+
+/* ---------- editor dedicado: contact_form ---------- */
+
+function ContactFormEditor({
+  value,
+  onChange,
+}: {
+  value: Record<string, unknown>;
+  onChange: (v: Record<string, unknown>) => void;
+}) {
+  const patch = (next: Partial<Record<string, unknown>>) => onChange({ ...value, ...next });
+
+  const subjects = Array.isArray(value.subjects)
+    ? (value.subjects as string[])
+    : ["Dúvida sobre produto", "Pedido e entrega", "Troca ou devolução", "Parceria", "Outros"];
+
+  const accentColor = (value.accent_color as string) || "#b9924d";
+  const bgFrom = (value.bg_from as string) || "rgba(10,22,11,0.96)";
+  const bgTo = (value.bg_to as string) || "rgba(12,29,13,0.92)";
+  const showPhone = value.show_phone !== false;
+  const phoneRequired = value.phone_required === true;
+
+  function updateSubject(i: number, v: string) {
+    const next = [...subjects];
+    next[i] = v;
+    patch({ subjects: next });
+  }
+  function removeSubject(i: number) {
+    patch({ subjects: subjects.filter((_, j) => j !== i) });
+  }
+  function addSubject() {
+    patch({ subjects: [...subjects, "Novo assunto"] });
+  }
+
+  const inputMini: CSSProperties = {
+    width: "100%",
+    minHeight: 38,
+    border: "1px solid var(--glass-border)",
+    borderRadius: 9,
+    padding: "0 10px",
+    color: "var(--cream)",
+    background: "rgba(10, 22, 11, 0.42)",
+    fontFamily: "inherit",
+    fontSize: 12,
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+      {/* Textos */}
+      <div className="glass" style={{ padding: 16, background: "rgba(255,248,234,0.045)" }}>
+        <p className="eyebrow" style={{ marginBottom: 14 }}>Textos do formulário</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <label className="field">
+            <span className="field-label">Título</span>
+            <input
+              className="input"
+              value={(value.heading as string) || ""}
+              onChange={(e) => patch({ heading: e.target.value })}
+              placeholder="Fale conosco"
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Subtítulo</span>
+            <textarea
+              className="input"
+              rows={2}
+              value={(value.subheading as string) || ""}
+              onChange={(e) => patch({ subheading: e.target.value })}
+              placeholder="Preencha o formulário..."
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Mensagem de sucesso</span>
+            <input
+              className="input"
+              value={(value.successMessage as string) || ""}
+              onChange={(e) => patch({ successMessage: e.target.value })}
+              placeholder="Mensagem recebida!"
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* Assuntos */}
+      <div className="glass" style={{ padding: 16, background: "rgba(255,248,234,0.045)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <p className="eyebrow" style={{ margin: 0 }}>Opções de assunto</p>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={addSubject}
+            style={{ padding: "6px 12px", fontSize: 9 }}
+          >
+            + Adicionar
+          </button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {subjects.map((subj, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                style={inputMini}
+                value={subj}
+                onChange={(e) => updateSubject(i, e.target.value)}
+                placeholder={`Assunto ${i + 1}`}
+              />
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => removeSubject(i)}
+                title="Remover"
+                style={{ color: "#e8a0a0", flexShrink: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          {subjects.length === 0 && (
+            <p className="muted" style={{ fontSize: 11, margin: 0 }}>
+              Sem assuntos — o campo não será exibido.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Campos */}
+      <div className="glass" style={{ padding: 16, background: "rgba(255,248,234,0.045)" }}>
+        <p className="eyebrow" style={{ marginBottom: 12 }}>Campos do formulário</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={showPhone}
+              onChange={(e) => patch({ show_phone: e.target.checked })}
+            />
+            <span style={{ fontSize: 12, color: "var(--cream-soft)" }}>Exibir campo de telefone</span>
+          </label>
+          {showPhone && (
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginLeft: 24 }}>
+              <input
+                type="checkbox"
+                checked={phoneRequired}
+                onChange={(e) => patch({ phone_required: e.target.checked })}
+              />
+              <span style={{ fontSize: 12, color: "var(--cream-soft)" }}>Telefone obrigatório</span>
+            </label>
+          )}
+        </div>
+      </div>
+
+      {/* Visual */}
+      <div className="glass" style={{ padding: 16, background: "rgba(255,248,234,0.045)" }}>
+        <p className="eyebrow" style={{ marginBottom: 12 }}>Cores do formulário</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          <ColorPickerField
+            label="Cor destaque"
+            value={accentColor}
+            onChange={(c) => patch({ accent_color: c })}
+          />
+          <label className="field">
+            <span className="field-label">Fundo (início)</span>
+            <input
+              style={inputMini}
+              value={bgFrom}
+              onChange={(e) => patch({ bg_from: e.target.value })}
+              placeholder="rgba(10,22,11,0.96)"
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Fundo (fim)</span>
+            <input
+              style={inputMini}
+              value={bgTo}
+              onChange={(e) => patch({ bg_to: e.target.value })}
+              placeholder="rgba(12,29,13,0.92)"
+            />
+          </label>
+        </div>
+      </div>
+
     </div>
   );
 }
@@ -823,6 +1035,18 @@ export function PageEditor({
                           }}
                         />
                       ) : null}
+                      {s.block === "contact_form" ? (
+                        <ContactFormEditor
+                          value={s.props}
+                          onChange={(props) => {
+                            setSections(
+                              sections.map((x) =>
+                                x.id === s.id ? { ...x, props: props } : x
+                              )
+                            );
+                          }}
+                        />
+                      ) : (
                       <FieldEditor
                         fieldKey={s.block}
                         blockType={s.block}
@@ -838,6 +1062,7 @@ export function PageEditor({
                           );
                         }}
                       />
+                      )}
                     </div>
                   </div>
                 </div>
