@@ -402,7 +402,7 @@ export async function runAiVisibilityScore(entityType: EntityType, entityId: str
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
-// AI — Gerar sugestões de meta via Anthropic Claude API
+// AI — Gerar sugestões de meta via Google Gemini API
 // ════════════════════════════════════════════════════════════════════════════════
 
 export async function generateSeoWithAI(context: {
@@ -414,55 +414,63 @@ export async function generateSeoWithAI(context: {
 }) {
   await requireAdmin();
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada");
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY não configurada");
 
-  const systemPrompt = `Você é um especialista em SEO para e-commerce de cosméticos e produtos naturais.
+  const prompt = `Você é um especialista em SEO para e-commerce de cosméticos e produtos naturais.
 Gere meta tags otimizadas para a Flora Botanics, uma marca brasileira de cosméticos naturais.
-Responda APENAS com JSON válido, sem texto adicional.`;
+Responda APENAS com JSON válido, sem texto adicional, sem markdown, sem code blocks.
 
-  const userPrompt = `Entidade: ${context.entityType}
+Entidade: ${context.entityType}
 Nome: ${context.name}
 ${context.description ? `Descrição: ${context.description}` : ""}
 ${context.category ? `Categoria: ${context.category}` : ""}
 ${context.keywords?.length ? `Palavras-chave existentes: ${context.keywords.join(", ")}` : ""}
 
-Gere um JSON com estes campos:
+Gere um JSON com exatamente estes campos:
 {
   "title": "título SEO (50-60 chars, inclua a palavra-chave principal e 'Flora Botanics')",
   "description": "meta description (140-160 chars, inclua CTA, benefício e palavra-chave)",
   "og_title": "título para redes sociais (pode ser mais longo e persuasivo)",
   "og_description": "descrição para redes sociais",
-  "keywords": ["palavra1", "palavra2", ...até 8],
+  "keywords": ["palavra1", "palavra2", "até 8 palavras-chave"],
   "faq": [
     {"q": "pergunta relevante sobre o produto", "a": "resposta detalhada"},
     {"q": "segunda pergunta", "a": "resposta"}
   ]
 }`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1024,
+          responseMimeType: "application/json",
+        },
+      }),
     },
-    body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
+  );
 
-  if (!res.ok) throw new Error(`Anthropic API error: ${res.status}`);
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.status.toString());
+    throw new Error(`Gemini API error ${res.status}: ${err}`);
+  }
 
-  const json = await res.json() as { content: { type: string; text: string }[] };
-  const text = json.content?.[0]?.text ?? "{}";
+  const json = await res.json() as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
 
-  // Extrai JSON da resposta (pode vir com markdown code blocks)
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+
+  // Extrai JSON (Gemini com responseMimeType json já retorna JSON puro,
+  // mas fazemos fallback com regex para segurança)
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("Resposta da IA não contém JSON válido");
+  if (!match) throw new Error("Gemini não retornou JSON válido");
 
   return JSON.parse(match[0]) as SeoMeta & { faq?: { q: string; a: string }[] };
 }
