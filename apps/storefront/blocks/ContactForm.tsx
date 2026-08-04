@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { GlassSelect } from "@/components/GlassSelect";
 
 interface Props {
   heading?: string;
@@ -40,20 +41,6 @@ export function ContactForm({
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  /* dropdown customizado */
-  const [dropOpen, setDropOpen] = useState(false);
-  const dropRef = useRef<HTMLDivElement>(null);
-
-  /* fecha ao clicar fora */
-  useEffect(() => {
-    function onOutside(e: MouseEvent) {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
-        setDropOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, []);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -395,108 +382,20 @@ export function ContactForm({
               )}
             </div>
 
-            {/* Assunto — dropdown 100% customizado (sem <select> nativo) */}
+            {/* Assunto — GlassSelect (componente glassmorphism do projeto) */}
             {hasSubjects && (
               <div>
                 <label style={fieldLabel}>Assunto</label>
-                {/* input hidden para participar do form submit */}
                 <input type="hidden" name="assunto" value={form.assunto} />
-                <div ref={dropRef} style={{ position: "relative" }}>
-                  {/* Trigger */}
-                  <button
-                    type="button"
-                    onClick={() => setDropOpen((o) => !o)}
-                    style={{
-                      ...fieldInput,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      border: dropOpen
-                        ? `1px solid ${accent_color}88`
-                        : "1px solid rgba(255,255,255,0.13)",
-                      boxShadow: dropOpen ? `0 0 0 3px ${accent_color}22` : "none",
-                      borderRadius: dropOpen ? "12px 12px 0 0" : 12,
-                      transition: "border-color 0.2s, box-shadow 0.2s",
-                    }}
-                  >
-                    <span style={{
-                      color: form.assunto ? "#f2ecdf" : "rgba(242,236,223,0.35)",
-                      fontSize: 14,
-                    }}>
-                      {form.assunto || "Selecione um assunto"}
-                    </span>
-                    <span style={{
-                      color: "rgba(242,236,223,0.4)",
-                      fontSize: 10,
-                      transform: dropOpen ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.2s",
-                      flexShrink: 0,
-                      marginLeft: 8,
-                    }}>▾</span>
-                  </button>
-
-                  {/* Lista de opções */}
-                  {dropOpen && (
-                    <div style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      right: 0,
-                      zIndex: 50,
-                      background: "rgba(12,22,13,0.97)",
-                      backdropFilter: "blur(24px) saturate(1.5)",
-                      WebkitBackdropFilter: "blur(24px) saturate(1.5)",
-                      border: `1px solid ${accent_color}55`,
-                      borderTop: "none",
-                      borderRadius: "0 0 12px 12px",
-                      overflow: "hidden",
-                      boxShadow: "0 16px 40px rgba(0,0,0,0.5)",
-                    }}>
-                      {subjects.map((s, i) => {
-                        const isSelected = form.assunto === s;
-                        return (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, assunto: s }));
-                              setDropOpen(false);
-                            }}
-                            style={{
-                              display: "block",
-                              width: "100%",
-                              padding: "12px 16px",
-                              textAlign: "left",
-                              background: isSelected
-                                ? `${accent_color}22`
-                                : "transparent",
-                              color: isSelected ? accent_color : "rgba(242,236,223,0.85)",
-                              fontFamily: "'Inter', 'Montserrat', sans-serif",
-                              fontSize: 14,
-                              cursor: "pointer",
-                              border: "none",
-                              borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none",
-                              transition: "background 0.15s",
-                            }}
-                            onMouseEnter={e => {
-                              if (!isSelected) e.currentTarget.style.background = "rgba(255,255,255,0.07)";
-                            }}
-                            onMouseLeave={e => {
-                              if (!isSelected) e.currentTarget.style.background = "transparent";
-                            }}
-                          >
-                            {isSelected && (
-                              <span style={{ marginRight: 8, fontSize: 10 }}>✦</span>
-                            )}
-                            {s}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                <GlassSelect
+                  value={form.assunto || ""}
+                  options={[
+                    { value: "", label: "Selecione um assunto" },
+                    ...subjects.map((s) => ({ value: s, label: s })),
+                  ]}
+                  ariaLabel="Assunto"
+                  onChange={(v) => setForm((prev) => ({ ...prev, assunto: v }))}
+                />
               </div>
             )}
 
