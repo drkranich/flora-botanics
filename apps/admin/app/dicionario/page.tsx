@@ -71,7 +71,7 @@ export default async function DicionarioPage({
       </section>
 
       <section className="glass rise rise-1" style={{ padding: 18, marginBottom: 18, overflow: "visible" }}>
-        <form action="/dicionario" style={{ display: "grid", gap: 14 }}>
+        <form action="/admin/dicionario" style={{ display: "grid", gap: 14 }}>
           <label style={{ display: "grid", gap: 7 }}>
             <span className="field-label">Buscar sigla, significado ou módulo</span>
             <input
