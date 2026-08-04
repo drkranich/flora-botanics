@@ -28,18 +28,33 @@ export async function generateMetadata({
   const baseUrl = await currentSiteUrl();
   const { data: category } = await client
     .from("categories")
-    .select("name, description")
+    .select("name, description, seo, keywords")
     .eq("tenant_id", tenant.tenantId)
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
 
-  return buildMetadata({
+  const seo = (category?.seo ?? {}) as Record<string, string>;
+  const kw  = (category as unknown as { keywords?: string[] } | null)?.keywords;
+
+  const base = buildMetadata({
     baseUrl,
-    title: category?.name ?? titleFromSlug(slug),
-    description: category?.description ?? "Produtos publicados nesta categoria da Flora Botanics.",
+    title: seo.title || (category?.name ?? titleFromSlug(slug)),
+    description: seo.description || category?.description || "Produtos publicados nesta categoria da Flora Botanics.",
     path: `/categorias/${slug}`,
+    image: seo.og_image || undefined,
   });
+
+  return {
+    ...base,
+    ...(kw?.length ? { keywords: kw } : {}),
+    ...(seo.robots ? { robots: seo.robots } : {}),
+    openGraph: {
+      ...base.openGraph,
+      ...(seo.og_title ? { title: seo.og_title } : {}),
+      ...(seo.og_description ? { description: seo.og_description } : {}),
+    },
+  };
 }
 
 export default async function CategoryPage({

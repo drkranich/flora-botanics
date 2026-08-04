@@ -226,7 +226,7 @@ export async function generateMetadata({
 
   const { data: product } = await client
     .from("products")
-    .select("name, subtitle, product_media(role, media(storage_path))")
+    .select("name, subtitle, seo, keywords, product_media(role, media(storage_path))")
     .eq("tenant_id", tenant.tenantId)
     .eq("slug", slug)
     .eq("status", "published")
@@ -242,17 +242,36 @@ export async function generateMetadata({
     });
   }
 
-  const row = product as unknown as ProductRow;
+  const row = product as unknown as ProductRow & { seo?: Record<string, string>; keywords?: string[] };
+  const seo = row.seo ?? {};
   const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/`;
-  const image = coverUrl(row, storageBase);
+  const image = (seo.og_image as string | undefined) ?? coverUrl(row as unknown as ProductRow, storageBase);
 
-  return buildMetadata({
+  const base = buildMetadata({
     baseUrl,
-    title: row.name,
-    description: row.subtitle ?? DEFAULT_DESCRIPTION,
+    title: (seo.title as string | undefined) || row.name,
+    description: (seo.description as string | undefined) || row.subtitle || DEFAULT_DESCRIPTION,
     path: `/produtos/${slug}`,
     image,
   });
+
+  return {
+    ...base,
+    keywords: row.keywords?.length ? row.keywords : undefined,
+    robots: (seo.robots as string | undefined) ?? "index,follow",
+    ...(seo.canonical ? { alternates: { canonical: seo.canonical as string } } : {}),
+    openGraph: {
+      ...base.openGraph,
+      ...(seo.og_title ? { title: seo.og_title as string } : {}),
+      ...(seo.og_description ? { description: seo.og_description as string } : {}),
+    },
+    twitter: {
+      ...base.twitter,
+      ...(seo.twitter_title ? { title: seo.twitter_title as string } : {}),
+      ...(seo.twitter_description ? { description: seo.twitter_description as string } : {}),
+      card: (seo.twitter_card as "summary" | "summary_large_image" | undefined) ?? (image ? "summary_large_image" : "summary"),
+    },
+  };
 }
 
 export default async function ProductPage({
