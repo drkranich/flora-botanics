@@ -212,9 +212,55 @@ function TriageModal({
         {loading ? (
           <p style={{ color: "var(--cream-dim)", fontSize: 12, fontFamily: "Manrope, sans-serif" }}>Carregando pipelines…</p>
         ) : pipelines.length === 0 ? (
-          <p style={{ color: "var(--cream-dim)", fontSize: 12, fontFamily: "Manrope, sans-serif" }}>
-            Nenhum pipeline ativo. Crie um em Pipeline CRM primeiro.
-          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "flex-start" }}>
+            <p style={{ color: "var(--cream-dim)", fontSize: 13, fontFamily: "Manrope, sans-serif", margin: 0, lineHeight: 1.5 }}>
+              Nenhum pipeline ativo ainda.
+            </p>
+            <a
+              href="/inbox/pipeline"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "10px 16px",
+                background: "linear-gradient(135deg, rgba(185,146,77,0.18), rgba(185,146,77,0.08))",
+                border: "1px solid rgba(185,146,77,0.35)",
+                borderRadius: 10,
+                color: "var(--gold-light)",
+                fontFamily: "Manrope, sans-serif",
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: 1.2,
+                textTransform: "uppercase",
+                textDecoration: "none",
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(185,146,77,0.22)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg, rgba(185,146,77,0.18), rgba(185,146,77,0.08))")}
+            >
+              <span style={{ fontSize: 14 }}>⬡</span>
+              Criar pipeline CRM
+              <span style={{ fontSize: 10, opacity: 0.6 }}>↗</span>
+            </a>
+            <button
+              onClick={async () => { const list = await getPipelineOptions(); setPipelines(list); }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "rgba(242,236,223,0.4)",
+                fontFamily: "Manrope, sans-serif",
+                fontSize: 11,
+                cursor: "pointer",
+                padding: 0,
+                textDecoration: "underline",
+              }}
+            >
+              ↺ Recarregar após criar
+            </button>
+          </div>
         ) : (
           <>
             <div style={{ marginBottom: 14 }}>
