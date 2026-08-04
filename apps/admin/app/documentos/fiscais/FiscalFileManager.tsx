@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { GlassSelect } from "@/components/GlassSelect";
 import {
   createFiscalFolder,
   renameFiscalFolder,
@@ -96,6 +97,8 @@ function UploadModal({ folders, defaultType, defaultCompetence, onClose }: {
   const [err, setErr] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [selCategory, setSelCategory] = useState(defaultType ?? "outros");
+  const [selFolder, setSelFolder] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -142,20 +145,26 @@ function UploadModal({ folders, defaultType, defaultCompetence, onClose }: {
           <input name="name" style={inputStyle} placeholder="Ex: Contrato Social 2024" />
         </Field>
         <Field label="Tipo de documento">
-          <select name="category" defaultValue={defaultType ?? "outros"} style={inputStyle}>
-            {TYPES.filter(t => t.value !== "todos").map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
+          <GlassSelect
+            name="category"
+            value={selCategory}
+            onChange={setSelCategory}
+            options={TYPES.filter(t => t.value !== "todos").map(t => ({ value: t.value, label: t.label }))}
+          />
         </Field>
         <Field label="Competência (MM/AAAA)">
           <input name="competence" style={inputStyle} placeholder="08/2026" defaultValue={defaultCompetence ?? ""} />
         </Field>
         <Field label="Pasta (opcional)">
-          <select name="folder_id" style={inputStyle} defaultValue="">
-            <option value="">— Sem pasta —</option>
-            {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
+          <GlassSelect
+            name="folder_id"
+            value={selFolder}
+            onChange={setSelFolder}
+            options={[
+              { value: "", label: "— Sem pasta —" },
+              ...folders.map(f => ({ value: f.id, label: f.name })),
+            ]}
+          />
         </Field>
 
         {progress && <p style={{ fontSize: 12, color: "var(--gold)", marginBottom: 10 }}>⏳ {progress}</p>}

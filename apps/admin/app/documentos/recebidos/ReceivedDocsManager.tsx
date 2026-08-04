@@ -2,6 +2,8 @@
 
 import { useState, useTransition, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { GlassSelect } from "@/components/GlassSelect";
+import { GlassDateInput } from "@/components/GlassDateInput";
 import {
   saveReceivedDoc,
   deleteReceivedDoc,
@@ -559,12 +561,10 @@ function DocDrawer({ doc, onClose, onUpdate, onDelete }: {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <Field label="Novo vencimento *">
-                    <input
-                      type="date"
-                      required
+                    <GlassDateInput
                       value={regenDue}
-                      onChange={e => setRegenDue(e.target.value)}
-                      style={inputStyle}
+                      onChange={setRegenDue}
+                      placeholder="Selecionar data"
                     />
                   </Field>
                   <Field label="Novo valor (R$) *">
@@ -632,10 +632,24 @@ function UploadModal({ onClose }: { onClose: () => void }) {
   const [progress, setProgress] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Campos controlados para GlassSelect / GlassDateInput
+  const [docType,    setDocType]    = useState("outros");
+  const [department, setDepartment] = useState("fiscal");
+  const [dueDate,    setDueDate]    = useState("");
+  const [status,     setStatus]     = useState("open");
+  const [issuer,     setIssuer]     = useState("");
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
     const fd = new FormData(e.currentTarget);
+    // Injeta valores dos componentes glass (que usam hidden inputs via name)
+    fd.set("doc_type",   docType);
+    fd.set("department", department);
+    fd.set("due_date",   dueDate);
+    fd.set("status",     status);
+    fd.set("issuer",     issuer);
+
     const file = fileRef.current?.files?.[0];
 
     start(async () => {
@@ -685,15 +699,19 @@ function UploadModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <Field label="Tipo de documento">
-            <select name="doc_type" defaultValue="outros" style={inputStyle}>
-              {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            <GlassSelect
+              value={docType}
+              onChange={setDocType}
+              options={DOC_TYPES.map(t => ({ value: t.value, label: t.label }))}
+            />
           </Field>
 
           <Field label="Departamento">
-            <select name="department" defaultValue="fiscal" style={inputStyle}>
-              {DEPARTMENTS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </select>
+            <GlassSelect
+              value={department}
+              onChange={setDepartment}
+              options={DEPARTMENTS.map(d => ({ value: d.value, label: d.label }))}
+            />
           </Field>
 
           <Field label="Competência (MM/AAAA)">
@@ -701,7 +719,11 @@ function UploadModal({ onClose }: { onClose: () => void }) {
           </Field>
 
           <Field label="Vencimento">
-            <input name="due_date" type="date" style={inputStyle} />
+            <GlassDateInput
+              value={dueDate}
+              onChange={setDueDate}
+              placeholder="Selecionar data"
+            />
           </Field>
 
           <Field label="Valor (R$)">
@@ -709,21 +731,29 @@ function UploadModal({ onClose }: { onClose: () => void }) {
           </Field>
 
           <Field label="Status inicial">
-            <select name="status" defaultValue="open" style={inputStyle}>
-              <option value="pending">Pendente</option>
-              <option value="open">Em aberto</option>
-              <option value="scheduled">Agendado</option>
-              <option value="paid">Pago</option>
-              <option value="overdue">Vencido</option>
-            </select>
+            <GlassSelect
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: "pending",   label: "Pendente" },
+                { value: "open",      label: "Em aberto" },
+                { value: "scheduled", label: "Agendado" },
+                { value: "paid",      label: "Pago" },
+                { value: "overdue",   label: "Vencido" },
+              ]}
+            />
           </Field>
 
           <div style={{ gridColumn: "1 / -1" }}>
             <Field label="Órgão emissor">
-              <select name="issuer" style={inputStyle}>
-                <option value="">— Selecione —</option>
-                {ISSUERS.map(i => <option key={i} value={i}>{i}</option>)}
-              </select>
+              <GlassSelect
+                value={issuer}
+                onChange={setIssuer}
+                options={[
+                  { value: "", label: "— Selecione —" },
+                  ...ISSUERS.map(i => ({ value: i, label: i })),
+                ]}
+              />
             </Field>
           </div>
 
