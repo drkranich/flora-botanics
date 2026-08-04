@@ -65,7 +65,7 @@ export function SiteHeader({
         ))}
       </nav>
       <div className="header-actions">
-        <Link href="/favoritos" aria-label="Favoritos">
+        <Link href="/favoritos" aria-label="Favoritos" className="header-fav">
           <svg className="icon" viewBox="0 0 24 24">
             <path d="M12 21s-7-4.35-9.2-8.4C.6 8.55 3.05 4 7.2 4c2 0 3.35 1.05 4.8 2.65C13.45 5.05 14.8 4 16.8 4c4.15 0 6.6 4.55 4.4 8.6C19 16.65 12 21 12 21Z"></path>
           </svg>
