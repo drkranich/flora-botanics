@@ -15,6 +15,17 @@ import {
   createJurisdiction,
   updateJurisdiction,
   seedInternationalTradeCenter,
+  closeExportAlert,
+  deleteInternationalTaxRule,
+  deleteInternationalDocument,
+  deleteInternationalShippingQuote,
+  deleteFiscalRegistration,
+  deleteExportComplianceCheck,
+  deleteExchangeRate,
+  createCustomsClassification,
+  deleteCustomsClassification,
+  createNfeExportRecord,
+  createDueRecord,
 } from "./international-actions";
 
 const statuses: GlassSelectOption[] = [
@@ -913,3 +924,294 @@ const inputStyle: CSSProperties = {
   width: "100%",
   minHeight: 42,
 };
+
+// ── Delete / fechar alerta ─────────────────────────────────────────────────────
+
+export function CloseAlertButton({ alertId }: { alertId: string }) {
+  return (
+    <form action={closeExportAlert.bind(null, alertId)} style={{ display: "inline" }}>
+      <button type="submit" className="btn btn-ghost" style={{ minHeight: 28, padding: "4px 10px", fontSize: 9 }}>
+        Fechar
+      </button>
+    </form>
+  );
+}
+
+export function DeleteTaxRuleButton({ id }: { id: string }) {
+  return (
+    <form action={deleteInternationalTaxRule.bind(null, id)} style={{ display: "inline" }}>
+      <button type="submit" className="btn btn-ghost" style={{ minHeight: 26, padding: "4px 9px", fontSize: 8.5, opacity: 0.6 }}
+        onClick={(e) => { if (!window.confirm("Excluir esta regra?")) e.preventDefault(); }}>
+        ✕
+      </button>
+    </form>
+  );
+}
+
+export function DeleteDocumentButton({ id }: { id: string }) {
+  return (
+    <form action={deleteInternationalDocument.bind(null, id)} style={{ display: "inline" }}>
+      <button type="submit" className="btn btn-ghost" style={{ minHeight: 26, padding: "4px 9px", fontSize: 8.5, opacity: 0.6 }}
+        onClick={(e) => { if (!window.confirm("Excluir este documento?")) e.preventDefault(); }}>
+        ✕
+      </button>
+    </form>
+  );
+}
+
+export function DeleteShippingButton({ id }: { id: string }) {
+  return (
+    <form action={deleteInternationalShippingQuote.bind(null, id)} style={{ display: "inline" }}>
+      <button type="submit" className="btn btn-ghost" style={{ minHeight: 26, padding: "4px 9px", fontSize: 8.5, opacity: 0.6 }}
+        onClick={(e) => { if (!window.confirm("Excluir esta cotação?")) e.preventDefault(); }}>
+        ✕
+      </button>
+    </form>
+  );
+}
+
+export function DeleteFiscalRegButton({ id }: { id: string }) {
+  return (
+    <form action={deleteFiscalRegistration.bind(null, id)} style={{ display: "inline" }}>
+      <button type="submit" className="btn btn-ghost" style={{ minHeight: 26, padding: "4px 9px", fontSize: 8.5, opacity: 0.6 }}
+        onClick={(e) => { if (!window.confirm("Excluir este registro?")) e.preventDefault(); }}>
+        ✕
+      </button>
+    </form>
+  );
+}
+
+export function DeleteComplianceButton({ id }: { id: string }) {
+  return (
+    <form action={deleteExportComplianceCheck.bind(null, id)} style={{ display: "inline" }}>
+      <button type="submit" className="btn btn-ghost" style={{ minHeight: 26, padding: "4px 9px", fontSize: 8.5, opacity: 0.6 }}
+        onClick={(e) => { if (!window.confirm("Excluir esta verificação?")) e.preventDefault(); }}>
+        ✕
+      </button>
+    </form>
+  );
+}
+
+export function DeleteExchangeRateButton({ id }: { id: string }) {
+  return (
+    <form action={deleteExchangeRate.bind(null, id)} style={{ display: "inline" }}>
+      <button type="submit" className="btn btn-ghost" style={{ minHeight: 26, padding: "4px 9px", fontSize: 8.5, opacity: 0.6 }}
+        onClick={(e) => { if (!window.confirm("Excluir esta taxa?")) e.preventDefault(); }}>
+        ✕
+      </button>
+    </form>
+  );
+}
+
+export function DeleteClassificationButton({ id }: { id: string }) {
+  return (
+    <form action={deleteCustomsClassification.bind(null, id)} style={{ display: "inline" }}>
+      <button type="submit" className="btn btn-ghost" style={{ minHeight: 26, padding: "4px 9px", fontSize: 8.5, opacity: 0.6 }}
+        onClick={(e) => { if (!window.confirm("Excluir esta classificação?")) e.preventDefault(); }}>
+        ✕
+      </button>
+    </form>
+  );
+}
+
+// ── Classificação aduaneira ────────────────────────────────────────────────────
+
+const classificationSystems: GlassSelectOption[] = [
+  { value: "NCM",   label: "NCM (Brasil)" },
+  { value: "HS",    label: "HS Code (Internacional)" },
+  { value: "HTS",   label: "HTS (Estados Unidos)" },
+  { value: "TARIC", label: "TARIC (União Europeia)" },
+  { value: "UKGT",  label: "UK Global Tariff" },
+  { value: "CBSA",  label: "CBSA (Canadá)" },
+];
+
+const classificationStatuses: GlassSelectOption[] = [
+  { value: "suggested",  label: "Sugerido" },
+  { value: "confirmed",  label: "Confirmado" },
+  { value: "challenged", label: "Contestado" },
+  { value: "outdated",   label: "Desatualizado" },
+];
+
+const classificationConfidence: GlassSelectOption[] = [
+  { value: "needs_review",         label: "Precisa revisão" },
+  { value: "specialist_validated", label: "Validado por especialista" },
+  { value: "official_imported",    label: "Oficial importado" },
+];
+
+export function CustomsClassificationForm({ jurisdictions }: { jurisdictions: GlassSelectOption[] }) {
+  const jurisdictionOptions = jurisdictions.length ? jurisdictions : [{ value: "", label: "Instale os pacotes iniciais" }];
+  return (
+    <FormShell
+      eyebrow="NCM / HS Code / Tarifas"
+      title="Cadastrar classificação aduaneira"
+      action={createCustomsClassification}
+      buttonLabel="Salvar classificação"
+    >
+      <Field label="Sistema *">
+        <GlassSelect name="classification_system" options={classificationSystems} defaultValue="NCM" inlineMenu />
+      </Field>
+      <Field label="Código *">
+        <TextInput name="code" required placeholder="3304.99, 3304.99.90..." />
+      </Field>
+      <Field label="Descrição *">
+        <TextInput name="description" required placeholder="Preparações de beleza, maquiagem..." />
+      </Field>
+      <Field label="Jurisdição">
+        <GlassSelect name="jurisdiction_id" options={[{ value: "", label: "Global / sem jurisdição" }, ...jurisdictionOptions]} inlineMenu />
+      </Field>
+      <Field label="Fonte">
+        <TextInput name="source" placeholder="TIPI, CBP, HMRC..." />
+      </Field>
+      <Field label="Status">
+        <GlassSelect name="status" options={classificationStatuses} defaultValue="suggested" inlineMenu />
+      </Field>
+      <Field label="Confiança">
+        <GlassSelect name="confidence_status" options={classificationConfidence} defaultValue="needs_review" inlineMenu />
+      </Field>
+      <Field label="Justificativa">
+        <TextArea name="justification" placeholder="Base legal, decisão de consulta, fundamentação..." />
+      </Field>
+    </FormShell>
+  );
+}
+
+// ── NF-e de exportação: preparação ────────────────────────────────────────────
+
+const nfeStatuses: GlassSelectOption[] = [
+  { value: "draft",     label: "Rascunho" },
+  { value: "review",    label: "Em revisão" },
+  { value: "validated", label: "Validado internamente" },
+  { value: "approved",  label: "Autorizado (protocolo importado)" },
+];
+
+export function NfeExportForm({ operations }: { operations: GlassSelectOption[] }) {
+  return (
+    <FormShell
+      eyebrow="NF-e de exportação"
+      title="Registrar dados de preparação"
+      action={createNfeExportRecord}
+      buttonLabel="Salvar NF-e"
+    >
+      <Field label="Operação">
+        <GlassSelect name="operation_id" options={[{ value: "", label: "Sem operação vinculada" }, ...operations]} inlineMenu />
+      </Field>
+      <Field label="Título / referência">
+        <TextInput name="title" placeholder="NF-e EXP-20260801-001" />
+      </Field>
+      <Field label="CFOP">
+        <TextInput name="cfop" placeholder="7101, 7102, 7501..." />
+      </Field>
+      <Field label="NCM">
+        <TextInput name="ncm" placeholder="3304.99.90" />
+      </Field>
+      <Field label="Natureza da operação">
+        <TextInput name="natureza_operacao" placeholder="Exportação direta, remessa para embarque..." />
+      </Field>
+      <Field label="Chave de acesso">
+        <TextInput name="chave_acesso" placeholder="44 dígitos (importar após autorização)" />
+      </Field>
+      <Field label="Protocolo de autorização">
+        <TextInput name="protocolo" placeholder="Importar da SEFAZ após transmissão" />
+      </Field>
+      <Field label="Série">
+        <TextInput name="serie" placeholder="1" />
+      </Field>
+      <Field label="Número">
+        <TextInput name="numero" placeholder="000001" />
+      </Field>
+      <Field label="Status">
+        <GlassSelect name="status" options={nfeStatuses} defaultValue="draft" inlineMenu />
+      </Field>
+      <Field label="Observações">
+        <TextArea name="notes" placeholder="NF-e de exportação exige integração SEFAZ com certificado A1/A3 para transmissão." />
+      </Field>
+    </FormShell>
+  );
+}
+
+// ── DU-E: preparação ───────────────────────────────────────────────────────────
+
+const dueStatuses: GlassSelectOption[] = [
+  { value: "draft",     label: "Rascunho (preparação local)" },
+  { value: "review",    label: "Em revisão" },
+  { value: "validated", label: "Validado internamente" },
+  { value: "approved",  label: "Protocolo importado do Portal Único" },
+];
+
+const dueModais: GlassSelectOption[] = [
+  { value: "aereo",    label: "Aéreo" },
+  { value: "maritimo", label: "Marítimo" },
+  { value: "rodoviario", label: "Rodoviário" },
+  { value: "postal",   label: "Postal" },
+];
+
+const dueCanais: GlassSelectOption[] = [
+  { value: "verde",    label: "Canal Verde" },
+  { value: "amarelo",  label: "Canal Amarelo" },
+  { value: "vermelho", label: "Canal Vermelho" },
+  { value: "cinza",    label: "Canal Cinza" },
+];
+
+export function DueForm({ operations }: { operations: GlassSelectOption[] }) {
+  return (
+    <FormShell
+      eyebrow="DU-E"
+      title="Registrar dados do despacho de exportação"
+      action={createDueRecord}
+      buttonLabel="Salvar DU-E"
+    >
+      <Field label="Operação">
+        <GlassSelect name="operation_id" options={[{ value: "", label: "Sem operação vinculada" }, ...operations]} inlineMenu />
+      </Field>
+      <Field label="Título / referência">
+        <TextInput name="title" placeholder="DU-E EXP-20260801" />
+      </Field>
+      <Field label="Número DU-E">
+        <TextInput name="due_number" placeholder="Importar do Portal Único após registro" />
+      </Field>
+      <Field label="Protocolo">
+        <TextInput name="protocolo" placeholder="Número do protocolo de despacho" />
+      </Field>
+      <Field label="Recinto aduaneiro">
+        <TextInput name="recinto" placeholder="Aeroporto, porto, recinto seco..." />
+      </Field>
+      <Field label="Modal">
+        <GlassSelect name="modal" options={dueModais} defaultValue="aereo" inlineMenu />
+      </Field>
+      <Field label="LPCO">
+        <TextInput name="lpco" placeholder="Número do LPCO se exigido" />
+      </Field>
+      <Field label="RUC">
+        <TextInput name="ruc" placeholder="Registro Único de Carga" />
+      </Field>
+      <Field label="Canal parametrização">
+        <GlassSelect name="canal" options={dueCanais} defaultValue="verde" inlineMenu />
+      </Field>
+      <Field label="Status">
+        <GlassSelect name="status" options={dueStatuses} defaultValue="draft" inlineMenu />
+      </Field>
+      <Field label="Observações">
+        <TextArea name="notes" placeholder="DU-E exige integração com Portal Único Siscomex para registro e protocolo oficiais." />
+      </Field>
+    </FormShell>
+  );
+}
+
+// ── Exportar CSV ──────────────────────────────────────────────────────────────
+
+export function ExportCsvButtons() {
+  const base = "/admin/api/export-report-csv";
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 16 }}>
+      <a href={`${base}?type=landed_cost`} className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 9.5 }}>
+        ↓ CSV Landed Cost
+      </a>
+      <a href={`${base}?type=operations`} className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 9.5 }}>
+        ↓ CSV Operações
+      </a>
+      <a href={`${base}?type=tax_rules`} className="btn btn-ghost" style={{ padding: "8px 14px", fontSize: 9.5 }}>
+        ↓ CSV Regras Tributárias
+      </a>
+    </div>
+  );
+}

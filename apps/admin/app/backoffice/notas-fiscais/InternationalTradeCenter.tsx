@@ -4,14 +4,26 @@ import { createClient } from "@/lib/supabase/server";
 import { currentStaff } from "@/lib/auth";
 import { money } from "@/lib/format";
 import {
+  CloseAlertButton,
+  CustomsClassificationForm,
+  DeleteClassificationButton,
+  DeleteComplianceButton,
+  DeleteDocumentButton,
+  DeleteExchangeRateButton,
+  DeleteFiscalRegButton,
+  DeleteShippingButton,
+  DeleteTaxRuleButton,
+  DueForm,
   ExchangeRateForm,
   ExportComplianceForm,
+  ExportCsvButtons,
   FiscalRegistrationForm,
   InternationalDocumentForm,
   InternationalOperationForm,
   InternationalRuleForm,
   InternationalShippingForm,
   JurisdictionForm,
+  NfeExportForm,
   SeedInternationalTradeButton,
 } from "./InternationalTradeForms";
 import { reviewJurisdictionPackage, runInternationalProviderAction } from "./international-actions";
@@ -226,6 +238,42 @@ type FiscalRegRow = {
   jurisdictions: { name: string; code: string } | null;
 };
 
+type CustomsClassificationRow = {
+  id: string;
+  classification_system: string;
+  code: string;
+  description: string;
+  source: string | null;
+  status: string;
+  confidence_status: string;
+  justification: string | null;
+  jurisdictions: { name: string; code: string } | null;
+};
+
+type MarketplaceOperationRow = {
+  id: string;
+  operation_number: string;
+  title: string;
+  status: string;
+  marketplace_name: string | null;
+  destination_country: string;
+  currency: string;
+  tax_responsibility: string;
+  created_at: string;
+};
+
+type CommissionRuleRow = {
+  id: string;
+  tax_name: string;
+  rate_percent: number;
+  responsibility: string;
+  rule_status: string;
+  official_source: string | null;
+  effective_from: string | null;
+  effective_until: string | null;
+  jurisdictions: { name: string; code: string } | null;
+};
+
 function formatDate(iso: string | null | undefined) {
   if (!iso) return "—";
   const date = new Date(iso);
@@ -335,6 +383,9 @@ export async function InternationalTradeCenter({
     exchangeRatesRes,
     fiscalRegsRes,
     intSettingsRes,
+    classificationsRes,
+    commissionRulesRes,
+    marketplaceOpsRes,
   ] = await Promise.all([
     supabase
       .from("jurisdictions")
@@ -363,6 +414,7 @@ export async function InternationalTradeCenter({
       .from("international_tax_rules")
       .select("id, tax_name, tax_kind, rate_percent, responsibility, rule_status, official_source, effective_from, effective_until, jurisdictions(name, code)")
       .eq("tenant_id", staff.tenantId)
+      .neq("tax_kind", "commission")
       .order("created_at", { ascending: false })
       .limit(30),
     supabase
@@ -405,6 +457,30 @@ export async function InternationalTradeCenter({
       .select("key, value")
       .eq("tenant_id", staff.tenantId)
       .in("key", ["integration_sefaz", "integration_stripe", "integration_melhor_envio"]),
+    // Classificações aduaneiras
+    supabase
+      .from("customs_classifications")
+      .select("id, classification_system, code, description, source, status, confidence_status, justification, jurisdictions(name, code)")
+      .eq("tenant_id", staff.tenantId)
+      .order("classification_system")
+      .order("code")
+      .limit(100),
+    // Comissões (tax_kind = 'commission')
+    supabase
+      .from("international_tax_rules")
+      .select("id, tax_name, rate_percent, responsibility, rule_status, official_source, effective_from, effective_until, jurisdictions(name, code)")
+      .eq("tenant_id", staff.tenantId)
+      .eq("tax_kind", "commission")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    // Operações de marketplace
+    supabase
+      .from("export_operations")
+      .select("id, operation_number, title, status, marketplace_name, destination_country, currency, tax_responsibility, created_at")
+      .eq("tenant_id", staff.tenantId)
+      .not("marketplace_name", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(30),
   ]);
 
   const migrationPending = Boolean(jurisdictionsRes.error || operationsRes.error || calculationsRes.error);
@@ -459,6 +535,9 @@ export async function InternationalTradeCenter({
   const incotermsData = (incotermsRes.data ?? []) as unknown as IncotermsRow[];
   const exchangeRates = (exchangeRatesRes.data ?? []) as unknown as ExchangeRateRow[];
   const fiscalRegs = (fiscalRegsRes.data ?? []) as unknown as FiscalRegRow[];
+  const customsClassifications = (classificationsRes.data ?? []) as unknown as CustomsClassificationRow[];
+  const commissionRules = (commissionRulesRes.data ?? []) as unknown as CommissionRuleRow[];
+  const marketplaceOps = (marketplaceOpsRes.data ?? []) as unknown as MarketplaceOperationRow[];
 
   const jurisdictionOptions = jurisdictions.map((item) => ({
     value: item.id,
@@ -793,7 +872,10 @@ export async function InternationalTradeCenter({
                     <small>{rule.jurisdictions?.name ?? "jurisdição"} · {rule.tax_kind} · responsável {statusLabel(rule.responsibility)}</small>
                     <small>{rule.official_source ?? "fonte não informada"} · vigência {formatDate(rule.effective_from)} a {formatDate(rule.effective_until)}</small>
                   </div>
-                  <Chip value={rule.rule_status} />
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Chip value={rule.rule_status} />
+                    <DeleteTaxRuleButton id={rule.id} />
+                  </span>
                 </article>
               ))}
             </div>
@@ -876,6 +958,7 @@ export async function InternationalTradeCenter({
                   <span style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                     <Chip value={doc.status} />
                     <Chip value={doc.requirement_status} />
+                    <DeleteDocumentButton id={doc.id} />
                   </span>
                 </article>
               ))}
@@ -897,7 +980,10 @@ export async function InternationalTradeCenter({
                     <small>Frete {money(quote.freight_cents, quote.currency)} · seguro {money(quote.insurance_cents, quote.currency)} · tributos antecipados {money(quote.taxes_prepaid_cents, quote.currency)}</small>
                     {quote.tracking_code ? <small>Rastreio: {quote.tracking_code}</small> : null}
                   </div>
-                  <Chip value={quote.status} />
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Chip value={quote.status} />
+                    <DeleteShippingButton id={quote.id} />
+                  </span>
                 </article>
               ))}
             </div>
@@ -932,6 +1018,7 @@ export async function InternationalTradeCenter({
                   <span style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                     <Chip value={check.status} />
                     <Chip value={check.severity} />
+                    <DeleteComplianceButton id={check.id} />
                   </span>
                 </article>
               ))}
@@ -954,6 +1041,7 @@ export async function InternationalTradeCenter({
                   <span style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                     <Chip value={alert.severity} />
                     <Chip value={alert.status} />
+                    {alert.status === "open" && <CloseAlertButton alertId={alert.id} />}
                   </span>
                 </article>
               ))}
@@ -1043,8 +1131,11 @@ export async function InternationalTradeCenter({
                     {rate.commercial_rate ? <small>Taxa comercial: {Number(rate.commercial_rate).toFixed(4)} · spread {Number(rate.spread_percent).toFixed(2)}%</small> : null}
                     {rate.locked_until ? <small>Travado até {formatDate(rate.locked_until)}</small> : null}
                   </div>
-                  <span className={`fiscal-chip fiscal-chip-${rate.locked_until ? "ok" : "draft"}`}>
-                    {rate.locked_until ? "Travado" : rate.scenario}
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span className={`fiscal-chip fiscal-chip-${rate.locked_until ? "ok" : "draft"}`}>
+                      {rate.locked_until ? "Travado" : rate.scenario}
+                    </span>
+                    <DeleteExchangeRateButton id={rate.id} />
                   </span>
                 </article>
               ))}
@@ -1080,7 +1171,10 @@ export async function InternationalTradeCenter({
                     <small>Vigência {formatDate(reg.effective_from)} a {formatDate(reg.effective_until)}</small>
                     {reg.renewal_due_at ? <small>Renovação: {formatDate(reg.renewal_due_at)}</small> : null}
                   </div>
-                  <Chip value={reg.status} />
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Chip value={reg.status} />
+                    <DeleteFiscalRegButton id={reg.id} />
+                  </span>
                 </article>
               ))}
             </div>
@@ -1088,6 +1182,280 @@ export async function InternationalTradeCenter({
         </div>
 
         <FiscalRegistrationForm jurisdictions={jurisdictionOptions} />
+      </section>
+
+      {/* ── NF-e de exportação ────────────────────────────────────────── */}
+      <section style={showModule(activeModule, ["nfe-de-exportacao"]) ? twoColumnStyle : hiddenStyle}>
+        <div className="glass" style={cardStyle}>
+          <SectionTitle
+            eyebrow="NF-e de exportação"
+            title="Preparação fiscal para exportação formal"
+            note="A transmissão oficial da NF-e de exportação exige certificado digital A1/A3 e integração com a SEFAZ. Este painel registra dados de preparação e importação de protocolos após autorização."
+          />
+          <div className="glass" style={{ ...noticeStyle, borderColor: "rgba(185,146,77,0.3)", marginBottom: 14 }}>
+            <strong style={{ fontSize: 11, color: "var(--gold-light)", letterSpacing: 0.8 }}>⚠ Integração SEFAZ necessária para transmissão</strong>
+            <p className="muted" style={{ margin: "6px 0 0", fontSize: 11, lineHeight: 1.6 }}>
+              Configurar em: <strong>Configurações → Integrações → SEFAZ</strong>. Sem certificado e CNPJ configurados, nenhum XML é transmitido automaticamente. Registre dados de preparação abaixo e importe a chave de acesso e protocolo após autorização externa.
+            </p>
+          </div>
+          {documents.filter((d) => d.document_type === "nfe_export").length === 0 ? (
+            <Empty title="Nenhuma NF-e registrada" text="Registre dados de preparação, CFOP, NCM, natureza da operação e importe chave de acesso e protocolo após transmissão via sistema autorizado." />
+          ) : (
+            <div style={rowGridStyle}>
+              {documents.filter((d) => d.document_type === "nfe_export").map((doc) => (
+                <article key={doc.id} style={rowStyle}>
+                  <div>
+                    <strong>{doc.title}</strong>
+                    <small>NF-e de exportação · BR · vence {formatDate(doc.expires_at)}</small>
+                  </div>
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Chip value={doc.status} />
+                    <DeleteDocumentButton id={doc.id} />
+                  </span>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+        <NfeExportForm operations={operationOptions} />
+      </section>
+
+      {/* ── DU-E ──────────────────────────────────────────────────────── */}
+      <section style={showModule(activeModule, ["du-e"]) ? twoColumnStyle : hiddenStyle}>
+        <div className="glass" style={cardStyle}>
+          <SectionTitle
+            eyebrow="DU-E — Declaração Única de Exportação"
+            title="Despacho aduaneiro e Portal Único"
+            note="O registro oficial da DU-E exige integração com o Portal Único Siscomex. Este painel centraliza a preparação de dados, recinto, modal, LPCO e importação de protocolos."
+          />
+          <div className="glass" style={{ ...noticeStyle, borderColor: "rgba(185,146,77,0.3)", marginBottom: 14 }}>
+            <strong style={{ fontSize: 11, color: "var(--gold-light)", letterSpacing: 0.8 }}>⚠ Integração Portal Único necessária para registro oficial</strong>
+            <p className="muted" style={{ margin: "6px 0 0", fontSize: 11, lineHeight: 1.6 }}>
+              Configurar em: <strong>Configurações → Integrações → Portal Único Siscomex</strong>. O número DU-E e o protocolo de desembaraço devem ser importados após registro no Portal Único.
+            </p>
+          </div>
+          {documents.filter((d) => d.document_type === "due").length === 0 ? (
+            <Empty title="Nenhuma DU-E registrada" text="Registre os dados de preparação do despacho: recinto, modal, LPCO, RUC e canal. Importe número DU-E e protocolo após registro oficial." />
+          ) : (
+            <div style={rowGridStyle}>
+              {documents.filter((d) => d.document_type === "due").map((doc) => (
+                <article key={doc.id} style={rowStyle}>
+                  <div>
+                    <strong>{doc.title}</strong>
+                    <small>DU-E · BR · vence {formatDate(doc.expires_at)}</small>
+                  </div>
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Chip value={doc.status} />
+                    <DeleteDocumentButton id={doc.id} />
+                  </span>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+        <DueForm operations={operationOptions} />
+      </section>
+
+      {/* ── NCM / HS Code / Classificações ────────────────────────────── */}
+      <section
+        style={
+          showModule(activeModule, ["classificacao-fiscal", "ncm-hs-code-e-codigos-locais"])
+            ? twoColumnStyle
+            : hiddenStyle
+        }
+      >
+        <div className="glass" style={cardStyle}>
+          <SectionTitle
+            eyebrow="Classificações aduaneiras"
+            title="NCM, HS Code e códigos locais"
+            note="Cada código define tarifa aduaneira, imposto no destino, LPCO e obrigações regulatórias. Valide com fonte oficial antes de usar em operações reais."
+          />
+          <details style={{ marginBottom: 16 }}>
+            <summary style={{
+              cursor: "pointer", userSelect: "none",
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "8px 14px",
+              background: "linear-gradient(135deg, rgba(185,146,77,0.14), rgba(185,146,77,0.06))",
+              border: "1px solid rgba(185,146,77,0.32)", borderRadius: 10,
+              color: "var(--gold-light)", fontFamily: "Manrope, sans-serif",
+              fontWeight: 700, fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase" as const,
+            }}>
+              ＋ Nova classificação
+            </summary>
+            <div style={{ marginTop: 14 }}>
+              <CustomsClassificationForm jurisdictions={jurisdictionOptions} />
+            </div>
+          </details>
+          {customsClassifications.length === 0 ? (
+            <Empty
+              title="Nenhuma classificação cadastrada"
+              text="Cadastre NCM para o Brasil, HS Codes internacionais, HTS para os EUA, TARIC para a UE, UKGT para o Reino Unido e CBSA para o Canadá."
+            />
+          ) : (
+            <div style={rowGridStyle}>
+              {customsClassifications.map((cls) => (
+                <article key={cls.id} style={rowStyle}>
+                  <div>
+                    <strong style={{ color: "var(--gold-light)" }}>{cls.classification_system} {cls.code}</strong>
+                    <small>{cls.description}</small>
+                    <small>
+                      {(cls.jurisdictions as { name: string; code: string } | null)?.name ?? "Global"}
+                      {cls.source ? ` · ${cls.source}` : ""}
+                    </small>
+                    {cls.justification ? <small style={{ fontStyle: "italic" }}>{cls.justification}</small> : null}
+                  </div>
+                  <span style={{ display: "flex", flexDirection: "column" as const, gap: 6, alignItems: "flex-end" }}>
+                    <Chip value={cls.status} />
+                    <Chip value={cls.confidence_status} />
+                    <DeleteClassificationButton id={cls.id} />
+                  </span>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+        <InternationalRuleForm jurisdictions={jurisdictionOptions} />
+      </section>
+
+      {/* ── Comissões ──────────────────────────────────────────────────── */}
+      <section style={showModule(activeModule, ["comissoes"]) ? twoColumnStyle : hiddenStyle}>
+        <div className="glass" style={cardStyle}>
+          <SectionTitle
+            eyebrow="Comissões internacionais"
+            title="Representantes, marketplaces e afiliados"
+            note="Comissões são registradas como regras tributárias com tax_kind = commission e aparecem aqui automaticamente."
+          />
+          {commissionRules.length === 0 ? (
+            <Empty
+              title="Nenhuma comissão cadastrada"
+              text="Cadastre comissões por canal: marketplace (Amazon, Etsy), representante local, afiliado internacional e facilitador fiscal. Use o tipo commission no formulário de regras."
+            />
+          ) : (
+            <div style={rowGridStyle}>
+              {commissionRules.map((rule) => (
+                <article key={rule.id} style={rowStyle}>
+                  <div>
+                    <strong>{rule.tax_name}</strong>
+                    <small>
+                      {(rule.jurisdictions as { name: string; code: string } | null)?.name ?? "Global"}
+                      {` · ${rule.rate_percent}% · responsável: ${statusLabel(rule.responsibility)}`}
+                    </small>
+                    <small>
+                      {rule.official_source ? `Fonte: ${rule.official_source} · ` : ""}
+                      Vigência {formatDate(rule.effective_from)} a {formatDate(rule.effective_until)}
+                    </small>
+                  </div>
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Chip value={rule.rule_status} />
+                    <DeleteTaxRuleButton id={rule.id} />
+                  </span>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+        <InternationalRuleForm jurisdictions={jurisdictionOptions} />
+      </section>
+
+      {/* ── Marketplaces internacionais ────────────────────────────────── */}
+      <section style={showModule(activeModule, ["marketplaces-internacionais"]) ? twoColumnStyle : hiddenStyle}>
+        <div className="glass" style={cardStyle}>
+          <SectionTitle
+            eyebrow="Marketplaces internacionais"
+            title="Pedidos, facilitador fiscal e comissões"
+            note="Operações vinculadas a marketplace. O facilitador fiscal pode ser responsável por cobrar e recolher tributos no destino."
+          />
+          {marketplaceOps.length === 0 ? (
+            <Empty
+              title="Nenhuma operação de marketplace"
+              text="Crie uma operação de exportação e preencha o campo Marketplace (Amazon, Etsy, eBay...). As operações aparecem aqui automaticamente."
+            />
+          ) : (
+            <div style={rowGridStyle}>
+              {marketplaceOps.map((op) => (
+                <article key={op.id} style={rowStyle}>
+                  <div>
+                    <strong>{op.marketplace_name}</strong>
+                    <small>{op.operation_number} · {op.title}</small>
+                    <small>{op.destination_country} · {op.currency} · tributos: {statusLabel(op.tax_responsibility)}</small>
+                  </div>
+                  <Chip value={op.status} />
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="glass" style={cardStyle}>
+          <SectionTitle eyebrow="Facilitador fiscal" title="Marketplace Facilitator" />
+          <p className="muted" style={{ margin: "0 0 14px", fontSize: 12, lineHeight: 1.65 }}>
+            Quando o marketplace é o facilitador fiscal, ele assume a responsabilidade de coletar e recolher VAT, GST ou Sales Tax no destino. Confirme por mercado antes de registrar comissões e tributos manualmente.
+          </p>
+          <div style={folderGridStyle}>
+            {[
+              { label: "Amazon",        note: "Facilitador fiscal em UE, UK, EUA, CA" },
+              { label: "Etsy",          note: "Facilitador em EUA, UE, UK, CA, AU" },
+              { label: "eBay",          note: "Verificar por mercado e jurisdição" },
+              { label: "Shopify Markets", note: "Markets Pro inclui duty e tax no checkout" },
+              { label: "Mercado Livre", note: "Verificar por país e regra local" },
+              { label: "Outro",         note: "Confirmar com representante local" },
+            ].map(({ label, note }) => (
+              <div key={label} style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid var(--glass-border)", background: "rgba(242,236,223,0.05)", minWidth: 150 }}>
+                <strong style={{ fontSize: 13, color: "var(--cream)" }}>{label}</strong>
+                <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "var(--cream-dim)", lineHeight: 1.5 }}>{note}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Relatórios ────────────────────────────────────────────────── */}
+      <section style={showModule(activeModule, ["relatorios"]) ? twoColumnStyle : hiddenStyle}>
+        <div className="glass" style={cardStyle}>
+          <SectionTitle
+            eyebrow="Relatórios de comércio exterior"
+            title="Margem, impostos, frete e documentos"
+            note="Exporte os dados operacionais em CSV para análise, auditoria ou importação em planilhas."
+          />
+          <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+            {calculations.slice(0, 5).map((calc) => (
+              <article key={calc.id} style={rowStyle}>
+                <div>
+                  <strong>{calc.scenario_name}</strong>
+                  <small>
+                    Landed cost: {money(calc.total_landed_cost_cents, calc.currency)} ·
+                    Margem: {calc.margin_net_percent.toFixed(1)}% ·
+                    Preço: {money(calc.recommended_price_cents, calc.currency)}
+                  </small>
+                </div>
+                <Chip value="draft" />
+              </article>
+            ))}
+            {calculations.length === 0 && (
+              <Empty title="Nenhum cálculo ainda" text="Crie operações no simulador para gerar dados de margem, impostos e preço recomendado." />
+            )}
+          </div>
+          <p className="eyebrow" style={{ marginBottom: 8 }}>Exportar em CSV</p>
+          <ExportCsvButtons />
+        </div>
+        <div className="glass" style={cardStyle}>
+          <SectionTitle eyebrow="Resumo operacional" title="Totais consolidados" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {[
+              { label: "Operações", value: String(operations.length), note: "Total criadas" },
+              { label: "Documentos", value: String(documents.length), note: "Registrados" },
+              { label: "Regras tributárias", value: String(taxRules.length), note: "Cadastradas" },
+              { label: "Classificações", value: String(customsClassifications.length), note: "NCM/HS/HTS" },
+              { label: "Cotações frete", value: String(shippingQuotes.length), note: "Registradas" },
+              { label: "Registros fiscais", value: String(fiscalRegs.length), note: "EORI, IOSS, OSS..." },
+            ].map(({ label, value, note }) => (
+              <div key={label} style={{ padding: 14, borderRadius: 12, border: "1px solid var(--glass-border)", background: "rgba(242,236,223,0.04)" }}>
+                <p style={{ margin: 0, fontSize: 10, color: "var(--cream-dim)", letterSpacing: 0.8, textTransform: "uppercase" as const, fontWeight: 700 }}>{label}</p>
+                <strong style={{ fontSize: 26, color: "var(--cream)", lineHeight: 1.1 }}>{value}</strong>
+                <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "var(--cream-dim)" }}>{note}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── Cofre + Integrações ────────────────────────────────────────── */}

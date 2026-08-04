@@ -732,3 +732,262 @@ export async function updateJurisdiction(formData: FormData): Promise<void> {
   revalidatePath(FISCAL_PATH);
   revalidatePath(INTERNATIONAL_PATH);
 }
+
+// ── Fechar / resolver alerta ────────────────────────────────────────────────────
+
+export async function closeExportAlert(alertId: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("export_alerts")
+    .update({ status: "closed", updated_at: new Date().toISOString() })
+    .eq("id", alertId)
+    .eq("tenant_id", staff.tenantId);
+  if (error) throw new Error(`Falha ao fechar alerta: ${error.message}`);
+  await audit({ action: "closed_export_alert", entityType: "export_alert", entityId: alertId });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+}
+
+// ── Delete de regras, documentos, cotações, registros, compliance ──────────────
+
+export async function deleteInternationalTaxRule(id: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.from("international_tax_rules").delete().eq("id", id).eq("tenant_id", staff.tenantId);
+  await audit({ action: "deleted_international_tax_rule", entityType: "international_tax_rule", entityId: id });
+  revalidatePath(FISCAL_PATH);
+}
+
+export async function deleteInternationalDocument(id: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.from("international_documents").delete().eq("id", id).eq("tenant_id", staff.tenantId);
+  await audit({ action: "deleted_international_document", entityType: "international_document", entityId: id });
+  revalidatePath(FISCAL_PATH);
+}
+
+export async function deleteInternationalShippingQuote(id: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.from("international_shipping_quotes").delete().eq("id", id).eq("tenant_id", staff.tenantId);
+  await audit({ action: "deleted_international_shipping_quote", entityType: "international_shipping_quote", entityId: id });
+  revalidatePath(FISCAL_PATH);
+}
+
+export async function deleteFiscalRegistration(id: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.from("fiscal_registrations").delete().eq("id", id).eq("tenant_id", staff.tenantId);
+  await audit({ action: "deleted_fiscal_registration", entityType: "fiscal_registration", entityId: id });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+}
+
+export async function deleteExportComplianceCheck(id: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.from("export_compliance_checks").delete().eq("id", id).eq("tenant_id", staff.tenantId);
+  await audit({ action: "deleted_export_compliance_check", entityType: "export_compliance_check", entityId: id });
+  revalidatePath(FISCAL_PATH);
+}
+
+export async function deleteExchangeRate(id: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.from("exchange_rates").delete().eq("id", id).eq("tenant_id", staff.tenantId);
+  await audit({ action: "deleted_exchange_rate", entityType: "exchange_rate", entityId: id });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+}
+
+// ── Classificações aduaneiras (NCM / HS Code por produto) ──────────────────────
+
+export async function createCustomsClassification(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const payload = {
+    tenant_id:            staff.tenantId,
+    jurisdiction_id:      text(formData, "jurisdiction_id"),
+    classification_system: requiredText(formData, "classification_system", "Sistema"),
+    code:                 requiredText(formData, "code", "Código"),
+    description:          requiredText(formData, "description", "Descrição"),
+    source:               text(formData, "source"),
+    status:               text(formData, "status") ?? "suggested",
+    confidence_status:    text(formData, "confidence_status") ?? "needs_review",
+    justification:        text(formData, "justification"),
+    created_by:           staff.id,
+  };
+  const { data, error } = await supabase.from("customs_classifications").insert(payload).select("id").single();
+  if (error) throw new Error(`Falha ao criar classificação: ${error.message}`);
+  await audit({ action: "created_customs_classification", entityType: "customs_classification", entityId: data?.id, nextValue: payload });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(`${INTERNATIONAL_PATH}/classificacao-fiscal`);
+  revalidatePath(`${INTERNATIONAL_PATH}/ncm-hs-code-e-codigos-locais`);
+}
+
+export async function deleteCustomsClassification(id: string): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.from("customs_classifications").delete().eq("id", id).eq("tenant_id", staff.tenantId);
+  await audit({ action: "deleted_customs_classification", entityType: "customs_classification", entityId: id });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(`${INTERNATIONAL_PATH}/classificacao-fiscal`);
+}
+
+// ── Exportar relatório CSV ──────────────────────────────────────────────────────
+
+export async function exportReportCsv(reportType: string): Promise<{ csv: string; filename: string }> {
+  const staff = await currentStaff();
+  if (!staff) return { csv: "", filename: "relatorio.csv" };
+  const supabase = await createClient();
+
+  const now = new Date().toISOString().slice(0, 10);
+
+  if (reportType === "landed_cost") {
+    const { data } = await supabase
+      .from("landed_cost_calculations")
+      .select("scenario_name, total_landed_cost_cents, recommended_price_cents, profit_net_cents, margin_net_percent, taxes_paid_by_flora_cents, taxes_paid_by_buyer_cents, currency, created_at")
+      .eq("tenant_id", staff.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const headers = ["Cenário", "Landed Cost", "Preço Recomendado", "Lucro Líquido", "Margem %", "Tributos Flora", "Tributos Comprador", "Moeda", "Data"];
+    const lines = rows.map((r) => [
+      r.scenario_name,
+      ((r.total_landed_cost_cents as number) / 100).toFixed(2),
+      ((r.recommended_price_cents as number) / 100).toFixed(2),
+      ((r.profit_net_cents as number) / 100).toFixed(2),
+      (r.margin_net_percent as number).toFixed(2),
+      ((r.taxes_paid_by_flora_cents as number) / 100).toFixed(2),
+      ((r.taxes_paid_by_buyer_cents as number) / 100).toFixed(2),
+      r.currency,
+      String(r.created_at).slice(0, 10),
+    ].map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","));
+
+    return { csv: [headers.join(","), ...lines].join("\n"), filename: `relatorio-landed-cost-${now}.csv` };
+  }
+
+  if (reportType === "operations") {
+    const { data } = await supabase
+      .from("export_operations")
+      .select("operation_number, title, status, sale_type, destination_country, incoterm, currency, created_at")
+      .eq("tenant_id", staff.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const headers = ["Número", "Título", "Status", "Tipo", "País destino", "Incoterm", "Moeda", "Data"];
+    const lines = rows.map((r) => [
+      r.operation_number, r.title, r.status, r.sale_type,
+      r.destination_country, r.incoterm, r.currency,
+      String(r.created_at).slice(0, 10),
+    ].map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","));
+
+    return { csv: [headers.join(","), ...lines].join("\n"), filename: `relatorio-operacoes-${now}.csv` };
+  }
+
+  if (reportType === "tax_rules") {
+    const { data } = await supabase
+      .from("international_tax_rules")
+      .select("tax_name, tax_kind, rate_percent, responsibility, rule_status, currency, official_source, effective_from, effective_until")
+      .eq("tenant_id", staff.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const headers = ["Imposto", "Tipo", "Alíquota %", "Responsável", "Status", "Moeda", "Fonte", "Vigência de", "Vigência até"];
+    const lines = rows.map((r) => [
+      r.tax_name, r.tax_kind, r.rate_percent, r.responsibility,
+      r.rule_status, r.currency, r.official_source,
+      r.effective_from, r.effective_until,
+    ].map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","));
+
+    return { csv: [headers.join(","), ...lines].join("\n"), filename: `relatorio-regras-tributarias-${now}.csv` };
+  }
+
+  return { csv: "", filename: "relatorio.csv" };
+}
+
+// ── NF-e de exportação: registrar dados de preparação ──────────────────────────
+
+export async function createNfeExportRecord(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const payload = {
+    tenant_id:         staff.tenantId,
+    operation_id:      text(formData, "operation_id"),
+    document_scope:    "brazil",
+    document_type:     "nfe_export",
+    title:             text(formData, "title") ?? "NF-e de exportação",
+    document_number:   text(formData, "nfe_key"),
+    country_code:      "BR",
+    status:            text(formData, "status") ?? "draft",
+    requirement_status: "required",
+    language:          "pt-BR",
+    notes:             text(formData, "notes"),
+    payload: {
+      cfop:          text(formData, "cfop"),
+      ncm:           text(formData, "ncm"),
+      natureza_operacao: text(formData, "natureza_operacao"),
+      chave_acesso:  text(formData, "chave_acesso"),
+      protocolo:     text(formData, "protocolo"),
+      serie:         text(formData, "serie"),
+      numero:        text(formData, "numero"),
+    },
+    created_by: staff.id,
+  };
+  const { data, error } = await supabase.from("international_documents").insert(payload).select("id").single();
+  if (error) throw new Error(`Falha ao registrar NF-e: ${error.message}`);
+  await audit({ action: "created_nfe_export_record", entityType: "international_document", entityId: data?.id, operationId: payload.operation_id, nextValue: payload });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(`${INTERNATIONAL_PATH}/nfe-de-exportacao`);
+}
+
+// ── DU-E: registrar dados de preparação ────────────────────────────────────────
+
+export async function createDueRecord(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const payload = {
+    tenant_id:         staff.tenantId,
+    operation_id:      text(formData, "operation_id"),
+    document_scope:    "brazil",
+    document_type:     "due",
+    title:             text(formData, "title") ?? "DU-E",
+    document_number:   text(formData, "due_number"),
+    country_code:      "BR",
+    status:            text(formData, "status") ?? "draft",
+    requirement_status: "required",
+    language:          "pt-BR",
+    notes:             text(formData, "notes"),
+    payload: {
+      due_number:        text(formData, "due_number"),
+      protocolo:         text(formData, "protocolo"),
+      recinto:           text(formData, "recinto"),
+      modal:             text(formData, "modal"),
+      lpco:              text(formData, "lpco"),
+      ruc:               text(formData, "ruc"),
+      canal:             text(formData, "canal"),
+      situacao:          text(formData, "situacao"),
+    },
+    created_by: staff.id,
+  };
+  const { data, error } = await supabase.from("international_documents").insert(payload).select("id").single();
+  if (error) throw new Error(`Falha ao registrar DU-E: ${error.message}`);
+  await audit({ action: "created_due_record", entityType: "international_document", entityId: data?.id, operationId: payload.operation_id, nextValue: payload });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(`${INTERNATIONAL_PATH}/du-e`);
+}
