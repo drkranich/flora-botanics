@@ -27,6 +27,13 @@ const SECTIONS = [
       { href: "/documentos?status=converted", label: "Convertidos", kind: "" },
     ],
   },
+  {
+    group: "Fiscais",
+    items: [
+      { href: "/documentos/fiscais",   label: "📁 Documentos fiscais", kind: "" },
+      { href: "/documentos/recebidos", label: "📥 Documentos recebidos", kind: "" },
+    ],
+  },
 ];
 
 function Sidebar() {
@@ -40,6 +47,8 @@ function Sidebar() {
     const hKind = url.searchParams.get("kind") ?? "";
     const hStatus = url.searchParams.get("status") ?? "";
     const hPath = url.pathname;
+    // Rota sem query params (ex: /documentos/fiscais)
+    if (!url.search) return pathname === hPath;
     if (hPath !== pathname) return false;
     return hKind === kind && hStatus === status;
   }
