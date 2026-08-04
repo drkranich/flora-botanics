@@ -79,12 +79,10 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
     article?.published_at ? article.published_at.slice(0, 10) : "",
   );
   const [readingTime, setReadingTime] = useState(article?.reading_time_min ?? 5);
-
-  const [kwInput, setKwInput] = useState("");
+  const [kwInput, setKwInput]   = useState("");
   const [keywords, setKeywords] = useState<string[]>(article?.keywords ?? []);
-
-  const [seo, setSeo] = useState<SeoMeta>(article?.seo ?? {});
-  const [faq, setFaq] = useState<{ q: string; a: string }[]>(article?.faq ?? []);
+  const [seo, setSeo]           = useState<SeoMeta>(article?.seo ?? {});
+  const [faq, setFaq]           = useState<{ q: string; a: string }[]>(article?.faq ?? []);
 
   function handleTitleChange(t: string) {
     setTitle(t);
@@ -110,7 +108,12 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
         category_id: catId || null,
         author_name: authorName || undefined,
         author_role: authorRole || undefined,
-        published_at: finalStatus === "published" ? (publishedAt ? new Date(publishedAt).toISOString() : new Date().toISOString()) : null,
+        published_at:
+          finalStatus === "published"
+            ? publishedAt
+              ? new Date(publishedAt).toISOString()
+              : new Date().toISOString()
+            : null,
         reading_time_min: readingTime,
         keywords,
         seo: { ...seo, faq } as SeoMeta,
@@ -121,56 +124,99 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
   }
 
   const TABS = [
-    { key: "conteudo", label: "Conteúdo" },
-    { key: "seo", label: "SEO & FAQ" },
-    { key: "publicacao", label: "Publicação" },
+    { key: "conteudo",   label: "Conteúdo",   icon: "✎" },
+    { key: "seo",        label: "SEO & FAQ",  icon: "◈" },
+    { key: "publicacao", label: "Publicação", icon: "◉" },
   ] as const;
+
+  // ── shared inline styles ──────────────────────────────────────────────────
+  const fieldLabel: React.CSSProperties = {
+    display: "block",
+    fontSize: 9.5,
+    fontWeight: 700,
+    letterSpacing: "1.8px",
+    textTransform: "uppercase",
+    color: "var(--cream-dim)",
+    marginBottom: 6,
+  };
+
+  const glassCard: React.CSSProperties = {
+    background: "var(--glass-bg)",
+    border: "1px solid var(--glass-border)",
+    borderRadius: "var(--radius-md)",
+    backdropFilter: "blur(18px) saturate(1.25)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+    boxShadow: "var(--shadow-soft)",
+  };
 
   return (
     <div>
-      {/* Tabs */}
-      <div style={{ display: "flex", borderBottom: "1px solid #e0d5c5", marginBottom: 24, gap: 0 }}>
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            style={{
-              background: "none",
-              border: "none",
-              borderBottom: tab === t.key ? "2px solid #b9924d" : "2px solid transparent",
-              padding: "8px 18px",
-              fontSize: 13,
-              fontWeight: tab === t.key ? 700 : 400,
-              color: tab === t.key ? "#7a5c1e" : "#666",
-              cursor: "pointer",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* ── Tab bar ──────────────────────────────────────────────────────────── */}
+      <div style={{
+        display: "flex",
+        gap: 2,
+        marginBottom: 24,
+        ...glassCard,
+        padding: "5px 6px",
+      }}>
+        {TABS.map(t => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 16px",
+                borderRadius: "var(--radius-sm)",
+                border: "none",
+                fontSize: 12,
+                fontWeight: active ? 700 : 500,
+                fontFamily: "inherit",
+                cursor: "pointer",
+                color: active ? "var(--forest-950)" : "var(--cream-soft)",
+                background: active
+                  ? "linear-gradient(135deg, var(--gold-light), var(--gold) 55%, var(--gold-dark))"
+                  : "transparent",
+                boxShadow: active ? "0 4px 14px rgba(var(--gold-rgb),.35)" : "none",
+                transition: "all .2s var(--ease)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span style={{ fontSize: 11, opacity: active ? 1 : 0.6 }}>{t.icon}</span>
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── CONTEÚDO ──────────────────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          CONTEÚDO
+      ═══════════════════════════════════════════════════════════════════════ */}
       {tab === "conteudo" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ ...glassCard, padding: "24px 28px", display: "flex", flexDirection: "column", gap: 18 }}>
+          {/* Título */}
           <div>
-            <label className="label">Título do artigo *</label>
+            <label style={fieldLabel}>Título do artigo *</label>
             <input
-              className="glass-input"
+              className="input"
               value={title}
               onChange={e => handleTitleChange(e.target.value)}
               placeholder="Ex: Como montar uma rotina de skincare natural"
-              style={{ fontSize: 18, fontWeight: 600 }}
+              style={{ fontSize: 16, fontWeight: 600 }}
             />
           </div>
 
+          {/* Slug */}
           <div>
-            <label className="label">Slug (URL)</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 12, color: "#888" }}>/blog/</span>
+            <label style={fieldLabel}>Slug (URL)</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, color: "var(--cream-dim)", whiteSpace: "nowrap" }}>/blog/</span>
               <input
-                className="glass-input"
+                className="input"
                 value={slug}
                 onChange={e => setSlug(e.target.value)}
                 placeholder="como-montar-rotina-skincare"
@@ -179,20 +225,22 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
             </div>
           </div>
 
+          {/* Subtítulo */}
           <div>
-            <label className="label">Subtítulo / Chapéu</label>
+            <label style={fieldLabel}>Subtítulo / Chapéu</label>
             <input
-              className="glass-input"
+              className="input"
               value={subtitle}
               onChange={e => setSubtitle(e.target.value)}
               placeholder="Ex: Guia completo para iniciantes"
             />
           </div>
 
+          {/* Excerpt */}
           <div>
-            <label className="label">Resumo (excerpt)</label>
+            <label style={fieldLabel}>Resumo (excerpt)</label>
             <textarea
-              className="glass-input"
+              className="input"
               value={excerpt}
               rows={3}
               onChange={e => setExcerpt(e.target.value)}
@@ -200,8 +248,9 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
             />
           </div>
 
+          {/* Categoria */}
           <div>
-            <label className="label">Categoria</label>
+            <label style={fieldLabel}>Categoria</label>
             <GlassSelect
               options={[
                 { value: "", label: "— Sem categoria —" },
@@ -212,66 +261,85 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
             />
           </div>
 
+          {/* Palavras-chave */}
           <div>
-            <label className="label">Palavras-chave do artigo</label>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <label style={fieldLabel}>Palavras-chave do artigo</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input
-                className="glass-input"
+                className="input"
                 value={kwInput}
                 onChange={e => setKwInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addKw())}
-                placeholder="skincare, vegano, argan... (Enter)"
+                placeholder="skincare, vegano, argan... (Enter para adicionar)"
                 style={{ flex: 1 }}
               />
-              <button type="button" onClick={addKw} className="btn-ghost" style={{ fontSize: 12 }}>+</button>
+              <button
+                type="button"
+                onClick={addKw}
+                className="btn btn-ghost"
+                style={{ fontSize: 12, padding: "0 16px" }}
+              >
+                +
+              </button>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {keywords.map(kw => (
-                <span
-                  key={kw}
-                  style={{
-                    background: "#fef3d7",
-                    border: "1px solid #e0c070",
-                    borderRadius: 12,
-                    padding: "2px 10px",
+            {keywords.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {keywords.map(kw => (
+                  <span key={kw} style={{
+                    background: "rgba(var(--gold-rgb),.12)",
+                    border: "1px solid rgba(var(--gold-rgb),.3)",
+                    borderRadius: 999,
+                    padding: "3px 12px",
                     fontSize: 11,
-                    color: "#7a5c1e",
+                    color: "var(--gold-light)",
                     display: "flex",
                     alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  {kw}
-                  <button
-                    type="button"
-                    onClick={() => setKeywords(prev => prev.filter(k => k !== kw))}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "#b9924d", fontSize: 12 }}
-                  >×</button>
-                </span>
-              ))}
-            </div>
+                    gap: 6,
+                  }}>
+                    {kw}
+                    <button
+                      type="button"
+                      onClick={() => setKeywords(prev => prev.filter(k => k !== kw))}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--gold)",
+                        fontSize: 14,
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Rich text placeholder */}
           <div style={{
-            background: "#fffbf5",
-            border: "1px dashed #b9924d",
-            borderRadius: 8,
+            background: "rgba(var(--gold-rgb),.06)",
+            border: "1px dashed rgba(var(--gold-rgb),.35)",
+            borderRadius: "var(--radius-sm)",
             padding: "20px 24px",
-            color: "#888",
-            fontSize: 13,
             textAlign: "center",
           }}>
-            <p style={{ marginBottom: 8, fontWeight: 600 }}>Conteúdo Rico (Rich Text)</p>
-            <p style={{ fontSize: 12, lineHeight: 1.5 }}>
-              O editor de conteúdo rico será integrado via TipTap ou Lexical.<br />
-              Por ora, o conteúdo é gerenciado via campo <code>body_rich</code> (JSON) no banco.<br />
-              Salve os demais campos e edite o conteúdo diretamente pelo Supabase Studio.
+            <p style={{ fontWeight: 700, fontSize: 13, color: "var(--cream-soft)", marginBottom: 6 }}>
+              ✎ Conteúdo Rico (Rich Text)
+            </p>
+            <p style={{ fontSize: 11.5, lineHeight: 1.7, color: "var(--cream-dim)" }}>
+              O editor TipTap será integrado em breve.<br />
+              Salve os demais campos e edite o campo <code style={{ fontFamily: "monospace", color: "var(--gold-light)" }}>body_rich</code> diretamente no Supabase Studio.
             </p>
           </div>
         </div>
       )}
 
-      {/* ── SEO & FAQ ─────────────────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          SEO & FAQ
+      ═══════════════════════════════════════════════════════════════════════ */}
       {tab === "seo" && (
         <SeoMetaEditor
           entityType="article"
@@ -294,24 +362,41 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
         />
       )}
 
-      {/* ── PUBLICAÇÃO ────────────────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          PUBLICAÇÃO
+      ═══════════════════════════════════════════════════════════════════════ */}
       {tab === "publicacao" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ ...glassCard, padding: "24px 28px", display: "flex", flexDirection: "column", gap: 18 }}>
+
+          {/* Status */}
           <div>
-            <label className="label">Status</label>
-            <div style={{ display: "flex", gap: 12 }}>
-              {[
-                { v: "draft", label: "Rascunho" },
-                { v: "published", label: "Publicado" },
-                { v: "archived", label: "Arquivado" },
-              ].map(opt => (
-                <label key={opt.v} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+            <label style={fieldLabel}>Status</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              {([
+                { v: "draft",     label: "Rascunho",  color: "rgba(253,224,71,.9)" },
+                { v: "published", label: "Publicado", color: "rgba(134,239,172,.9)" },
+                { v: "archived",  label: "Arquivado", color: "var(--cream-dim)" },
+              ] as const).map(opt => (
+                <label key={opt.v} style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  padding: "8px 16px",
+                  borderRadius: "var(--radius-sm)",
+                  border: `1px solid ${status === opt.v ? "rgba(var(--gold-rgb),.5)" : "var(--glass-border)"}`,
+                  background: status === opt.v ? "rgba(var(--gold-rgb),.1)" : "transparent",
+                  color: status === opt.v ? opt.color : "var(--cream-soft)",
+                  transition: "all .15s",
+                }}>
                   <input
                     type="radio"
                     name="status"
                     value={opt.v}
                     checked={status === opt.v}
-                    onChange={() => setStatus(opt.v as "draft" | "published" | "archived")}
+                    onChange={() => setStatus(opt.v)}
+                    style={{ accentColor: "var(--gold)" }}
                   />
                   {opt.label}
                 </label>
@@ -319,44 +404,47 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
             </div>
           </div>
 
+          {/* Data de publicação */}
           <div>
-            <label className="label">Data de publicação</label>
+            <label style={fieldLabel}>Data de publicação</label>
             <input
               type="date"
-              className="glass-input"
+              className="input"
               value={publishedAt}
               onChange={e => setPublishedAt(e.target.value)}
-              style={{ width: 180 }}
+              style={{ width: 200 }}
             />
           </div>
 
+          {/* Tempo de leitura */}
           <div>
-            <label className="label">Tempo de leitura (minutos)</label>
+            <label style={fieldLabel}>Tempo de leitura (minutos)</label>
             <input
               type="number"
-              className="glass-input"
+              className="input"
               value={readingTime}
               min={1}
               max={60}
               onChange={e => setReadingTime(Number(e.target.value))}
-              style={{ width: 80 }}
+              style={{ width: 90 }}
             />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {/* Autoria */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div>
-              <label className="label">Nome do autor</label>
+              <label style={fieldLabel}>Nome do autor</label>
               <input
-                className="glass-input"
+                className="input"
                 value={authorName}
                 onChange={e => setAuthorName(e.target.value)}
                 placeholder="Ex: Equipe Flora Botanics"
               />
             </div>
             <div>
-              <label className="label">Cargo / Especialidade</label>
+              <label style={fieldLabel}>Cargo / Especialidade</label>
               <input
-                className="glass-input"
+                className="input"
                 value={authorRole}
                 onChange={e => setAuthorRole(e.target.value)}
                 placeholder="Ex: Especialista em Skincare"
@@ -364,34 +452,37 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
             </div>
           </div>
 
-          {/* Info de autoria para IA */}
+          {/* Dica AI */}
           <div style={{
-            background: "#f5f9ff",
-            border: "1px solid #c5d8f5",
-            borderRadius: 8,
+            background: "rgba(var(--gold-rgb),.08)",
+            border: "1px solid rgba(var(--gold-rgb),.25)",
+            borderRadius: "var(--radius-sm)",
             padding: "12px 16px",
             fontSize: 12,
-            color: "#1a5276",
+            color: "var(--gold-light)",
+            lineHeight: 1.6,
           }}>
-            <strong>💡 AI Visibility:</strong> Artigos com autoria definida, FAQ e palavras-chave ganham até <strong>+40 pontos</strong> no score de visibilidade em IA (SGE, Perplexity, ChatGPT).
+            <strong>◈ AI Visibility:</strong> Artigos com autoria definida, FAQ e palavras-chave ganham até{" "}
+            <strong>+40 pontos</strong> no score de visibilidade em IA (SGE, Perplexity, ChatGPT).
           </div>
         </div>
       )}
 
-      {/* Footer actions */}
+      {/* ── Footer ───────────────────────────────────────────────────────────── */}
       <div style={{
         display: "flex",
         justifyContent: "space-between",
-        marginTop: 32,
+        alignItems: "center",
+        marginTop: 24,
         paddingTop: 20,
-        borderTop: "1px solid #e0d5c5",
+        borderTop: "1px solid var(--glass-border)",
       }}>
         <button
           type="button"
           onClick={() => handleSave("draft")}
           disabled={saving}
-          className="btn-secondary"
-          style={{ fontSize: 13 }}
+          className="btn btn-ghost"
+          style={{ fontSize: 12 }}
         >
           {saving ? "Salvando…" : "Salvar rascunho"}
         </button>
@@ -399,10 +490,10 @@ export function BlogArticleForm({ article, categories, onSave, onGenerateAi }: P
           type="button"
           onClick={() => handleSave("published")}
           disabled={saving || !title || !slug}
-          className="btn"
-          style={{ fontSize: 13 }}
+          className="btn btn-gold"
+          style={{ fontSize: 12 }}
         >
-          {saving ? "Publicando…" : "Publicar artigo"}
+          {saving ? "Publicando…" : "◉ Publicar artigo"}
         </button>
       </div>
     </div>

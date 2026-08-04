@@ -21,9 +21,9 @@ export default async function NovoBlogArticlePage() {
 
   return (
     <main style={{ maxWidth: 860, margin: "0 auto", padding: "48px 28px 80px" }}>
-      <header style={{ marginBottom: 28 }}>
-        <Link href="/seo/blog" className="eyebrow" style={{ opacity: 0.8 }}>← Blog</Link>
-        <h1 className="display" style={{ fontSize: 36, marginTop: 10 }}>Novo Artigo</h1>
+      <header style={{ marginBottom: 32 }}>
+        <Link href="/seo/blog" className="eyebrow" style={{ opacity: 0.7, letterSpacing: "2px" }}>← Blog</Link>
+        <h1 className="display" style={{ fontSize: 38, marginTop: 10, color: "var(--cream)" }}>Novo Artigo</h1>
       </header>
 
       <BlogArticleForm
