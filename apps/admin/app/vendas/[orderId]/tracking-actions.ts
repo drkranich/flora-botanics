@@ -163,12 +163,7 @@ export async function importMETrackingEvents(
   const staff = await currentStaff();
   if (!staff) return { ok: false, imported: 0, error: "Sessão inválida." };
 
-  // Chama o proxy interno (rota de API do Next.js no admin)
-  // Como estamos em Server Action, fazemos fetch para a rota local
-  const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL ?? process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3001";
-
+  // Chama o Melhor Envio diretamente (token lido do env do Worker)
   let meData: METrackingResponse | null = null;
   try {
     const token = process.env.MELHOR_ENVIO_TOKEN;
@@ -177,7 +172,7 @@ export async function importMETrackingEvents(
     }
 
     const res = await fetch(
-      `https://www.melhorenvio.com.br/api/v2/me/shipment/tracking/${encodeURIComponent(trackingCode)}`,
+      `https://melhorenvio.com.br/api/v2/me/shipment/tracking/${encodeURIComponent(trackingCode)}`,
       {
         method: "GET",
         headers: {
@@ -185,7 +180,7 @@ export async function importMETrackingEvents(
           Accept: "application/json",
           "User-Agent": "Flora Botanics Admin (contato@florabotanics.com.br)",
         },
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(15_000),
       }
     );
 
@@ -199,7 +194,12 @@ export async function importMETrackingEvents(
       return { ok: false, imported: 0, error: errMsg };
     }
 
-    meData = (await res.json()) as METrackingResponse;
+    const raw = await res.text();
+    try {
+      meData = JSON.parse(raw) as METrackingResponse;
+    } catch {
+      return { ok: false, imported: 0, error: `Resposta inválida do Melhor Envio: ${raw.slice(0, 100)}` };
+    }
   } catch (e) {
     return { ok: false, imported: 0, error: e instanceof Error ? e.message : "Falha de rede ao consultar ME." };
   }
