@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { createClient } from "@/lib/supabase/client";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import { GlassSelect } from "@/components/GlassSelect";
 import { GlassDateInput } from "@/components/GlassDateInput";
 import {
@@ -356,7 +356,7 @@ function DocDrawer({ doc, onClose, onUpdate, onDelete }: {
     setComprErr(null);
     startCompr(async () => {
       try {
-        const supabase = createClient();
+        const supabase = supabaseBrowser();
         const safeName = comprFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `comprovantes/${Date.now()}_${safeName}`;
         const { error } = await supabase.storage
@@ -710,7 +710,7 @@ function UploadModal({ onClose }: { onClose: () => void }) {
         let storagePath = "";
         if (file) {
           setProgress("Enviando arquivo…");
-          const supabase = createClient();
+          const supabase = supabaseBrowser();
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
           const path = `received/${Date.now()}_${safeName}`;
           const { error: upErr } = await supabase.storage
@@ -729,7 +729,7 @@ function UploadModal({ onClose }: { onClose: () => void }) {
         const res = await saveReceivedDoc(fd);
         if (!res.ok) {
           if (storagePath) {
-            const supabase = createClient();
+            const supabase = supabaseBrowser();
             await supabase.storage.from("fiscal-documents").remove([storagePath]);
           }
           setErr(res.error ?? "Erro."); setProgress(null); return;

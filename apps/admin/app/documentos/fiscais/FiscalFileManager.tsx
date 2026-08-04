@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import { GlassSelect } from "@/components/GlassSelect";
 import {
   createFiscalFolder,
@@ -110,7 +110,7 @@ function UploadModal({ folders, defaultType, defaultCompetence, onClose }: {
     start(async () => {
       try {
         setProgress("Enviando arquivo…");
-        const supabase = createClient();
+        const supabase = supabaseBrowser();
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `fiscal/${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage.from("fiscal-documents")
