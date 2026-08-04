@@ -35,15 +35,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+
   try {
     const res = await fetch(`${ME_TRACKING_URL}/${encodeURIComponent(code)}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
-        "User-Agent": "Flora Botanics Admin (contato@florabotanics.com.br)",
+        "User-Agent": "Florabotanics/1.0 (contato@florabotanics.com.br)",
       },
-      signal: AbortSignal.timeout(10_000),
+      signal: controller.signal,
     });
 
     const text = await res.text();
@@ -57,13 +60,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: errMsg }, { status: 502 });
     }
 
+    // Verifica se retornou HTML em vez de JSON
+    if (text.trimStart().startsWith("<")) {
+      return NextResponse.json(
+        { ok: false, error: "Token Melhor Envio inválido ou expirado. Gere um novo token em melhorenvio.com.br → Tokens." },
+        { status: 401 }
+      );
+    }
+
     const data = JSON.parse(text);
     return NextResponse.json({ ok: true, data });
   } catch (e) {
-    console.error("[me-tracking] Erro:", e);
+    const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
-      { ok: false, error: "Falha de rede ao consultar Melhor Envio." },
+      { ok: false, error: `Falha ao consultar Melhor Envio: ${msg}` },
       { status: 503 }
     );
+  } finally {
+    clearTimeout(timer);
   }
 }
