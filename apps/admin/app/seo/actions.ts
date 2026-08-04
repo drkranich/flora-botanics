@@ -449,7 +449,7 @@ export async function runAiVisibilityScore(entityType: EntityType, entityId: str
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
-// AI — Gerar sugestões de meta via Google Gemini API
+// AI — Gerar sugestões de meta via Anthropic Claude API
 // ════════════════════════════════════════════════════════════════════════════════
 
 export async function generateSeoWithAI(context: {
@@ -461,14 +461,14 @@ export async function generateSeoWithAI(context: {
 }) {
   await requireAdmin();
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY não configurada");
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada");
 
-  const prompt = `Você é um especialista em SEO para e-commerce de cosméticos e produtos naturais.
+  const systemPrompt = `Você é um especialista em SEO para e-commerce de cosméticos e produtos naturais.
 Gere meta tags otimizadas para a Flora Botanics, uma marca brasileira de cosméticos naturais.
-Responda APENAS com JSON válido, sem texto adicional, sem markdown, sem code blocks.
+Responda APENAS com JSON válido, sem texto adicional, sem markdown, sem code blocks.`;
 
-Entidade: ${context.entityType}
+  const userPrompt = `Entidade: ${context.entityType}
 Nome: ${context.name}
 ${context.description ? `Descrição: ${context.description}` : ""}
 ${context.category ? `Categoria: ${context.category}` : ""}
@@ -487,37 +487,31 @@ Gere um JSON com exatamente estes campos:
   ]
 }`;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 1024,
-          responseMimeType: "application/json",
-        },
-      }),
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
+  });
 
   if (!res.ok) {
     const err = await res.text().catch(() => res.status.toString());
-    throw new Error(`Gemini API error ${res.status}: ${err}`);
+    throw new Error(`Anthropic API error ${res.status}: ${err}`);
   }
 
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
+  const json = await res.json() as { content: { type: string; text: string }[] };
+  const text = json.content?.[0]?.text ?? "{}";
 
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-
-  // Extrai JSON (Gemini com responseMimeType json já retorna JSON puro,
-  // mas fazemos fallback com regex para segurança)
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("Gemini não retornou JSON válido");
+  if (!match) throw new Error("Resposta da IA não contém JSON válido");
 
   return JSON.parse(match[0]) as SeoMeta & { faq?: { q: string; a: string }[] };
 }
