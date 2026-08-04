@@ -12,6 +12,8 @@ import {
   createInternationalDocument,
   createInternationalShippingQuote,
   createInternationalTaxRule,
+  createJurisdiction,
+  updateJurisdiction,
   seedInternationalTradeCenter,
 } from "./international-actions";
 
@@ -185,12 +187,12 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function TextInput({ name, placeholder, required = false }: { name: string; placeholder?: string; required?: boolean }) {
-  return <input name={name} required={required} placeholder={placeholder} className="input" style={inputStyle} />;
+function TextInput({ name, placeholder, required = false, defaultValue }: { name: string; placeholder?: string; required?: boolean; defaultValue?: string }) {
+  return <input name={name} required={required} placeholder={placeholder} defaultValue={defaultValue} className="input" style={inputStyle} />;
 }
 
-function TextArea({ name, placeholder }: { name: string; placeholder?: string }) {
-  return <textarea name={name} rows={3} placeholder={placeholder} className="input" style={{ ...inputStyle, resize: "vertical" }} />;
+function TextArea({ name, placeholder, defaultValue }: { name: string; placeholder?: string; defaultValue?: string }) {
+  return <textarea name={name} rows={3} placeholder={placeholder} defaultValue={defaultValue} className="input" style={{ ...inputStyle, resize: "vertical" }} />;
 }
 
 function FormShell({
@@ -747,6 +749,135 @@ export function FiscalRegistrationForm({ jurisdictions }: { jurisdictions: Glass
       </Field>
       <Field label="Observações">
         <TextArea name="notes" placeholder="Limite de faturamento, condições, renovação automática..." />
+      </Field>
+    </FormShell>
+  );
+}
+
+// ── JurisdictionForm ──────────────────────────────────────────────────────────
+
+const packageStatuses: GlassSelectOption[] = [
+  { value: "draft",        label: "Rascunho" },
+  { value: "needs_review", label: "Precisa revisão" },
+  { value: "operational",  label: "Operacional" },
+  { value: "simulation",   label: "Simulação" },
+  { value: "blocked",      label: "Bloqueado" },
+];
+
+const confidenceStatuses: GlassSelectOption[] = [
+  { value: "simulation",           label: "Simulação" },
+  { value: "waiting_review",       label: "Aguardando revisão" },
+  { value: "specialist_validated", label: "Validada por especialista" },
+  { value: "official_imported",    label: "Oficial importada" },
+  { value: "official_integrated",  label: "Oficial integrada" },
+];
+
+const scopeOptions: GlassSelectOption[] = [
+  { value: "country", label: "País" },
+  { value: "bloc",    label: "Bloco econômico" },
+  { value: "state",   label: "Estado / Província" },
+  { value: "city",    label: "Município" },
+];
+
+type JurisdictionFormProps = {
+  /** undefined = modo criação, objeto = modo edição */
+  editing?: {
+    id: string;
+    code: string;
+    name: string;
+    scope: string;
+    currency: string;
+    language: string;
+    tax_system: string | null;
+    package_status: string;
+    confidence_status: string;
+    official_sources: string[] | null;
+    alerts: string[] | null;
+    version: string;
+    notes: string | null;
+    effective_from: string | null;
+    effective_until: string | null;
+  };
+};
+
+export function JurisdictionForm({ editing }: JurisdictionFormProps) {
+  const isEdit = Boolean(editing);
+  const action = isEdit ? updateJurisdiction : createJurisdiction;
+  const title  = isEdit ? `Editar: ${editing!.code} · ${editing!.name}` : "Novo mercado / jurisdição";
+
+  return (
+    <FormShell
+      eyebrow="Pacote de jurisdição"
+      title={title}
+      action={action}
+      buttonLabel={isEdit ? "Salvar alterações" : "Criar mercado"}
+    >
+      {isEdit && <input type="hidden" name="id" value={editing!.id} />}
+
+      <Field label="Código *">
+        <TextInput name="code" required placeholder="BR, EU, US, GB, CA..." defaultValue={editing?.code} />
+      </Field>
+      <Field label="Nome *">
+        <TextInput name="name" required placeholder="Brasil, União Europeia..." defaultValue={editing?.name} />
+      </Field>
+      <Field label="Escopo *">
+        <GlassSelect
+          name="scope"
+          options={scopeOptions}
+          defaultValue={editing?.scope ?? "country"}
+          ariaLabel="Escopo"
+        />
+      </Field>
+      <Field label="Moeda *">
+        <TextInput name="currency" required placeholder="BRL, EUR, USD, GBP..." defaultValue={editing?.currency} />
+      </Field>
+      <Field label="Idioma">
+        <TextInput name="language" placeholder="pt, en, fr, de..." defaultValue={editing?.language ?? "en"} />
+      </Field>
+      <Field label="Versão">
+        <TextInput name="version" placeholder="1.0" defaultValue={editing?.version ?? "1.0"} />
+      </Field>
+      <Field label="Status do pacote">
+        <GlassSelect
+          name="package_status"
+          options={packageStatuses}
+          defaultValue={editing?.package_status ?? "draft"}
+          ariaLabel="Status do pacote"
+        />
+      </Field>
+      <Field label="Confiança">
+        <GlassSelect
+          name="confidence_status"
+          options={confidenceStatuses}
+          defaultValue={editing?.confidence_status ?? "simulation"}
+          ariaLabel="Confiança"
+        />
+      </Field>
+      <Field label="Sistema tributário">
+        <TextInput name="tax_system" placeholder="VAT, GST, Sales Tax, IVA..." defaultValue={editing?.tax_system ?? ""} />
+      </Field>
+      <Field label="Fontes oficiais (separadas por vírgula)">
+        <TextInput
+          name="official_sources"
+          placeholder="SEFAZ, HMRC, IRS, CRA..."
+          defaultValue={(editing?.official_sources ?? []).join(", ")}
+        />
+      </Field>
+      <Field label="Alertas (separados por vírgula)">
+        <TextInput
+          name="alerts"
+          placeholder="Não transmitir sem certificado..."
+          defaultValue={(editing?.alerts ?? []).join(", ")}
+        />
+      </Field>
+      <Field label="Vigência de">
+        <GlassDateInput name="effective_from" defaultValue={editing?.effective_from ?? ""} />
+      </Field>
+      <Field label="Vigência até">
+        <GlassDateInput name="effective_until" defaultValue={editing?.effective_until ?? ""} />
+      </Field>
+      <Field label="Observações">
+        <TextArea name="notes" placeholder="Notas internas, restrições, contexto..." defaultValue={editing?.notes ?? ""} />
       </Field>
     </FormShell>
   );

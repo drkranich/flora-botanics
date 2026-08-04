@@ -11,6 +11,7 @@ import {
   InternationalOperationForm,
   InternationalRuleForm,
   InternationalShippingForm,
+  JurisdictionForm,
   SeedInternationalTradeButton,
 } from "./InternationalTradeForms";
 import { reviewJurisdictionPackage, runInternationalProviderAction } from "./international-actions";
@@ -551,9 +552,32 @@ export async function InternationalTradeCenter({
         }
       >
         <div className="glass" style={cardStyle}>
-          <SectionTitle eyebrow="Pacotes de jurisdição" title="Mercados, vigência, fonte e confiança" />
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+            <SectionTitle eyebrow="Pacotes de jurisdição" title="Mercados, vigência, fonte e confiança" />
+          </div>
+
+          {/* Form: criar novo mercado */}
+          <details style={{ marginBottom: 18 }}>
+            <summary style={{
+              cursor: "pointer", userSelect: "none",
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "8px 14px",
+              background: "linear-gradient(135deg, rgba(185,146,77,0.14), rgba(185,146,77,0.06))",
+              border: "1px solid rgba(185,146,77,0.32)",
+              borderRadius: 10,
+              color: "var(--gold-light)",
+              fontFamily: "Manrope, sans-serif",
+              fontWeight: 700, fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase",
+            }}>
+              ＋ Novo mercado
+            </summary>
+            <div style={{ marginTop: 14 }}>
+              <JurisdictionForm />
+            </div>
+          </details>
+
           {jurisdictions.length === 0 ? (
-            <Empty title="Nenhum pacote instalado" text="Use o botão de instalação para criar Brasil, União Europeia, Reino Unido, Estados Unidos e Canadá como base editável." />
+            <Empty title="Nenhum pacote instalado" text="Use o botão de instalação para criar Brasil, União Europeia, Reino Unido, Estados Unidos e Canadá como base editável, ou crie um mercado manualmente acima." />
           ) : (
             <div style={jurisdictionGridStyle}>
               {jurisdictions.map((item) => (
@@ -607,6 +631,36 @@ export async function InternationalTradeCenter({
                       <button type="submit" className="btn btn-ghost" style={miniButtonStyle}>Voltar a rascunho</button>
                     </form>
                   </div>
+
+                  {/* Edição inline do mercado */}
+                  <details style={{ marginTop: 4 }}>
+                    <summary style={{
+                      cursor: "pointer", userSelect: "none",
+                      fontSize: 9.5, color: "var(--cream-dim)",
+                      fontFamily: "Manrope, sans-serif", letterSpacing: 0.8,
+                    }}>
+                      ✏ Editar dados deste mercado
+                    </summary>
+                    <div style={{ marginTop: 12 }}>
+                      <JurisdictionForm editing={{
+                        id:                item.id,
+                        code:              item.code,
+                        name:              item.name,
+                        scope:             item.scope,
+                        currency:          item.currency,
+                        language:          "pt",
+                        tax_system:        item.tax_system,
+                        package_status:    item.package_status,
+                        confidence_status: item.confidence_status,
+                        official_sources:  item.official_sources,
+                        alerts:            item.alerts,
+                        version:           item.version,
+                        notes:             null,
+                        effective_from:    null,
+                        effective_until:   null,
+                      }} />
+                    </div>
+                  </details>
                 </article>
               ))}
             </div>

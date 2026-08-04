@@ -660,3 +660,75 @@ export async function createExportComplianceCheck(formData: FormData): Promise<v
   await audit({ action: "created_export_compliance_check", entityType: "export_compliance_check", entityId: data?.id, operationId: payload.operation_id, nextValue: payload });
   revalidatePath(FISCAL_PATH);
 }
+
+// ── Jurisdições ────────────────────────────────────────────────────────────────
+
+export async function createJurisdiction(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+
+  function splitList(key: string) {
+    return String(formData.get(key) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
+  const payload = {
+    tenant_id:         staff.tenantId,
+    code:              requiredText(formData, "code", "Código"),
+    name:              requiredText(formData, "name", "Nome"),
+    scope:             requiredText(formData, "scope", "Escopo"),
+    currency:          requiredText(formData, "currency", "Moeda"),
+    language:          text(formData, "language") ?? "pt",
+    tax_system:        text(formData, "tax_system"),
+    package_status:    text(formData, "package_status") ?? "draft",
+    confidence_status: text(formData, "confidence_status") ?? "simulation",
+    official_sources:  splitList("official_sources"),
+    obligations:       [] as string[],
+    documents:         [] as string[],
+    alerts:            splitList("alerts"),
+    version:           text(formData, "version") ?? "1.0",
+    notes:             text(formData, "notes"),
+    effective_from:    dateValue(formData, "effective_from"),
+    effective_until:   dateValue(formData, "effective_until"),
+    created_by:        staff.id,
+  };
+
+  const { data, error } = await supabase.from("jurisdictions").insert(payload).select("id").single();
+  if (error) throw new Error(`Falha ao criar jurisdição: ${error.message}`);
+  await audit({ action: "created_jurisdiction", entityType: "jurisdiction", entityId: data?.id, nextValue: payload });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+}
+
+export async function updateJurisdiction(formData: FormData): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  const id = requiredText(formData, "id", "ID");
+
+  function splitList(key: string) {
+    return String(formData.get(key) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
+  const payload = {
+    code:             requiredText(formData, "code", "Código"),
+    name:             requiredText(formData, "name", "Nome"),
+    scope:            requiredText(formData, "scope", "Escopo"),
+    currency:         requiredText(formData, "currency", "Moeda"),
+    language:         text(formData, "language") ?? "pt",
+    tax_system:       text(formData, "tax_system"),
+    official_sources: splitList("official_sources"),
+    alerts:           splitList("alerts"),
+    version:          text(formData, "version") ?? "1.0",
+    notes:            text(formData, "notes"),
+    effective_from:   dateValue(formData, "effective_from"),
+    effective_until:  dateValue(formData, "effective_until"),
+    updated_at:       new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from("jurisdictions").update(payload).eq("id", id).eq("tenant_id", staff.tenantId);
+  if (error) throw new Error(`Falha ao atualizar jurisdição: ${error.message}`);
+  await audit({ action: "updated_jurisdiction", entityType: "jurisdiction", entityId: id, nextValue: payload });
+  revalidatePath(FISCAL_PATH);
+  revalidatePath(INTERNATIONAL_PATH);
+}
