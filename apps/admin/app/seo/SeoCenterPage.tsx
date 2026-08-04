@@ -1018,39 +1018,54 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
               Selecione o tipo de entidade para calcular o AI Visibility Score de todos os registros.
               Artigos do blog têm o maior potencial pois suportam FAQ, autoria e conteúdo rico.
             </p>
-            <Row style={{ gap: 10, flexWrap: "wrap" }}>
+            <Row style={{ gap: 10, flexWrap: "wrap", alignItems: "center" }}>
               {([
-                { type: "article",  label: "◈ Calcular Artigos",    hint: "melhor para IA" },
-                { type: "product",  label: "◈ Calcular Produtos",   hint: "" },
-                { type: "page",     label: "◈ Calcular Páginas",    hint: "" },
-                { type: "category", label: "◈ Calcular Categorias", hint: "" },
-              ] as { type: EntityType; label: string; hint: string }[]).map(({ type, label, hint }) => (
-                <div key={type} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
-                  <form
-                    action={async () => {
-                      "use server";
-                      // Busca todos os IDs do tipo e calcula score para cada um
-                      const supa = await supabaseServer();
-                      const tid  = await effectiveTenantId();
-                      const tableMap: Record<EntityType, { table: string; cols: string }> = {
-                        product:  { table: "products",       cols: "id,seo,faq" },
-                        category: { table: "categories",     cols: "id,seo,faq" },
-                        page:     { table: "pages",          cols: "id,seo" },
-                        article:  { table: "blog_articles",  cols: "id,seo,faq,body_rich,author_name,published_at" },
-                      };
-                      const { table, cols } = tableMap[type];
-                      const { data: rows } = await supa.from(table).select(cols).eq("tenant_id", tid).limit(200);
-                      for (const row of rows ?? []) {
-                        await runAiVisibilityScore(type, (row as unknown as { id: string }).id);
-                      }
-                    }}
+                { type: "article",  label: "◈ Calcular Artigos",    badge: "melhor para IA" },
+                { type: "product",  label: "◈ Calcular Produtos",   badge: "" },
+                { type: "page",     label: "◈ Calcular Páginas",    badge: "" },
+                { type: "category", label: "◈ Calcular Categorias", badge: "" },
+              ] as { type: EntityType; label: string; badge: string }[]).map(({ type, label, badge }) => (
+                <form
+                  key={type}
+                  action={async () => {
+                    "use server";
+                    const supa = await supabaseServer();
+                    const tid  = await effectiveTenantId();
+                    const tableMap: Record<EntityType, { table: string; cols: string }> = {
+                      product:  { table: "products",       cols: "id,seo,faq" },
+                      category: { table: "categories",     cols: "id,seo,faq" },
+                      page:     { table: "pages",          cols: "id,seo" },
+                      article:  { table: "blog_articles",  cols: "id,seo,faq,body_rich,author_name,published_at" },
+                    };
+                    const { table, cols } = tableMap[type];
+                    const { data: rows } = await supa.from(table).select(cols).eq("tenant_id", tid).limit(200);
+                    for (const row of rows ?? []) {
+                      await runAiVisibilityScore(type, (row as unknown as { id: string }).id);
+                    }
+                  }}
+                >
+                  <button
+                    type="submit"
+                    className={type === "article" ? "btn btn-gold" : "btn btn-ghost"}
+                    style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 7 }}
                   >
-                    <button type="submit" className={type === "article" ? "btn btn-gold" : "btn btn-ghost"} style={{ fontSize: 11 }}>
-                      {label}
-                    </button>
-                  </form>
-                  {hint && <span style={{ fontSize: 10, color: "var(--gold-light)", letterSpacing: ".4px" }}>{hint}</span>}
-                </div>
+                    {label}
+                    {badge && (
+                      <span style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: ".6px",
+                        textTransform: "uppercase",
+                        background: "rgba(0,0,0,.25)",
+                        borderRadius: 999,
+                        padding: "1px 7px",
+                        opacity: .85,
+                      }}>
+                        {badge}
+                      </span>
+                    )}
+                  </button>
+                </form>
               ))}
             </Row>
           </GlassCard>

@@ -94,13 +94,13 @@ export function FiscalGovernmentPanel({ connections }: { connections: Connection
                 padding: 18,
                 display: "grid",
                 gap: 14,
-                minHeight: 690,
-                gridTemplateRows: "auto auto auto 1fr auto auto",
+                /* Rows fixas: header | chips | status | form (flex) | access */
+                gridTemplateRows: "134px 58px 42px 1fr auto",
                 borderColor: tone === "danger" ? "rgba(232,160,160,0.42)" : tone === "warn" ? "rgba(var(--gold-rgb),0.42)" : "var(--glass-border)",
               }}
             >
-              {/* ── Header — altura fixa para alinhar todos os cards ── */}
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", minHeight: 110 }}>
+              {/* ── Header — row fixa 134px ── */}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", overflow: "hidden" }}>
                 <div>
                   <span className="eyebrow">{provider.scope}</span>
                   <h3 style={{ margin: "7px 0 6px", color: "var(--cream)", fontSize: 19, lineHeight: 1.25 }}>{provider.title}</h3>
@@ -111,15 +111,15 @@ export function FiscalGovernmentPanel({ connections }: { connections: Connection
                 <span className={`fiscal-chip fiscal-chip-${tone}`} style={{ flexShrink: 0 }}>{connection?.status ?? "offline"}</span>
               </div>
 
-              {/* ── Chips — altura fixa para absorver variação de quebra ── */}
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", minHeight: 52, alignContent: "flex-start" }}>
+              {/* ── Chips — row fixa 58px ── */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignContent: "flex-start", overflow: "hidden" }}>
                 {provider.guideTypes.map((guide) => (
                   <span key={guide} className="fiscal-chip fiscal-chip-draft">{guide}</span>
                 ))}
               </div>
 
-              {/* ── Status — altura fixa ── */}
-              <div style={{ display: "grid", gap: 4, minHeight: 40 }}>
+              {/* ── Status — row fixa 42px ── */}
+              <div style={{ display: "grid", gap: 4, alignContent: "start" }}>
                 <small className="muted">Credenciais: {credentialsLabel(connection?.credentials_status)}</small>
                 <small className="muted">Última sincronização: {formatDateTime(connection?.last_sync_at ?? null)}</small>
                 {connection?.last_error ? <small style={{ color: "#e8a0a0", lineHeight: 1.5 }}>{connection.last_error}</small> : null}
