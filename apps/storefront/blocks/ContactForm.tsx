@@ -116,7 +116,9 @@ export function ContactForm({
       className="flora-contact-form"
       style={{
         position: "relative",
-        padding: "80px 16px 96px",
+        /* Cancela o padding da .page-content e ocupa largura total */
+        margin: "-54px -9999px -72px",
+        padding: "96px calc(9999px + 16px) 112px",
         background: `linear-gradient(135deg, ${bg_from} 0%, ${bg_to} 100%)`,
         overflow: "hidden",
       }}
