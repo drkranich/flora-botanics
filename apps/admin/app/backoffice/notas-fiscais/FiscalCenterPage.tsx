@@ -444,12 +444,22 @@ type AccountantRequestRow = {
   department: string | null;
 };
 
-type AccountantProfileRow = {
+export type AccountantProfileRow = {
   office_name: string | null;
+  legal_name: string | null;
+  cnpj: string | null;
   main_contact: string | null;
+  fiscal_contact: string | null;
+  accounting_contact: string | null;
+  payroll_contact: string | null;
+  financial_contact: string | null;
   email: string | null;
   phone: string | null;
   business_hours: string | null;
+  address: string | null;
+  services: string[] | null;
+  sla_rules: { response_hours?: number; approval_hours?: number; monthly_close_day?: number } | null;
+  access_settings: { accountant_portal?: string; emergency_contact?: string } | null;
 };
 
 type ClosingRow = {
@@ -713,7 +723,7 @@ export async function FiscalCenterPage({
     needsContador
       ? supabase
           .from("accountant_profiles")
-          .select("office_name, main_contact, email, phone, business_hours")
+          .select("office_name, legal_name, cnpj, main_contact, fiscal_contact, accounting_contact, payroll_contact, financial_contact, email, phone, business_hours, address, services, sla_rules, access_settings")
           .eq("tenant_id", staff.tenantId)
           .maybeSingle()
       : Promise.resolve(emptyOne),
@@ -1568,7 +1578,7 @@ export async function FiscalCenterPage({
         </div>
         <div style={{ display: "grid", gap: 16 }}>
           <AccountantRequestForm />
-          <AccountantProfileForm />
+          <AccountantProfileForm profile={accountant} />
         </div>
       </section>
 

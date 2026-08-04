@@ -1475,6 +1475,15 @@ export async function createAccountantRequest(formData: FormData): Promise<void>
   revalidateFiscalCenter();
 }
 
+export async function deleteAccountantProfile(): Promise<void> {
+  const staff = await currentStaff();
+  if (!staff) return;
+  const supabase = await createClient();
+  await supabase.from("accountant_profiles").delete().eq("tenant_id", staff.tenantId);
+  await audit(supabase, { tenantId: staff.tenantId, actorId: staff.id, action: "deleted_accountant_profile", entityType: "accountant_profile" });
+  revalidateFiscalCenter();
+}
+
 export async function upsertAccountantProfile(formData: FormData): Promise<void> {
   const staff = await currentStaff();
   if (!staff) return;

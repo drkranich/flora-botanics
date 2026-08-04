@@ -16,7 +16,9 @@ import {
   createMonthlyClosing,
   registerFiscalGuidePayment,
   upsertAccountantProfile,
+  deleteAccountantProfile,
 } from "./actions";
+import type { AccountantProfileRow } from "./FiscalCenterPage";
 import { FiscalFileUpload } from "./FiscalFileUpload";
 
 export type VaultFolderSelectOption = GlassSelectOption & {
@@ -402,27 +404,64 @@ export function AccountantRequestForm() {
   );
 }
 
-export function AccountantProfileForm() {
+export function AccountantProfileForm({ profile }: { profile: AccountantProfileRow | null }) {
+  const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+
+  async function handleDelete() {
+    if (!confirm("Excluir os dados do contador? Esta ação não pode ser desfeita.")) return;
+    setDeleting(true);
+    await deleteAccountantProfile();
+    setDeleted(true);
+    setDeleting(false);
+  }
+
+  if (deleted) {
+    return (
+      <div className="glass" style={{ padding: 20 }}>
+        <p className="eyebrow">Escritório contábil</p>
+        <p className="muted" style={{ marginTop: 8 }}>Dados do contador removidos. Recarregue para adicionar um novo.</p>
+      </div>
+    );
+  }
+
+  const sla = profile?.sla_rules ?? {};
+  const access = profile?.access_settings ?? {};
+
   return (
-    <FormShell eyebrow="Escritório contábil" title="Dados do contador" action={upsertAccountantProfile} buttonLabel="Salvar contador">
-      <Field label="Escritório"><TextInput name="office_name" placeholder="Nome do escritório" /></Field>
-      <Field label="Razão social"><TextInput name="legal_name" placeholder="Razão social" /></Field>
-      <Field label="CNPJ"><TextInput name="cnpj" placeholder="00.000.000/0001-00" /></Field>
-      <Field label="Contato principal"><TextInput name="main_contact" placeholder="Responsável" /></Field>
-      <Field label="Contato fiscal"><TextInput name="fiscal_contact" placeholder="Fiscal" /></Field>
-      <Field label="Contato contábil"><TextInput name="accounting_contact" placeholder="Contábil" /></Field>
-      <Field label="Departamento Pessoal"><TextInput name="payroll_contact" placeholder="Folha" /></Field>
-      <Field label="Financeiro"><TextInput name="financial_contact" placeholder="Financeiro" /></Field>
-      <Field label="Telefone"><TextInput name="phone" placeholder="(00) 00000-0000" /></Field>
-      <Field label="E-mail"><TextInput name="email" placeholder="contador@empresa.com.br" /></Field>
-      <Field label="Horário"><TextInput name="business_hours" placeholder="Segunda a sexta, 9h às 18h" /></Field>
-      <Field label="Endereço"><TextInput name="address" placeholder="Endereço do escritório" /></Field>
-      <Field label="Serviços"><TextInput name="services" placeholder="fiscal, contábil, folha..." /></Field>
-      <Field label="SLA resposta"><TextInput name="sla_response_hours" placeholder="24" /></Field>
-      <Field label="SLA aprovação"><TextInput name="sla_approval_hours" placeholder="48" /></Field>
-      <Field label="Dia de fechamento"><TextInput name="monthly_close_day" placeholder="5" /></Field>
-      <Field label="Portal do contador"><TextInput name="accountant_portal" placeholder="URL ou observação" /></Field>
-      <Field label="Emergência"><TextInput name="emergency_contact" placeholder="Contato urgente" /></Field>
+    <FormShell eyebrow="Escritório contábil" title="Dados do contador" action={upsertAccountantProfile} buttonLabel={profile ? "Salvar alterações" : "Salvar contador"}>
+      <Field label="Escritório"><TextInput name="office_name" placeholder="Nome do escritório" defaultValue={profile?.office_name ?? ""} /></Field>
+      <Field label="Razão social"><TextInput name="legal_name" placeholder="Razão social" defaultValue={profile?.legal_name ?? ""} /></Field>
+      <Field label="CNPJ"><TextInput name="cnpj" placeholder="00.000.000/0001-00" defaultValue={profile?.cnpj ?? ""} /></Field>
+      <Field label="Contato principal"><TextInput name="main_contact" placeholder="Responsável" defaultValue={profile?.main_contact ?? ""} /></Field>
+      <Field label="Contato fiscal"><TextInput name="fiscal_contact" placeholder="Fiscal" defaultValue={profile?.fiscal_contact ?? ""} /></Field>
+      <Field label="Contato contábil"><TextInput name="accounting_contact" placeholder="Contábil" defaultValue={profile?.accounting_contact ?? ""} /></Field>
+      <Field label="Departamento Pessoal"><TextInput name="payroll_contact" placeholder="Folha" defaultValue={profile?.payroll_contact ?? ""} /></Field>
+      <Field label="Financeiro"><TextInput name="financial_contact" placeholder="Financeiro" defaultValue={profile?.financial_contact ?? ""} /></Field>
+      <Field label="Telefone"><TextInput name="phone" placeholder="(00) 00000-0000" defaultValue={profile?.phone ?? ""} /></Field>
+      <Field label="E-mail"><TextInput name="email" placeholder="contador@empresa.com.br" defaultValue={profile?.email ?? ""} /></Field>
+      <Field label="Horário"><TextInput name="business_hours" placeholder="Segunda a sexta, 9h às 18h" defaultValue={profile?.business_hours ?? ""} /></Field>
+      <Field label="Endereço"><TextInput name="address" placeholder="Endereço do escritório" defaultValue={profile?.address ?? ""} /></Field>
+      <Field label="Serviços"><TextInput name="services" placeholder="fiscal, contábil, folha..." defaultValue={profile?.services?.join(", ") ?? ""} /></Field>
+      <Field label="SLA resposta"><TextInput name="sla_response_hours" placeholder="24" defaultValue={sla.response_hours?.toString() ?? ""} /></Field>
+      <Field label="SLA aprovação"><TextInput name="sla_approval_hours" placeholder="48" defaultValue={sla.approval_hours?.toString() ?? ""} /></Field>
+      <Field label="Dia de fechamento"><TextInput name="monthly_close_day" placeholder="5" defaultValue={sla.monthly_close_day?.toString() ?? ""} /></Field>
+      <Field label="Portal do contador"><TextInput name="accountant_portal" placeholder="URL ou observação" defaultValue={access.accountant_portal ?? ""} /></Field>
+      <Field label="Emergência"><TextInput name="emergency_contact" placeholder="Contato urgente" defaultValue={access.emergency_contact ?? ""} /></Field>
+
+      {profile && (
+        <div style={{ borderTop: "1px solid var(--glass-border)", paddingTop: 14, marginTop: 4 }}>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="btn btn-ghost"
+            style={{ color: "#e8a0a0", borderColor: "rgba(232,160,160,0.3)", fontSize: 12, padding: "8px 16px" }}
+          >
+            {deleting ? "Excluindo…" : "🗑 Excluir dados do contador"}
+          </button>
+        </div>
+      )}
     </FormShell>
   );
 }
