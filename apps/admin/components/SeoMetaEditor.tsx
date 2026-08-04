@@ -217,8 +217,23 @@ export function SeoMetaEditor({
     setAiError(null);
     startGen(async () => {
       try {
-        const r = await onAiGenerate({ entityType, name: entityName, description: entityDescription, keywords: meta.keywords, category: entityCategory });
-        setMeta(prev => ({ ...prev, ...r }));
+        const res = await fetch("/api/seo-ai", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            entityType,
+            name: entityName,
+            description: entityDescription,
+            keywords: meta.keywords,
+            category: entityCategory,
+          }),
+        });
+        const json = await res.json() as Record<string, unknown>;
+        if (!res.ok || json.error) {
+          setAiError((json.error as string) ?? `Erro ${res.status}`);
+          return;
+        }
+        setMeta(prev => ({ ...prev, ...json }));
         setSaved(false);
       } catch (e) {
         setAiError(e instanceof Error ? e.message : "Erro ao gerar sugestão");
