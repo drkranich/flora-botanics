@@ -23,21 +23,39 @@ import {
 import { SeoMetaEditor } from "@/components/SeoMetaEditor";
 import { RedirectCodeSelect, RobotsDirectiveSelect, SitemapPrioritySelect, SitemapFreqSelect } from "./SeoFormSelects";
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Design tokens inline (espelham globals.css) ────────────────────────────────
 type Sx = CSSProperties;
 
-function Section({ children, style }: { children: ReactNode; style?: Sx }) {
-  return (
-    <div style={{ marginBottom: 32, ...style }}>{children}</div>
-  );
-}
+const T = {
+  glass:       "var(--glass-bg)",
+  glassBorder: "var(--glass-border)",
+  glassBorderHover: "var(--glass-border-hover)",
+  cream:       "var(--cream)",
+  creamSoft:   "var(--cream-soft)",
+  creamDim:    "var(--cream-dim)",
+  gold:        "var(--gold)",
+  goldLight:   "var(--gold-light)",
+  goldDark:    "var(--gold-dark)",
+  forest950:   "var(--forest-950)",
+  forest900:   "var(--forest-900)",
+  forest800:   "var(--forest-800)",
+  radiusLg:    "var(--radius-lg)",
+  radiusMd:    "var(--radius-md)",
+  radiusSm:    "var(--radius-sm)",
+  shadowSoft:  "var(--shadow-soft)",
+} as const;
 
-function Card({ children, style }: { children: ReactNode; style?: Sx }) {
+// ── Primitivos UI ──────────────────────────────────────────────────────────────
+
+function GlassCard({ children, style }: { children: ReactNode; style?: Sx }) {
   return (
     <div style={{
-      background: "rgba(255,255,255,0.8)",
-      border: "1px solid #e0d5c5",
-      borderRadius: 12,
+      background: "var(--glass-bg)",
+      border: "1px solid var(--glass-border)",
+      borderRadius: "var(--radius-md)",
+      backdropFilter: "blur(18px) saturate(1.25)",
+      WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+      boxShadow: "var(--shadow-soft)",
       padding: "20px 24px",
       ...style,
     }}>
@@ -46,79 +64,148 @@ function Card({ children, style }: { children: ReactNode; style?: Sx }) {
   );
 }
 
+function SectionWrap({ children, style }: { children: ReactNode; style?: Sx }) {
+  return <div style={{ marginBottom: 32, ...style }}>{children}</div>;
+}
+
 function Row({ children, style }: { children: ReactNode; style?: Sx }) {
+  return <div style={{ display: "flex", alignItems: "center", gap: 12, ...style }}>{children}</div>;
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, ...style }}>
+    <h2 style={{
+      fontSize: 20,
+      fontWeight: 700,
+      color: "var(--cream)",
+      letterSpacing: -0.3,
+      marginBottom: 20,
+    }}>
       {children}
-    </div>
+    </h2>
   );
 }
 
-function Badge({ score }: { score: number }) {
-  const bg = score >= 80 ? "#d4edda" : score >= 50 ? "#fff3cd" : "#f8d7da";
-  const color = score >= 80 ? "#155724" : score >= 50 ? "#856404" : "#721c24";
+function Label({ children }: { children: ReactNode }) {
   return (
-    <span style={{ background: bg, color, borderRadius: 10, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>
+    <span style={{
+      display: "block",
+      fontSize: 9.5,
+      fontWeight: 700,
+      letterSpacing: "1.8px",
+      textTransform: "uppercase" as const,
+      color: "var(--cream-dim)",
+      marginBottom: 6,
+    }}>
+      {children}
+    </span>
+  );
+}
+
+/** Badge de score 0-100 */
+function ScoreBadge({ score }: { score: number }) {
+  const [bg, color] =
+    score >= 80
+      ? ["rgba(34,197,94,0.18)", "rgba(134,239,172,1)"]
+      : score >= 50
+      ? ["rgba(234,179,8,0.18)", "rgba(253,224,71,1)"]
+      : ["rgba(239,68,68,0.18)", "rgba(252,165,165,1)"];
+  return (
+    <span style={{
+      background: bg,
+      color,
+      border: `1px solid ${color}40`,
+      borderRadius: 999,
+      padding: "2px 10px",
+      fontSize: 11,
+      fontWeight: 800,
+      fontVariantNumeric: "tabular-nums",
+    }}>
       {score}
     </span>
   );
 }
 
-function SeverityIcon({ s }: { s: string }) {
-  if (s === "error") return <span style={{ color: "#d93025" }}>✗</span>;
-  if (s === "warning") return <span style={{ color: "#e37400" }}>⚠</span>;
-  return <span style={{ color: "#1a73e8" }}>ℹ</span>;
+/** Chip de status (publicado/rascunho/arquivado/ativo/pendente) */
+function StatusChip({ label, variant }: { label: string; variant: "green" | "yellow" | "red" | "ghost" }) {
+  const map: Record<typeof variant, { bg: string; color: string; border: string }> = {
+    green:  { bg: "rgba(34,197,94,0.14)",  color: "rgba(134,239,172,1)", border: "rgba(134,239,172,0.3)" },
+    yellow: { bg: "rgba(234,179,8,0.14)",  color: "rgba(253,224,71,1)",  border: "rgba(253,224,71,0.3)"  },
+    red:    { bg: "rgba(239,68,68,0.14)",   color: "rgba(252,165,165,1)", border: "rgba(252,165,165,0.3)" },
+    ghost:  { bg: "rgba(242,236,223,0.06)", color: "var(--cream-dim)",    border: "var(--glass-border)"  },
+  };
+  const s = map[variant];
+  return (
+    <span style={{
+      background: s.bg,
+      color: s.color,
+      border: `1px solid ${s.border}`,
+      borderRadius: 999,
+      padding: "2px 9px",
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: ".4px",
+      textTransform: "uppercase" as const,
+    }}>
+      {label}
+    </span>
+  );
 }
 
+function CheckMark({ ok }: { ok: boolean }) {
+  return (
+    <span style={{ color: ok ? "rgba(134,239,172,0.9)" : "rgba(242,236,223,0.2)", fontSize: 14, fontWeight: 700 }}>
+      {ok ? "✓" : "✗"}
+    </span>
+  );
+}
+
+function Dot({ ok }: { ok: boolean }) {
+  return (
+    <span style={{
+      display: "inline-block",
+      width: 7,
+      height: 7,
+      borderRadius: "50%",
+      background: ok ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.7)",
+      flexShrink: 0,
+    }} />
+  );
+}
+
+/** Linha de tabela glass */
+const TR_STYLE: Sx = {
+  borderBottom: "1px solid rgba(242,236,223,0.06)",
+  transition: "background .15s",
+};
+const TD: Sx = { padding: "10px 10px", fontSize: 12.5, color: "var(--cream-soft)", verticalAlign: "middle" };
+const TH: Sx = { textAlign: "left", padding: "8px 10px", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: "var(--cream-dim)", borderBottom: "1px solid rgba(242,236,223,0.1)" };
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+
 const TABS = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "paginas", label: "Páginas" },
-  { key: "produtos", label: "Produtos" },
-  { key: "blog", label: "Blog" },
-  { key: "redirecionamentos", label: "Redirecionamentos" },
-  { key: "sitemap", label: "Sitemap" },
-  { key: "robots", label: "Robots.txt" },
-  { key: "auditoria", label: "Auditoria" },
-  { key: "ai-visibility", label: "AI Visibility" },
+  { key: "dashboard",         label: "Dashboard",         icon: "◉" },
+  { key: "paginas",           label: "Páginas",           icon: "✺" },
+  { key: "produtos",          label: "Produtos",          icon: "❖" },
+  { key: "blog",              label: "Blog",              icon: "✎" },
+  { key: "redirecionamentos", label: "Redireciona.",      icon: "⇄" },
+  { key: "sitemap",           label: "Sitemap",           icon: "◫" },
+  { key: "robots",            label: "Robots.txt",        icon: "⊙" },
+  { key: "auditoria",         label: "Auditoria",         icon: "⚑" },
+  { key: "ai-visibility",     label: "AI Visibility",     icon: "◈" },
 ] as const;
 
 export type SeoSection = typeof TABS[number]["key"];
 
 // ── Row types ──────────────────────────────────────────────────────────────────
-type EntityRow = { id: string; title?: string; name?: string; slug: string; seo: SeoMeta | null; status?: string };
+type EntityRow   = { id: string; title?: string; name?: string; slug: string; seo: SeoMeta | null; status?: string };
 type RedirectRow = { id: string; from_path: string; to_path: string; code: number; reason: string | null; active: boolean };
-type RobotsRow = { id: string; user_agent: string; directive: string; path: string; sort_order: number; active: boolean };
-type SitemapRow = { entity_type: string; included: boolean; priority: number; change_frequency: string };
-type AuditRow = {
-  id: string;
-  entity_type: string;
-  entity_id: string | null;
-  score: number | null;
-  ran_at: string;
-  issues: { code: string; severity: string; message: string }[];
-};
-type AiScoreRow = {
-  id: string;
-  entity_type: string;
-  entity_id: string;
-  ai_score: number | null;
-  has_faq: boolean;
-  has_schema: boolean;
-  has_rich_body: boolean;
-  has_entities: boolean;
-  has_author: boolean;
-};
+type RobotsRow   = { id: string; user_agent: string; directive: string; path: string; sort_order: number; active: boolean };
+type SitemapRow  = { entity_type: string; included: boolean; priority: number; change_frequency: string };
+type AuditRow    = { id: string; entity_type: string; entity_id: string | null; score: number | null; ran_at: string; issues: { code: string; severity: string; message: string }[] };
+type AiScoreRow  = { id: string; entity_type: string; entity_id: string; ai_score: number | null; has_faq: boolean; has_schema: boolean; has_rich_body: boolean; has_entities: boolean; has_author: boolean };
 type BlogCategoryRow = { id: string; name: string; slug: string };
-type ArticleRow = {
-  id: string;
-  title: string;
-  slug: string;
-  status: string;
-  category_id: string | null;
-  published_at: string | null;
-  seo: SeoMeta | null;
-  keywords: string[];
-};
+type ArticleRow  = { id: string; title: string; slug: string; status: string; category_id: string | null; published_at: string | null; seo: SeoMeta | null; keywords: string[] };
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 export async function SeoCenterPage({ activeSection }: { activeSection: SeoSection }) {
@@ -126,7 +213,7 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
   if (!session) redirect("/login");
 
   const tenantId = await effectiveTenantId();
-  const supabase = await supabaseServer();
+  const supabase  = await supabaseServer();
 
   const needsPages     = ["paginas", "dashboard"].includes(activeSection);
   const needsProducts  = ["produtos", "dashboard"].includes(activeSection);
@@ -139,48 +226,36 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
   const empty = { data: [], error: null } as const;
 
   const [
-    pagesRes,
-    productsRes,
-    articlesRes,
-    blogCatsRes,
-    redirectsRes,
-    robotsRes,
-    sitemapRes,
-    auditsRes,
-    aiScoresRes,
+    pagesRes, productsRes, articlesRes, blogCatsRes,
+    redirectsRes, robotsRes, sitemapRes, auditsRes, aiScoresRes,
   ] = await Promise.all([
-    needsPages    ? supabase.from("pages").select("id,title,slug,seo,status").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(100) : Promise.resolve(empty),
-    needsProducts ? supabase.from("products").select("id,name,slug,seo,status").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(200) : Promise.resolve(empty),
-    needsBlog     ? supabase.from("blog_articles").select("id,title,slug,status,category_id,published_at,seo,keywords").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(100) : Promise.resolve(empty),
-    needsBlog     ? supabase.from("blog_categories").select("id,name,slug").eq("tenant_id", tenantId).order("sort_order") : Promise.resolve(empty),
+    needsPages     ? supabase.from("pages").select("id,title,slug,seo,status").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(100) : Promise.resolve(empty),
+    needsProducts  ? supabase.from("products").select("id,name,slug,seo,status").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(200) : Promise.resolve(empty),
+    needsBlog      ? supabase.from("blog_articles").select("id,title,slug,status,category_id,published_at,seo,keywords").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(100) : Promise.resolve(empty),
+    needsBlog      ? supabase.from("blog_categories").select("id,name,slug").eq("tenant_id", tenantId).order("sort_order") : Promise.resolve(empty),
     needsRedirects ? supabase.from("seo_redirects").select("id,from_path,to_path,code,reason,active").eq("tenant_id", tenantId).order("from_path") : Promise.resolve(empty),
-    needsRobots   ? supabase.from("seo_robots_rules").select("id,user_agent,directive,path,sort_order,active").eq("tenant_id", tenantId).order("sort_order") : Promise.resolve(empty),
-    needsSitemap  ? supabase.from("seo_sitemap_config").select("entity_type,included,priority,change_frequency").eq("tenant_id", tenantId) : Promise.resolve(empty),
-    needsAudit    ? supabase.from("seo_audits").select("id,entity_type,entity_id,score,ran_at,issues").eq("tenant_id", tenantId).order("ran_at", { ascending: false }).limit(100) : Promise.resolve(empty),
-    needsAiScores ? supabase.from("seo_ai_scores").select("id,entity_type,entity_id,ai_score,has_faq,has_schema,has_rich_body,has_entities,has_author").eq("tenant_id", tenantId).order("ai_score", { ascending: false }).limit(200) : Promise.resolve(empty),
+    needsRobots    ? supabase.from("seo_robots_rules").select("id,user_agent,directive,path,sort_order,active").eq("tenant_id", tenantId).order("sort_order") : Promise.resolve(empty),
+    needsSitemap   ? supabase.from("seo_sitemap_config").select("entity_type,included,priority,change_frequency").eq("tenant_id", tenantId) : Promise.resolve(empty),
+    needsAudit     ? supabase.from("seo_audits").select("id,entity_type,entity_id,score,ran_at,issues").eq("tenant_id", tenantId).order("ran_at", { ascending: false }).limit(100) : Promise.resolve(empty),
+    needsAiScores  ? supabase.from("seo_ai_scores").select("id,entity_type,entity_id,ai_score,has_faq,has_schema,has_rich_body,has_entities,has_author").eq("tenant_id", tenantId).order("ai_score", { ascending: false }).limit(200) : Promise.resolve(empty),
   ]);
 
-  const pages       = (pagesRes.data ?? []) as EntityRow[];
-  const products    = (productsRes.data ?? []) as EntityRow[];
-  const articles    = (articlesRes.data ?? []) as ArticleRow[];
-  const blogCats    = (blogCatsRes.data ?? []) as BlogCategoryRow[];
-  const redirects   = (redirectsRes.data ?? []) as RedirectRow[];
-  const robots      = (robotsRes.data ?? []) as RobotsRow[];
-  const sitemap     = (sitemapRes.data ?? []) as SitemapRow[];
-  const audits      = (auditsRes.data ?? []) as AuditRow[];
-  const aiScores    = (aiScoresRes.data ?? []) as AiScoreRow[];
+  const pages     = (pagesRes.data ?? [])     as EntityRow[];
+  const products  = (productsRes.data ?? [])  as EntityRow[];
+  const articles  = (articlesRes.data ?? [])  as ArticleRow[];
+  const blogCats  = (blogCatsRes.data ?? [])  as BlogCategoryRow[];
+  const redirects = (redirectsRes.data ?? []) as RedirectRow[];
+  const robots    = (robotsRes.data ?? [])    as RobotsRow[];
+  const sitemap   = (sitemapRes.data ?? [])   as SitemapRow[];
+  const audits    = (auditsRes.data ?? [])    as AuditRow[];
+  const aiScores  = (aiScoresRes.data ?? [])  as AiScoreRow[];
 
-  // KPIs dashboard
+  // KPIs
   const withSeoPages    = pages.filter(p => p.seo && Object.keys(p.seo).length > 0).length;
   const withSeoProducts = products.filter(p => p.seo && Object.keys(p.seo).length > 0).length;
-  const avgAuditScore   = audits.length > 0
-    ? Math.round(audits.reduce((s, a) => s + (a.score ?? 0), 0) / audits.length)
-    : 0;
-  const avgAiScore = aiScores.length > 0
-    ? Math.round(aiScores.reduce((s, a) => s + (a.ai_score ?? 0), 0) / aiScores.length)
-    : 0;
+  const avgAuditScore   = audits.length > 0 ? Math.round(audits.reduce((s, a) => s + (a.score ?? 0), 0) / audits.length) : 0;
+  const avgAiScore      = aiScores.length > 0 ? Math.round(aiScores.reduce((s, a) => s + (a.ai_score ?? 0), 0) / aiScores.length) : 0;
 
-  // Server action wrappers bound to each entity
   async function saveMeta(type: EntityType, id: string, meta: SeoMeta) {
     "use server";
     return saveSeoMeta(type, id, meta);
@@ -192,100 +267,133 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
 
   return (
     <main style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 28px 80px" }}>
-      {/* Header */}
-      <header className="rise" style={{ marginBottom: 28 }}>
-        <Link href="/" className="eyebrow" style={{ opacity: 0.8 }}>← Painel</Link>
-        <h1 className="display" style={{ fontSize: 44, marginTop: 10 }}>SEO Engine</h1>
-        <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <header style={{ marginBottom: 32 }}>
+        <Link href="/" className="eyebrow" style={{ opacity: 0.7, letterSpacing: "2px" }}>
+          ← Painel
+        </Link>
+        <h1 className="display" style={{ fontSize: 42, marginTop: 10, color: "var(--cream)" }}>
+          SEO Engine
+        </h1>
+        <p style={{ fontSize: 12.5, color: "var(--cream-dim)", marginTop: 6, letterSpacing: ".2px" }}>
           Otimização orgânica, visibilidade em IA e blog corporativo da Flora Botanics.
         </p>
       </header>
 
-      {/* Tabs */}
+      {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
       <div style={{
         display: "flex",
-        gap: 0,
-        borderBottom: "1px solid #e0d5c5",
-        marginBottom: 32,
+        gap: 2,
         overflowX: "auto",
+        scrollbarWidth: "none",
+        marginBottom: 36,
+        background: "var(--glass-bg)",
+        border: "1px solid var(--glass-border)",
+        borderRadius: "var(--radius-md)",
+        padding: "5px 6px",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
       }}>
-        {TABS.map(t => (
-          <Link
-            key={t.key}
-            href={`/seo/${t.key}`}
-            style={{
-              padding: "10px 16px",
-              fontSize: 12.5,
-              fontWeight: activeSection === t.key ? 700 : 400,
-              color: activeSection === t.key ? "#7a5c1e" : "#666",
-              borderBottom: activeSection === t.key ? "2px solid #b9924d" : "2px solid transparent",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              transition: "all .15s",
-            }}
-          >
-            {t.label}
-          </Link>
-        ))}
+        {TABS.map(t => {
+          const active = activeSection === t.key;
+          return (
+            <Link
+              key={t.key}
+              href={`/seo/${t.key}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 14px",
+                borderRadius: "var(--radius-sm)",
+                fontSize: 12,
+                fontWeight: active ? 700 : 500,
+                color: active ? "var(--forest-950)" : "var(--cream-soft)",
+                background: active
+                  ? "linear-gradient(135deg, var(--gold-light), var(--gold) 55%, var(--gold-dark))"
+                  : "transparent",
+                boxShadow: active ? "0 4px 14px rgba(var(--gold-rgb),.35)" : "none",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+                transition: "all .2s var(--ease)",
+                letterSpacing: active ? ".2px" : "0",
+              }}
+            >
+              <span style={{ fontSize: 11, opacity: active ? 1 : 0.6 }}>{t.icon}</span>
+              {t.label}
+            </Link>
+          );
+        })}
       </div>
 
-      {/* ── DASHBOARD ─────────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          DASHBOARD
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "dashboard" && (
         <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 28 }}>
+          {/* KPI grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 28 }}>
             {[
-              { label: "Páginas com SEO", value: `${withSeoPages}/${pages.length}`, sub: "meta tags configuradas" },
-              { label: "Produtos com SEO", value: `${withSeoProducts}/${products.length}`, sub: "meta tags configuradas" },
-              { label: "Score médio", value: avgAuditScore > 0 ? avgAuditScore : "—", sub: "última auditoria" },
-              { label: "AI Visibility", value: avgAiScore > 0 ? `${avgAiScore}/100` : "—", sub: "score médio" },
-              { label: "Redirecionamentos", value: redirects.length, sub: "ativos" },
-              { label: "Artigos publicados", value: articles.filter(a => a.status === "published").length, sub: `de ${articles.length} total` },
+              { label: "Páginas com SEO",       value: `${withSeoPages}/${pages.length}`,      sub: "meta tags configuradas", icon: "✺" },
+              { label: "Produtos com SEO",       value: `${withSeoProducts}/${products.length}`, sub: "meta tags configuradas", icon: "❖" },
+              { label: "Score médio",            value: avgAuditScore > 0 ? String(avgAuditScore) : "—", sub: "última auditoria",    icon: "⚑" },
+              { label: "AI Visibility",          value: avgAiScore > 0 ? `${avgAiScore}/100` : "—",     sub: "score médio",         icon: "◈" },
+              { label: "Redireciona.",           value: String(redirects.length),               sub: "cadastrados",             icon: "⇄" },
+              { label: "Artigos publicados",     value: String(articles.filter(a => a.status === "published").length), sub: `de ${articles.length} total`, icon: "✎" },
             ].map((kpi, i) => (
-              <Card key={i}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "#7a5c1e" }}>{kpi.value}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{kpi.label}</div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{kpi.sub}</div>
-              </Card>
+              <GlassCard key={i} style={{ padding: "18px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <span style={{ fontSize: 18, opacity: .6 }}>{kpi.icon}</span>
+                </div>
+                <div style={{ fontSize: 30, fontWeight: 800, color: "var(--gold-light)", letterSpacing: "-1px", fontVariantNumeric: "tabular-nums" }}>
+                  {kpi.value}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--cream-soft)", marginTop: 4 }}>
+                  {kpi.label}
+                </div>
+                <div style={{ fontSize: 10.5, color: "var(--cream-dim)", marginTop: 2 }}>{kpi.sub}</div>
+              </GlassCard>
             ))}
           </div>
 
           {audits.length > 0 && (
-            <Card>
-              <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: "#7a5c1e" }}>Últimas Auditorias</h3>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <GlassCard>
+              <p className="eyebrow" style={{ marginBottom: 16 }}>Últimas Auditorias</p>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #e0d5c5" }}>
-                    {["Tipo", "Score", "Issues", "Executada em"].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "6px 8px", color: "#888", fontWeight: 600 }}>{h}</th>
-                    ))}
+                  <tr>
+                    {["Tipo", "Score", "Issues", "Executada em"].map(h => <th key={h} style={TH}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {audits.slice(0, 10).map(a => (
-                    <tr key={a.id} style={{ borderBottom: "1px solid #f0ebe0" }}>
-                      <td style={{ padding: "6px 8px" }}>{a.entity_type}</td>
-                      <td style={{ padding: "6px 8px" }}><Badge score={a.score ?? 0} /></td>
-                      <td style={{ padding: "6px 8px" }}>{a.issues.length}</td>
-                      <td style={{ padding: "6px 8px", color: "#888" }}>
+                    <tr key={a.id} style={TR_STYLE}>
+                      <td style={TD}>{a.entity_type}</td>
+                      <td style={TD}><ScoreBadge score={a.score ?? 0} /></td>
+                      <td style={TD}>{a.issues.length}</td>
+                      <td style={{ ...TD, color: "var(--cream-dim)", fontSize: 11 }}>
                         {new Date(a.ran_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </Card>
+            </GlassCard>
           )}
         </div>
       )}
 
-      {/* ── PÁGINAS ───────────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          PÁGINAS
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "paginas" && (
-        <Section>
-          <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 24, alignItems: "start" }}>
-            {/* sidebar lista */}
-            <Card style={{ padding: "12px 0" }}>
-              <div style={{ padding: "0 16px 8px", fontSize: 12, color: "#888", fontWeight: 600, borderBottom: "1px solid #f0ebe0", marginBottom: 4 }}>
-                {pages.length} páginas
+        <SectionWrap>
+          <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 20, alignItems: "start" }}>
+            {/* Lista */}
+            <GlassCard style={{ padding: "10px 0" }}>
+              <div style={{ padding: "0 14px 10px", borderBottom: "1px solid var(--glass-border)", marginBottom: 4 }}>
+                <span className="eyebrow">{pages.length} páginas</span>
               </div>
               {pages.map(p => {
                 const hasSeo = p.seo && Object.keys(p.seo).length > 0;
@@ -296,223 +404,203 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 8,
-                      padding: "8px 16px",
-                      textDecoration: "none",
+                      gap: 9,
+                      padding: "9px 14px",
                       fontSize: 12.5,
-                      color: "#1a1a1a",
-                      borderBottom: "1px solid #f9f5ef",
+                      color: "var(--cream-soft)",
+                      textDecoration: "none",
+                      borderBottom: "1px solid rgba(242,236,223,0.04)",
+                      transition: "background .15s",
                     }}
                   >
-                    <span style={{ color: hasSeo ? "#2e7d32" : "#c0392b", fontSize: 10 }}>●</span>
+                    <Dot ok={!!hasSeo} />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {p.title ?? p.slug}
                     </span>
                   </Link>
                 );
               })}
-            </Card>
+            </GlassCard>
 
-            {/* instrução */}
-            <Card>
-              <p style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>
+            {/* Painel de instrução */}
+            <GlassCard>
+              <p className="eyebrow" style={{ marginBottom: 12 }}>Instrução</p>
+              <p style={{ fontSize: 13, color: "var(--cream-soft)", lineHeight: 1.7 }}>
                 Selecione uma página na lista para editar suas meta tags, Open Graph e FAQ.
-                <br /><br />
-                <span style={{ color: "#2e7d32" }}>●</span> verde = SEO configurado
-                &nbsp;&nbsp;
-                <span style={{ color: "#c0392b" }}>●</span> vermelho = sem meta tags
               </p>
-              <div style={{ marginTop: 16 }}>
-                <form action={runSeoAuditBulk.bind(null, "page")}>
-                  <button type="submit" className="btn-secondary" style={{ fontSize: 12 }}>
-                    🔍 Auditar todas as páginas
+              <div style={{ display: "flex", gap: 16, marginTop: 14, fontSize: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--cream-dim)" }}>
+                  <Dot ok={true} /> SEO configurado
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--cream-dim)" }}>
+                  <Dot ok={false} /> sem meta tags
+                </span>
+              </div>
+              <div style={{ marginTop: 20 }}>
+                <form action={runSeoAuditBulk.bind(null, "page") as unknown as (fd: FormData) => Promise<void>}>
+                  <button type="submit" className="btn btn-ghost" style={{ fontSize: 11 }}>
+                    ⚑ Auditar todas as páginas
                   </button>
                 </form>
               </div>
-            </Card>
+            </GlassCard>
           </div>
-        </Section>
+        </SectionWrap>
       )}
 
-      {/* ── PRODUTOS ──────────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          PRODUTOS
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "produtos" && (
-        <Section>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700 }}>Meta Tags por Produto</h2>
-            <form action={runSeoAuditBulk.bind(null, "product")}>
-              <button type="submit" className="btn-secondary" style={{ fontSize: 12 }}>
-                🔍 Auditar todos os produtos
+        <SectionWrap>
+          <Row style={{ justifyContent: "space-between", marginBottom: 20 }}>
+            <SectionTitle>Meta Tags por Produto</SectionTitle>
+            <form action={runSeoAuditBulk.bind(null, "product") as unknown as (fd: FormData) => Promise<void>}>
+              <button type="submit" className="btn btn-ghost" style={{ fontSize: 11 }}>
+                ⚑ Auditar todos os produtos
               </button>
             </form>
-          </div>
+          </Row>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 12 }}>
             {products.map(p => {
               const seo = (p.seo ?? {}) as SeoMeta;
               const titleLen = (seo.title ?? "").length;
               const descLen  = (seo.description ?? "").length;
               const ok = titleLen >= 30 && titleLen <= 60 && descLen >= 100 && descLen <= 160;
-
               return (
-                <Link
-                  key={p.id}
-                  href={`/seo/produtos?id=${p.id}`}
-                  style={{ textDecoration: "none" }}
-                >
-                  <Card style={{ padding: "12px 16px", cursor: "pointer", transition: "box-shadow .15s" }}>
-                    <Row style={{ justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>{p.name ?? p.slug}</span>
-                      <span style={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        background: ok ? "#d4edda" : "#f8d7da",
-                        color: ok ? "#155724" : "#721c24",
-                        borderRadius: 8,
-                        padding: "1px 6px",
-                      }}>
-                        {ok ? "OK" : "PENDENTE"}
+                <Link key={p.id} href={`/seo/produtos?id=${p.id}`} style={{ textDecoration: "none" }}>
+                  <GlassCard style={{ padding: "14px 16px", cursor: "pointer" }}>
+                    <Row style={{ justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--cream)" }}>
+                        {p.name ?? p.slug}
                       </span>
+                      <StatusChip label={ok ? "OK" : "Pendente"} variant={ok ? "green" : "yellow"} />
                     </Row>
-                    <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>/{p.slug}</div>
+                    <div style={{ fontSize: 11, color: "var(--cream-dim)", marginBottom: seo.title ? 6 : 0 }}>
+                      /{p.slug}
+                    </div>
                     {seo.title && (
-                      <div style={{ fontSize: 11, color: "#555", marginTop: 6, fontStyle: "italic" }}>
+                      <div style={{ fontSize: 11, color: "var(--cream-soft)", fontStyle: "italic", opacity: .75 }}>
                         &ldquo;{seo.title.slice(0, 60)}&rdquo;
                       </div>
                     )}
-                  </Card>
+                  </GlassCard>
                 </Link>
               );
             })}
           </div>
-        </Section>
+        </SectionWrap>
       )}
 
-      {/* ── BLOG ──────────────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          BLOG
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "blog" && (
-        <Section>
+        <SectionWrap>
           <Row style={{ justifyContent: "space-between", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700 }}>Blog Engine</h2>
-            <Row style={{ gap: 8 }}>
-              <Link href="/seo/blog/novo" className="btn" style={{ fontSize: 12 }}>
-                + Novo artigo
-              </Link>
-            </Row>
+            <SectionTitle>Blog Engine</SectionTitle>
+            <Link href="/seo/blog/novo" className="btn btn-gold" style={{ fontSize: 11 }}>
+              + Novo artigo
+            </Link>
           </Row>
 
           {/* Categorias */}
-          <div style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 8 }}>
-              Categorias ({blogCats.length})
-            </h3>
+          <GlassCard style={{ marginBottom: 20 }}>
+            <p className="eyebrow" style={{ marginBottom: 12 }}>Categorias ({blogCats.length})</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {blogCats.map(c => (
-                <span
-                  key={c.id}
-                  style={{
-                    background: "#fef3d7",
-                    border: "1px solid #e0c070",
-                    borderRadius: 12,
-                    padding: "3px 12px",
-                    fontSize: 12,
-                    color: "#7a5c1e",
-                  }}
-                >
+                <span key={c.id} style={{
+                  background: "rgba(var(--gold-rgb),.12)",
+                  border: "1px solid rgba(var(--gold-rgb),.3)",
+                  borderRadius: 999,
+                  padding: "3px 13px",
+                  fontSize: 12,
+                  color: "var(--gold-light)",
+                }}>
                   {c.name}
                 </span>
               ))}
-              <Link
-                href="/seo/blog/categoria/nova"
-                style={{
-                  background: "none",
-                  border: "1px dashed #b9924d",
-                  borderRadius: 12,
-                  padding: "3px 12px",
-                  fontSize: 12,
-                  color: "#b9924d",
-                  textDecoration: "none",
-                }}
-              >
+              <Link href="/seo/blog/categoria/nova" style={{
+                background: "transparent",
+                border: "1px dashed var(--glass-border-hover)",
+                borderRadius: 999,
+                padding: "3px 13px",
+                fontSize: 12,
+                color: "var(--gold)",
+                textDecoration: "none",
+              }}>
                 + Categoria
               </Link>
             </div>
-          </div>
+          </GlassCard>
 
-          {/* Artigos */}
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid #e0d5c5" }}>
-                {["Título", "Status", "Categoria", "SEO", "Publicado em", ""].map(h => (
-                  <th key={h} style={{ textAlign: "left", padding: "8px", color: "#888", fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {articles.length === 0 && (
+          {/* Tabela de artigos */}
+          <GlassCard style={{ padding: 0, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
                 <tr>
-                  <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "#888" }}>
-                    Nenhum artigo ainda. Crie o primeiro!
-                  </td>
+                  {["Título", "Status", "Categoria", "SEO", "Publicado em", ""].map(h => (
+                    <th key={h} style={TH}>{h}</th>
+                  ))}
                 </tr>
-              )}
-              {articles.map(a => {
-                const hasSeo = a.seo && Object.keys(a.seo).length > 0;
-                const cat = blogCats.find(c => c.id === a.category_id);
-                return (
-                  <tr key={a.id} style={{ borderBottom: "1px solid #f0ebe0" }}>
-                    <td style={{ padding: "8px" }}>
-                      <Link href={`/seo/blog/${a.id}`} style={{ color: "#1a1a1a", fontWeight: 600, textDecoration: "none" }}>
-                        {a.title}
-                      </Link>
-                    </td>
-                    <td style={{ padding: "8px" }}>
-                      <span style={{
-                        background: a.status === "published" ? "#d4edda" : a.status === "archived" ? "#e9ecef" : "#fff3cd",
-                        color: a.status === "published" ? "#155724" : a.status === "archived" ? "#495057" : "#856404",
-                        borderRadius: 8,
-                        padding: "2px 8px",
-                        fontSize: 10,
-                        fontWeight: 700,
-                      }}>
-                        {a.status === "published" ? "Publicado" : a.status === "archived" ? "Arquivado" : "Rascunho"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "8px", color: "#666" }}>{cat?.name ?? "—"}</td>
-                    <td style={{ padding: "8px" }}>
-                      <span style={{ color: hasSeo ? "#2e7d32" : "#c0392b", fontSize: 10 }}>
-                        {hasSeo ? "✓ OK" : "✗ Pendente"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "8px", color: "#888" }}>
-                      {a.published_at ? new Date(a.published_at).toLocaleDateString("pt-BR") : "—"}
-                    </td>
-                    <td style={{ padding: "8px" }}>
-                      <Row style={{ gap: 8 }}>
-                        <Link href={`/seo/blog/${a.id}`} style={{ fontSize: 11, color: "#7a5c1e" }}>editar</Link>
-                        <form action={deleteBlogArticle.bind(null, a.id)}>
-                          <button type="submit" className="btn-ghost" style={{ fontSize: 11, color: "#c0392b" }}>
-                            excluir
-                          </button>
-                        </form>
-                      </Row>
+              </thead>
+              <tbody>
+                {articles.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "var(--cream-dim)", fontSize: 13 }}>
+                      Nenhum artigo ainda. Crie o primeiro!
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </Section>
+                )}
+                {articles.map(a => {
+                  const hasSeo = a.seo && Object.keys(a.seo).length > 0;
+                  const cat = blogCats.find(c => c.id === a.category_id);
+                  const statusVariant = a.status === "published" ? "green" : a.status === "archived" ? "ghost" : "yellow";
+                  const statusLabel   = a.status === "published" ? "Publicado" : a.status === "archived" ? "Arquivado" : "Rascunho";
+                  return (
+                    <tr key={a.id} style={TR_STYLE}>
+                      <td style={TD}>
+                        <Link href={`/seo/blog/${a.id}`} style={{ color: "var(--cream)", fontWeight: 600, textDecoration: "none" }}>
+                          {a.title}
+                        </Link>
+                      </td>
+                      <td style={TD}><StatusChip label={statusLabel} variant={statusVariant} /></td>
+                      <td style={{ ...TD, color: "var(--cream-dim)" }}>{cat?.name ?? "—"}</td>
+                      <td style={TD}><CheckMark ok={!!hasSeo} /></td>
+                      <td style={{ ...TD, color: "var(--cream-dim)", fontSize: 11 }}>
+                        {a.published_at ? new Date(a.published_at).toLocaleDateString("pt-BR") : "—"}
+                      </td>
+                      <td style={TD}>
+                        <Row style={{ gap: 8 }}>
+                          <Link href={`/seo/blog/${a.id}`} style={{ fontSize: 11, color: "var(--gold-light)", textDecoration: "none" }}>
+                            editar
+                          </Link>
+                          <form action={deleteBlogArticle.bind(null, a.id) as unknown as (fd: FormData) => Promise<void>}>
+                            <button type="submit" className="btn btn-ghost" style={{ fontSize: 10, padding: "4px 10px", color: "rgba(252,165,165,.8)" }}>
+                              excluir
+                            </button>
+                          </form>
+                        </Row>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </GlassCard>
+        </SectionWrap>
       )}
 
-      {/* ── REDIRECIONAMENTOS ─────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          REDIRECIONAMENTOS
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "redirecionamentos" && (
-        <Section>
-          <Row style={{ justifyContent: "space-between", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700 }}>Redirecionamentos</h2>
-          </Row>
+        <SectionWrap>
+          <SectionTitle>Redirecionamentos</SectionTitle>
 
-          {/* Form novo */}
-          <Card style={{ marginBottom: 24 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Novo Redirecionamento</h3>
+          <GlassCard style={{ marginBottom: 20 }}>
+            <p className="eyebrow" style={{ marginBottom: 16 }}>Novo Redirecionamento</p>
             <form
               action={async (fd: FormData) => {
                 "use server";
@@ -523,69 +611,82 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
                   reason:    fd.get("reason") as string || undefined,
                 });
               }}
-              style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px 1fr auto", gap: 10, alignItems: "end" }}
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr 130px 1fr auto", gap: 10, alignItems: "end" }}
             >
               <div>
-                <label className="label">De (URL atual)</label>
-                <input name="from_path" className="glass-input" placeholder="/produtos/antigo-slug" required />
+                <Label>De (URL atual)</Label>
+                <input name="from_path" className="input" placeholder="/produtos/antigo-slug" required />
               </div>
               <div>
-                <label className="label">Para (URL destino)</label>
-                <input name="to_path" className="glass-input" placeholder="/produtos/novo-slug" required />
+                <Label>Para (URL destino)</Label>
+                <input name="to_path" className="input" placeholder="/produtos/novo-slug" required />
               </div>
               <div>
-                <label className="label">Código</label>
+                <Label>Código</Label>
                 <RedirectCodeSelect />
               </div>
               <div>
-                <label className="label">Motivo (opcional)</label>
-                <input name="reason" className="glass-input" placeholder="Ex: slug renomeado" />
+                <Label>Motivo (opcional)</Label>
+                <input name="reason" className="input" placeholder="Ex: slug renomeado" />
               </div>
-              <button type="submit" className="btn" style={{ fontSize: 12 }}>Adicionar</button>
+              <button type="submit" className="btn btn-gold" style={{ fontSize: 11 }}>Adicionar</button>
             </form>
-          </Card>
+          </GlassCard>
 
-          {/* Tabela */}
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid #e0d5c5" }}>
-                {["De", "Para", "Código", "Motivo", "Ativo", ""].map(h => (
-                  <th key={h} style={{ textAlign: "left", padding: "8px", color: "#888", fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {redirects.length === 0 && (
-                <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#888" }}>Nenhum redirecionamento cadastrado.</td></tr>
-              )}
-              {redirects.map(r => (
-                <tr key={r.id} style={{ borderBottom: "1px solid #f0ebe0" }}>
-                  <td style={{ padding: "8px", fontFamily: "monospace", color: "#c0392b", fontSize: 11 }}>{r.from_path}</td>
-                  <td style={{ padding: "8px", fontFamily: "monospace", color: "#2e7d32", fontSize: 11 }}>{r.to_path}</td>
-                  <td style={{ padding: "8px" }}>
-                    <span style={{ background: "#f0ebe0", borderRadius: 6, padding: "1px 6px", fontWeight: 700 }}>{r.code}</span>
-                  </td>
-                  <td style={{ padding: "8px", color: "#666", fontSize: 11 }}>{r.reason ?? "—"}</td>
-                  <td style={{ padding: "8px" }}>
-                    <span style={{ color: r.active ? "#2e7d32" : "#c0392b" }}>{r.active ? "✓" : "✗"}</span>
-                  </td>
-                  <td style={{ padding: "8px" }}>
-                    <form action={deleteSeoRedirect.bind(null, r.id)}>
-                      <button type="submit" className="btn-ghost" style={{ fontSize: 11, color: "#c0392b" }}>excluir</button>
-                    </form>
-                  </td>
+          <GlassCard style={{ padding: 0, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["De", "Para", "Código", "Motivo", "Ativo", ""].map(h => <th key={h} style={TH}>{h}</th>)}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
+              </thead>
+              <tbody>
+                {redirects.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "28px", textAlign: "center", color: "var(--cream-dim)", fontSize: 13 }}>
+                      Nenhum redirecionamento cadastrado.
+                    </td>
+                  </tr>
+                )}
+                {redirects.map(r => (
+                  <tr key={r.id} style={TR_STYLE}>
+                    <td style={{ ...TD, fontFamily: "monospace", fontSize: 11, color: "rgba(252,165,165,.85)" }}>{r.from_path}</td>
+                    <td style={{ ...TD, fontFamily: "monospace", fontSize: 11, color: "rgba(134,239,172,.85)" }}>{r.to_path}</td>
+                    <td style={TD}>
+                      <span style={{
+                        background: "rgba(var(--gold-rgb),.15)",
+                        border: "1px solid rgba(var(--gold-rgb),.25)",
+                        borderRadius: 6,
+                        padding: "1px 8px",
+                        fontWeight: 700,
+                        fontSize: 11,
+                        color: "var(--gold-light)",
+                      }}>{r.code}</span>
+                    </td>
+                    <td style={{ ...TD, color: "var(--cream-dim)", fontSize: 11 }}>{r.reason ?? "—"}</td>
+                    <td style={TD}><CheckMark ok={r.active} /></td>
+                    <td style={TD}>
+                      <form action={deleteSeoRedirect.bind(null, r.id) as unknown as (fd: FormData) => Promise<void>}>
+                        <button type="submit" className="btn btn-ghost" style={{ fontSize: 10, padding: "4px 10px", color: "rgba(252,165,165,.8)" }}>
+                          excluir
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </GlassCard>
+        </SectionWrap>
       )}
 
-      {/* ── SITEMAP ───────────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          SITEMAP
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "sitemap" && (
-        <Section>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Configuração do Sitemap</h2>
-          <Card>
+        <SectionWrap>
+          <SectionTitle>Configuração do Sitemap</SectionTitle>
+          <GlassCard>
             <form
               action={async (fd: FormData) => {
                 "use server";
@@ -598,231 +699,255 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
                 })));
               }}
             >
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #e0d5c5" }}>
-                    {["Tipo", "Incluir", "Prioridade", "Frequência"].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "8px", color: "#888", fontWeight: 600 }}>{h}</th>
-                    ))}
+                  <tr>
+                    {["Tipo", "Incluir", "Prioridade", "Frequência"].map(h => <th key={h} style={TH}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    { key: "product", label: "Produtos" },
+                    { key: "product",  label: "Produtos" },
                     { key: "category", label: "Categorias" },
-                    { key: "page", label: "Páginas CMS" },
-                    { key: "article", label: "Artigos do Blog" },
+                    { key: "page",     label: "Páginas CMS" },
+                    { key: "article",  label: "Artigos do Blog" },
                   ].map(row => {
                     const cfg = sitemap.find(s => s.entity_type === row.key);
                     return (
-                      <tr key={row.key} style={{ borderBottom: "1px solid #f0ebe0" }}>
-                        <td style={{ padding: "10px 8px", fontWeight: 600 }}>{row.label}</td>
-                        <td style={{ padding: "10px 8px" }}>
+                      <tr key={row.key} style={TR_STYLE}>
+                        <td style={{ ...TD, fontWeight: 600, color: "var(--cream)" }}>{row.label}</td>
+                        <td style={TD}>
                           <input
                             type="checkbox"
                             name={`${row.key}_included`}
                             defaultChecked={cfg?.included ?? true}
+                            style={{ accentColor: "var(--gold)", width: 16, height: 16, cursor: "pointer" }}
                           />
                         </td>
-                        <td style={{ padding: "10px 8px" }}>
-                          <SitemapPrioritySelect
-                            name={`${row.key}_priority`}
-                            defaultValue={String(cfg?.priority ?? 0.5)}
-                          />
+                        <td style={TD}>
+                          <SitemapPrioritySelect name={`${row.key}_priority`} defaultValue={String(cfg?.priority ?? 0.5)} />
                         </td>
-                        <td style={{ padding: "10px 8px" }}>
-                          <SitemapFreqSelect
-                            name={`${row.key}_freq`}
-                            defaultValue={cfg?.change_frequency ?? "weekly"}
-                          />
+                        <td style={TD}>
+                          <SitemapFreqSelect name={`${row.key}_freq`} defaultValue={cfg?.change_frequency ?? "weekly"} />
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              <div style={{ marginTop: 16, textAlign: "right" }}>
-                <button type="submit" className="btn" style={{ fontSize: 12 }}>Salvar configuração</button>
+              <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+                <button type="submit" className="btn btn-gold" style={{ fontSize: 11 }}>Salvar configuração</button>
               </div>
             </form>
-          </Card>
-        </Section>
+          </GlassCard>
+        </SectionWrap>
       )}
 
-      {/* ── ROBOTS ────────────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          ROBOTS
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "robots" && (
-        <Section>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Regras Robots.txt</h2>
+        <SectionWrap>
+          <SectionTitle>Regras Robots.txt</SectionTitle>
 
-          <Card style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Nova Regra</h3>
+          <GlassCard style={{ marginBottom: 20 }}>
+            <p className="eyebrow" style={{ marginBottom: 16 }}>Nova Regra</p>
             <form
               action={async (fd: FormData) => {
                 "use server";
                 await saveRobotsRule({
                   user_agent: fd.get("user_agent") as string || "*",
-                  directive: fd.get("directive") as "allow" | "disallow",
-                  path: fd.get("path") as string,
+                  directive:  fd.get("directive") as "allow" | "disallow",
+                  path:       fd.get("path") as string,
                   sort_order: Number(fd.get("sort_order")) || 0,
-                  active: true,
+                  active:     true,
                 });
               }}
-              style={{ display: "grid", gridTemplateColumns: "150px 120px 1fr 80px auto", gap: 10, alignItems: "end" }}
+              style={{ display: "grid", gridTemplateColumns: "150px 130px 1fr 80px auto", gap: 10, alignItems: "end" }}
             >
               <div>
-                <label className="label">User-agent</label>
-                <input name="user_agent" className="glass-input" defaultValue="*" placeholder="*" />
+                <Label>User-agent</Label>
+                <input name="user_agent" className="input" defaultValue="*" placeholder="*" />
               </div>
               <div>
-                <label className="label">Diretiva</label>
+                <Label>Diretiva</Label>
                 <RobotsDirectiveSelect />
               </div>
               <div>
-                <label className="label">Path</label>
-                <input name="path" className="glass-input" placeholder="/admin/" required />
+                <Label>Path</Label>
+                <input name="path" className="input" placeholder="/admin/" required />
               </div>
               <div>
-                <label className="label">Ordem</label>
-                <input name="sort_order" type="number" className="glass-input" defaultValue="0" style={{ width: 60 }} />
+                <Label>Ordem</Label>
+                <input name="sort_order" type="number" className="input" defaultValue="0" style={{ width: 70 }} />
               </div>
-              <button type="submit" className="btn" style={{ fontSize: 12 }}>Adicionar</button>
+              <button type="submit" className="btn btn-gold" style={{ fontSize: 11 }}>Adicionar</button>
             </form>
-          </Card>
+          </GlassCard>
 
-          <Card>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Preview do robots.txt</h3>
-            <pre style={{ background: "#1a1a1a", color: "#e0d5c5", padding: 16, borderRadius: 8, fontSize: 11, lineHeight: 1.7, overflowX: "auto" }}>
-              {`User-agent: *\n` + robots.filter(r => r.active).sort((a, b) => a.sort_order - b.sort_order).map(r =>
-                `${r.directive === "allow" ? "Allow" : "Disallow"}: ${r.path}`
-              ).join("\n") + "\n\nSitemap: https://floraBotanics.com.br/sitemap.xml"}
+          <GlassCard>
+            <p className="eyebrow" style={{ marginBottom: 14 }}>Preview robots.txt</p>
+            <pre style={{
+              background: "rgba(10,22,11,0.7)",
+              border: "1px solid var(--glass-border)",
+              borderRadius: "var(--radius-sm)",
+              color: "var(--cream-soft)",
+              padding: "16px 18px",
+              fontSize: 11.5,
+              lineHeight: 1.8,
+              overflowX: "auto",
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+            }}>
+              {`User-agent: *\n` +
+                robots
+                  .filter(r => r.active)
+                  .sort((a, b) => a.sort_order - b.sort_order)
+                  .map(r => `${r.directive === "allow" ? "Allow" : "Disallow"}: ${r.path}`)
+                  .join("\n") +
+                "\n\nSitemap: https://floraBotanics.com.br/sitemap.xml"}
             </pre>
-            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
               {robots.map(r => (
-                <Row key={r.id} style={{ justifyContent: "space-between", padding: "6px 8px", background: "#f9f5ef", borderRadius: 6 }}>
-                  <span style={{ fontSize: 12, fontFamily: "monospace" }}>
-                    <span style={{ color: "#888" }}>User-agent: </span>{r.user_agent}
+                <Row key={r.id} style={{
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  background: "var(--glass-bg)",
+                  border: "1px solid var(--glass-border)",
+                  borderRadius: "var(--radius-sm)",
+                }}>
+                  <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--cream-soft)" }}>
+                    <span style={{ color: "var(--cream-dim)" }}>User-agent: </span>
+                    {r.user_agent}
                     {"  "}
-                    <span style={{ color: r.directive === "allow" ? "#2e7d32" : "#c0392b" }}>
+                    <span style={{ color: r.directive === "allow" ? "rgba(134,239,172,.85)" : "rgba(252,165,165,.85)" }}>
                       {r.directive === "allow" ? "Allow" : "Disallow"}:
                     </span>
                     {" "}{r.path}
                   </span>
-                  <Row style={{ gap: 8 }}>
-                    <span style={{ fontSize: 10, color: r.active ? "#2e7d32" : "#888" }}>{r.active ? "ativo" : "inativo"}</span>
-                    <form action={deleteRobotsRule.bind(null, r.id)}>
-                      <button type="submit" className="btn-ghost" style={{ fontSize: 11, color: "#c0392b" }}>✕</button>
+                  <Row style={{ gap: 10 }}>
+                    <StatusChip
+                      label={r.active ? "ativo" : "inativo"}
+                      variant={r.active ? "green" : "ghost"}
+                    />
+                    <form action={deleteRobotsRule.bind(null, r.id) as unknown as (fd: FormData) => Promise<void>}>
+                      <button type="submit" className="btn btn-ghost" style={{ fontSize: 10, padding: "3px 9px", color: "rgba(252,165,165,.8)" }}>
+                        ✕
+                      </button>
                     </form>
                   </Row>
                 </Row>
               ))}
             </div>
-          </Card>
-        </Section>
+          </GlassCard>
+        </SectionWrap>
       )}
 
-      {/* ── AUDITORIA ─────────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          AUDITORIA
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "auditoria" && (
-        <Section>
+        <SectionWrap>
           <Row style={{ justifyContent: "space-between", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700 }}>Auditoria SEO</h2>
-            <div style={{ display: "flex", gap: 8 }}>
+            <SectionTitle>Auditoria SEO</SectionTitle>
+            <Row style={{ gap: 8, flexWrap: "wrap" }}>
               {(["product", "category", "page", "article"] as EntityType[]).map(t => (
-                <form key={t} action={runSeoAuditBulk.bind(null, t)}>
-                  <button type="submit" className="btn-secondary" style={{ fontSize: 11 }}>
-                    Auditar {t === "product" ? "produtos" : t === "category" ? "categorias" : t === "page" ? "páginas" : "artigos"}
+                <form key={t} action={runSeoAuditBulk.bind(null, t) as unknown as (fd: FormData) => Promise<void>}>
+                  <button type="submit" className="btn btn-ghost" style={{ fontSize: 10 }}>
+                    ⚑ {t === "product" ? "Produtos" : t === "category" ? "Categorias" : t === "page" ? "Páginas" : "Artigos"}
                   </button>
                 </form>
               ))}
-            </div>
+            </Row>
           </Row>
 
           {audits.length === 0 ? (
-            <Card>
-              <p style={{ textAlign: "center", color: "#888", padding: 24 }}>
-                Nenhuma auditoria executada ainda. Clique em &ldquo;Auditar&rdquo; para começar.
+            <GlassCard>
+              <p style={{ textAlign: "center", color: "var(--cream-dim)", padding: "28px 0", fontSize: 13 }}>
+                Nenhuma auditoria executada. Clique em &ldquo;⚑ Auditar&rdquo; para começar.
               </p>
-            </Card>
+            </GlassCard>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e0d5c5" }}>
-                  {["Tipo", "Score", "Issues", "Erros", "Avisos", "Info", "Executada em"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px", color: "#888", fontWeight: 600 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {audits.map(a => {
-                  const errors   = a.issues.filter(i => i.severity === "error").length;
-                  const warnings = a.issues.filter(i => i.severity === "warning").length;
-                  const infos    = a.issues.filter(i => i.severity === "info").length;
-                  return (
-                    <tr key={a.id} style={{ borderBottom: "1px solid #f0ebe0" }}>
-                      <td style={{ padding: "8px" }}>{a.entity_type}</td>
-                      <td style={{ padding: "8px" }}><Badge score={a.score ?? 0} /></td>
-                      <td style={{ padding: "8px" }}>{a.issues.length}</td>
-                      <td style={{ padding: "8px", color: errors > 0 ? "#d93025" : "#888" }}>{errors}</td>
-                      <td style={{ padding: "8px", color: warnings > 0 ? "#e37400" : "#888" }}>{warnings}</td>
-                      <td style={{ padding: "8px", color: "#666" }}>{infos}</td>
-                      <td style={{ padding: "8px", color: "#888" }}>
-                        {new Date(a.ran_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <GlassCard style={{ padding: 0, overflow: "hidden" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Tipo", "Score", "Issues", "Erros", "Avisos", "Info", "Executada em"].map(h => (
+                      <th key={h} style={TH}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {audits.map(a => {
+                    const errs  = a.issues.filter(i => i.severity === "error").length;
+                    const warns = a.issues.filter(i => i.severity === "warning").length;
+                    const infos = a.issues.filter(i => i.severity === "info").length;
+                    return (
+                      <tr key={a.id} style={TR_STYLE}>
+                        <td style={TD}>{a.entity_type}</td>
+                        <td style={TD}><ScoreBadge score={a.score ?? 0} /></td>
+                        <td style={TD}>{a.issues.length}</td>
+                        <td style={{ ...TD, color: errs  > 0 ? "rgba(252,165,165,.9)" : "var(--cream-dim)" }}>{errs}</td>
+                        <td style={{ ...TD, color: warns > 0 ? "rgba(253,224,71,.9)"  : "var(--cream-dim)" }}>{warns}</td>
+                        <td style={{ ...TD, color: "var(--cream-dim)" }}>{infos}</td>
+                        <td style={{ ...TD, color: "var(--cream-dim)", fontSize: 11 }}>
+                          {new Date(a.ran_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </GlassCard>
           )}
-        </Section>
+        </SectionWrap>
       )}
 
-      {/* ── AI VISIBILITY ─────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          AI VISIBILITY
+      ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "ai-visibility" && (
-        <Section>
-          <div style={{ marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700 }}>AI Visibility Score</h2>
-            <p style={{ fontSize: 12.5, color: "#666", marginTop: 6 }}>
+        <SectionWrap>
+          <div style={{ marginBottom: 24 }}>
+            <SectionTitle>AI Visibility Score</SectionTitle>
+            <p style={{ fontSize: 12.5, color: "var(--cream-dim)", marginTop: -12, lineHeight: 1.7 }}>
               Mede a probabilidade de seus conteúdos aparecerem em respostas de IA (SGE, ChatGPT, Perplexity, Gemini).
               Critérios: FAQ estruturado, Schema.org, conteúdo rico, entidades/palavras-chave e autoria.
             </p>
           </div>
 
           {aiScores.length === 0 ? (
-            <Card>
-              <p style={{ textAlign: "center", color: "#888", padding: 24 }}>
+            <GlassCard>
+              <p style={{ textAlign: "center", color: "var(--cream-dim)", padding: "28px 0", fontSize: 13 }}>
                 Nenhum score calculado ainda. Execute a auditoria de cada entidade para gerar os scores.
               </p>
-            </Card>
+            </GlassCard>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e0d5c5" }}>
-                  {["Tipo", "Score IA", "FAQ", "Schema", "Conteúdo Rico", "Palavras-chave", "Autoria"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px", color: "#888", fontWeight: 600 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {aiScores.map(s => {
-                  const check = (v: boolean) => (
-                    <span style={{ color: v ? "#2e7d32" : "#ccc" }}>{v ? "✓" : "✗"}</span>
-                  );
-                  return (
-                    <tr key={s.id} style={{ borderBottom: "1px solid #f0ebe0" }}>
-                      <td style={{ padding: "8px" }}>{s.entity_type}</td>
-                      <td style={{ padding: "8px" }}><Badge score={s.ai_score ?? 0} /></td>
-                      <td style={{ padding: "8px" }}>{check(s.has_faq)}</td>
-                      <td style={{ padding: "8px" }}>{check(s.has_schema)}</td>
-                      <td style={{ padding: "8px" }}>{check(s.has_rich_body)}</td>
-                      <td style={{ padding: "8px" }}>{check(s.has_entities)}</td>
-                      <td style={{ padding: "8px" }}>{check(s.has_author)}</td>
+            <GlassCard style={{ padding: 0, overflow: "hidden" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Tipo", "Score IA", "FAQ", "Schema", "Conteúdo Rico", "Keywords", "Autoria"].map(h => (
+                      <th key={h} style={TH}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiScores.map(s => (
+                    <tr key={s.id} style={TR_STYLE}>
+                      <td style={TD}>{s.entity_type}</td>
+                      <td style={TD}><ScoreBadge score={s.ai_score ?? 0} /></td>
+                      <td style={TD}><CheckMark ok={s.has_faq} /></td>
+                      <td style={TD}><CheckMark ok={s.has_schema} /></td>
+                      <td style={TD}><CheckMark ok={s.has_rich_body} /></td>
+                      <td style={TD}><CheckMark ok={s.has_entities} /></td>
+                      <td style={TD}><CheckMark ok={s.has_author} /></td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </GlassCard>
           )}
-        </Section>
+        </SectionWrap>
       )}
     </main>
   );
