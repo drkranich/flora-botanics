@@ -6,13 +6,12 @@ Gere meta tags otimizadas para a Flora Botanics, uma marca brasileira de cosmét
 Responda APENAS com JSON válido, sem texto adicional, sem markdown, sem code blocks.`;
 
 export async function POST(req: NextRequest) {
-  // Auth
   const session = await getStaffSession();
   if (!session) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   if (session.role === "tenant_editor") return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "ANTHROPIC_API_KEY não configurada" }, { status: 500 });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY não configurada" }, { status: 500 });
 
   const body = await req.json() as {
     entityType: string;
@@ -22,7 +21,9 @@ export async function POST(req: NextRequest) {
     category?: string;
   };
 
-  const userPrompt = `Entidade: ${body.entityType}
+  const userPrompt = `${systemPrompt}
+
+Entidade: ${body.entityType}
 Nome: ${body.name}
 ${body.description ? `Descrição: ${body.description}` : ""}
 ${body.category ? `Categoria: ${body.category}` : ""}
@@ -45,29 +46,28 @@ Gere um JSON com exatamente estes campos:
   const timeout = setTimeout(() => controller.abort(), 25000);
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 512,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-      signal: controller.signal,
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: userPrompt }] }],
+          generationConfig: { maxOutputTokens: 512, temperature: 0.3 },
+        }),
+        signal: controller.signal,
+      }
+    );
 
     if (!res.ok) {
       const err = await res.text().catch(() => res.status.toString());
-      return NextResponse.json({ error: `Anthropic API error ${res.status}: ${err}` }, { status: 502 });
+      return NextResponse.json({ error: `Gemini API error ${res.status}: ${err}` }, { status: 502 });
     }
 
-    const json = await res.json() as { content: { type: string; text: string }[] };
-    const text = json.content?.[0]?.text ?? "{}";
+    const json = await res.json() as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: "Resposta da IA não contém JSON válido" }, { status: 502 });
 
