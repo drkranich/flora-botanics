@@ -18,6 +18,7 @@ import {
   saveBlogArticle,
   deleteBlogArticle,
   saveBlogCategory,
+  deleteBlogCategory,
   type EntityType,
   type SeoMeta,
 } from "./actions";
@@ -506,34 +507,63 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
             </Link>
           </Row>
 
-          {/* Categorias */}
+          {/* Categorias CRUD */}
           <GlassCard style={{ marginBottom: 20 }}>
-            <p className="eyebrow" style={{ marginBottom: 12 }}>Categorias ({blogCats.length})</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {blogCats.map(c => (
-                <span key={c.id} style={{
-                  background: "rgba(var(--gold-rgb),.12)",
-                  border: "1px solid rgba(var(--gold-rgb),.3)",
-                  borderRadius: 999,
-                  padding: "3px 13px",
-                  fontSize: 12,
-                  color: "var(--gold-light)",
-                }}>
-                  {c.name}
-                </span>
-              ))}
-              <Link href="/seo/blog/categoria/nova" style={{
-                background: "transparent",
-                border: "1px dashed var(--glass-border-hover)",
-                borderRadius: 999,
-                padding: "3px 13px",
-                fontSize: 12,
-                color: "var(--gold)",
-                textDecoration: "none",
-              }}>
-                + Categoria
+            <Row style={{ justifyContent: "space-between", marginBottom: 16 }}>
+              <p className="eyebrow">Categorias ({blogCats.length})</p>
+              <Link href="/seo/blog/categoria/nova" className="btn btn-ghost" style={{ fontSize: 10, padding: "5px 12px" }}>
+                + Nova categoria
               </Link>
-            </div>
+            </Row>
+
+            {blogCats.length === 0 ? (
+              <p style={{ fontSize: 12.5, color: "var(--cream-dim)", textAlign: "center", padding: "12px 0" }}>
+                Nenhuma categoria ainda.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {blogCats.map(c => (
+                  <div key={c.id} style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto auto",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "rgba(242,236,223,.04)",
+                    border: "1px solid var(--glass-border)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "8px 12px",
+                  }}>
+                    {/* Info */}
+                    <div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--cream)" }}>{c.name}</span>
+                      <span style={{ fontSize: 11, color: "var(--cream-dim)", marginLeft: 8, fontFamily: "monospace" }}>
+                        /{c.slug}
+                      </span>
+                    </div>
+
+                    {/* Editar → vai para página de edição */}
+                    <Link
+                      href={`/seo/blog/categoria/${c.id}`}
+                      className="btn btn-ghost"
+                      style={{ fontSize: 10, padding: "4px 11px" }}
+                    >
+                      editar
+                    </Link>
+
+                    {/* Excluir */}
+                    <form action={deleteBlogCategory.bind(null, c.id) as unknown as (fd: FormData) => Promise<void>}>
+                      <button
+                        type="submit"
+                        className="btn btn-ghost"
+                        style={{ fontSize: 10, padding: "4px 11px", color: "rgba(252,165,165,.8)" }}
+                      >
+                        excluir
+                      </button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            )}
           </GlassCard>
 
           {/* Tabela de artigos */}

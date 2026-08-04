@@ -630,3 +630,19 @@ export async function saveBlogCategory(data: {
   revalidatePath("/seo/blog");
   return { ok: true };
 }
+
+export async function deleteBlogCategory(id: string) {
+  await requireAdmin();
+  const tenantId = await effectiveTenantId();
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase
+    .from("blog_categories")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/seo/blog");
+  return { ok: true };
+}
