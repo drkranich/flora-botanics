@@ -217,7 +217,7 @@ export function SeoMetaEditor({
     setAiError(null);
     startGen(async () => {
       try {
-        const res = await fetch("/api/seo-ai", {
+        const res = await fetch("/admin/api/seo-ai", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
