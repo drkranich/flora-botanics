@@ -42,13 +42,15 @@ async function resolveTenantId(supabase: Awaited<ReturnType<typeof getServerSupa
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as {
-      action:     "start" | "message";
-      name?:      string;
-      email?:     string;
-      phone?:     string;
-      topic?:     string;
-      conv_id?:   string;
-      text?:      string;
+      action:      "start" | "message" | "edit";
+      name?:       string;
+      email?:      string;
+      phone?:      string;
+      topic?:      string;
+      conv_id?:    string;
+      text?:       string;
+      attachments?: unknown[];
+      msg_id?:     string;
     };
 
     const supabase = await getServerSupabase();
