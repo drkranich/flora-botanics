@@ -566,6 +566,21 @@ export async function FiscalCenterPage({
 
   const supabase = await createClient();
 
+  // ── Seções que precisam de cada query ────────────────────────────────────────
+  // core: sempre carregadas (KPIs, error-check, visão geral)
+  // lazy: só carregadas quando a aba específica está ativa
+  const needsCofre     = ["cofre", "visao-geral", "relatorios"].includes(activeSection);
+  const needsEventos   = ["eventos"].includes(activeSection);
+  const needsRejeicoes = ["rejeicoes"].includes(activeSection);
+  const needsCerts     = ["certificados"].includes(activeSection);
+  const needsApuracao  = ["apuracao", "agenda", "relatorios"].includes(activeSection);
+  const needsContador  = ["contador"].includes(activeSection);
+  const needsGoverno   = ["governo", "filas", "visao-geral", "relatorios"].includes(activeSection);
+  const needsAuditoria = ["auditoria", "visao-geral", "relatorios"].includes(activeSection);
+
+  const empty = { data: [], error: null } as const;
+  const emptyOne = { data: null, error: null } as const;
+
   const [
     fiscalRes,
     nfeRes,
@@ -588,6 +603,7 @@ export async function FiscalCenterPage({
     fiscalAuditRes,
     vaultAuditRes,
   ] = await Promise.all([
+    // ── CORE ──────────────────────────────────────────────────────────────────
     supabase
       .from("fiscal_configs")
       .select("cnpj, ambiente, serie_nfe, proximo_numero_nfe, certificado_nome, certificado_valido_at")
@@ -624,92 +640,127 @@ export async function FiscalCenterPage({
       .eq("tenant_id", staff.tenantId)
       .order("due_date", { ascending: true, nullsFirst: false })
       .limit(80),
-    supabase
-      .from("document_vault_folders")
-      .select("id, parent_id, name, description, icon, color, department, retention_rule, access_level, tags, archived_at")
-      .eq("tenant_id", staff.tenantId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true })
-      .limit(120),
-    supabase
-      .from("fiscal_vault_documents")
-      .select("id, folder_id, name, document_type, category, department, competence, issued_at, due_date, value_cents, cnpj, cpf, access_key, number, series, status, verification_status, visibility_status, origin, storage_path, financial_control_id, archived_at, favorite, tags, notes, updated_at")
-      .eq("tenant_id", staff.tenantId)
-      .is("deleted_at", null)
-      .order("updated_at", { ascending: false })
-      .limit(80),
-    supabase
-      .from("fiscal_document_events")
-      .select("id, event_type, status, justification, protocol, created_at")
-      .eq("tenant_id", staff.tenantId)
-      .order("created_at", { ascending: false })
-      .limit(40),
-    supabase
-      .from("fiscal_rejections")
-      .select("id, code, message, step, probable_cause, recommendation, attempts, status")
-      .eq("tenant_id", staff.tenantId)
-      .order("created_at", { ascending: false })
-      .limit(40),
-    supabase
-      .from("fiscal_certificates")
-      .select("id, holder_name, certificate_type, environment, status, valid_until, secure_secret_ref")
-      .eq("tenant_id", staff.tenantId)
-      .order("valid_until", { ascending: true, nullsFirst: false })
-      .limit(20),
-    supabase
-      .from("fiscal_tax_assessments")
-      .select("id, assessment_type, competence, status, debit_cents, credit_cents, compensation_cents, balance_cents, source_summary")
-      .eq("tenant_id", staff.tenantId)
-      .order("competence", { ascending: false })
-      .limit(60),
+    // ── LAZY: cofre ───────────────────────────────────────────────────────────
+    needsCofre
+      ? supabase
+          .from("document_vault_folders")
+          .select("id, parent_id, name, description, icon, color, department, retention_rule, access_level, tags, archived_at")
+          .eq("tenant_id", staff.tenantId)
+          .is("deleted_at", null)
+          .order("name", { ascending: true })
+          .limit(120)
+      : Promise.resolve(empty),
+    needsCofre
+      ? supabase
+          .from("fiscal_vault_documents")
+          .select("id, folder_id, name, document_type, category, department, competence, issued_at, due_date, value_cents, cnpj, cpf, access_key, number, series, status, verification_status, visibility_status, origin, storage_path, financial_control_id, archived_at, favorite, tags, notes, updated_at")
+          .eq("tenant_id", staff.tenantId)
+          .is("deleted_at", null)
+          .order("updated_at", { ascending: false })
+          .limit(80)
+      : Promise.resolve(empty),
+    // ── LAZY: eventos ─────────────────────────────────────────────────────────
+    needsEventos
+      ? supabase
+          .from("fiscal_document_events")
+          .select("id, event_type, status, justification, protocol, created_at")
+          .eq("tenant_id", staff.tenantId)
+          .order("created_at", { ascending: false })
+          .limit(40)
+      : Promise.resolve(empty),
+    // ── LAZY: rejeicoes ───────────────────────────────────────────────────────
+    needsRejeicoes
+      ? supabase
+          .from("fiscal_rejections")
+          .select("id, code, message, step, probable_cause, recommendation, attempts, status")
+          .eq("tenant_id", staff.tenantId)
+          .order("created_at", { ascending: false })
+          .limit(40)
+      : Promise.resolve(empty),
+    // ── LAZY: certificados ────────────────────────────────────────────────────
+    needsCerts
+      ? supabase
+          .from("fiscal_certificates")
+          .select("id, holder_name, certificate_type, environment, status, valid_until, secure_secret_ref")
+          .eq("tenant_id", staff.tenantId)
+          .order("valid_until", { ascending: true, nullsFirst: false })
+          .limit(20)
+      : Promise.resolve(empty),
+    // ── LAZY: apuracao / agenda ───────────────────────────────────────────────
+    needsApuracao
+      ? supabase
+          .from("fiscal_tax_assessments")
+          .select("id, assessment_type, competence, status, debit_cents, credit_cents, compensation_cents, balance_cents, source_summary")
+          .eq("tenant_id", staff.tenantId)
+          .order("competence", { ascending: false })
+          .limit(60)
+      : Promise.resolve(empty),
+    // ── CORE: filas (queue jobs — usado no KPI) ───────────────────────────────
     supabase
       .from("fiscal_queue_jobs")
       .select("id, job_type, entity_type, status, attempts, max_attempts, next_attempt_at, last_error")
       .eq("tenant_id", staff.tenantId)
       .order("created_at", { ascending: false })
       .limit(40),
+    // ── CORE: contador requests (KPI) ─────────────────────────────────────────
     supabase
       .from("accountant_requests")
       .select("id, title, request_type, competence, due_date, priority, status, department")
       .eq("tenant_id", staff.tenantId)
       .order("created_at", { ascending: false })
       .limit(40),
-    supabase
-      .from("accountant_profiles")
-      .select("office_name, main_contact, email, phone, business_hours")
-      .eq("tenant_id", staff.tenantId)
-      .maybeSingle(),
-    supabase
-      .from("fiscal_monthly_closings")
-      .select("id, competence, status, progress_percent, missing_documents, blockers")
-      .eq("tenant_id", staff.tenantId)
-      .order("competence", { ascending: false })
-      .limit(24),
-    supabase
-      .from("integration_connections")
-      .select("id, provider_key, display_name, environment, status, credentials_status, credentials_ref, settings, auto_sync_enabled, sync_interval_minutes, last_sync_at, last_error")
-      .eq("tenant_id", staff.tenantId)
-      .in("provider_key", FISCAL_GOVERNMENT_PROVIDERS.map((provider) => provider.key))
-      .limit(20),
-    supabase
-      .from("integration_sync_runs")
-      .select("id, connection_id, provider_key, action, trigger, status, records_in, records_out, error, started_at, finished_at, duration_ms, created_at")
-      .eq("tenant_id", staff.tenantId)
-      .in("provider_key", FISCAL_GOVERNMENT_PROVIDERS.map((provider) => provider.key))
-      .order("created_at", { ascending: false })
-      .limit(50),
-    supabase
-      .from("fiscal_audit_events")
-      .select("id, action, entity_type, entity_id, justification, integration, protocol, environment, result, error, created_at")
-      .eq("tenant_id", staff.tenantId)
-      .order("created_at", { ascending: false })
-      .limit(80),
-    supabase
-      .from("document_vault_audit_events")
-      .select("id, vault_document_id, action, reason, created_at")
-      .eq("tenant_id", staff.tenantId)
-      .order("created_at", { ascending: false })
-      .limit(50),
+    // ── LAZY: contador profile ────────────────────────────────────────────────
+    needsContador
+      ? supabase
+          .from("accountant_profiles")
+          .select("office_name, main_contact, email, phone, business_hours")
+          .eq("tenant_id", staff.tenantId)
+          .maybeSingle()
+      : Promise.resolve(emptyOne),
+    // ── LAZY: apuracao / agenda closings ──────────────────────────────────────
+    needsApuracao
+      ? supabase
+          .from("fiscal_monthly_closings")
+          .select("id, competence, status, progress_percent, missing_documents, blockers")
+          .eq("tenant_id", staff.tenantId)
+          .order("competence", { ascending: false })
+          .limit(24)
+      : Promise.resolve(empty),
+    // ── LAZY: governo / filas integrations ────────────────────────────────────
+    needsGoverno
+      ? supabase
+          .from("integration_connections")
+          .select("id, provider_key, display_name, environment, status, credentials_status, credentials_ref, settings, auto_sync_enabled, sync_interval_minutes, last_sync_at, last_error")
+          .eq("tenant_id", staff.tenantId)
+          .in("provider_key", FISCAL_GOVERNMENT_PROVIDERS.map((provider) => provider.key))
+          .limit(20)
+      : Promise.resolve(empty),
+    needsGoverno
+      ? supabase
+          .from("integration_sync_runs")
+          .select("id, connection_id, provider_key, action, trigger, status, records_in, records_out, error, started_at, finished_at, duration_ms, created_at")
+          .eq("tenant_id", staff.tenantId)
+          .in("provider_key", FISCAL_GOVERNMENT_PROVIDERS.map((provider) => provider.key))
+          .order("created_at", { ascending: false })
+          .limit(50)
+      : Promise.resolve(empty),
+    // ── LAZY: auditoria ───────────────────────────────────────────────────────
+    needsAuditoria
+      ? supabase
+          .from("fiscal_audit_events")
+          .select("id, action, entity_type, entity_id, justification, integration, protocol, environment, result, error, created_at")
+          .eq("tenant_id", staff.tenantId)
+          .order("created_at", { ascending: false })
+          .limit(80)
+      : Promise.resolve(empty),
+    needsAuditoria
+      ? supabase
+          .from("document_vault_audit_events")
+          .select("id, vault_document_id, action, reason, created_at")
+          .eq("tenant_id", staff.tenantId)
+          .order("created_at", { ascending: false })
+          .limit(50)
+      : Promise.resolve(empty),
   ]);
 
   const fiscal = fiscalRes.data as FiscalConfigRow | null;
