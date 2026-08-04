@@ -171,22 +171,31 @@ export async function importMETrackingEvents(
       return { ok: false, imported: 0, error: "MELHOR_ENVIO_TOKEN não configurado no ambiente do admin." };
     }
 
-    const res = await fetch(
-      `https://melhorenvio.com.br/api/v2/me/shipment/tracking/${encodeURIComponent(trackingCode)}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "User-Agent": "Flora Botanics Admin (contato@florabotanics.com.br)",
-        },
-        signal: AbortSignal.timeout(15_000),
-      }
-    );
+    const meController = new AbortController();
+    const meTimer = setTimeout(() => meController.abort(), 15_000);
+    let meRes: Response;
+    try {
+      meRes = await fetch(
+        `https://melhorenvio.com.br/api/v2/me/shipment/tracking/${encodeURIComponent(trackingCode)}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            "User-Agent": "Flora Botanics Admin (contato@florabotanics.com.br)",
+          },
+          signal: meController.signal,
+        }
+      );
+    } catch (fetchErr) {
+      clearTimeout(meTimer);
+      throw fetchErr;
+    }
+    clearTimeout(meTimer);
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      let errMsg = `Erro ${res.status} da API Melhor Envio.`;
+    if (!meRes.ok) {
+      const text = await meRes.text().catch(() => "");
+      let errMsg = `Erro ${meRes.status} da API Melhor Envio.`;
       try {
         const j = JSON.parse(text);
         errMsg = j?.message ?? j?.error ?? errMsg;
@@ -194,7 +203,11 @@ export async function importMETrackingEvents(
       return { ok: false, imported: 0, error: errMsg };
     }
 
-    const raw = await res.text();
+    const raw = await meRes.text();
+    // Verifica se retornou HTML (token inválido/expirado)
+    if (raw.trimStart().startsWith("<")) {
+      return { ok: false, imported: 0, error: "Token Melhor Envio inválido ou expirado. Gere um novo token em melhorenvio.com.br → Tokens." };
+    }
     try {
       meData = JSON.parse(raw) as METrackingResponse;
     } catch {
