@@ -13,6 +13,7 @@ import {
   runSeoAudit,
   runSeoAuditBulk,
   runAiVisibilityScore,
+  runAiVisibilityScoreBulk,
   generateSeoWithAI,
   saveBlogArticle,
   deleteBlogArticle,
@@ -1027,22 +1028,7 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
               ] as { type: EntityType; label: string; badge: string }[]).map(({ type, label, badge }) => (
                 <form
                   key={type}
-                  action={async () => {
-                    "use server";
-                    const supa = await supabaseServer();
-                    const tid  = await effectiveTenantId();
-                    const tableMap: Record<EntityType, { table: string; cols: string }> = {
-                      product:  { table: "products",       cols: "id,seo,faq" },
-                      category: { table: "categories",     cols: "id,seo,faq" },
-                      page:     { table: "pages",          cols: "id,seo" },
-                      article:  { table: "blog_articles",  cols: "id,seo,faq,body_rich,author_name,published_at" },
-                    };
-                    const { table, cols } = tableMap[type];
-                    const { data: rows } = await supa.from(table).select(cols).eq("tenant_id", tid).limit(200);
-                    for (const row of rows ?? []) {
-                      await runAiVisibilityScore(type, (row as unknown as { id: string }).id);
-                    }
-                  }}
+                  action={runAiVisibilityScoreBulk.bind(null, type) as unknown as (fd: FormData) => Promise<void>}
                 >
                   <button
                     type="submit"

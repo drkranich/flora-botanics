@@ -360,6 +360,53 @@ function computeAiScore(row: {
   };
 }
 
+// Bulk: calcula todos de um tipo em uma única invocação (sem loop de subrequests)
+export async function runAiVisibilityScoreBulk(entityType: EntityType) {
+  await requireAdmin();
+  const tenantId = await effectiveTenantId();
+  const supabase = await supabaseServer();
+
+  const tableMap: Record<EntityType, { table: string; cols: string }> = {
+    product:  { table: "products",      cols: "id,seo,faq" },
+    category: { table: "categories",    cols: "id,seo,faq" },
+    page:     { table: "pages",         cols: "id,seo" },
+    article:  { table: "blog_articles", cols: "id,seo,faq,body_rich,author_name,published_at" },
+  };
+
+  const { table, cols } = tableMap[entityType];
+  const { data: rows } = await supabase
+    .from(table)
+    .select(cols)
+    .eq("tenant_id", tenantId)
+    .limit(200);
+
+  if (!rows || rows.length === 0) return { ok: true, scored: 0 };
+
+  const records = (rows as unknown as Record<string, unknown>[]).map((row) => {
+    const { score, breakdown } = computeAiScore(row as Parameters<typeof computeAiScore>[0]);
+    return {
+      tenant_id: tenantId,
+      entity_type: entityType,
+      entity_id: row.id as string,
+      ai_score: score,
+      has_faq:       !!(breakdown.hasFaq),
+      has_schema:    !!(breakdown.hasSchema),
+      has_rich_body: !!(breakdown.hasBody),
+      has_entities:  !!(breakdown.hasEntities),
+      has_author:    !!(breakdown.hasAuthor),
+      feedback: breakdown,
+    };
+  });
+
+  // Único upsert em batch — sem loop, sem subrequests extras
+  await supabase
+    .from("seo_ai_scores")
+    .upsert(records, { onConflict: "tenant_id,entity_type,entity_id" });
+
+  revalidatePath("/seo/ai-visibility");
+  return { ok: true, scored: records.length };
+}
+
 export async function runAiVisibilityScore(entityType: EntityType, entityId: string) {
   await requireAdmin();
   const tenantId = await effectiveTenantId();
