@@ -184,6 +184,7 @@ export function SeoMetaEditor({
   const [generating, startGen] = useTransition();
   const [auditing, startAudit] = useTransition();
   const [saved, setSaved]   = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [auditResult, setAuditResult] = useState<null | { score: number; issues: { code: string; severity: string; message: string }[] }>(null);
   const [keywordInput, setKeywordInput] = useState("");
 
@@ -213,10 +214,15 @@ export function SeoMetaEditor({
   }
 
   function handleGenerate() {
+    setAiError(null);
     startGen(async () => {
-      const r = await onAiGenerate({ entityType, name: entityName, description: entityDescription, keywords: meta.keywords, category: entityCategory });
-      setMeta(prev => ({ ...prev, ...r }));
-      setSaved(false);
+      try {
+        const r = await onAiGenerate({ entityType, name: entityName, description: entityDescription, keywords: meta.keywords, category: entityCategory });
+        setMeta(prev => ({ ...prev, ...r }));
+        setSaved(false);
+      } catch (e) {
+        setAiError(e instanceof Error ? e.message : "Erro ao gerar sugestão");
+      }
     });
   }
 
@@ -275,6 +281,25 @@ export function SeoMetaEditor({
           {saving ? "Salvando…" : saved ? "✓ Salvo" : "Salvar SEO"}
         </button>
       </div>
+
+      {/* ── AI error ────────────────────────────────────────────────────────── */}
+      {aiError && (
+        <div style={{
+          background: "rgba(239,68,68,.1)",
+          border: "1px solid rgba(252,165,165,.5)",
+          borderRadius: "var(--radius-sm)",
+          padding: "10px 14px",
+          fontSize: 12,
+          color: "rgba(252,165,165,.9)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <span style={{ fontWeight: 700 }}>✗</span>
+          <span>{aiError}</span>
+          <button type="button" onClick={() => setAiError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "rgba(252,165,165,.7)", fontSize: 14 }}>×</button>
+        </div>
+      )}
 
       {/* ── Audit issues ────────────────────────────────────────────────────── */}
       {auditResult && auditResult.issues.length > 0 && (
