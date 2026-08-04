@@ -246,7 +246,7 @@ function TriageModal({
               <span style={{ fontSize: 10, opacity: 0.6 }}>↗</span>
             </a>
             <button
-              onClick={async () => { const list = await getPipelineOptions(); setPipelines(list); }}
+              onClick={async () => { setLoading(true); const list = await getPipelineOptions(); setPipelines(list); setLoading(false); }}
               style={{
                 background: "none",
                 border: "none",
