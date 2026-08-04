@@ -20,19 +20,14 @@ interface Props {
 
 export function PageSeoEditor({ pageId, pageName, initialSeo, onSave, onGenerate, onAudit }: Props) {
   return (
-    <div>
-      <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#7a5c1e" }}>
-        Editando SEO: <span style={{ color: "#1a1a1a" }}>{pageName}</span>
-      </h2>
-      <SeoMetaEditor
-        entityType="page"
-        entityId={pageId}
-        entityName={pageName}
-        initial={initialSeo}
-        onSave={onSave}
-        onAiGenerate={onGenerate}
-        onRunAudit={onAudit}
-      />
-    </div>
+    <SeoMetaEditor
+      entityType="page"
+      entityId={pageId}
+      entityName={pageName}
+      initial={initialSeo}
+      onSave={onSave}
+      onAiGenerate={onGenerate}
+      onRunAudit={onAudit}
+    />
   );
 }

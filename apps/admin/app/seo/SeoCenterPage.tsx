@@ -202,7 +202,7 @@ type EntityRow   = { id: string; title?: string; name?: string; slug: string; se
 type RedirectRow = { id: string; from_path: string; to_path: string; code: number; reason: string | null; active: boolean };
 type RobotsRow   = { id: string; user_agent: string; directive: string; path: string; sort_order: number; active: boolean };
 type SitemapRow  = { entity_type: string; included: boolean; priority: number; change_frequency: string };
-type AuditRow    = { id: string; entity_type: string; entity_id: string | null; score: number | null; ran_at: string; issues: { code: string; severity: string; message: string }[] };
+type AuditRow    = { id: string; entity_type: string; entity_id: string | null; score: number | null; ran_at: string; issues: { code: string; severity: string; message: string; field?: string }[] };
 type AiScoreRow  = { id: string; entity_type: string; entity_id: string; ai_score: number | null; has_faq: boolean; has_schema: boolean; has_rich_body: boolean; has_entities: boolean; has_author: boolean };
 type BlogCategoryRow = { id: string; name: string; slug: string };
 type ArticleRow  = { id: string; title: string; slug: string; status: string; category_id: string | null; published_at: string | null; seo: SeoMeta | null; keywords: string[] };
@@ -218,7 +218,7 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
   const needsPages     = ["paginas", "dashboard"].includes(activeSection);
   const needsProducts  = ["produtos", "dashboard"].includes(activeSection);
   const needsBlog      = ["blog", "dashboard"].includes(activeSection);
-  const needsRedirects = ["redirecionamentos"].includes(activeSection);
+  const needsRedirects = ["redirecionamentos", "dashboard"].includes(activeSection);
   const needsRobots    = ["robots"].includes(activeSection);
   const needsSitemap   = ["sitemap"].includes(activeSection);
   const needsAudit     = ["auditoria", "dashboard"].includes(activeSection);
@@ -847,13 +847,24 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
       ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "auditoria" && (
         <SectionWrap>
-          <Row style={{ justifyContent: "space-between", marginBottom: 20 }}>
-            <SectionTitle>Auditoria SEO</SectionTitle>
+          {/* Header + botões de auditoria */}
+          <Row style={{ justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <SectionTitle>Auditoria SEO</SectionTitle>
+              <p style={{ fontSize: 12.5, color: "var(--cream-dim)", marginTop: -14, lineHeight: 1.7 }}>
+                Analisa title, description, OG tags, canonical e palavras-chave de cada entidade. Clique num botão para auditar em lote.
+              </p>
+            </div>
             <Row style={{ gap: 8, flexWrap: "wrap" }}>
-              {(["product", "category", "page", "article"] as EntityType[]).map(t => (
-                <form key={t} action={runSeoAuditBulk.bind(null, t) as unknown as (fd: FormData) => Promise<void>}>
-                  <button type="submit" className="btn btn-ghost" style={{ fontSize: 10 }}>
-                    ⚑ {t === "product" ? "Produtos" : t === "category" ? "Categorias" : t === "page" ? "Páginas" : "Artigos"}
+              {([
+                { type: "product",  label: "Produtos" },
+                { type: "category", label: "Categorias" },
+                { type: "page",     label: "Páginas" },
+                { type: "article",  label: "Artigos" },
+              ] as { type: EntityType; label: string }[]).map(({ type, label }) => (
+                <form key={type} action={runSeoAuditBulk.bind(null, type) as unknown as (fd: FormData) => Promise<void>}>
+                  <button type="submit" className="btn btn-ghost" style={{ fontSize: 11 }}>
+                    ⚑ Auditar {label}
                   </button>
                 </form>
               ))}
@@ -861,43 +872,99 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
           </Row>
 
           {audits.length === 0 ? (
-            <GlassCard>
-              <p style={{ textAlign: "center", color: "var(--cream-dim)", padding: "28px 0", fontSize: 13 }}>
-                Nenhuma auditoria executada. Clique em &ldquo;⚑ Auditar&rdquo; para começar.
+            <GlassCard style={{ textAlign: "center", padding: "48px 24px" }}>
+              <div style={{ fontSize: 36, marginBottom: 16, opacity: .4 }}>⚑</div>
+              <p style={{ color: "var(--cream-soft)", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                Nenhuma auditoria executada ainda
               </p>
+              <p style={{ color: "var(--cream-dim)", fontSize: 12.5, lineHeight: 1.7, maxWidth: 420, margin: "0 auto 24px" }}>
+                Clique em &ldquo;⚑ Auditar&rdquo; acima para analisar suas páginas, produtos, categorias ou artigos do blog.
+                Cada auditoria verifica title, description, OG tags, canonical e keywords.
+              </p>
+              <form action={runSeoAuditBulk.bind(null, "product") as unknown as (fd: FormData) => Promise<void>}>
+                <button type="submit" className="btn btn-gold" style={{ fontSize: 12 }}>
+                  ⚑ Começar auditoria de produtos
+                </button>
+              </form>
             </GlassCard>
           ) : (
-            <GlassCard style={{ padding: 0, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    {["Tipo", "Score", "Issues", "Erros", "Avisos", "Info", "Executada em"].map(h => (
-                      <th key={h} style={TH}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {audits.map(a => {
-                    const errs  = a.issues.filter(i => i.severity === "error").length;
-                    const warns = a.issues.filter(i => i.severity === "warning").length;
-                    const infos = a.issues.filter(i => i.severity === "info").length;
-                    return (
-                      <tr key={a.id} style={TR_STYLE}>
-                        <td style={TD}>{a.entity_type}</td>
-                        <td style={TD}><ScoreBadge score={a.score ?? 0} /></td>
-                        <td style={TD}>{a.issues.length}</td>
-                        <td style={{ ...TD, color: errs  > 0 ? "rgba(252,165,165,.9)" : "var(--cream-dim)" }}>{errs}</td>
-                        <td style={{ ...TD, color: warns > 0 ? "rgba(253,224,71,.9)"  : "var(--cream-dim)" }}>{warns}</td>
-                        <td style={{ ...TD, color: "var(--cream-dim)" }}>{infos}</td>
-                        <td style={{ ...TD, color: "var(--cream-dim)", fontSize: 11 }}>
-                          {new Date(a.ran_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </GlassCard>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {audits.map(a => {
+                const errs  = a.issues.filter(i => i.severity === "error");
+                const warns = a.issues.filter(i => i.severity === "warning");
+                const infos = a.issues.filter(i => i.severity === "info");
+                const score = a.score ?? 0;
+                return (
+                  <GlassCard key={a.id} style={{ padding: "16px 20px" }}>
+                    {/* Linha de resumo */}
+                    <Row style={{ justifyContent: "space-between", marginBottom: a.issues.length > 0 ? 14 : 0, flexWrap: "wrap", gap: 10 }}>
+                      <Row style={{ gap: 10 }}>
+                        <ScoreBadge score={score} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--cream)" }}>
+                          {a.entity_type === "product" ? "Produto" : a.entity_type === "page" ? "Página" : a.entity_type === "article" ? "Artigo" : "Categoria"}
+                        </span>
+                        {a.entity_id && (
+                          <span style={{ fontSize: 11, color: "var(--cream-dim)", fontFamily: "monospace" }}>
+                            {a.entity_id.slice(0, 8)}…
+                          </span>
+                        )}
+                      </Row>
+                      <Row style={{ gap: 10 }}>
+                        {errs.length > 0 && (
+                          <span style={{ fontSize: 11, color: "rgba(252,165,165,.9)", background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 999, padding: "2px 9px", fontWeight: 700 }}>
+                            {errs.length} erro{errs.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {warns.length > 0 && (
+                          <span style={{ fontSize: 11, color: "rgba(253,224,71,.9)", background: "rgba(234,179,8,.12)", border: "1px solid rgba(234,179,8,.2)", borderRadius: 999, padding: "2px 9px", fontWeight: 700 }}>
+                            {warns.length} aviso{warns.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {infos.length > 0 && (
+                          <span style={{ fontSize: 11, color: "var(--cream-dim)", background: "rgba(242,236,223,.06)", border: "1px solid var(--glass-border)", borderRadius: 999, padding: "2px 9px" }}>
+                            {infos.length} info
+                          </span>
+                        )}
+                        <span style={{ fontSize: 10.5, color: "var(--cream-dim)" }}>
+                          {new Date(a.ran_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </Row>
+                    </Row>
+
+                    {/* Detalhe dos issues */}
+                    {a.issues.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: "1px solid rgba(242,236,223,.07)", paddingTop: 12 }}>
+                        {a.issues.map((issue, idx) => {
+                          const isErr  = issue.severity === "error";
+                          const isWarn = issue.severity === "warning";
+                          const dotColor = isErr ? "rgba(252,165,165,.85)" : isWarn ? "rgba(253,224,71,.85)" : "rgba(242,236,223,.3)";
+                          const textColor = isErr ? "rgba(252,165,165,.9)" : isWarn ? "rgba(253,224,71,.85)" : "var(--cream-dim)";
+                          return (
+                            <Row key={idx} style={{ gap: 8, alignItems: "flex-start" }}>
+                              <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0, marginTop: 4 }} />
+                              <span style={{ fontSize: 12, color: textColor, lineHeight: 1.5 }}>
+                                {issue.message}
+                                {issue.field && (
+                                  <span style={{ fontSize: 10.5, color: "var(--cream-dim)", marginLeft: 8, fontFamily: "monospace" }}>
+                                    [{issue.field}]
+                                  </span>
+                                )}
+                              </span>
+                            </Row>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {a.issues.length === 0 && (
+                      <p style={{ fontSize: 12, color: "rgba(134,239,172,.8)", marginTop: 0 }}>
+                        ✓ Nenhum problema encontrado — SEO perfeito!
+                      </p>
+                    )}
+                  </GlassCard>
+                );
+              })}
+            </div>
           )}
         </SectionWrap>
       )}
@@ -907,45 +974,170 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
       ════════════════════════════════════════════════════════════════════════ */}
       {activeSection === "ai-visibility" && (
         <SectionWrap>
-          <div style={{ marginBottom: 24 }}>
-            <SectionTitle>AI Visibility Score</SectionTitle>
-            <p style={{ fontSize: 12.5, color: "var(--cream-dim)", marginTop: -12, lineHeight: 1.7 }}>
-              Mede a probabilidade de seus conteúdos aparecerem em respostas de IA (SGE, ChatGPT, Perplexity, Gemini).
-              Critérios: FAQ estruturado, Schema.org, conteúdo rico, entidades/palavras-chave e autoria.
-            </p>
-          </div>
+          {/* Header */}
+          <Row style={{ justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <SectionTitle>AI Visibility Score</SectionTitle>
+              <p style={{ fontSize: 12.5, color: "var(--cream-dim)", marginTop: -14, lineHeight: 1.7, maxWidth: 600 }}>
+                Mede a probabilidade de seus conteúdos aparecerem em respostas de IA (SGE, ChatGPT, Perplexity, Gemini).
+                Critérios: FAQ estruturado, Schema.org, conteúdo rico, keywords e autoria.
+              </p>
+            </div>
+          </Row>
 
+          {/* Como funciona */}
+          <GlassCard style={{ marginBottom: 20 }}>
+            <p className="eyebrow" style={{ marginBottom: 14 }}>Como é calculado</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10 }}>
+              {[
+                { icon: "❓", label: "FAQ estruturado",   pts: "+25 pts", desc: "Perguntas e respostas na página" },
+                { icon: "📋", label: "Schema.org",        pts: "+20 pts", desc: "Marcação de dados estruturados" },
+                { icon: "📝", label: "Conteúdo rico",     pts: "+20 pts", desc: "Body com texto formatado" },
+                { icon: "🔑", label: "Keywords",          pts: "+20 pts", desc: "Palavras-chave associadas" },
+                { icon: "👤", label: "Autoria",           pts: "+15 pts", desc: "Nome do autor preenchido" },
+              ].map(c => (
+                <div key={c.label} style={{
+                  background: "rgba(242,236,223,.04)",
+                  border: "1px solid var(--glass-border)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "12px 14px",
+                }}>
+                  <div style={{ fontSize: 20, marginBottom: 6 }}>{c.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--cream-soft)", marginBottom: 2 }}>{c.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--gold-light)", fontWeight: 700, marginBottom: 4 }}>{c.pts}</div>
+                  <div style={{ fontSize: 10.5, color: "var(--cream-dim)", lineHeight: 1.5 }}>{c.desc}</div>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+
+          {/* Botões para calcular scores */}
+          <GlassCard style={{ marginBottom: 20 }}>
+            <p className="eyebrow" style={{ marginBottom: 14 }}>Calcular scores em lote</p>
+            <p style={{ fontSize: 12.5, color: "var(--cream-dim)", marginBottom: 16, lineHeight: 1.6 }}>
+              Selecione o tipo de entidade para calcular o AI Visibility Score de todos os registros.
+              Artigos do blog têm o maior potencial pois suportam FAQ, autoria e conteúdo rico.
+            </p>
+            <Row style={{ gap: 10, flexWrap: "wrap" }}>
+              {([
+                { type: "article",  label: "◈ Calcular Artigos",    hint: "melhor para IA" },
+                { type: "product",  label: "◈ Calcular Produtos",   hint: "" },
+                { type: "page",     label: "◈ Calcular Páginas",    hint: "" },
+                { type: "category", label: "◈ Calcular Categorias", hint: "" },
+              ] as { type: EntityType; label: string; hint: string }[]).map(({ type, label, hint }) => (
+                <div key={type} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
+                  <form
+                    action={async () => {
+                      "use server";
+                      // Busca todos os IDs do tipo e calcula score para cada um
+                      const supa = await supabaseServer();
+                      const tid  = await effectiveTenantId();
+                      const tableMap: Record<EntityType, { table: string; cols: string }> = {
+                        product:  { table: "products",       cols: "id,seo,faq" },
+                        category: { table: "categories",     cols: "id,seo,faq" },
+                        page:     { table: "pages",          cols: "id,seo" },
+                        article:  { table: "blog_articles",  cols: "id,seo,faq,body_rich,author_name,published_at" },
+                      };
+                      const { table, cols } = tableMap[type];
+                      const { data: rows } = await supa.from(table).select(cols).eq("tenant_id", tid).limit(200);
+                      for (const row of rows ?? []) {
+                        await runAiVisibilityScore(type, (row as unknown as { id: string }).id);
+                      }
+                    }}
+                  >
+                    <button type="submit" className={type === "article" ? "btn btn-gold" : "btn btn-ghost"} style={{ fontSize: 11 }}>
+                      {label}
+                    </button>
+                  </form>
+                  {hint && <span style={{ fontSize: 10, color: "var(--gold-light)", letterSpacing: ".4px" }}>{hint}</span>}
+                </div>
+              ))}
+            </Row>
+          </GlassCard>
+
+          {/* Resultados */}
           {aiScores.length === 0 ? (
-            <GlassCard>
-              <p style={{ textAlign: "center", color: "var(--cream-dim)", padding: "28px 0", fontSize: 13 }}>
-                Nenhum score calculado ainda. Execute a auditoria de cada entidade para gerar os scores.
+            <GlassCard style={{ textAlign: "center", padding: "36px 24px" }}>
+              <div style={{ fontSize: 36, marginBottom: 14, opacity: .35 }}>◈</div>
+              <p style={{ color: "var(--cream-soft)", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                Nenhum score calculado ainda
+              </p>
+              <p style={{ color: "var(--cream-dim)", fontSize: 12.5, lineHeight: 1.7, maxWidth: 380, margin: "0 auto" }}>
+                Use os botões acima para calcular o AI Visibility Score dos seus conteúdos.
               </p>
             </GlassCard>
           ) : (
-            <GlassCard style={{ padding: 0, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    {["Tipo", "Score IA", "FAQ", "Schema", "Conteúdo Rico", "Keywords", "Autoria"].map(h => (
-                      <th key={h} style={TH}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {aiScores.map(s => (
-                    <tr key={s.id} style={TR_STYLE}>
-                      <td style={TD}>{s.entity_type}</td>
-                      <td style={TD}><ScoreBadge score={s.ai_score ?? 0} /></td>
-                      <td style={TD}><CheckMark ok={s.has_faq} /></td>
-                      <td style={TD}><CheckMark ok={s.has_schema} /></td>
-                      <td style={TD}><CheckMark ok={s.has_rich_body} /></td>
-                      <td style={TD}><CheckMark ok={s.has_entities} /></td>
-                      <td style={TD}><CheckMark ok={s.has_author} /></td>
+            <>
+              {/* KPI resumo */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 20 }}>
+                {[
+                  { label: "Score médio",         value: `${avgAiScore}/100` },
+                  { label: "Com FAQ",              value: `${aiScores.filter(s => s.has_faq).length}/${aiScores.length}` },
+                  { label: "Com Schema.org",       value: `${aiScores.filter(s => s.has_schema).length}/${aiScores.length}` },
+                  { label: "Com autoria",          value: `${aiScores.filter(s => s.has_author).length}/${aiScores.length}` },
+                ].map((kpi, i) => (
+                  <GlassCard key={i} style={{ padding: "14px 16px" }}>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: "var(--gold-light)", letterSpacing: "-1px", fontVariantNumeric: "tabular-nums" }}>
+                      {kpi.value}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--cream-dim)", marginTop: 4 }}>{kpi.label}</div>
+                  </GlassCard>
+                ))}
+              </div>
+
+              {/* Tabela detalhada */}
+              <GlassCard style={{ padding: 0, overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      {["Tipo", "Score IA", "FAQ", "Schema", "Conteúdo", "Keywords", "Autoria"].map(h => (
+                        <th key={h} style={TH}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </GlassCard>
+                  </thead>
+                  <tbody>
+                    {aiScores.map(s => {
+                      const score = s.ai_score ?? 0;
+                      return (
+                        <tr key={s.id} style={TR_STYLE}>
+                          <td style={TD}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--cream)" }}>
+                              {s.entity_type === "article" ? "Artigo" : s.entity_type === "product" ? "Produto" : s.entity_type === "page" ? "Página" : "Categoria"}
+                            </span>
+                            <span style={{ display: "block", fontSize: 10, color: "var(--cream-dim)", fontFamily: "monospace" }}>
+                              {s.entity_id.slice(0, 8)}…
+                            </span>
+                          </td>
+                          <td style={TD}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <ScoreBadge score={score} />
+                              {/* Barra de progresso */}
+                              <div style={{ flex: 1, minWidth: 60, height: 4, background: "rgba(242,236,223,.08)", borderRadius: 2, overflow: "hidden" }}>
+                                <div style={{
+                                  width: `${score}%`,
+                                  height: "100%",
+                                  borderRadius: 2,
+                                  background: score >= 80
+                                    ? "linear-gradient(90deg, rgba(134,239,172,.6), rgba(134,239,172,.9))"
+                                    : score >= 50
+                                    ? "linear-gradient(90deg, rgba(253,224,71,.5), rgba(253,224,71,.8))"
+                                    : "linear-gradient(90deg, rgba(252,165,165,.5), rgba(252,165,165,.8))",
+                                }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td style={TD}><CheckMark ok={s.has_faq} /></td>
+                          <td style={TD}><CheckMark ok={s.has_schema} /></td>
+                          <td style={TD}><CheckMark ok={s.has_rich_body} /></td>
+                          <td style={TD}><CheckMark ok={s.has_entities} /></td>
+                          <td style={TD}><CheckMark ok={s.has_author} /></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </GlassCard>
+            </>
           )}
         </SectionWrap>
       )}

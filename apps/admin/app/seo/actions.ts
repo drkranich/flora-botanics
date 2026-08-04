@@ -380,7 +380,7 @@ export async function runAiVisibilityScore(entityType: EntityType, entityId: str
     .eq("tenant_id", tenantId)
     .single();
 
-  const { score, breakdown } = computeAiScore(row ?? {});
+  const { score, breakdown } = computeAiScore((row ?? {}) as Parameters<typeof computeAiScore>[0]);
 
   await supabase.from("seo_ai_scores").upsert(
     {
