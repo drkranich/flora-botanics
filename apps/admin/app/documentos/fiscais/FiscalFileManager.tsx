@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import { GlassSelect } from "@/components/GlassSelect";
 import {
   createFiscalFolder,
@@ -110,12 +109,13 @@ function UploadModal({ folders, defaultType, defaultCompetence, onClose }: {
     start(async () => {
       try {
         setProgress("Enviando arquivo…");
-        const supabase = supabaseBrowser();
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `fiscal/${Date.now()}_${safeName}`;
-        const { error: upErr } = await supabase.storage.from("fiscal-documents")
-          .upload(path, file, { contentType: file.type || "application/pdf", upsert: false });
-        if (upErr) { setErr(`Upload falhou: ${upErr.message}`); setProgress(null); return; }
+        const upFd = new FormData();
+        upFd.set("file", file);
+        upFd.set("kind", "fiscais");
+        const upRes = await fetch("/admin/api/fiscal-files", { method: "POST", body: upFd });
+        const upJson = await upRes.json();
+        if (!upRes.ok) { setErr(`Upload falhou: ${upJson.error ?? upRes.statusText}`); setProgress(null); return; }
+        const path: string = upJson.file.path;
 
         setProgress("Registrando…");
         fd.set("storage_path", path);

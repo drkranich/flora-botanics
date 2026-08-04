@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import { GlassSelect } from "@/components/GlassSelect";
 import { GlassDateInput } from "@/components/GlassDateInput";
 import {
@@ -356,13 +355,14 @@ function DocDrawer({ doc, onClose, onUpdate, onDelete }: {
     setComprErr(null);
     startCompr(async () => {
       try {
-        const supabase = supabaseBrowser();
-        const safeName = comprFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `comprovantes/${Date.now()}_${safeName}`;
-        const { error } = await supabase.storage
-          .from("fiscal-documents")
-          .upload(path, comprFile, { contentType: comprFile.type || "application/pdf", upsert: false });
-        if (error) { setComprErr(error.message); return; }
+        const upFd = new FormData();
+        upFd.set("file", comprFile);
+        upFd.set("kind", "comprovantes");
+        const upRes = await fetch("/admin/api/fiscal-files", { method: "POST", body: upFd });
+        const upJson = await upRes.json();
+        if (!upRes.ok) { setComprErr(upJson.error ?? upRes.statusText); return; }
+        const path: string = upJson.file.path;
+        if (!path) { setComprErr("Caminho do arquivo não retornado."); return; }
         // Atualiza o documento original com o comprovante
         const fd = new FormData();
         fd.set("name", doc.name);
@@ -710,14 +710,13 @@ function UploadModal({ onClose }: { onClose: () => void }) {
         let storagePath = "";
         if (file) {
           setProgress("Enviando arquivo…");
-          const supabase = supabaseBrowser();
-          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-          const path = `received/${Date.now()}_${safeName}`;
-          const { error: upErr } = await supabase.storage
-            .from("fiscal-documents")
-            .upload(path, file, { contentType: file.type || "application/pdf", upsert: false });
-          if (upErr) { setErr(`Upload falhou: ${upErr.message}`); setProgress(null); return; }
-          storagePath = path;
+          const upFd = new FormData();
+          upFd.set("file", file);
+          upFd.set("kind", "recebidos");
+          const upRes = await fetch("/admin/api/fiscal-files", { method: "POST", body: upFd });
+          const upJson = await upRes.json();
+          if (!upRes.ok) { setErr(`Upload falhou: ${upJson.error ?? upRes.statusText}`); setProgress(null); return; }
+          storagePath = upJson.file.path;
           fd.set("size_bytes", String(file.size));
         }
 
@@ -727,13 +726,7 @@ function UploadModal({ onClose }: { onClose: () => void }) {
 
         setProgress("Registrando…");
         const res = await saveReceivedDoc(fd);
-        if (!res.ok) {
-          if (storagePath) {
-            const supabase = supabaseBrowser();
-            await supabase.storage.from("fiscal-documents").remove([storagePath]);
-          }
-          setErr(res.error ?? "Erro."); setProgress(null); return;
-        }
+        if (!res.ok) { setErr(res.error ?? "Erro."); setProgress(null); return; }
         onClose();
       } catch (ex) {
         setErr(ex instanceof Error ? ex.message : "Erro inesperado."); setProgress(null);
