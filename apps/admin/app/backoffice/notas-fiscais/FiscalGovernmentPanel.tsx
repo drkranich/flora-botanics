@@ -99,24 +99,27 @@ export function FiscalGovernmentPanel({ connections }: { connections: Connection
                 borderColor: tone === "danger" ? "rgba(232,160,160,0.42)" : tone === "warn" ? "rgba(var(--gold-rgb),0.42)" : "var(--glass-border)",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+              {/* ── Header — altura fixa para alinhar todos os cards ── */}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", minHeight: 110 }}>
                 <div>
                   <span className="eyebrow">{provider.scope}</span>
-                  <h3 style={{ margin: "7px 0 6px", color: "var(--cream)", fontSize: 19 }}>{provider.title}</h3>
+                  <h3 style={{ margin: "7px 0 6px", color: "var(--cream)", fontSize: 19, lineHeight: 1.25 }}>{provider.title}</h3>
                   <p className="muted" style={{ margin: 0, lineHeight: 1.55, fontSize: 12.5 }}>
                     {provider.description}
                   </p>
                 </div>
-                <span className={`fiscal-chip fiscal-chip-${tone}`}>{connection?.status ?? "offline"}</span>
+                <span className={`fiscal-chip fiscal-chip-${tone}`} style={{ flexShrink: 0 }}>{connection?.status ?? "offline"}</span>
               </div>
 
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {/* ── Chips — altura fixa para absorver variação de quebra ── */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", minHeight: 52, alignContent: "flex-start" }}>
                 {provider.guideTypes.map((guide) => (
                   <span key={guide} className="fiscal-chip fiscal-chip-draft">{guide}</span>
                 ))}
               </div>
 
-              <div style={{ display: "grid", gap: 4 }}>
+              {/* ── Status — altura fixa ── */}
+              <div style={{ display: "grid", gap: 4, minHeight: 40 }}>
                 <small className="muted">Credenciais: {credentialsLabel(connection?.credentials_status)}</small>
                 <small className="muted">Última sincronização: {formatDateTime(connection?.last_sync_at ?? null)}</small>
                 {connection?.last_error ? <small style={{ color: "#e8a0a0", lineHeight: 1.5 }}>{connection.last_error}</small> : null}
