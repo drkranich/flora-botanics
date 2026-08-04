@@ -73,6 +73,8 @@ export function InboxList({ queue, selectedId, onSelect, refreshKey }: Props) {
     unassigned: "Não atribuídos", urgent: "Urgentes",
     waiting_customer: "Aguardando cliente", waiting_team: "Aguardando equipe",
     resolved: "Resolvidos", archived: "Arquivados", spam: "Spam", all: "Todos",
+    ch_whatsapp: "WhatsApp", ch_instagram: "Instagram",
+    ch_email: "E-mail", ch_chat: "Chat",
   };
 
   return (
