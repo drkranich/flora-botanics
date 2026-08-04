@@ -946,7 +946,7 @@ export function ReceivedDocsManager({ docs: initDocs }: { docs: ReceivedDoc[] })
       </aside>
 
       {/* ── Área principal ───────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, minWidth: 0, padding: "0 0 0 28px" }}>
+      <div style={{ flex: 1, minWidth: 0, padding: "0 0 0 28px", overflow: "hidden" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
@@ -979,7 +979,7 @@ export function ReceivedDocsManager({ docs: initDocs }: { docs: ReceivedDoc[] })
         </div>
 
         {/* Tabela */}
-        <div className="glass" style={{ borderRadius: 14, overflow: "hidden", padding: 0 }}>
+        <div className="glass" style={{ borderRadius: 14, overflowX: "auto", padding: 0 }}>
           {visible.length === 0 ? (
             <div style={{ textAlign: "center", padding: "56px 24px" }}>
               <p style={{ fontSize: 36, marginBottom: 10 }}>📭</p>
