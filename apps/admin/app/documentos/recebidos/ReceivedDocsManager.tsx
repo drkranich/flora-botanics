@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
 import { GlassSelect } from "@/components/GlassSelect";
 import { GlassDateInput } from "@/components/GlassDateInput";
@@ -177,7 +178,7 @@ function StatusBadge({ status, size = "sm" }: { status: string; size?: "sm" | "m
   );
 }
 
-// ── Dropdown de ações de status ───────────────────────────────────────────────
+// ── Dropdown de ações de status (com portal — escapa de overflow:hidden) ──────
 
 function StatusActionsMenu({ doc, onUpdate, inline = false }: {
   doc: ReceivedDoc;
@@ -185,13 +186,98 @@ function StatusActionsMenu({ doc, onUpdate, inline = false }: {
   inline?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const transitions = STATUS_TRANSITIONS[doc.status] ?? [];
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const width = Math.max(200, rect.width);
+    const left = Math.min(
+      Math.max(8, rect.right - width),
+      window.innerWidth - width - 8,
+    );
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const menuH = transitions.length * 44 + 12;
+    const openUp = spaceBelow < menuH + 8 && rect.top > menuH;
+    setMenuStyle({
+      position: "fixed",
+      zIndex: 2147483647,
+      left,
+      width,
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + 4, top: "auto" }
+        : { top: rect.bottom + 4, bottom: "auto" }),
+    });
+  }, [transitions.length]);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, updatePosition]);
+
   if (transitions.length === 0) return null;
 
+  const menu = open && mounted ? createPortal(
+    <>
+      {/* backdrop invisível para fechar */}
+      <div
+        onClick={() => setOpen(false)}
+        style={{ position: "fixed", inset: 0, zIndex: 2147483646 }}
+      />
+      <div
+        className="glass"
+        style={{
+          ...menuStyle,
+          borderRadius: 10,
+          padding: "6px 0",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          border: "1px solid rgba(255,255,255,0.1)",
+        }}
+      >
+        {transitions.map(t => (
+          <button
+            key={t.next}
+            onClick={() => {
+              setOpen(false);
+              const paid = t.next === "paid" ? new Date().toISOString().slice(0, 10) : null;
+              onUpdate(doc.id, t.next, paid);
+            }}
+            style={{
+              display: "block", width: "100%", textAlign: "left",
+              padding: "10px 16px", background: "none", border: "none",
+              cursor: "pointer", fontSize: 13,
+              color: t.next === "paid"    ? "#4ade80"
+                   : t.next === "overdue" ? "#e85050"
+                   : t.next === "open"    ? "#b0a898"
+                   : "var(--cream-dim)",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "none")}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </>,
+    document.body,
+  ) : null;
+
   return (
-    <div style={{ position: "relative", display: inline ? "inline-block" : "block" }}>
+    <div style={{ display: inline ? "inline-block" : "block" }}>
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={triggerRef}
+        onClick={() => { if (!open) updatePosition(); setOpen(o => !o); }}
         style={{
           background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
           borderRadius: 6, padding: inline ? "4px 10px" : "7px 14px", cursor: "pointer",
@@ -200,40 +286,7 @@ function StatusActionsMenu({ doc, onUpdate, inline = false }: {
       >
         ⚡ {inline ? "Ações ▾" : "Alterar status ▾"}
       </button>
-
-      {open && (
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 90 }} />
-          <div className="glass" style={{
-            position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 100,
-            minWidth: 200, borderRadius: 10, padding: "6px 0", boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          }}>
-            {transitions.map(t => (
-              <button
-                key={t.next}
-                onClick={() => {
-                  setOpen(false);
-                  const paid = t.next === "paid" ? new Date().toISOString().slice(0, 10) : null;
-                  onUpdate(doc.id, t.next, paid);
-                }}
-                style={{
-                  display: "block", width: "100%", textAlign: "left",
-                  padding: "10px 16px", background: "none", border: "none",
-                  cursor: "pointer", fontSize: 13,
-                  color: t.next === "paid" ? "#4ade80"
-                       : t.next === "overdue" ? "#e85050"
-                       : t.next === "open" ? "#b0a898"
-                       : "var(--cream-dim)",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      {menu}
     </div>
   );
 }
