@@ -58,7 +58,7 @@ interface Props {
 function SerpPreview({ title, description, url }: { title: string; description: string; url: string }) {
   const displayTitle = title || "Título da página";
   const displayDesc  = description || "Meta description da página...";
-  const displayUrl   = url || "floraBotanics.com.br/exemplo";
+  const displayUrl   = url || "florabotanics.com.br/exemplo";
 
   const titleLen = displayTitle.length;
   const titleColor =
@@ -338,7 +338,7 @@ export function SeoMetaEditor({
       <SerpPreview
         title={meta.title ?? ""}
         description={meta.description ?? ""}
-        url={`floraBotanics.com.br/${entityType}/${entityName.toLowerCase().replace(/\s+/g, "-")}`}
+        url={`florabotanics.com.br/${entityType}/${entityName.toLowerCase().replace(/\s+/g, "-")}`}
       />
 
       {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
@@ -454,7 +454,7 @@ export function SeoMetaEditor({
           </div>
           <div>
             <label style={FL}>og:image (URL)</label>
-            <input className="input" value={meta.og_image ?? ""} onChange={e => set("og_image", e.target.value)} placeholder="https://floraBotanics.com.br/og/produto.jpg (1200×630px ideal)" />
+            <input className="input" value={meta.og_image ?? ""} onChange={e => set("og_image", e.target.value)} placeholder="https://florabotanics.com.br/og/produto.jpg (1200×630px ideal)" />
           </div>
           <div style={{ borderTop: "1px solid var(--glass-border)", paddingTop: 14 }}>
             <label style={{ ...FL, marginBottom: 10 }}>Twitter Card</label>
@@ -500,7 +500,7 @@ export function SeoMetaEditor({
         <div style={{ ...GLASS_CARD, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={FL}>URL Canônica</label>
-            <input className="input" value={meta.canonical ?? ""} onChange={e => set("canonical", e.target.value)} placeholder="https://floraBotanics.com.br/produtos/meu-produto (vazio = automático)" />
+            <input className="input" value={meta.canonical ?? ""} onChange={e => set("canonical", e.target.value)} placeholder="https://florabotanics.com.br/produtos/meu-produto (vazio = automático)" />
           </div>
           <div>
             <label style={{ ...FL, marginBottom: 10 }}>Robots</label>

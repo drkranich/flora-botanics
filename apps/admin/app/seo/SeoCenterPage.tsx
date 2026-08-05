@@ -835,7 +835,7 @@ export async function SeoCenterPage({ activeSection }: { activeSection: SeoSecti
                   .sort((a, b) => a.sort_order - b.sort_order)
                   .map(r => `${r.directive === "allow" ? "Allow" : "Disallow"}: ${r.path}`)
                   .join("\n") +
-                "\n\nSitemap: https://floraBotanics.com.br/sitemap.xml"}
+                "\n\nSitemap: https://florabotanics.com.br/sitemap.xml"}
             </pre>
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
               {robots.map(r => (

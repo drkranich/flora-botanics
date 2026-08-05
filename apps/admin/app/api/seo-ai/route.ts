@@ -60,8 +60,19 @@ Gere um JSON com exatamente estes campos:
     );
 
     if (!res.ok) {
-      const err = await res.text().catch(() => res.status.toString());
-      return NextResponse.json({ error: `Gemini API error ${res.status}: ${err}` }, { status: 502 });
+      const errText = await res.text().catch(() => "");
+      let friendlyError = `Gemini API error ${res.status}`;
+      if (res.status === 429) {
+        friendlyError = "Cota da API de IA atingida. Tente novamente em alguns minutos.";
+      } else if (res.status === 401 || res.status === 403) {
+        friendlyError = "Chave de API inválida ou sem permissão.";
+      } else {
+        try {
+          const errJson = JSON.parse(errText) as { error?: { message?: string } };
+          if (errJson?.error?.message) friendlyError = errJson.error.message;
+        } catch { /* keep default */ }
+      }
+      return NextResponse.json({ error: friendlyError }, { status: 502 });
     }
 
     const json = await res.json() as {
