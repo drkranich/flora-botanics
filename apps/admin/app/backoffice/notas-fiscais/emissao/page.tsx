@@ -107,11 +107,23 @@ export default async function EmissaoPage() {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 28, maxWidth: 1300, margin: "0 auto", padding: "40px 24px 80px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 0, padding: "32px 28px 80px 0" }}>
 
       {/* ── Sidebar nav ── */}
       <nav style={navStyle}>
-        <p className="eyebrow" style={{ fontSize: 10, opacity: 0.5, marginBottom: 6, paddingLeft: 4 }}>FISCAL</p>
+        {/* Voltar */}
+        <Link
+          href="/backoffice/notas-fiscais"
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "7px 12px", borderRadius: 8, fontSize: 12,
+            color: "rgba(245,236,220,0.45)", textDecoration: "none",
+            marginBottom: 8, border: "1px solid transparent",
+          }}
+        >
+          ← Fiscal e Tributário
+        </Link>
+        <p className="eyebrow" style={{ fontSize: 10, opacity: 0.4, marginBottom: 4, paddingLeft: 12 }}>FISCAL</p>
         {FISCAL_SECTIONS.map((s) => (
           <Link
             key={s.id}
