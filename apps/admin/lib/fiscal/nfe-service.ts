@@ -20,10 +20,13 @@ export interface NFeInput {
   itens: NFeItem[];
   pagamentos: NFePagamento[];
   config: NFeConfig;
-  /** Base64 do arquivo .pfx */
-  pfxBase64: string;
-  /** Senha do certificado A1 */
-  pfxSenha: string;
+  /**
+   * @deprecated v26 — Edge Function carrega o cert do Storage automaticamente.
+   * Mantido apenas para compatibilidade com código legado; ignorado pelo handler.
+   */
+  pfxBase64?: string;
+  /** @deprecated v26 — ignorado pelo handler. */
+  pfxSenha?: string;
 }
 
 export interface NFeResult {
@@ -57,6 +60,7 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     const edgeFnUrl = `${supabaseUrl}/functions/v1/sefaz-nfe`;
 
+    // v26: cert carregado do Storage pela Edge Function — não envia pfxBase64/pfxSenha
     const efResponse = await fetch(edgeFnUrl, {
       method: "POST",
       headers: {
@@ -65,8 +69,6 @@ export async function emitirNFe(input: NFeInput): Promise<NFeResult> {
         "apikey": supabaseAnonKey,
       },
       body: JSON.stringify({
-        pfxBase64: input.pfxBase64,
-        pfxSenha:  input.pfxSenha,
         nfeInput: {
           emitente:     input.emitente,
           destinatario: input.destinatario,
