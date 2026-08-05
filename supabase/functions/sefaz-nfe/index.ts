@@ -1,21 +1,16 @@
 /**
- * Edge Function: sefaz-nfe  v25
+ * Edge Function: sefaz-nfe  v26
  *
  * Recebe dados brutos da NF-e, constrói o XML, assina (XMLDSig) e transmite
  * ao SEFAZ via mTLS — tudo dentro do Deno/Supabase.
  *
- * O Cloudflare Worker não executa mais node-forge (evita erro 1102).
+ * Certificado A1: lido do Supabase Storage (bucket "sefaz-certs", arquivo
+ * "Certificado-A1.pfx"). Senha: lida do secret SEFAZ_CERT_PASSWORD.
+ * Nenhuma credencial precisa ser enviada no body da requisição.
  *
  * Input (POST JSON):
  *   {
- *     // Dados para construir + assinar + transmitir
- *     nfeInput: NFeInput,   // emitente, destinatario, itens, pagamentos, config
- *     pfxBase64: string,
- *     pfxSenha:  string,
- *     // OU: envelope já pronto (legado)
- *     url?:      string,
- *     soapBody?: string,
- *     soapAction?: string,
+ *     nfeInput: NFeInput,  // emitente, destinatario, itens, pagamentos, config
  *   }
  *
  * Output:
@@ -25,6 +20,35 @@
 
 // @ts-ignore
 import forge from "npm:node-forge@1.3.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// ---------------------------------------------------------------------------
+// Carrega certificado A1 do Storage + senha do Secret
+// ---------------------------------------------------------------------------
+
+async function loadCertFromStorage(): Promise<{ pfxBase64: string; pfxSenha: string }> {
+  const pfxSenha = Deno.env.get("SEFAZ_CERT_PASSWORD");
+  if (!pfxSenha) throw new Error("Secret SEFAZ_CERT_PASSWORD não configurado.");
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceKey) throw new Error("Variáveis SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY ausentes.");
+
+  const supabase = createClient(supabaseUrl, serviceKey);
+  const { data, error } = await supabase.storage
+    .from("sefaz-certs")
+    .download("Certificado-A1.pfx");
+
+  if (error || !data) throw new Error(`Falha ao baixar certificado do Storage: ${error?.message ?? "sem dados"}`);
+
+  const arrayBuffer = await data.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  const pfxBase64 = btoa(binary);
+
+  return { pfxBase64, pfxSenha };
+}
 
 // ---------------------------------------------------------------------------
 // Domínios SEFAZ permitidos
@@ -565,15 +589,22 @@ Deno.serve(async (req: Request) => {
     return Response.json({ ok: false, error: "JSON inválido." }, { status: 400 });
   }
 
-  const { pfxBase64, pfxSenha, nfeInput } = body as {
-    pfxBase64?: string; pfxSenha?: string; nfeInput?: Record<string, unknown>;
-  };
+  const { nfeInput } = body as { nfeInput?: Record<string, unknown> };
 
-  if (!pfxBase64 || !pfxSenha || !nfeInput) {
-    return Response.json({ ok: false, error: "Campos obrigatórios: pfxBase64, pfxSenha, nfeInput." }, { status: 400 });
+  if (!nfeInput) {
+    return Response.json({ ok: false, error: "Campo obrigatório: nfeInput." }, { status: 400 });
   }
 
   try {
+    // 0. Carrega certificado do Storage + senha do Secret
+    let pfxBase64: string, pfxSenha: string;
+    try {
+      ({ pfxBase64, pfxSenha } = await loadCertFromStorage());
+    } catch (certLoadErr) {
+      const msg = certLoadErr instanceof Error ? certLoadErr.message : String(certLoadErr);
+      return Response.json({ ok: false, error: `Falha ao carregar certificado: ${msg}` }, { status: 500 });
+    }
+
     // 1. Extrai PEM para mTLS
     let leafCertPem: string, pkcs1KeyPem: string;
     try {
