@@ -26,6 +26,8 @@ const TYPES = [
   { value: "guias",            label: "Guias fiscais" },
   { value: "dctfweb",          label: "DCTFWeb" },
   { value: "esocial",          label: "eSocial" },
+  { value: "prolabore",        label: "Pró-Labore" },
+  { value: "pagamentos-func",  label: "Pagamentos funcionários" },
   { value: "contratos",        label: "Contratos" },
   { value: "outros",           label: "Outros" },
 ];
