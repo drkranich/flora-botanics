@@ -1,5 +1,5 @@
 /**
- * Edge Function: sefaz-nfe  v26
+ * Edge Function: sefaz-nfe  v27
  *
  * Recebe dados brutos da NF-e, constrói o XML, assina (XMLDSig) e transmite
  * ao SEFAZ via mTLS — tudo dentro do Deno/Supabase.
@@ -101,7 +101,7 @@ const ENDPOINTS: Record<string, { prod: string; hom: string }> = {
   AM: { prod:"https://nfe.sefaz.am.gov.br/services2/services/NfeAutorizacao4",    hom:"https://homnfe.sefaz.am.gov.br/services2/services/NfeAutorizacao4" },
   BA: { prod:"https://nfe.sefaz.ba.gov.br/webservices/NFeAutorizacao4/NFeAutorizacao4.asmx", hom:"https://hnfe.sefaz.ba.gov.br/webservices/NFeAutorizacao4/NFeAutorizacao4.asmx" },
   GO: { prod:"https://nfe.sefaz.go.gov.br/nfe/services/NFeAutorizacao4",          hom:"https://homolog.sefaz.go.gov.br/nfe/services/NFeAutorizacao4" },
-  MG: { prod:"https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4",       hom:"https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx" },
+  MG: { prod:"https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4",       hom:"https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4" },
   MS: { prod:"https://nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4",                    hom:"https://hom.nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4" },
   MT: { prod:"https://nfe.sefaz.mt.gov.br/nfews/v2/services/NfeAutorizacao4",     hom:"https://homologacao.sefaz.mt.gov.br/nfews/v2/services/NfeAutorizacao4" },
   PE: { prod:"https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeAutorizacao4",  hom:"https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeAutorizacao4" },
@@ -525,12 +525,12 @@ async function httpsPostMtlsForge(
   const statusCode  = statusMatch ? parseInt(statusMatch[1]) : 0;
   const isChunked   = headersRaw.toLowerCase().includes("transfer-encoding: chunked");
 
-  console.log("[sefaz-nfe v25] HTTP status:", statusCode, "| chunked:", isChunked);
+  console.log("[sefaz-nfe v27] HTTP status:", statusCode, "| chunked:", isChunked);
 
   const bodyDecoded  = isChunked ? decodeChunkedBin(bodyRaw) : bodyRaw;
   const xmlResponse  = new TextDecoder("utf-8").decode(binToBytes(bodyDecoded));
 
-  console.log("[sefaz-nfe v25] xmlResponse[0..600]:", xmlResponse.slice(0, 600));
+  console.log("[sefaz-nfe v27] xmlResponse[0..600]:", xmlResponse.slice(0, 600));
 
   if (xmlResponse.trimStart().startsWith("<!") || xmlResponse.trimStart().startsWith("<html")) {
     throw new Error(`SEFAZ retornou HTML (status ${statusCode}). Snippet: ${xmlResponse.slice(0, 600)}`);
