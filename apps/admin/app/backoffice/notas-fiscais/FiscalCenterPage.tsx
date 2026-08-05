@@ -135,6 +135,7 @@ export const FISCAL_SECTIONS = [
   { id: "comercio-exterior", label: "Comércio Exterior", href: "/backoffice/notas-fiscais/comercio-exterior" },
   { id: "documentos", label: "Documentos fiscais", href: "/backoffice/notas-fiscais/documentos" },
   { id: "emissao", label: "Emissão de NF-e", href: "/backoffice/notas-fiscais/emissao" },
+  { id: "ecac", label: "e-CAC / SERPRO", href: "/backoffice/notas-fiscais/ecac" },
   { id: "eventos", label: "Eventos fiscais", href: "/backoffice/notas-fiscais/eventos" },
   { id: "rejeicoes", label: "Rejeições SEFAZ", href: "/backoffice/notas-fiscais/rejeicoes" },
   { id: "apuracao", label: "Apuração e escriturações", href: "/backoffice/notas-fiscais/apuracao" },
